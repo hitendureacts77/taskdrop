@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskDrop Roadmap</title>
+<meta name="description" content="How TaskDrop gets to launch: every phase, task and gate from the plan, with what is done.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fbfaf5;
+  --ink: #1d2733;
+  --muted: #6b7684;
+  --line: #4a8cf0;
+  --phase: #cfe5ff;
+  --phase-line: #4a8cf0;
+  --topic: #ffe68a;
+  --topic-line: #cfa92a;
+  --topic-ink: #3a3010;
+  --panel: #ffffff;
+  --panel-line: #8fb5ee;
+  --done: #23995a;
+  --prog: #2f7bf0;
+  --future: #8b94a0;
+  --card: #ffffff;
+  --shadow: rgba(29, 39, 51, .18);
+  --gate: #fff3d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d; --ink: #e8edf4; --muted: #9aa5b4; --line: #5b9bff;
+    --phase: #1f3a5f; --phase-line: #5b9bff; --topic: #4f4413; --topic-line: #a8902b; --topic-ink: #fbefc1;
+    --panel: #1a212b; --panel-line: #3d5f94; --done: #4cc98a; --prog: #6aa6ff; --future: #8c96a4;
+    --card: #1a212b; --shadow: rgba(0, 0, 0, .5); --gate: #3a3220;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d; --ink: #e8edf4; --muted: #9aa5b4; --line: #5b9bff;
+  --phase: #1f3a5f; --phase-line: #5b9bff; --topic: #4f4413; --topic-line: #a8902b; --topic-ink: #fbefc1;
+  --panel: #1a212b; --panel-line: #3d5f94; --done: #4cc98a; --prog: #6aa6ff; --future: #8c96a4;
+  --card: #1a212b; --shadow: rgba(0, 0, 0, .5); --gate: #3a3220;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font-family: "Patrick Hand", "Kalam", "Comic Sans MS", cursive, sans-serif; font-size: 17px; line-height: 1.25; }
+button { font: inherit; color: inherit; }
+
+header.top { padding: 18px 16px 10px; max-width: 1100px; margin: 0 auto; text-align: center; }
+h1 { font-family: "Kalam", "Patrick Hand", cursive; font-size: clamp(30px, 6vw, 52px); margin: 0 0 4px; font-weight: 700; letter-spacing: .5px; }
+.sub { color: var(--muted); margin: 0 0 12px; font-size: 18px; }
+.overall { display: flex; align-items: center; gap: 12px; max-width: 640px; margin: 0 auto; }
+.bar { flex: 1; height: 18px; border: 2px solid var(--line); border-radius: 12px 14px 11px 13px / 13px 11px 14px 12px; background: var(--card); overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; }
+.bar .b-done { background: var(--done); }
+.bar .b-prog { background: var(--prog); opacity: .55; }
+.overall b { white-space: nowrap; font-size: 18px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center; margin: 10px 0 0; font-size: 15px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.theme { position: absolute; top: 10px; right: 12px; border: 2px solid var(--line); background: var(--card); border-radius: 10px; padding: 3px 10px; cursor: pointer; }
+
+.stage { position: relative; }
+.viewport { position: relative; height: calc(100vh - 175px); min-height: 480px; overflow: hidden; border-top: 2px dashed var(--panel-line); cursor: grab; touch-action: none; }
+.viewport.drag { cursor: grabbing; }
+.zoom { position: absolute; top: 10px; left: 10px; z-index: 20; display: flex; gap: 6px; }
+.zoom button { width: 40px; height: 40px; border: 2px solid var(--line); border-radius: 12px 10px 13px 11px; background: var(--card); font-size: 22px; line-height: 1; cursor: pointer; box-shadow: 2px 2px 0 var(--shadow); }
+.zoom button.fit { width: auto; padding: 0 12px; font-size: 16px; }
+.zoom button:hover { background: var(--phase); }
+.zoomlvl { align-self: center; color: var(--muted); font-size: 14px; min-width: 40px; }
+#canvas { position: absolute; left: 0; top: 0; width: 1500px; transform-origin: 0 0; padding: 30px 0 80px; }
+svg#links { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+svg#links path { fill: none; stroke: var(--line); stroke-width: 2.4; stroke-linecap: round; }
+svg#links path.dot { stroke-dasharray: 2 7; stroke-width: 2.6; }
+
+.phase { position: relative; display: grid; grid-template-columns: 1fr 250px 1fr; align-items: start; margin-bottom: 14px; }
+.center { position: relative; display: flex; flex-direction: column; align-items: center; align-self: stretch; }
+.center::before { content: ""; position: absolute; left: 50%; top: 0; bottom: -14px; width: 0; border-left: 3px solid var(--line); transform: translateX(-1.5px); z-index: 0; }
+.pbox { position: relative; z-index: 2; width: 232px; background: var(--phase); border: 3px solid var(--phase-line); border-radius: 18px 22px 16px 24px / 22px 16px 24px 18px; padding: 10px 12px 10px; text-align: center; cursor: pointer; box-shadow: 4px 4px 0 var(--shadow); }
+.pbox:hover { transform: rotate(-.6deg); }
+.pbox h2 { font-family: "Kalam", "Patrick Hand", cursive; font-size: 25px; margin: 0; line-height: 1.1; }
+.pbox .pshort { font-size: 15px; color: var(--muted); margin-top: 1px; }
+.pbox .pcount { font-size: 17px; margin-top: 5px; font-weight: 700; }
+.pbox .pbar { height: 9px; margin-top: 5px; border: 2px solid var(--phase-line); border-radius: 8px; background: var(--card); overflow: hidden; display: flex; }
+.pbox .pbar i { display: block; height: 100%; }
+.pbox .pbar .b-done { background: var(--done); }
+.pbox .pbar .b-prog { background: var(--prog); opacity: .55; }
+.pbox .plater { font-size: 14px; color: var(--muted); }
+
+.gate { position: relative; z-index: 2; margin-top: 16px; background: var(--gate); border: 2.5px solid var(--topic-line); border-radius: 14px 18px 13px 17px / 17px 13px 18px 14px; padding: 5px 12px; cursor: pointer; font-size: 16px; display: flex; gap: 8px; align-items: center; box-shadow: 3px 3px 0 var(--shadow); max-width: 232px; }
+.gate:hover { transform: rotate(.7deg); }
+.gate .gk { font-weight: 700; }
+.gate .gn { color: var(--muted); }
+.gate.ok { border-color: var(--done); }
+
+.stack { display: flex; flex-direction: column; gap: 9px; padding: 4px 0; min-width: 0; position: relative; z-index: 1; }
+.stack.left { align-items: flex-end; padding-right: 74px; }
+.stack.right { align-items: flex-start; padding-left: 74px; }
+.row { display: flex; align-items: center; }
+.stack.left .row { flex-direction: row-reverse; }
+.row .tie { width: 26px; border-top: 2.6px dotted var(--line); flex: none; }
+.topic { position: relative; width: 252px; display: flex; gap: 7px; align-items: flex-start; text-align: left; background: var(--topic); color: var(--topic-ink); border: 2.5px solid var(--topic-line); border-radius: 11px 14px 10px 13px / 13px 10px 14px 11px; padding: 6px 9px; cursor: pointer; box-shadow: 3px 3px 0 var(--shadow); font-size: 17px; line-height: 1.15; flex: none; }
+.topic:hover, .chip:hover { transform: translateY(-1px) rotate(-.4deg); }
+.topic .num { font-weight: 700; margin-right: 4px; }
+.ico { flex: none; width: 17px; height: 17px; margin-top: 1px; display: inline-grid; place-items: center; font-size: 14px; font-weight: 700; }
+.st-done { opacity: .62; }
+.st-done .ico { color: #fff; background: var(--done); border-radius: 50%; }
+.st-done .lbl { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.st-progress .ico::before { content: ""; width: 11px; height: 11px; border-radius: 50%; background: var(--prog); box-shadow: 0 0 0 3px rgba(47, 123, 240, .25); }
+.st-next .ico::before { content: ""; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--topic-line); }
+.topic.st-future { background: var(--card); color: var(--muted); border: 2.5px dashed var(--future); box-shadow: none; }
+.st-future .ico::before { content: ""; width: 9px; height: 9px; border-radius: 50%; border: 2px dashed var(--future); }
+.who { font-size: 12px; color: var(--muted); }
+
+.side { width: 200px; background: var(--panel); border: 2px dashed var(--panel-line); border-radius: 14px 12px 15px 13px / 12px 15px 13px 14px; padding: 6px; display: flex; flex-direction: column; gap: 5px; flex: none; }
+.side .cap { font-size: 13px; color: var(--muted); padding: 0 3px; }
+.chip { display: flex; gap: 6px; align-items: flex-start; text-align: left; background: var(--topic); color: var(--topic-ink); border: 2px solid var(--topic-line); border-radius: 9px 11px 8px 10px; padding: 3px 7px; cursor: pointer; font-size: 15px; line-height: 1.1; }
+.chip.st-future { background: var(--card); border-style: dashed; border-color: var(--future); color: var(--muted); }
+.chip .ico { width: 15px; height: 15px; font-size: 12px; }
+.row.orphan .tie { display: none; }
+
+.pop { position: fixed; z-index: 100; width: min(340px, calc(100vw - 24px)); background: var(--card); color: var(--ink); border: 3px solid var(--line); border-radius: 16px 20px 15px 19px / 19px 15px 20px 16px; padding: 12px 14px 12px; box-shadow: 6px 6px 0 var(--shadow); display: none; max-height: 70vh; overflow: auto; }
+.pop.show { display: block; }
+.pop .pn { font-family: "Kalam", cursive; font-size: 22px; font-weight: 700; padding-right: 26px; }
+.pop .pd { margin: 6px 0; font-size: 18px; }
+.pop .ps { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; padding: 1px 10px 1px 6px; border-radius: 99px; border: 2px solid var(--line); font-size: 16px; }
+.pop .pm { color: var(--muted); font-size: 15px; margin-top: 6px; }
+.pop .px { position: absolute; top: 6px; right: 8px; border: 0; background: transparent; font-size: 22px; cursor: pointer; line-height: 1; }
+.pop ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 16px; }
+.pop li { display: flex; gap: 6px; align-items: flex-start; }
+.pop li .ico { margin-top: 2px; }
+.pop li.st-done { opacity: .7; }
+.pop .ico { display: inline-grid; }
+.foot { text-align: center; color: var(--muted); font-size: 14px; padding: 8px 16px 24px; }
+
+/* phone: stack phases vertically, no pan/zoom, no horizontal scroll */
+@media (max-width: 759px) {
+  body { overflow-x: hidden; font-size: 17px; }
+  .theme { position: static; display: block; margin: 8px auto 0; }
+  .viewport { height: auto; min-height: 0; overflow: visible; cursor: auto; touch-action: auto; border-top: 0; }
+  .zoom, svg#links { display: none; }
+  #canvas { position: relative; width: auto; transform: none !important; padding: 8px 16px 40px 16px; }
+  .phase { display: block; margin: 0 0 18px; padding-left: 22px; border-left: 3px solid var(--line); }
+  .center { display: block; align-self: auto; }
+  .center::before { display: none; }
+  .pbox { width: 100%; margin-left: -3px; text-align: left; }
+  .pbox:hover, .gate:hover { transform: none; }
+  .gate { max-width: none; margin-top: 10px; }
+  .stack, .stack.left, .stack.right { padding: 0; align-items: stretch; margin-top: 8px; }
+  .stack:empty { display: none; }
+  .row, .stack.left .row { flex-direction: column; align-items: stretch; }
+  .row .tie { display: none; }
+  .topic, .side { width: 100%; }
+  .side { margin: 4px 0 2px 14px; width: calc(100% - 14px); }
+}
+@media print { .zoom, .theme { display: none; } .viewport { height: auto; overflow: visible; } #canvas { position: relative; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="theme" id="themeBtn" type="button" aria-label="Switch light or dark">Light / dark</button>
+  <h1>How TaskDrop gets to launch</h1>
+  <p class="sub">Every step from the plan, in order. Click any box to see what it is.</p>
+  <div class="overall"><div class="bar" id="obar"></div><b id="otext"></b></div>
+  <div class="legend">
+    <span><i class="ico" style="background:var(--done);color:#fff;border-radius:50%">&#10003;</i> done</span>
+    <span><i class="ico st-progress"></i> in progress</span>
+    <span><i class="ico st-next"></i> next</span>
+    <span><i class="ico st-future"></i> later (not counted)</span>
+  </div>
+</header>
+<div class="stage">
+  <div class="viewport" id="viewport">
+    <div class="zoom" id="zoom">
+      <button type="button" id="zin" aria-label="Zoom in">+</button>
+      <button type="button" id="zout" aria-label="Zoom out">&minus;</button>
+      <button type="button" id="zfit" class="fit" aria-label="Fit to width">Fit</button>
+      <span class="zoomlvl" id="zlvl"></span>
+    </div>
+    <div id="canvas"><svg id="links" aria-hidden="true"></svg><div id="phases"></div></div>
+  </div>
+</div>
+<div class="foot">Built from docs/ULTIMATE_PLAN.md on <span id="gen"></span>. Rebuild: node scripts/build-roadmap-html.mjs</div>
+<div class="pop" id="pop" role="dialog" aria-live="polite"><button class="px" id="px" type="button" aria-label="Close">&times;</button><div id="popc"></div></div>
+
+<script>
+(function () {
+  var DATA = {"generated":"2026-11-22","totals":{"done":17,"progress":20,"next":62,"future":21,"counted":99},"phases":[{"key":"S","num":"S","name":"Start now","short":"The slow paperwork","when":"start in week 1, runs beside Steps 1 to 4","plain":"the paperwork only you can do: the business and bank account, the lawyer, the payment company, the SMS registration and the trademark.","counts":{"done":1,"progress":0,"next":7,"future":0},"counted":8,"items":[{"id":"S.1","short":"Verify Play account","title":"Verify your Google Play account (start now: Google takes days)","tag":"You","status":"done","note":"Done 27 Oct (Google notified \"Your identity has been verified successfully\"; seen 31 Oct)","desc":"nothing can be published on Google Play until Google has checked your ID."},{"id":"S.2","short":"Company, PAN, bank","title":"Business basics: who owns TaskDrop, PAN, GST, bank account","tag":"You","status":"next","note":"start this week: S.6, S.8 and decisions 10 and 17 wait for it · 1 to 3 weeks · bank and CA fees","desc":"Razorpay, the SMS registration and the lawyer all ask for these first."},{"id":"S.3","short":"Lawyer","title":"Find a lawyer and ask the money question","tag":"You","status":"next","note":"weeks · lawyer's fee","desc":"the lawyer's answer decides how payouts and refunds are built."},{"id":"S.4","short":"Payment quotes","title":"Ask Razorpay in writing about Route","tag":"You","status":"next","note":"Decision 3 decided 19 Nov: Razorpay · free","desc":"you decided on 19 Nov to use Razorpay for Plan B (Cashfree is dropped)."},{"id":"S.5","short":"Name and trademark","title":"Check the name, file the trademark, claim the handles","tag":"You","status":"next","note":"1 hour, then filing · ₹4,500 for one class","desc":"Check the name, file the trademark, claim the handles"},{"id":"S.6","short":"SMS registration","title":"SMS registration (DLT) and MSG91","tag":"You","status":"next","note":"days · about ₹5,000 once + ₹1,250 + GST","desc":"in India, an SMS from an unregistered sender is silently blocked."},{"id":"S.7","short":"Legal contacts","title":"Legal contacts: DMCA agent and grievance officer","tag":"You","status":"next","note":"15 minutes · $6","desc":"the law expects a marketplace to name a grievance officer, and a DMCA agent protects you when users upload photos."},{"id":"S.8","short":"Payment approval","title":"Payment approval (Razorpay and RazorpayX KYC)","tag":"You","status":"next","note":"days to weeks · fee per payment","desc":"live payment keys exist only after the payment company has checked your business."}],"gates":[]},{"key":"1","num":"1","name":"Features","short":"Finish, then freeze","when":"","plain":"finish the features already started, fix what is broken, and stop adding features on Sunday 22 November.","counts":{"done":5,"progress":8,"next":2,"future":2},"counted":15,"items":[{"id":"1.1","short":"Your decisions","title":"Future scope: make your decisions","tag":"Later","status":"future","note":"20 minutes · deferred 1 Nov 2026, no gate waits on it","desc":"Future scope: make your decisions"},{"id":"1.2","short":"Merge walkthrough fixes","title":"Merge the 11 fixes from your phone walkthrough","tag":"You + Claude","status":"done","note":"Done 31 Oct","desc":"On 2026-10-30 you recorded 20 minutes of using the staging app and said what felt wrong."},{"id":"1.3","short":"Fix phone problems","title":"Fix the problems found on the phone","tag":"Claude","status":"done","note":"Done 31 Oct · your time: 10 minutes","desc":"The phone test runs on 2026-10-28 found four small problems:"},{"id":"1.4","short":"Small bugs pack","title":"Fix the small bugs pack","tag":"You + Claude","status":"done","note":"Done 31 Oct · your time: 20 minutes","desc":"Fix the small bugs pack"},{"id":"1.5","short":"Approve the designs","title":"Approve the design changes you asked for","tag":"You + Claude","status":"done","note":"Done 31 Oct · your time: 30 minutes · design first, then build","desc":"These came from your 30 Oct walkthrough (times are in your video):"},{"id":"1.6","short":"Build the approved designs","title":"Build the approved designs and two small features","tag":"Claude","status":"progress","note":"Built and merged (D10 finished 1 Nov), waiting for the phone check · your time: 20 minutes","desc":"build the approved designs"},{"id":"1.7","short":"Notifications in plain words","title":"Make every notification clear and short","tag":"Claude","status":"progress","note":"Built and applied to staging 31 Oct, waiting for your phone check · your time: 10 minutes","desc":"Make every notification clear and short"},{"id":"1.8","short":"Keyboard hides content","title":"Keep content and alerts clear of the keyboard","tag":"You + Claude","status":"progress","note":"Built and published, 14 of 16 spots seen on the phone, accepted by you 1 Nov · your time: 15 minutes","desc":"fix the keyboard problem"},{"id":"1.9","short":"Ideas from Qwikyo and Heplo","title":"Add the best ideas from Qwikyo and Heplo, on today's design","tag":"Later","status":"future","note":"Parked 9 Nov (CEO review: feature freeze) · drawn 2 Nov, kept for after launch · say \"unpark 1.9\" to bring it back","desc":"approve 1.9"},{"id":"1.10","short":"Desktop, phone and Android layouts","title":"Make every screen fit a desktop browser, a phone browser and the Android app","tag":"Claude","status":"progress","note":"Planned and built 3 Nov · layout only, no new design · does not reopen Gate 1","desc":"Make every screen fit a desktop browser, a phone browser and the Android app"},{"id":"1.11","short":"TaskDrop Together (new vertical)","title":"TaskDrop Together: a new vertical, tasks that get better when more people join","tag":"Claude","status":"done","note":"Done 8 Nov: City Hunt and Big Days built and live; Same Here, Learner Seat and Help Swap dropped by you","desc":"A search cannot prove that nobody has a feature; these are the closest things found."},{"id":"1.12","short":"Map feel, smart panel, Explore list (D21)","title":"Map zoom like Google Maps, a smarter map panel and a tidy Explore list (D21)","tag":"Claude","status":"progress","note":"Built 9 Nov (PR 297), live on taskdrop.in · waiting for your look on the laptop · Android needs an app update","desc":"Map zoom like Google Maps, a smarter map panel and a tidy Explore list (D21)"},{"id":"1.13","short":"Useful in the first minute (D22)","title":"Useful in the first minute: posters get it done, helpers see money, everyone comes back (D22)","tag":"Claude","status":"progress","note":"Approved 9 Nov (v4) · decision 39: yes · building from 10 Nov","desc":"Notes: A4 (\"ideas cut to 4 tiles\") is replaced by H1; the other idea templates stay on Home as \"More ideas\"."},{"id":"1.14","short":"Fits every screen","title":"Fits every phone, tablet and laptop: one layout that follows the width of the screen","tag":"Claude","status":"next","note":"added 11 Nov · decision 40: level 1 before launch (a fix, allowed inside the freeze) · not started · your time: 20 minutes · free","desc":"start 1.14"},{"id":"1.16","short":"Only unique tasks","title":"Only the jobs no other app does: who TaskDrop is for, and a Home that shows it (D26)","tag":"Claude","status":"progress","note":"added 11 Nov, from your video · Home built 11 Nov in your order (D28) with the poster ideas (D29), live on taskdrop.in · open: the Android...","desc":"The 5-person test (1.13) with unique jobs instead of \"clean my kitchen\": *\"This medicine is out of stock at your chemist\"* (poster) and *\"You speak Telugu and Hindi;"},{"id":"1.17","short":"Find work filters","title":"One set of filters for the Find work map and the Find work list (D27)","tag":"Claude","status":"progress","note":"added 11 Nov, from your message · built 11 Nov, live on taskdrop.in · no category (your call) · Android phone check open","desc":"Built as drawn, with your changes:"},{"id":"1.18","short":"Username is compulsory","title":"Everyone who signs in must set a username: no way in without one","tag":"Claude","status":"next","note":"added 14 Nov, from your message · decision 51: yes · a fix, allowed inside the freeze · not started · your time: 10 minutes · free","desc":"done 1.18"}],"gates":[{"key":"1","title":"1: do not start Step 3 until all of these are true (Step 2 can start at the same time as Step 1)","checks":[{"state":"future","text":"Every decision has an answer (1.1)."},{"state":"done","text":"Bugs B1 to B12 are fixed, or you have written \"accept\" for a Low one."},{"state":"done","text":"Each design change D1 to D10 is built or dropped."},{"state":"done","text":"Every notification reads clearly on your phone (1.7)."},{"state":"done","text":"Nothing is hidden behind the keyboard: the 16-spot keyboard pass is green on your phone (1.8)."},{"state":"open","text":""},{"state":"open","text":""},{"state":"done","text":"npm run check is green on redesigned-2.0 (Claude reports this)."}]}]},{"key":"2","num":"2","name":"Safety","short":"Make it hacker-proof","when":"weeks 1 to 3","plain":"make the app safe enough to hold real money: every key hidden, every door locked and tested, the money flow (Plan B) built and checked, and bugs hunted in rounds until new ones stop appearing.","counts":{"done":7,"progress":9,"next":9,"future":1},"counted":25,"items":[{"id":"2.1","short":"Secrets file","title":"Keep every secret safe in one file","tag":"You","status":"done","note":"Done 1 Nov","desc":"you need one safe place for passwords, recovery codes and keys before the rest of Step 2."},{"id":"2.1b","short":"2-step sign-in","title":"Future scope: turn on 2-step sign-in on the accounts that can move money or code","tag":"Later","status":"future","note":"1 hour · free · deferred 31 Oct 2026, no gate waits on it","desc":"most real hacks steal a login, not a key."},{"id":"2.2","short":"Limits and alert emails","title":"Set spending limits and alert emails","tag":"You","status":"next","note":"45 minutes · free","desc":"if a key ever leaks, a limit means you lose a little money, not a lot, and an alert email means you hear about it in minutes."},{"id":"2.3","short":"Lock down secret storage","title":"Lock down the places where keys are kept","tag":"You","status":"next","note":"20 minutes · free","desc":"your keys live in Vercel, Expo and on your PC."},{"id":"2.4","short":"Read the emergency guide","title":"Read the emergency guide once","tag":"You","status":"next","note":"20 minutes","desc":"if something breaks at night, you need to know the first steps already."},{"id":"2.5","short":"Key protection","title":"Key protection","tag":"Claude","status":"done","note":"your time: 10 minutes · Done 1 Nov","desc":"start key protection"},{"id":"2.6","short":"Close the holes","title":"Close the holes found on 30 October","tag":"You + Claude","status":"next","note":"your time: 20 minutes · H9 closed 4 Nov","desc":"close the holes found on 30 October"},{"id":"2.7","short":"Stop-ship tests","title":"Stop-ship tests (security round 1)","tag":"Claude","status":"done","note":"your time: 20 minutes · Done 1 Nov","desc":"Each problem gets a level. Critical or High means money or private data is at risk, and Claude fixes it."},{"id":"2.8","short":"SMS safety","title":"SMS safety (stop bots wasting SMS money)","tag":"Claude","status":"progress","note":"your time: 10 minutes · Built 1 Nov, Google-first screen waits for you","desc":"bots can request sign-in codes to thousands of numbers, and you pay for every SMS."},{"id":"2.8b","short":"Supabase sign-in limits","title":"Supabase's own sign-in limits: set them on purpose, and count each person separately","tag":"Claude","status":"done","note":"your time: none · Done 2 Nov on staging","desc":"2.8 built TaskDrop's own limits in front of the SMS gateway."},{"id":"2.9","short":"Security tests round 2","title":"Security tests, round 2: attacks on forms, sign-in, the app and privacy","tag":"Claude","status":"progress","note":"your time: 20 minutes · T4, T6, T13 done 1 Nov; T11 done 4 Nov","desc":"run security tests round 2"},{"id":"2.10","short":"Alarms + key emergency guide","title":"Alarms and the key emergency guide","tag":"You + Claude","status":"progress","note":"your time: 30 minutes · proofs 1 to 5 done 1 Nov; proof 6 is yours","desc":"if someone does get a key, you want to know within the hour, and you want written steps ready."},{"id":"2.11","short":"Money safety limits","title":"Money safety limits: new accounts, self-dealing, and money mismatches","tag":"You + Claude","status":"next","note":"your time: 20 minutes","desc":"the tests in 2.7 and 2.9 stop hackers. This task stops people who use the app as designed, but dishonestly: a brand-new account paying a large amount with a stolen card, or one person..."},{"id":"2.12","short":"One front door (API gateway)","title":"One front door: nothing reaches the database except through the API gateway","tag":"Claude","status":"progress","note":"your time: none · Built 2 Nov, repeat keys too; the last door (H3) closes in 3.9","desc":"you asked for a design where nothing goes to the main server directly: an API gateway in front of it, and the habits a good SaaS app follows."},{"id":"2.13","short":"Advice check: OWASP + researchers","title":"The WhatsApp advice: a lock and a limit on every door, a code scanner, the OWASP checklist, a way for security researchers to report, no...","tag":"You + Claude","status":"progress","note":"your time: 30 minutes · built 4 Nov; your clicks and replies are open","desc":"on 3 November you shared advice from a WhatsApp group about security, cost and marketing, and asked for a security plan around it."},{"id":"2.14","short":"Bug and security hunt","title":"The bug and security hunt: read the whole app end to end and attack it, to find the mistakes the tests do not know about","tag":"Claude","status":"progress","note":"your time: 45 minutes · rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov; parts B, C, D, E, F, H, and a new part J: guest mode","desc":"on 3 November you asked Claude to find the bugs and security problems in the app."},{"id":"2.15","short":"Secrets audit (Betterleaks)","title":"The secrets audit: find every key in today's files and in the whole history, and judge each one","tag":"Claude","status":"done","note":"your time: 15 minutes · Done 4 Nov","desc":"gitleaks (2.5) stops a key in each new change and scans the history every week."},{"id":"2.16","short":"AI attacker (Strix)","title":"The AI attacker: let Strix attack staging and prove what it finds","tag":"You + Claude","status":"next","note":"your time: 45 minutes · about $5 to $15 of AI use · added 4 Nov, not started;","desc":"Strix is a free, open-source team of AI attackers, and one of the most popular projects on GitHub this week."},{"id":"2.17","short":"One home per secret","title":"Give every secret one home: set the server keys straight in Supabase, and stop the Vercel build copying them","tag":"You + Claude","status":"done","note":"your time: 5 minutes · Done 5 Nov","desc":"today the Edge Function keys are kept in Vercel, and every staging build copies them into Supabase (scripts/sync-function-secrets.mjs)."},{"id":"2.18","short":"Outside testers' advice","title":"The outside testers' advice: every point from the 8 Upwork proposals, checked, and the new ones closed","tag":"You + Claude","status":"next","note":"your time: 30 minutes · added 6 Nov · checked on staging the same day, fixes not started","desc":"on 6 November you posted a security review job on Upwork, received 8 proposals, and asked for the best practices in them to go into this plan."},{"id":"2.19","short":"Debug loop","title":"The debug loop: find, fix and recheck in rounds until new bugs settle near zero","tag":"You + Claude","status":"next","note":"your time: 10 to 15 minutes a round · added 10 Nov · rounds 0 to 4 run 12 and 13 Nov, not settled · whole-app plan and round 5 added 13 Nov...","desc":"the hunt (2.14) and quality round 3 (3.6) are one-off deep passes."},{"id":"2.20","short":"Audit prompt","title":"The 8-section audit prompt for vibe-coded apps: one checklist verdict per item, on both code folders","tag":"You + Claude","status":"next","note":"your time: about 5 minutes · added 10 Nov · not run yet · read-only, does not reopen Gate 1","desc":"you shared a security guide for vibe-coded apps (Google Doc \"Security For Vibe-Coded Apps (+ Prompt)\", from Maker School)."},{"id":"2.21","short":"Plan B money flow","title":"The money flow, Plan B: pay per task, the payment company holds the money","tag":"You + Claude","status":"progress","note":"added 11 Nov · locked 18 Nov · design written (docs/design/plan-b-money/DESIGN.md) · code built 19 Nov in PR 428 (user app) and admin PR...","desc":"The money flow, Plan B: pay per task, the payment company holds the money"},{"id":"2.22","short":"Hide backend and personal email","title":"Hide the backend address and your personal email from users","tag":"You + Claude","status":"progress","note":"your time: about 30 minutes · added 17 Nov · part (a) done and live on the website · parts (b) to (d) yours · (e) waits for 5.2 ·...","desc":"on the Google sign-in screen people see \"to continue to wjxvingpfbfvkfqhrguj.supabase.co\" and that address's Privacy Policy link."},{"id":"2.23","short":"DNS check","title":"taskdrop.in's DNS: checked, stay on Spaceship, add two records","tag":"You + Claude","status":"done","note":"Done 17 Nov (Claude added the records in your Chrome; step 3 is still yours)","desc":"you heard the domain's DNS should be on Cloudflare for security."},{"id":"2.24","short":"Data in India","title":"Data in India where possible (DPDP)","tag":"You + Claude","status":"progress","note":"Code merged 18 Nov (PR 417, migration 192 live on staging); ImageKit Mumbai (20 Nov); Sentry EU org created 20 Nov, your DSN copy step open","desc":"you asked to keep third-party services in India where possible."}],"gates":[{"key":"2a","title":"2a: Step 3 (testers) may start when all of these are true","checks":[{"state":"open","text":"Tasks 2.1, 2.5, 2.6 and 2.7 are ticked"},{"state":"open","text":"No Critical or High problem from 2.7 is open"},{"state":"open","text":"Holes H4 to H9 and H12 are closed"}]},{"key":"2b","title":"2b: do not start Step 5 (production) until all of these are true","checks":[{"state":"open","text":"Gate 2a has passed"},{"state":"open","text":"Tasks 2.1 to 2.16, 2.18 and 2.21 are ticked (2.13 part E may follow, by decision 15, before 6.5;"},{"state":"open","text":"The six proofs in task 2.10 are all true"},{"state":"open","text":"Holes H2 to H10, H12, H17 and H22 to H34, H71 to H76, H77 and H78 are closed (H79 and H80, the admin's refusal test and smoke, before 6.5) (H3 closes..."},{"state":"open","text":"No Critical or High security problem is open, and every Medium from 2.14, 2.15 and 2.16 has your answer"}]}]},{"key":"3","num":"3","name":"Testers","short":"Prove it with real people","when":"weeks 3 to 6","plain":"put the app on Google Play for at least 12 real testers for 14 days in a row (Google requires this before the public can download it), fix what they find, and make the app fast and cheap to run.","counts":{"done":2,"progress":2,"next":8,"future":1},"counted":12,"items":[{"id":"3.1","short":"Create the Play app","title":"Create the app in Play Console and enter the answers","tag":"You","status":"next","note":"1 hour · needs S.1 done","desc":"Sign in to Play Console as narasimharaju7c@gmail.com (Chrome profile /u/0)."},{"id":"3.2","short":"Upload the AAB","title":"Build the store file (AAB) and upload it for testers","tag":"You + Claude","status":"next","note":"1 hour","desc":"The app is finished. Build the store version (AAB)."},{"id":"3.3","short":"12 testers, 14 days","title":"Get 12 testers for 14 days","tag":"You","status":"next","note":"1 afternoon, then 14 days","desc":"Google requires at least 12 testers who stay opted in for 14 days in a row before it allows a public release."},{"id":"3.3b","short":"Marketplace numbers","title":"Put the two marketplace numbers on the admin dashboard","tag":"Claude","status":"progress","note":"Built and merged 2 Nov, waiting for your look at Reports · your time: 10 minutes","desc":"\"posted tasks get no offers\" is your second-biggest risk."},{"id":"3.3c","short":"PostHog (staging)","title":"PostHog on staging: see where the testers get stuck","tag":"You + Claude","status":"next","note":"your time: 20 minutes · free to start","desc":"3.3b tells you how long tasks wait. PostHog shows where people give up on the way (signed up → posted a task → got a first offer → hired → paid) and replays the screen where they got stuck."},{"id":"3.4","short":"Tester rounds","title":"Two tester rounds (during the 14 days)","tag":"You + Claude","status":"next","note":"2 weeks, a few minutes a day","desc":"Tester problems:"},{"id":"3.5","short":"Fewer requests","title":"Fewer server requests (same design)","tag":"Claude","status":"done","note":"Done 2 Nov (Android phone not seen) · your time: 10 minutes · decision 5 answered: yes","desc":"start API calls"},{"id":"3.5b","short":"Safe caching","title":"Safe caching: keep the same-for-everyone lists ready, never anyone's own data","tag":"Later","status":"future","note":"Parked 9 Nov (CEO review: the database is far from busy) · built offline on branch feat/cache-integration, kept · decision 29b · say...","desc":"start 3.5b"},{"id":"3.5c","short":"Fewer Inngest runs","title":"Background jobs, hybrid: database-only jobs move to pg_cron, Inngest keeps only outside calls","tag":"Claude","status":"next","note":"added 9 Nov · Not started · your time: 20 minutes · free (no new tool) · answer Q1 to Q5 first","desc":"start 3.5c"},{"id":"3.6","short":"Quality tests round 3","title":"Quality tests, round 3: speed, every screen, outages","tag":"Claude","status":"progress","note":"Website and server parts run 2 Nov (PR 200); phone parts and T12 still open · your time: 20 minutes","desc":"run quality tests round 3"},{"id":"3.7","short":"Release guide","title":"Release guide and an undo rehearsal","tag":"Claude","status":"done","note":"Done 2 Nov · your time: 15 minutes","desc":"before real money, you must know how to undo a bad release in minutes."},{"id":"3.8","short":"Staging exit gate","title":"Check the staging exit gate","tag":"You + Claude","status":"next","note":"10 minutes","desc":"Check the staging exit gate."},{"id":"3.9","short":"Switch-over","title":"Switch everyone to the new app (Phase 9)","tag":"You + Claude","status":"next","note":"1 hour · cannot be undone","desc":"Phases 0 to 8 are done. I approve the switch-over."}],"gates":[{"key":"3","title":"3 (staging exit gate): do not start Step 5 until all of these are true","checks":[{"state":"open","text":"The automatic tests are green"},{"state":"open","text":"Sentry has been quiet for 7 days, and the uptime monitors are green"},{"state":"open","text":"Over the 14 tester days, Play Console's Android vitals stay under Google's bad-behaviour lines: fewer than 1.09% of users see a crash and fewer than..."},{"state":"open","text":"The whole job works with fake money on the website, Android and the admin: post, offer, pay, work, approve, review, withdraw"},{"state":"open","text":"Account deletion, report and block work, and push notifications arrive on Android"},{"state":"open","text":"12 testers have used the closed test for 14 days"},{"state":"open","text":"The lawyer has answered (S.3), or you have decided to launch with the money jobs off and pay workers by hand"},{"state":"open","text":"No Critical or High problem is open (security or quality)"},{"state":"open","text":"The debug loop (2.19) has settled: a round report says its stop test passes (its stop test includes the admin smoke passing twice in a row)"},{"state":"open","text":"Every screen fits every size (1.14, level 1): the size test passes at the six widths, and the Android tablet and foldable pass is written down"},{"state":"open","text":"You have read the two marketplace numbers (3.3b) for at least 2 weeks"},{"state":"open","text":"The switch-over (3.9) is done on staging, or has a date. Production does not wait for it, because production is built already switched over (5.9)"}]}]},{"key":"4","num":"4","name":"Marketing","short":"Get ready to market","when":"weeks 4 to 8, beside Step 3","plain":"get ready to find your first helpers and posters: pick 2 or 3 neighbourhoods, sign up 20 helpers there, build the public pages Google and WhatsApp can show, and write the launch posts.","counts":{"done":0,"progress":1,"next":8,"future":1},"counted":9,"items":[{"id":"4.1","short":"City and task types","title":"Confirm the launch city and find the first task types","tag":"You + Claude","status":"next","note":"30 minutes","desc":"a marketplace dies when a posted task gets no offer."},{"id":"4.2","short":"Marketing plan + 30 days","title":"Your one-page marketing plan and the first 30 days of posts","tag":"You + Claude","status":"next","note":"your time: 45 minutes","desc":"a plan written down once saves you deciding every day what to post."},{"id":"4.3","short":"Public pages","title":"Build the public pages that Google can read","tag":"Claude","status":"next","note":"your time: 30 minutes","desc":"Google cannot properly read the app's screens."},{"id":"4.4","short":"Business Profile","title":"Google Business Profile for the launch city","tag":"You","status":"next","note":"30 minutes, then Google's check","desc":"for a local service, this free listing shows TaskDrop on Google Maps and in local search."},{"id":"4.5","short":"Smart alerts","title":"Smart alerts: tell the right workers about a new task (your idea)","tag":"Claude","status":"next","note":"your time: 20 minutes","desc":"design smart alerts"},{"id":"4.6","short":"20+ workers","title":"Line up 20+ workers in the launch areas","tag":"You","status":"next","note":"2 to 3 weeks, an hour a day","desc":"posters leave if nobody offers. Workers first, then posters."},{"id":"4.7","short":"Real-people video tests","title":"Test 10 short videos with real people, and record 4 explainers","tag":"You + Claude","status":"next","note":"2 weeks, 1 to 2 hours a week · free","desc":"short videos are free to post, and they tell you which message makes people care before you spend any money."},{"id":"4.8","short":"Launch posts","title":"Prepare the launch posts","tag":"You + Claude","status":"next","note":"1 hour","desc":"These are first drafts. Change anything that does not sound like you."},{"id":"4.9","short":"Dispute + safety policy","title":"Write the dispute policy and the safety rules for in-person tasks","tag":"You + Claude","status":"progress","note":"Built 3 Nov with your default answers · waiting for the lawyer and your word \"done 4.9\" · your time: 15 minutes","desc":"you hold people's money, so the first dispute will come soon after launch."},{"id":"4.10","short":"Email sequences","title":"Email sequences: welcome and nudge emails that stop when the person acts","tag":"Later","status":"future","note":"Parked 9 Nov (CEO review): start in month 2, once there are users to welcome · design first, then build","desc":"a new person who signs up and does nothing is lost."}],"gates":[{"key":"4","title":"4: do not start Step 5 until all of these are true","checks":[{"state":"open","text":"Gate 3 has passed"},{"state":"open","text":"Gate 2b has passed (all of Step 2, including 2.8 to 2.11)"},{"state":"open","text":"The dispute policy and safety rules (4.9) are live on staging"},{"state":"open","text":"The whole Start now track (S.1 to S.8) is finished"},{"state":"open","text":"At least 20 workers are lined up in the launch areas (decision 38)"},{"state":"open","text":"The public pages and the marketing plan are approved"},{"state":"open","text":"The pages a link lands on load fast on a phone: Lighthouse performance 70 or more on the phone-sized test (3.6, F1), or you have written \"F1: accept\""},{"state":"open","text":"You know your 2 best video hooks, and explainers 1 to 4 are posted"}]}]},{"key":"5","num":"5","name":"Production","short":"Build the real copy","when":"1 to 2 weeks, after Gate 4","plain":"build the real copy of every tool (production), separate from the test copy, so real money and real people never touch test data.","counts":{"done":2,"progress":0,"next":16,"future":0},"counted":18,"items":[{"id":"5.0a","short":"Code ready for two copies","title":"Make the code ready for two copies","tag":"Claude","status":"next","note":"your time: 2 minutes","desc":"Start 5.0a: make the code ready for two copies."},{"id":"5.0b","short":"Staging website and admin name","title":"Staging website: confirm it, and give the staging admin a name","tag":"You + Claude","status":"done","note":"Done 21 Nov","desc":"Check that taskdrop.in is the staging copy and hidden from Google."},{"id":"5.0c","short":"Staging Android app","title":"Staging Android app: TaskDrop Staging (an APK)","tag":"You + Claude","status":"next","note":"your time: about 1 hour · one build","desc":"Start 5.0c: set up the staging Android app."},{"id":"5.0d","short":"Production APK and store file","title":"Production Android app: the production APK and the store file","tag":"You + Claude","status":"next","note":"your time: about 40 minutes · after 5.7 and 5.9","desc":"Build the production APK."},{"id":"5.0e","short":"The release routine","title":"The release routine: how one change travels to both copies","tag":"Claude","status":"next","note":"one page · Claude follows it every time","desc":"The release routine: how one change travels to both copies"},{"id":"5.1","short":"Say: I want to launch","title":"Say \"I want to launch\"","tag":"You","status":"next","note":"1 minute","desc":"I want to launch."},{"id":"5.2","short":"Production Supabase","title":"Production Supabase: a new organization and project","tag":"You + Claude","status":"next","note":"30 minutes · $25 a month","desc":"Sign in to https://supabase.com/dashboard as hitendureacts@gmail.com."},{"id":"5.3","short":"Production Google + Firebase","title":"Production Firebase and Google Cloud project","tag":"You + Claude","status":"next","note":"1 to 2 hours · pay as you use","desc":"Production Firebase and Google Cloud project"},{"id":"5.4","short":"Production Inngest","title":"Production Inngest: a separate organization","tag":"You","status":"next","note":"15 minutes · free to start","desc":"Production Inngest: a separate organization"},{"id":"5.5","short":"Production ImageKit","title":"Production ImageKit: a separate account","tag":"You","status":"next","note":"15 minutes · free to start","desc":"Production ImageKit: a separate account"},{"id":"5.6","short":"Production Sentry","title":"Production Sentry projects","tag":"You + Claude","status":"next","note":"20 minutes · free to start","desc":"Production Sentry projects"},{"id":"5.6b","short":"Production PostHog","title":"Production PostHog project","tag":"You + Claude","status":"next","note":"15 minutes · free to start","desc":"Production PostHog project"},{"id":"5.7","short":"Production Expo + Play","title":"Production Expo project and the Android app identity","tag":"You + Claude","status":"next","note":"30 minutes · free to start","desc":"Production Expo project and the Android app identity"},{"id":"5.8","short":"Production Vercel","title":"Production Vercel projects for the website and the admin","tag":"You + Claude","status":"next","note":"40 minutes · $20 a month","desc":"Create the production Vercel projects taskdrop-production and taskdrop-admin-production, built from main."},{"id":"5.8b","short":"Vercel hardening","title":"Harden the production Vercel projects (firewall, spending stop, preview safety)","tag":"You + Claude","status":"next","note":"30 minutes · free, inside Pro","desc":"Vercel blocks floods for you, but on Pro it does not stop spending, the firewall starts empty, and a preview build can see whatever values it is given."},{"id":"5.9","short":"Connect production","title":"Connect everything and switch off the test shortcuts","tag":"Claude","status":"done","note":"Done 17 Nov (carried forward: 5.8b, 5.7, 6.1, launch steps)","desc":"Set up production."},{"id":"5.10","short":"Production web addresses","title":"Production web addresses (Vercel makes them)","tag":"You + Claude","status":"next","note":"20 minutes · free","desc":"Set up the production web addresses."},{"id":"5.11","short":"Prove they are separate","title":"Monitors, and prove the two copies are separate","tag":"You + Claude","status":"next","note":"your time: 20 minutes","desc":"Prove that staging and production are separate."}],"gates":[{"key":"5","title":"5: do not start Step 6 until all of these are true","checks":[{"state":"open","text":"Tasks 5.0a to 5.0e and 5.1 to 5.11 are ticked, including 5.8b (Vercel firewall, spending stop, preview safety)"},{"state":"open","text":"Every tool on Map 2 has its own production account or project, and its ID is written on the map"},{"state":"open","text":"All the proofs in 5.11 are true"},{"state":"open","text":"Production's Google keys are restricted: the Android maps key (this app only), the place-search key (Places only) and the Firebase browser key (the..."},{"state":"open","text":"The production address shows production and taskdrop.in shows staging"},{"state":"open","text":"TaskDrop Staging is installed by every tester, the production APK rehearsal passed, and App Check is enforced after the Play internal test (5.0c,..."}]}]},{"key":"6","num":"6","name":"Launch","short":"Launch one city","when":"","plain":"switch real money on one piece at a time, prove it with a ₹10 test, say GO, release on Google Play to 20% of phones first, and launch in your first neighbourhoods.","counts":{"done":0,"progress":0,"next":7,"future":0},"counted":7,"items":[{"id":"6.1","short":"Live keys in vault","title":"Put the live keys into production yourself","tag":"You","status":"next","note":"45 minutes · never in the chat","desc":"Put the live keys into production yourself"},{"id":"6.2","short":"Real money on","title":"Switch on real money, one part at a time","tag":"Claude","status":"next","note":"your time: 15 minutes","desc":"Switch on real money, one part at a time."},{"id":"6.3","short":"₹10 test","title":"The ₹10 real-money test","tag":"You","status":"next","note":"20 minutes · ₹10 plus fees","desc":"The ₹10 real-money test"},{"id":"6.4","short":"Search Console","title":"Google Search Console, Bing and your Business Profile link","tag":"You","status":"next","note":"30 minutes, then 10 minutes a week","desc":"Google Search Console, Bing and your Business Profile link"},{"id":"6.5","short":"Go / no-go","title":"Final launch check and your go / no-go","tag":"You + Claude","status":"next","note":"15 minutes","desc":"Practise a restore of production."},{"id":"6.6","short":"Play release","title":"Release on Google Play (production)","tag":"You","status":"next","note":"45 minutes, then Google's review","desc":"Build the production AAB."},{"id":"6.7","short":"Launch day","title":"Launch day","tag":"You","status":"next","note":"1 day","desc":"Launch day"}],"gates":[{"key":"6","title":"6 (launch gate): all must be true before 6.6","checks":[{"state":"open","text":"Gate 5 has passed (production is built and separate)"},{"state":"open","text":"The ₹10 test passed (6.3)"},{"state":"open","text":"The automatic tests are green, Sentry has been quiet for 7 days, and the monitors are green"},{"state":"open","text":"Production is checked: backups on, test shortcuts off and the safety alarm quiet (holes H1, H15), leaked-password protection on (H11), live keys..."},{"state":"open","text":"Undo is ready: website rollback, app update rollback, database backups, the nightly copy outside Supabase, a written undo for each database change,..."},{"state":"open","text":"The new-account limits (2.11) and the dispute policy (4.9) are live in production"},{"state":"open","text":"The emergency stop for money (2.21) has been switched on and off once in production, and you know where it is"},{"state":"open","text":"If the CA said tax must be deducted or PAN collected (S.2), that is built and tested"},{"state":"open","text":"No Critical or High problem is open, and every Medium has your written OK"},{"state":"open","text":"You have said GO (6.5)"}]}]},{"key":"7","num":"7","name":"Run and grow","short":"The first 90 days","when":"the first 90 days, then every week","plain":"after launch, watch one number every week, keep marketing a little every day, and spend most of your time getting attention and talking to customers, not building.","counts":{"done":0,"progress":0,"next":5,"future":0},"counted":5,"items":[{"id":"7.1","short":"Weekly numbers","title":"Weekly numbers check","tag":"You","status":"next","note":"15 minutes every week","desc":"Show me this week's numbers."},{"id":"7.2","short":"After-release checks","title":"Safety checks after every release (first month)","tag":"Claude","status":"next","note":"your time: 2 minutes per release","desc":"Run the after-release checks."},{"id":"7.3","short":"Weekly marketing rhythm","title":"Your weekly marketing rhythm","tag":"You","status":"next","note":"about 30 minutes a day","desc":"marketing works by doing small things every week, not one big push."},{"id":"7.4","short":"Monthly security check","title":"Monthly 10-minute security check","tag":"You","status":"next","note":"first Monday of every month","desc":"Monthly 10-minute security check"},{"id":"7.5","short":"Bigger servers","title":"When to pay for bigger servers","tag":"You + Claude","status":"next","note":"only when a number says so","desc":"Do not pay for bigger servers in advance."}],"gates":[]},{"key":"F","num":"F","name":"Later","short":"Ideas for after launch","when":"","plain":"good ideas saved for after launch, so nothing is lost and nothing slows launch down.","counts":{"done":0,"progress":0,"next":0,"future":16},"counted":0,"items":[{"id":"F.1","short":"Passkeys on all logins","title":"Future scope: add passkeys on top of 2-step sign-in","tag":"Later","status":"future","note":"1 hour · free · after 2.1b","desc":"Future scope: add passkeys on top of 2-step sign-in"},{"id":"F.2","short":"iOS app","title":"iPhone app and Sign in with Apple","tag":"Later","status":"future","note":"start words: \"start iOS\" · $99 a year","desc":"iPhone app and Sign in with Apple"},{"id":"F.3","short":"Smart alerts v2 and v3","title":"Smart alerts version 2 and 3","tag":"Later","status":"future","note":"after a few months of real tasks","desc":"Smart alerts version 2 and 3"},{"id":"F.4","short":"Second city","title":"A second city","tag":"Later","status":"future","note":"when the numbers say so","desc":"A second city"},{"id":"F.5","short":"WhatsApp codes","title":"WhatsApp sign-in codes","tag":"Later","status":"future","note":"when SMS gets expensive","desc":"WhatsApp sign-in codes"},{"id":"F.6","short":"Referral rewards","title":"Referral rewards (\"give ₹50, get ₹50\")","tag":"Later","status":"future","note":"after the lawyer","desc":"Referral rewards (\"give ₹50, get ₹50\")"},{"id":"F.7","short":"Product analytics","title":"Mixpanel, and more of PostHog","tag":"Later","status":"future","note":"after launch","desc":"Mixpanel, and more of PostHog"},{"id":"F.8","short":"Paid ads","title":"Paid ads","tag":"Later","status":"future","note":"only behind a proven message","desc":"Paid ads"},{"id":"F.9","short":"Server-side savings","title":"Fewer requests, server side (S1 to S7)","tag":"Later","status":"future","note":"when the bill or speed says so","desc":"Fewer requests, server side (S1 to S7)"},{"id":"F.10","short":"Advice tasks","title":"Advice as its own kind of task, and the everyday jobs no big app covers","tag":"Later","status":"future","note":"after launch","desc":"Advice as its own kind of task, and the everyday jobs no big app covers"},{"id":"F.11","short":"One-click posting","title":"One-click posting to many networks (Postiz)","tag":"Later","status":"future","note":"when posting takes too long","desc":"One-click posting to many networks (Postiz)"},{"id":"F.12","short":"Rename staging tools","title":"Rename the staging tools to end in \"-staging\"","tag":"Later","status":"future","note":"tidy-up","desc":"Rename the staging tools to end in \"-staging\""},{"id":"F.13","short":"Outside security review","title":"An outside security review, and automated attack tools","tag":"Later","status":"future","note":"before you grow beyond one city","desc":"An outside security review, and automated attack tools"},{"id":"F.14","short":"More growth experiments","title":"More growth experiments from your saved links","tag":"Later","status":"future","note":"after launch","desc":"More growth experiments from your saved links"},{"id":"F.15","short":"Investors without equity","title":"Ask Basheer how to find investors who take a share of profit, not equity","tag":"Later","status":"future","note":"one chat · free · when you want funding","desc":"Ask Basheer how to find investors who take a share of profit, not equity"},{"id":"F.16","short":"Move to pnpm","title":"Move the repos from npm to pnpm","tag":"Later","status":"future","note":"after launch · added 17 Nov · see decision 54","desc":"Move the repos from npm to pnpm"}],"gates":[]}]};
+  var ST = { done: 'Done', progress: 'In progress', next: 'Next', future: 'Later (not counted)' };
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function icon(st) { var i = el('span', 'ico'); if (st === 'done') i.textContent = '✓'; return i; }
+
+  /* ---- theme ---- */
+  var root = document.documentElement;
+  try { var saved = localStorage.getItem('td-roadmap-theme'); if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved); } catch (e) {}
+  $('themeBtn').addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') === 'dark' || (!root.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('td-roadmap-theme', next); } catch (e) {}
+  });
+
+  /* ---- overall progress ---- */
+  var t = DATA.totals;
+  var pct = function (n, d) { return d ? (100 * n / d) : 0; };
+  var ob = $('obar');
+  var b1 = el('i', 'b-done'); b1.style.width = pct(t.done, t.counted) + '%';
+  var b2 = el('i', 'b-prog'); b2.style.width = pct(t.progress, t.counted) + '%';
+  ob.appendChild(b1); ob.appendChild(b2);
+  $('otext').textContent = t.done + ' of ' + t.counted + ' done (' + Math.round(pct(t.done, t.counted)) + '%)';
+  $('gen').textContent = DATA.generated;
+
+  /* ---- popover ---- */
+  var pop = $('pop'), popc = $('popc');
+  function closePop() { pop.classList.remove('show'); }
+  function openPop(node, anchor, ev) {
+    popc.textContent = '';
+    node(popc);
+    pop.classList.add('show');
+    var w = pop.offsetWidth, h = pop.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
+    var narrow = vw < 760;
+    if (narrow) { pop.style.left = '12px'; pop.style.right = 'auto'; pop.style.top = 'auto'; pop.style.bottom = '12px'; return; }
+    var r = anchor.getBoundingClientRect();
+    var x = r.right + 12; if (x + w > vw - 8) x = r.left - w - 12; if (x < 8) x = Math.max(8, Math.min(vw - w - 8, r.left));
+    var y = Math.max(8, Math.min(vh - h - 8, r.top));
+    pop.style.left = x + 'px'; pop.style.top = y + 'px'; pop.style.bottom = 'auto'; pop.style.right = 'auto';
+  }
+  $('px').addEventListener('click', closePop);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePop(); });
+  document.addEventListener('pointerdown', function (e) { if (pop.classList.contains('show') && !pop.contains(e.target) && !e.target.closest('[data-pop]')) closePop(); });
+
+  function taskPanel(it) {
+    return function (c) {
+      c.appendChild(el('div', 'pn', it.id + '  ' + it.short));
+      var ps = el('div', 'ps'); ps.className = 'ps st-' + it.status; ps.appendChild(icon(it.status)); ps.appendChild(document.createTextNode(ST[it.status]));
+      c.appendChild(ps);
+      c.appendChild(el('div', 'pd', it.desc));
+      c.appendChild(el('div', 'pm', 'Who: ' + it.tag + (it.note ? '  ·  ' + it.note : '')));
+    };
+  }
+  function phasePanel(p) {
+    return function (c) {
+      c.appendChild(el('div', 'pn', p.num + '. ' + p.name));
+      if (p.plain) c.appendChild(el('div', 'pd', p.plain));
+      var k = p.counts;
+      c.appendChild(el('div', 'pm', k.done + ' done, ' + k.progress + ' in progress, ' + k.next + ' next' + (k.future ? ', ' + k.future + ' later' : '') + (p.when ? '  ·  ' + p.when : '')));
+    };
+  }
+  function gatePanel(g, p) {
+    return function (c) {
+      c.appendChild(el('div', 'pn', 'Gate ' + g.key));
+      c.appendChild(el('div', 'pd', 'A checkpoint: the next phase waits until every line is true.'));
+      var ul = el('ul');
+      g.checks.forEach(function (ck) {
+        var li = el('li', 'st-' + (ck.state === 'open' ? 'next' : ck.state));
+        li.appendChild(icon(ck.state === 'open' ? 'next' : ck.state));
+        li.appendChild(el('span', null, ck.text));
+        ul.appendChild(li);
+      });
+      c.appendChild(ul);
+    };
+  }
+  function bindPop(node, make) {
+    node.setAttribute('data-pop', '1');
+    node.addEventListener('click', function (e) { if (dragMoved) return; e.stopPropagation(); openPop(make, node, e); });
+  }
+
+  /* ---- build ---- */
+  var host = $('phases');
+  var subRe = /^(\d+\.\d+)[a-z]$/;
+  function topicBtn(it, cls) {
+    var b = el('button', cls + ' st-' + it.status);
+    b.type = 'button';
+    b.appendChild(icon(it.status));
+    var s = el('span', 'lbl');
+    var n = el('span', 'num', it.id); s.appendChild(n); s.appendChild(document.createTextNode(it.short));
+    b.appendChild(s);
+    bindPop(b, taskPanel(it));
+    return b;
+  }
+  DATA.phases.forEach(function (p, idx) {
+    var sec = el('section', 'phase'); sec.setAttribute('data-phase', p.key);
+    var L = el('div', 'stack left'), R = el('div', 'stack right'), C = el('div', 'center');
+    // phase box
+    var pb = el('button', 'pbox'); pb.type = 'button'; pb.setAttribute('data-pbox', '1');
+    pb.appendChild(el('h2', null, p.num + '. ' + p.name));
+    pb.appendChild(el('div', 'pshort', p.short + (p.when ? ' · ' + p.when.replace(/^\(|\)$/g, '') : '')));
+    if (p.key === 'F') pb.appendChild(el('div', 'pcount', p.counts.future + ' ideas'));
+    else pb.appendChild(el('div', 'pcount', p.counts.done + '/' + p.counted + ' done'));
+    if (p.key !== 'F') {
+      var pbar = el('div', 'pbar'); var a = el('i', 'b-done'); a.style.width = pct(p.counts.done, p.counted) + '%'; var b = el('i', 'b-prog'); b.style.width = pct(p.counts.progress, p.counted) + '%'; pbar.appendChild(a); pbar.appendChild(b); pb.appendChild(pbar);
+      if (p.counts.future) pb.appendChild(el('div', 'plater', '+ ' + p.counts.future + ' parked for later'));
+    } else pb.appendChild(el('div', 'plater', 'not part of your progress'));
+    bindPop(pb, phasePanel(p));
+    C.appendChild(pb);
+    p.gates.forEach(function (g) {
+      var open = g.checks.filter(function (c) { return c.state !== 'future'; });
+      var dn = open.filter(function (c) { return c.state === 'done'; }).length;
+      var gb = el('button', 'gate' + (open.length && dn === open.length ? ' ok' : '')); gb.type = 'button';
+      gb.appendChild(el('span', 'gk', 'Gate ' + g.key));
+      gb.appendChild(el('span', 'gn', dn + '/' + open.length));
+      gb.setAttribute('data-gate', '1');
+      bindPop(gb, gatePanel(g, p));
+      C.appendChild(gb);
+    });
+    // split items: main vs sub (letter suffix)
+    var mains = [], subs = {}, orphans = {};
+    var mainIds = {};
+    p.items.forEach(function (it) { if (!subRe.test(it.id)) mainIds[it.id] = true; });
+    p.items.forEach(function (it) {
+      var m = subRe.exec(it.id);
+      if (!m) { mains.push(it); return; }
+      var par = m[1];
+      if (mainIds[par]) (subs[par] = subs[par] || []).push(it);
+      else (orphans[par] = orphans[par] || []).push(it);
+    });
+    function sidePanel(items, cap) {
+      var s = el('div', 'side'); s.appendChild(el('div', 'cap', cap));
+      items.forEach(function (it) {
+        var c = el('button', 'chip st-' + it.status); c.type = 'button'; c.appendChild(icon(it.status));
+        var lb = el('span', 'lbl'); lb.appendChild(el('span', 'num', it.id + ' ')); lb.appendChild(document.createTextNode(it.short)); c.appendChild(lb);
+        bindPop(c, taskPanel(it)); s.appendChild(c);
+      });
+      return s;
+    }
+    var n = 0;
+    function addRow(stack, it, group, cap, isOrphan) {
+      var row = el('div', 'row' + (isOrphan ? ' orphan' : ''));
+      if (isOrphan) row.setAttribute('data-orphan', '1');
+      if (it) { row.appendChild(topicBtn(it, 'topic')); row.setAttribute('data-topic', '1'); }
+      if (group) { if (it) row.appendChild(el('span', 'tie')); row.appendChild(sidePanel(group, cap)); }
+      stack.appendChild(row);
+    }
+    mains.forEach(function (it, i) {
+      var stack = (n++ % 2 === 0) ? L : R;
+      addRow(stack, it, subs[it.id], 'also in ' + it.id, false);
+    });
+    Object.keys(orphans).forEach(function (k) {
+      var stack = (n++ % 2 === 0) ? L : R;
+      addRow(stack, null, orphans[k], 'part of ' + k, true);
+    });
+    sec.appendChild(L); sec.appendChild(C); sec.appendChild(R);
+    host.appendChild(sec);
+  });
+
+  /* ---- connectors ---- */
+  var canvas = $('canvas'), svg = $('links'), vp = $('viewport');
+  var S = 1, TX = 0, TY = 0;
+  function isPhone() { return window.matchMedia('(max-width: 759px)').matches; }
+  function rel(elm) { var a = elm.getBoundingClientRect(), c = canvas.getBoundingClientRect(); return { l: (a.left - c.left) / S, r: (a.right - c.left) / S, t: (a.top - c.top) / S, b: (a.bottom - c.top) / S, cy: ((a.top + a.bottom) / 2 - c.top) / S }; }
+  function draw() {
+    svg.textContent = '';
+    if (isPhone()) return;
+    var h = canvas.offsetHeight; svg.setAttribute('viewBox', '0 0 ' + canvas.offsetWidth + ' ' + h); svg.setAttribute('width', canvas.offsetWidth); svg.setAttribute('height', h);
+    var ns = 'http://www.w3.org/2000/svg';
+    document.querySelectorAll('.phase').forEach(function (sec) {
+      var pb = rel(sec.querySelector('.pbox')), mid = (pb.l + pb.r) / 2;
+      sec.querySelectorAll('.row').forEach(function (row) {
+        var left = row.parentNode.classList.contains('left');
+        var target = row.querySelector('.topic') || row.querySelector('.side');
+        var tr = rel(target);
+        var x1 = left ? pb.l : pb.r, y1 = pb.t + (pb.b - pb.t) / 2;
+        var x2 = left ? tr.r : tr.l, y2 = tr.cy;
+        if (row.getAttribute('data-orphan')) { x2 = left ? tr.r : tr.l; }
+        var dx = Math.abs(x2 - x1) * 0.55;
+        var d = 'M' + x1 + ' ' + y1 + ' C' + (left ? x1 - dx : x1 + dx) + ' ' + y1 + ' ' + (left ? x2 + dx : x2 - dx) + ' ' + y2 + ' ' + x2 + ' ' + y2;
+        var p = document.createElementNS(ns, 'path'); p.setAttribute('d', d);
+        if (row.getAttribute('data-orphan')) p.setAttribute('class', 'dot');
+        svg.appendChild(p);
+      });
+    });
+  }
+
+  /* ---- zoom and pan ---- */
+  var dragMoved = false;
+  function apply() {
+    if (isPhone()) { canvas.style.transform = ''; return; }
+    canvas.style.transform = 'translate(' + TX + 'px,' + TY + 'px) scale(' + S + ')';
+    $('zlvl').textContent = Math.round(S * 100) + '%';
+  }
+  function clampPan() {
+    var vw = vp.clientWidth, vh = vp.clientHeight, cw = canvas.offsetWidth * S, ch = canvas.offsetHeight * S;
+    var minX = Math.min(0, vw - cw - 40), maxX = Math.max(0, vw - cw) > 0 ? (vw - cw) / 2 + 200 : 200;
+    if (cw <= vw) { TX = (vw - cw) / 2; } else { TX = Math.max(vw - cw - 80, Math.min(80, TX)); }
+    TY = Math.max(Math.min(0, vh - ch - 60), Math.min(40, TY));
+  }
+  function zoomAt(f, cx, cy) {
+    var ns = Math.max(0.2, Math.min(2.2, S * f)); f = ns / S;
+    TX = cx - (cx - TX) * f; TY = cy - (cy - TY) * f; S = ns; clampPan(); apply();
+  }
+  function fit() { S = Math.min(1.4, (vp.clientWidth - 20) / canvas.offsetWidth); TX = (vp.clientWidth - canvas.offsetWidth * S) / 2; TY = 0; clampPan(); apply(); }
+  $('zin').addEventListener('click', function () { zoomAt(1.2, vp.clientWidth / 2, vp.clientHeight / 2); });
+  $('zout').addEventListener('click', function () { zoomAt(1 / 1.2, vp.clientWidth / 2, vp.clientHeight / 2); });
+  $('zfit').addEventListener('click', fit);
+  vp.addEventListener('wheel', function (e) {
+    if (isPhone()) return; e.preventDefault();
+    if (e.ctrlKey || e.metaKey) { var r = vp.getBoundingClientRect(); zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - r.left, e.clientY - r.top); }
+    else { TX -= e.shiftKey ? e.deltaY : e.deltaX; TY -= e.shiftKey ? 0 : e.deltaY; clampPan(); apply(); }
+  }, { passive: false });
+  var drag = null;
+  vp.addEventListener('pointerdown', function (e) {
+    if (isPhone() || e.button > 0 || e.target.closest('.zoom')) return;
+    drag = { x: e.clientX, y: e.clientY, tx: TX, ty: TY, id: e.pointerId }; dragMoved = false;
+  });
+  window.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!dragMoved && Math.abs(dx) + Math.abs(dy) > 5) { dragMoved = true; vp.classList.add('drag'); closePop(); }
+    if (dragMoved) { TX = drag.tx + dx; TY = drag.ty + dy; clampPan(); apply(); }
+  });
+  function endDrag() { drag = null; vp.classList.remove('drag'); setTimeout(function () { dragMoved = false; }, 0); }
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
+
+  function layout() { draw(); if (isPhone()) { canvas.style.transform = ''; } else { clampPan(); apply(); } }
+  var first = true;
+  var touched = false;
+  function refit() { if (!isPhone() && !touched) fit(); draw(); }
+  function boot() { refit(); first = false; }
+  boot();
+  window.addEventListener('resize', function () { if (!isPhone()) { clampPan(); apply(); } draw(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+  window.addEventListener('load', refit);
+  ['wheel', 'pointerdown'].forEach(function (e) { vp.addEventListener(e, function () { touched = true; }, { passive: true }); });
+  window.__roadmap = { draw: draw, fit: fit };
+})();
+</script>
+</body>
+</html>

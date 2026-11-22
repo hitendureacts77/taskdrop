@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Home: idea templates + map navigator (design mock)</title>
+<style>
+:root{--jade:#0F8F6B;--jade-d:#0A6B50;--jade-s:#E4F5EE;--blue:#2347C5;--blue-d:#1A3598;--blue-s:#E6ECFB;--ink:#16191D;--mut:#6B7280;--line:#E5E7EB;--bg:#F3F4F6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);padding:24px}
+h1{font-size:18px;margin:0 0 4px}.sub{color:var(--mut);margin:0 0 20px;max-width:880px}
+.wrap{display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start}
+.col{width:390px}
+.cap{font-weight:800;margin:0 0 8px;font-size:15px}
+.phone{width:390px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:14px 20px 24px;overflow:hidden}
+.sec{border-radius:14px;padding:12px;margin-top:12px;position:relative;background:#F4F5F7;border:1px dashed #D1D5DB;color:#9CA3AF;filter:grayscale(1)}
+.sec b{display:block;color:#8A9099;font-size:13px}.sec small{display:block;font-size:11.5px;color:#A5ABB3}
+.hero{background:#D8DCE1;height:92px;display:flex;align-items:center;justify-content:center}
+.new{filter:none;border:2px solid;color:var(--ink);background:#fff;padding:12px}
+.hire .new{border-color:var(--jade);box-shadow:0 0 0 4px var(--jade-s)}
+.earn .new{border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-s)}
+.badge{position:absolute;left:-2px;top:-11px;font-size:10px;font-weight:800;color:#fff;padding:2px 8px;border-radius:999px}
+.hire .badge{background:var(--jade)}.earn .badge{background:var(--blue)}
+.new h3{margin:2px 0 2px;font-size:16px}.new p{margin:0 0 10px;color:var(--mut);font-size:12px}
+.rail{display:flex;gap:8px;overflow:hidden}
+.card{flex:0 0 150px;border:1px solid var(--line);border-radius:14px;padding:10px;background:#fff}
+.card i{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;font-style:normal;font-weight:800;margin-bottom:6px}
+.hire .card i{background:var(--jade-s);color:var(--jade-d)}.earn .card i{background:var(--blue-s);color:var(--blue-d)}
+.card b{font-size:13px;display:block}.card span{font-size:11px;color:var(--mut);display:block;margin:2px 0 4px}
+.card em{font-style:normal;font-size:11px;font-weight:700}
+.hire .card em{color:var(--jade-d)}.earn .card em{color:var(--blue-d)}
+.chips{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap}.chip{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:#fff}
+.hire .chip.on{background:var(--jade);color:#fff;border-color:var(--jade)}
+.map{height:132px;border-radius:14px;position:relative;overflow:hidden;background:
+ linear-gradient(90deg,transparent 48%,#fff 48%,#fff 52%,transparent 52%),linear-gradient(0deg,transparent 60%,#fff 60%,#fff 64%,transparent 64%),#E8EEE9}
+.dot{position:absolute;border-radius:50%;width:46px;height:46px;display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff}
+.hire .dot{background:rgba(15,143,107,.6)}.earn .dot{background:rgba(35,71,197,.6)}
+.you{position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--ink);transform:translate(-50%,-50%)}
+.mapbar{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px}
+.mapbar span{font-size:12px;color:var(--mut)}
+.btn{border-radius:12px;padding:9px 14px;color:#fff;font-weight:800;font-size:13px;white-space:nowrap}
+.hire .btn{background:var(--jade)}.earn .btn{background:var(--blue)}
+.pos{margin-top:12px;font-size:12px;color:var(--mut);background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.pos b{color:var(--ink)}
+.legend{display:flex;gap:14px;margin:0 0 18px;font-size:12px;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-2px}
+.l1::before{background:#E5E7EB;border:1px dashed #9CA3AF}.l2::before{background:var(--jade)}.l3::before{background:var(--blue)}
+</style></head><body>
+<h1>Home: "Idea templates for you" and "Map navigator" (design mock, not built)</h1>
+<p class="sub">Phone width 390px. Grey = what is on Home today (from apps/mobile/src/components/HomeSections.tsx). Highlighted = new. Hire stays jade, Earn stays royal blue.</p>
+<div class="legend"><span class="l1">Existing, unchanged</span><span class="l2">New on Hire</span><span class="l3">New on Earn</span></div>
+
+<div class="wrap">
+<div class="col hire"><p class="cap" style="color:var(--jade-d)">Hire Home (poster)</p>
+<div class="phone">
+<div class="sec"><b>Area bar</b><small>Your posts reach workers around here</small></div>
+<div class="sec"><b>Pulse line</b><small>What is going on nearby</small></div>
+<div class="sec"><b>Just posted ticker</b><small>Scrolling real tasks</small></div>
+<div class="sec hero"><b>Hero: What do you need done? (composer + day chips)</b></div>
+<div class="sec"><b>Only on TaskDrop</b><small>Find it for me, Plan a big day, Many hands, Get opinions, Price check</small></div>
+<div class="sec"><b>Your published tasks</b><small>only if you have active tasks</small></div>
+
+<div class="sec new" style="margin-top:22px"><span class="badge">NEW A: position 1</span>
+<h3>Idea templates for you</h3><p>Tap one to start your post. Words and day are filled in; you change anything.</p>
+<div class="chips"><span class="chip on">For you</span><span class="chip">Home Services</span><span class="chip">Errands &amp; Delivery</span><span class="chip">Tech &amp; Websites</span></div>
+<div class="rail">
+<div class="card"><i>H</i><b>Deep clean my flat</b><span>Home Services</span><span>Day filled in: Tomorrow</span><em>Use this &rsaquo;</em></div>
+<div class="card"><i>E</i><b>Queue for me</b><span>Errands &amp; Delivery</span><span>Day filled in: Today</span><em>Use this &rsaquo;</em></div>
+<div class="card"><i>T</i><b>Fix my website</b><span>Tech &amp; Websites</span><em>Use this &rsaquo;</em></div></div>
+<div class="pos">Tap opens <b>Post a task</b> (aiPost) with prompt and day already in. Title and details come from the same writer as today.</div></div>
+
+<div class="sec new" style="margin-top:22px"><span class="badge">NEW B: position 2</span>
+<h3>Helpers near you</h3>
+<div class="map"><div class="dot" style="left:60px;top:22px">5</div><div class="dot" style="left:250px;top:60px;width:38px;height:38px">3</div><div class="dot" style="left:150px;top:78px;width:34px;height:34px">2</div><div class="you"></div></div>
+<div class="mapbar"><span>12 helpers within 5 km, 4 online</span><div class="btn">Open map</div></div>
+<div class="pos"><b>Open map</b> goes to the Explore map, People layer.</div></div>
+
+<div class="sec"><b>Ideas you can get done</b><small>D29: 18 poster ideas in 6 groups (unchanged)</small></div>
+<div class="sec"><b>Ideas for you to manage your tasks</b><small>9 tiles (unchanged)</small></div>
+<div class="sec"><b>Busy on TaskDrop</b><small>Trending categories (unchanged)</small></div>
+</div>
+<div class="pos"><b>Hire order:</b> Area, Pulse, Just posted, Hero, Only on TaskDrop, Your published, <b>Idea templates</b>, <b>Helpers near you</b>, Ideas you can get done, Manage tiles, Busy on TaskDrop.</div></div>
+
+<div class="col earn"><p class="cap" style="color:var(--blue-d)">Earn Home (worker)</p>
+<div class="phone">
+<div class="sec"><b>Area bar</b><small>Showing jobs near you</small></div>
+<div class="sec hero"><b>Hero: Find your next job (level card)</b></div>
+<div class="sec"><b>Search pill</b><small>Search jobs: data entry, logo, tutoring...</small></div>
+
+<div class="sec new" style="margin-top:22px"><span class="badge">NEW B: position 1</span>
+<h3>Jobs near you</h3>
+<div class="map"><div class="dot" style="left:40px;top:50px">7</div><div class="dot" style="left:240px;top:18px;width:38px;height:38px">4</div><div class="dot" style="left:200px;top:84px;width:34px;height:34px">2</div><div class="you"></div></div>
+<div class="mapbar"><span>13 open jobs within 5 km</span><div class="btn">Open map</div></div>
+<div class="pos"><b>Open map</b> goes to the Explore map, Jobs layer (Earn default).</div></div>
+
+<div class="sec"><b>Matches your skills</b><small>Edit skills (unchanged)</small></div>
+<div class="sec"><b>Jobs near [area]</b><small>distance chips + cards (unchanged)</small></div>
+<div class="sec"><b>Remote &amp; online</b></div>
+<div class="sec"><b>Needed today (Urgent)</b></div>
+
+<div class="sec new" style="margin-top:22px"><span class="badge">NEW A: position 2, replaces Ideas to earn</span>
+<h3>Idea templates for you</h3><p>Kinds of work you can pick up. Tap one to see open jobs like it, or add the skill.</p>
+<div class="rail">
+<div class="card"><i>P</i><b>Shoot product photos</b><span>Photo &amp; Video</span><span>People often pay 1,500+</span><em>Find jobs like this &rsaquo;</em></div>
+<div class="card"><i>S</i><b>Weekly site visits</b><span>Local Checks &amp; Info</span><span>People often pay 700 a visit</span><em>Find jobs like this &rsaquo;</em></div>
+<div class="card"><i>+</i><b>Add skill: Tutoring</b><span>Tutoring &amp; Education</span><em>Add to my skills &rsaquo;</em></div></div>
+<div class="pos">Tap opens Explore searched for that kind of job (as today), or Edit skills.</div></div>
+
+<div class="sec"><b>Ideas to earn</b><small>6 cards today: REPLACED by the block above</small></div>
+<div class="sec"><b>See every open job &rsaquo;</b></div>
+</div>
+<div class="pos"><b>Earn order:</b> Area, Hero, Search, <b>Jobs near you map</b>, Matches your skills, Jobs near [area], Remote, Needed today, <b>Idea templates</b> (replaces Ideas to earn), See every open job.</div></div>
+</div>
+</body></html>
