@@ -167,6 +167,36 @@ You asked (18 Nov) to build the design "TaskDrop Upwork for Gig Tasks D31 v11", 
 
 </details>
 
+<details id="c-nov22-d32">
+<summary>[CARD] 22 November: Home idea templates and map cards (D32) built, on your phone, plus the roadmap page and the one-tap login plan</summary>
+
+You said "Yes, build it" on 22 Nov (freeze day), so D32 went in as the last feature before the freeze. Then you asked to check it on your own phone over the USB cable.
+
+**Done (by Claude, checked)**
+
+- [x] **D32 built and merged** ([PR 473](https://github.com/hitendureacts77/taskdrop/pull/473), live on `taskdrop.in`): **Hire Home** shows "Idea templates for you" under the category chips (a tap opens the post screen with the sentence and time ready) and then "Helpers near you" (a small map). **Earn Home** shows a jobs-near-you map card after the search pill, "Ideas to earn" renamed "Idea templates for you", and an "Add a skill" card that opens your profile.
+- [x] **Roadmap page and the one-tap login plan** ([PR 472](https://github.com/hitendureacts77/taskdrop/pull/472)): `docs/roadmap/ROADMAP.html` (rebuild with `node scripts/build-roadmap-html.mjs`) and `docs/design/one-tap-login/PLAN.md`. Nothing of one-tap login is built.
+- [x] **Checked on your phone (CPH2585) over USB:** first in Expo Go (Hire Home templates open the post screen ready; Earn Home map, templates and "Add a skill"), then on a **new APK** built on this PC from commit `bb05c56` and installed over the old one with your data kept: Hire Home shows both new sections, the Explore map opens, no crash. The signing file and Firebase file were deleted from disk afterwards.
+- [x] **API count:** about 160 of our own endpoints (146 under /api in 22 groups, plus batch, health and 12 functions), 71 database functions that only the server calls, about 14 outside services. MSG91, RazorpayX, email and analytics are not wired yet.
+
+**Good to know**
+
+- The update published for the beta channel (group `187c4607`, runtime `1.1.0`) did not reach your phone: APKs built on this PC carry a build-time runtime that cannot be read back, so for a local build the way to update is a new APK. The update is harmless; it matches no installed app.
+- The site APK on `taskdrop.in` (the 7 Nov build, runtime `c6960bec`) does **not** have D32 yet. It needs an update with that runtime, or a new store build after the free Android builds return on 1 Dec.
+
+**Still to do: yours**
+
+- [ ] **Look at Hire Home and Earn Home on your phone** and tell Claude what to change (the Earn "Open the map" card was not tapped on the new build)
+- [ ] **One-tap login:** answer whether you own `taskdrop.app` (phone accounts use `p<phone>@phone.taskdrop.app`), decisions D1 to D5, and the Google console steps in `docs/design/one-tap-login/PLAN.md`
+
+**Still to do: Claude's**
+
+- [ ] The Hire card "Full map" opens the full-screen map, not Explore's People layer (as drawn earlier; ask if you want it changed)
+- [ ] "Add to my skills" opens the About tab of the worker profile, not Skills
+- [ ] A test draft task is left on the phone's test account (My tasks, Drafts): delete it
+
+</details>
+
 <details id="c-ceo-defaults">
 <summary>[CARD] The CEO defaults: accepted by you on 11 November. Still open: the area names</summary>
 
@@ -1295,6 +1325,7 @@ These came from your 30 Oct walkthrough (times are in your video):
 | D27 | Added 11 Nov 2026 (your message about filters and unique Home ideas; tasks 1.17 and 1.16, [D27 board](https://claude.ai/artifact/L9YwHsix5s7NtnuAfdWLE6)): **one Filters sheet for the Find work map and the Find work list** (Nearby or Remote, how far, price range, Auto-hire, Open to counter offers, any number of categories, due in 24 hours, show first), the same chips on both, a "drop one to see more" empty state; and **Home v2**: "No app does these" grows to 8 brand-new jobs plus an Idea book of 14, with 8 example stories. **Drawn, waiting for your look; nothing built** |
 | D28 | Added 11 Nov 2026 (your message about the Hire Home order; task 1.16): a **"Just posted" strip** between your area and the ask box (titles of tasks people are posting, scrolling; tap for the full list, tap a title to post one like it), then the ask box, **Only on TaskDrop**, a new **Manage my tasks** grid of 9 (Hand off a task, Reel editing, Job referral, Grow my page, Talk to someone who did it, Scooter repair, Govt form help, Legal services help, Queue for me), Your published tasks, Busy on TaskDrop, Services near you. Everyday help and More ideas are gone; no "No app does these" heading. **Built** |
 | D29 | Added 11 Nov 2026 (your message: "give the posters ideas they can solve with the app", then "you make the decisions"; task 1.16): **18 poster ideas in 6 groups** right under Only on TaskDrop, no heading: Money back (Get my PF out, Claim my insurance, Get my deposit back, Fix my credit score), Earn from it (Sell my stuff, Rent out my empty flat, Shoot my products), Be there for me (Watch my plot, Watch my house being built, Hospital runner, Surprise them for me), Before I buy (Check my new flat, Check this plot before I buy, Flat hunt for me), Grow my business (Put my shop online, Launch me in my area), My career (Apply for me, Fill my college options). Each card: the problem in one line and a price from; a tap opens the ask box with the sentence ready. Replaces the D27 "second pass" tiles you turned down. **Built** |
+| D32 | Added and **approved 22 Nov 2026** ("Yes, build it"; task 1.16, built inside the freeze day, [PR 473](https://github.com/hitendureacts77/taskdrop/pull/473)): **idea templates and map cards on Home.** Hire Home: "Idea templates for you" under the category chips (a tap opens the post screen ready), then "Helpers near you". Earn Home: a jobs-near-you map card, "Idea templates for you" and an "Add a skill" card. **Built; checked on your phone 22 Nov** |
 
 1. SAY (start with the three that testers will notice first):
 
@@ -1850,7 +1881,7 @@ start 1.14
 **Checked online on 11 Nov 2026:** Google Play's target level rule (Android 16, API 36, from 31 August 2026); Android 16's and Android 17's rules for screens 600 and wider (Android Developers); Google's size classes, which change at 600, 840, 1200 and 1600 wide (TaskDrop changes at 600, 1024 and 1600, which is close enough to keep); and the most common phone screens in India (StatCounter, October 2026: 360 × 800 first, the rest between 360 and 432 wide).
 </details>
 <details id="t1-16" data-short="Only unique tasks">
-<summary>[CLAUDE] <b>1.16</b> Only the jobs no other app does: who TaskDrop is for, and a Home that shows it (D26) <small>· added 11 Nov, from your video · Home built 11 Nov in your order (D28) with the poster ideas (D29), live on taskdrop.in · open: the Android phone check and the 5-person test · order 2 after launch</small></summary>
+<summary>[CLAUDE] <b>1.16</b> Only the jobs no other app does: who TaskDrop is for, and a Home that shows it (D26) <small>· added 11 Nov, from your video · Home built 11 Nov in your order (D28) with the poster ideas (D29), live on taskdrop.in · D32 (idea templates and map cards) built 22 Nov and checked on your phone · open: your look at it and the 5-person test · order 2 after launch</small></summary>
 
 **What you said (11 Nov, a 97-second video of Hire Home):** you do not want **Everyday help** (cleaning, repairs, pick-up and drop, queue, shifting, online help). Big apps already do those. You want only the unique tasks, like **Find it for me** and **Plan a big day**, and the creative ones from **More ideas** (Hand off a task, Reel editing). Replace Everyday help with more creative, innovative tasks, so every part of Home is unique. In the same message: **bring back the worker colour palette** (Hire green, Earn blue, always clearly different) and use Opus 5.5 for complex work, Sonnet 5.5 for regular builds.
 
@@ -6560,6 +6591,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-22 (D32, the phone check and the roadmap page: progress moved into the plan):** You asked to save the progress in this plan. Added the card **"22 November: Home idea templates and map cards (D32) built, on your phone, plus the roadmap page and the one-tap login plan"** under **Do these now**, decision row **D32**, and a line in task 1.16. D32 is merged (PR 473), the roadmap page and one-tap plan are in PR 472, and a new APK with D32 is installed on your phone. The 1.1.0 update did not reach it (a local build needs a new APK). Open: your look at the phone, the one-tap login answers.
 - **2026-11-20 (the Upwork-style design D31, Top up, the OTA and the browser tests: progress moved into the plan):** You asked to store the progress in this plan. Added the card **"18 to 20 November: the Upwork-style design (D31) built, Top up, the OTA, and the browser tests working again"** under **Do these now**: PRs 442 and 444 (the D31 screens and leftovers), PR 447 (**Top up** on open posts, migration 194, live on staging), OTA `33b6ca71` on the beta channel, PRs 448 and 449 (the End-to-end job runs again in about 9 minutes and went green on 20 Nov: 54 passed, 1 flaky), and the staging test-data changes you approved (Asha back to ₹5,000, Meera's name restored, Asha and Ravi no longer "new" accounts). Yours: check the OTA on your phone, the five phone boards whose design was lost, EAS minutes back on 1 Dec. Claude's Top up click-through is done too: the new browser test `e2e/topup.spec.ts` passed on staging. Nothing on production.
 - **2026-11-20 (OWASP, data in India, cookie bar: the rest moved into the plan):** You asked to move what is left and the progress into this plan. Added the card **"17 to 20 November: OWASP fix, data in India, cookie bar"** under **Do these now** (done list, your three steps, Claude's four), the picomatch exception to the Security section, three production rows (password settings, migration 192, Sentry EU) to 5.9's settings table, and 2.24 now says merged.
 - **2026-11-19 (desktop web redesign: status and the rules check):** Packages 0 to 8, 10, 14 and 15 of the desktop design are merged into `redesigned-2.0`; package 16 adds `e2e/desktopRules.spec.ts` (DOM checks of rules 1, 2 and 4 at 1440 x 900 on 14 signed-in screens; Post a task breaks rule 4 until package 13) and this note under task 1.10. Packages 9 (Home two columns), 11 (Wallet table, draft PR 436), 12 (Messages master-detail) and 13 (posting flow) wait for your OK. Plan: `docs/design/desktop-web/PLAN.md`. Desktop web only; no database, setting, key or app build changed.
