@@ -521,6 +521,7 @@ I do not know. Pitch me three options and say which is best.
 5.10 | Production web addresses | Vercel's addresses written into Supabase, reCAPTCHA and Firebase. Production open to Google. Decision 28 (decided 11 Nov): `taskdrop.in` moves to production here and staging moves to `staging.taskdrop.in`.
 5.0d | Production Android app | Rehearse with a production APK and a real SMS code, then the store file; App Check is switched on after the Play internal test.
 5.11 | Monitors, and prove the two copies are separate | Three uptime monitors; Claude proves no data, key, push, update or sign-in crosses between the copies.
+5.12 | Move web hosting from Vercel to Cloudflare Pages at launch | Free hosting that allows business use, so Vercel Pro ($20 a month) is not needed. Decided 22 Nov 2026: stay on Vercel while testing, switch at launch.
 - | Pass Gate 5 | Every line must be true before real money. See [Gate 5](#gate-5).
 # D · Switch on real money (Step 6) | One part at a time, with a ₹10 test first.
 6.1 | Put the live keys into production yourself | Razorpay and RazorpayX keys into the Supabase Vault; MSG91, Inngest, ImageKit and Google keys into Vercel. Never in the chat.
@@ -4498,6 +4499,7 @@ The two you asked for are rows 1 and 3/4. Row 2 exists only because Google's 12-
 | 8 | **5.10** Production web addresses | After 5.8 | none |
 | 9 | **5.11** Prove the two copies are separate (now includes the phone and the web) | After 5.10 | none |
 | 10 | **5.0e** The release routine, production half; the switchboard card | From 5.11 on | none |
+| 11 | **5.12** Move web hosting to Cloudflare Pages (optional, saves about $20 a month) | After 5.11, at launch | none (free) |
 
 Steps 2 to 5 do not wait for Gate 4. They cost nothing and make staging match the way production will be built, so the rehearsal happens early.
 
@@ -5149,6 +5151,24 @@ Prove that staging and production are separate.
 - the safety alarm reports "all clear" for production, and Claude has shown it firing on a practice run (on staging set to look like production, never by switching a test shortcut on in production)
 - last night's copy of the production database exists outside Supabase
 - 2-step sign-in on the production accounts is deferred by your decision (31 Oct 2026, task 2.1b, future scope). Claude reminds you of this once before you go live
+</details>
+
+<details id="t5-12" data-short="Cloudflare hosting">
+<summary>[BOTH] <b>5.12</b> Move web hosting from Vercel to Cloudflare Pages at launch <small>· your time: 20 minutes · saves about $20 a month</small></summary>
+
+**In plain words:** Vercel's free (Hobby) plan is for non-commercial use only, so at launch we would need Vercel Pro (about $20 per member per month, plus any usage over the allowance). The website and the admin are static builds (only rewrites and headers, no Vercel functions; the backend is Supabase). Cloudflare Pages serves static sites for free, allows commercial use and charges nothing for bandwidth. **Decided 22 Nov 2026:** stay on Vercel during testing, switch at launch.
+
+1. Claude re-checks both pricing pages (Vercel and Cloudflare Pages) first, and reports any change before starting. If Cloudflare's free terms or limits changed, the task stops and you decide.
+2. Claude moves the Supabase function-secret sync that `scripts/vercel-build.mjs` does today to a GitHub Action or to the Cloudflare build.
+3. Claude ports the `vercel.json` rewrites and headers to Cloudflare's `_redirects` and `_headers` files, including every `X-Robots-Tag: noindex` rule (staging and admin stay hidden from Google; production stays open).
+4. Claude creates the Cloudflare Pages projects for the user web and the admin, staging and production.
+5. Claude updates every allowed address that names the old host: Supabase sign-in URLs and CORS, Google OAuth redirect URLs, App Check web domains, Sentry, and the content security policy.
+6. CLICK (you): create the Cloudflare account (sign in as hitendureacts@gmail.com), then make the DNS change that points `taskdrop.in` at Cloudflare in the same hour `taskdrop.in` moves to production (5.10).
+7. Claude keeps Vercel running for one week as a fallback, then you downgrade or remove the Vercel projects. TELL Claude: "done 5.12".
+
+**Owner-only:** creating the Cloudflare account and the DNS change.
+
+**Done when:** the website and admin answer from Cloudflare on the right addresses, sign-in (phone code and Google) works, `noindex` is on staging and admin and absent on production, and Vercel has been off for a week with nothing broken.
 </details>
 
 > **GATE 5: do not start Step 6 until all of these are true**
@@ -6481,7 +6501,7 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 | What | Amount |
 |---|---|
 | Supabase Pro, in its own organization (staging stays free) | $25 |
-| Vercel Pro (includes $20 of usage, 1M CDN requests and 1 TB transfer; stopped at $50 by 5.8b) | $20 |
+| Vercel Pro (includes $20 of usage, 1M CDN requests and 1 TB transfer; stopped at $50 by 5.8b). Task 5.12 can avoid this line by moving web hosting to Cloudflare Pages (free) at launch | $20 |
 | Inngest, ImageKit, Sentry, PostHog, Loops and Expo, each in its own production account | free plans; upgrade one only when its limit warns at about 70%. The first likely to warn: Expo's 1,000 app-update users ($19 Starter) and Sentry's 5,000 errors a month shared with staging ($26 Team) |
 | Google Cloud and Firebase for production | pay as you use, with the ₹1,000 budget alert (5.3) |
 | Nightly database copy outside Supabase (5.9) | free (GitHub's free minutes and storage) |
