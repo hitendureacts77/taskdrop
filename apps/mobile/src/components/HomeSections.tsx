@@ -32,7 +32,8 @@ import {
   type TrendingCategory,
 } from '../data/extras';
 import { listGuestSaves, setGuestSaved } from '../lib/guestSaves';
-import { TEMPLATES } from '../lib/taskBrief';
+import { CATEGORIES, TEMPLATES, type Category } from '../lib/taskBrief';
+import { WHEN_WORDS, homeTemplates, templateCategories, templatesIn, type HomeTemplate } from '../lib/homeTemplates';
 import { levelFor } from '../lib/levels';
 import { taskToFeedRow } from '../lib/openTask';
 import { useMyOffers } from '../lib/useMyOffers';
@@ -42,6 +43,8 @@ import { BottomSheet, Grid, SectionTitle, Shimmer, rupees, timeAgo, timeLeft } f
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { Rail, useRailItemWidth } from './Rail';
+import { NearYou } from './NearYou';
+import { JobsNearHero } from './JobsNearHero';
 import { HeroCard } from './Hero';
 import { Drop, Ripples } from './Ripples';
 import { cardSurface } from './ui';
@@ -386,6 +389,8 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
                 onPrompt={(prompt) => go('aiPost', { prompt })}
               />
               {published}
+              <HomeTemplates onPick={(x) => go('aiPost', { prompt: x.prompt, when: x.when })} />
+              <NearYou />
               <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
               {manage}
               {footer}
@@ -432,6 +437,10 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         />
 
         {published}
+
+        <HomeTemplates onPick={(x) => go('aiPost', { prompt: x.prompt, when: x.when })} />
+
+        <NearYou />
 
         <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
 
@@ -1138,13 +1147,18 @@ function EarnTop() {
 
   const sections = (
     <>
+      {/* D32: a short live map of jobs near you, right after the search pill (the desktop header holds the search). */}
+      <View testID="home-jobs-map" style={{ marginTop: desktop ? 0 : 20 }}>
+        <JobsNearHero onOpenMap={() => go('explore')} />
+      </View>
+
       {/* 1. Skills */}
       <SectionTitle
         title="Matches your skills"
         icon="star"
         action="Edit skills"
         onAction={() => go('profileEdit')}
-        style={{ marginTop: desktop ? 0 : 32 }}
+        style={{ marginTop: 32 }}
       />
       <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>
         {skills.length ? skills.slice(0, 3).join(' · ') : 'Add skills to your profile for sharper matches'}
@@ -1185,7 +1199,7 @@ function EarnTop() {
         </>
       ) : null}
 
-      <EarnIdeas onSearch={(q) => go('explore', { q })} />
+      <EarnIdeas onSearch={(q) => go('explore', { q })} onAddSkill={() => go('profileEdit')} />
 
       <Pressable
         onPress={() => go('explore')}
@@ -1659,6 +1673,8 @@ function IdeaCard({
   fill = false,
   priceLabel = 'People often offer',
   cta = 'Post this idea',
+  hidePrice = false,
+  testID,
 }: {
   idea: PosterIdea;
   onPress: () => void;
@@ -1667,6 +1683,9 @@ function IdeaCard({
   /** Earn's ideas say what people often pay, and lead to Find work instead of the composer. */
   priceLabel?: string;
   cta?: string;
+  /** The Add skill card has no price to show. */
+  hidePrice?: boolean;
+  testID?: string;
 }) {
   const t = useTheme();
   const { desktop } = useLayout();
@@ -1675,9 +1694,10 @@ function IdeaCard({
   const width = fill ? undefined : desktop ? railWidth : 230;
   return (
     <Pressy
+      testID={testID}
       onPress={onPress}
       scaleTo={0.97}
-      label={`${x.title}. Idea. ${x.problem} ${priceLabel} ${offerLine(x.price)}. ${cta}`}
+      label={hidePrice ? `${x.title}. ${x.problem} ${cta}` : `${x.title}. Idea. ${x.problem} ${priceLabel} ${offerLine(x.price)}. ${cta}`}
       style={[cardSurface(t, 16), { width, flex: fill ? 1 : undefined, padding: 12, gap: 8 }]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -1689,12 +1709,97 @@ function IdeaCard({
       <RNText style={tx('800', 14, t.colors.ink, { lineHeight: 18 })} numberOfLines={2}>{x.title}</RNText>
       <RNText style={tx('500', 12, t.colors.muted, { lineHeight: 17 })} numberOfLines={3}>{x.problem}</RNText>
       <View style={{ flexGrow: 1 }} />
+      {hidePrice ? null : (
       <View>
         <RNText style={tx('700', 10, t.colors.muted, { letterSpacing: 0.8 })}>{priceLabel.toUpperCase()}</RNText>
         <RNText style={tx('800', 14, t.colors.ink, { marginTop: 2, fontVariant: ['tabular-nums'] })}>{offerLine(x.price)}</RNText>
       </View>
+      )}
       <View style={{ height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.accentSoft }}>
         <RNText style={tx('800', 12.5, t.colors.accentDeep)}>{cta} ›</RNText>
+      </View>
+    </Pressy>
+  );
+}
+
+// D32: "Idea templates for you" on Hire Home. The composer's own templates under category chips; a tap opens the
+// new-task screen with the words and the suggested day already in, and the poster changes anything.
+function HomeTemplates({ onPick }: { onPick: (x: HomeTemplate) => void }) {
+  const t = useTheme();
+  const { desktop, tablet } = useLayout();
+  const all = homeTemplates(TEMPLATES);
+  const chips = templateCategories(all, CATEGORIES);
+  const [cat, setCat] = useState<Category | null>(null);
+  const list = templatesIn(all, cat);
+  const chip = (label: string, on: boolean, onPress: () => void) => (
+    <Pressy
+      key={label}
+      onPress={onPress}
+      scaleTo={0.96}
+      label={on ? `${label}, selected` : label}
+      style={{
+        borderRadius: 999,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderWidth: 1.5,
+        borderColor: on ? t.colors.btn : t.colors.accentBorder,
+        backgroundColor: on ? t.colors.btn : 'transparent',
+      }}
+    >
+      <RNText style={tx('700', 13, on ? t.colors.onBtn : t.colors.accentDeep)}>{label}</RNText>
+    </Pressy>
+  );
+  // A wide screen lays the cards out in a grid, so "For you" shows the first eight; a chip shows all of its own.
+  const shown = (desktop || tablet) && cat === null ? list.slice(0, 8) : list;
+  const cards = shown.map((x) => <TemplateCard key={x.key} item={x} onPress={() => onPick(x)} wide={desktop || tablet} />);
+  return (
+    <View testID="home-templates" style={{ marginTop: 32 }}>
+      <SectionTitle title="Idea templates for you" icon="sparkle" />
+      <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
+        {desktop
+          ? 'Click one to start your post. The words and day are filled in; you change anything.'
+          : 'Tap one to start your post. The words and day are filled in; you change anything.'}
+      </RNText>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 8 }}>
+        {chip('For you', cat === null, () => setCat(null))}
+        {chips.map((c) => chip(c, cat === c, () => setCat(c)))}
+      </ScrollView>
+      <View style={{ marginTop: 12 }}>
+        {desktop || tablet ? (
+          <Rail min={desktop ? 170 : 220}>{cards}</Rail>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+            {cards}
+          </ScrollView>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function TemplateCard({ item: x, onPress, wide }: { item: HomeTemplate; onPress: () => void; wide: boolean }) {
+  const t = useTheme();
+  const { desktop } = useLayout();
+  const railWidth = useRailItemWidth(230);
+  const width = wide ? (desktop ? railWidth : 230) : 190;
+  return (
+    <Pressy
+      testID={`home-template-${x.key}`}
+      onPress={onPress}
+      scaleTo={0.97}
+      label={`${x.title}. ${x.sub}. Day filled in: ${WHEN_WORDS[x.when]}. Opens the new task screen`}
+      style={[cardSurface(t, 16), { width, padding: 12, gap: 6 }]}
+    >
+      <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={x.icon} size={17} color={t.colors.accentDeep} />
+      </View>
+      <RNText style={tx('800', 14, t.colors.ink, { lineHeight: 18 })} numberOfLines={2}>{x.title}</RNText>
+      <RNText style={tx('600', 11.5, t.colors.accentDeep)} numberOfLines={1}>{x.category}</RNText>
+      <RNText style={tx('500', 12, t.colors.muted, { lineHeight: 17 })} numberOfLines={2}>{x.sub}</RNText>
+      <View style={{ flexGrow: 1 }} />
+      <RNText style={tx('600', 11.5, t.colors.muted)}>Day filled in: {WHEN_WORDS[x.when]}</RNText>
+      <View style={{ height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.accentSoft }}>
+        <RNText style={tx('800', 12.5, t.colors.accentDeep)}>Use this ›</RNText>
       </View>
     </Pressy>
   );
@@ -1712,25 +1817,28 @@ const EARN_IDEAS: (PosterIdea & { search: string })[] = [
   { icon: 'globe', title: 'Put a shop online', problem: 'Google Maps, food apps and a WhatsApp catalogue for a local shop.', price: 'from ₹2,000', prompt: '', search: 'shop' },
 ];
 
+/** D32: the last card of Earn's templates opens Edit skills. No price, so none is shown. */
+const ADD_SKILL: PosterIdea = { icon: 'star', title: 'Add a skill', problem: 'Tell us what you can do and see jobs that match.', price: '', prompt: '' };
+
 /**
  * "Ideas to earn" (D31 boards, Earn Home): read as ideas -- the Idea tag, "Just ideas…", what people often pay --
  * each leading to Find work searched for that kind of job. Royal blue: Earn's accent tokens.
  */
-function EarnIdeas({ onSearch }: { onSearch: (q: string) => void }) {
+function EarnIdeas({ onSearch, onAddSkill }: { onSearch: (q: string) => void; onAddSkill: () => void }) {
   const t = useTheme();
   const { desktop, tablet } = useLayout();
   return (
-    <View style={{ marginTop: 32 }}>
+    <View testID="home-earn-templates" style={{ marginTop: 32 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ flex: 1 }}>
-          <SectionTitle title="Ideas to earn" icon="sparkle" />
+          <SectionTitle title="Idea templates for you" icon="sparkle" />
         </View>
         <IdeaTag plural />
       </View>
       <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
         {desktop
-          ? 'Just ideas: kinds of work people post here. Click one to look for jobs like it.'
-          : 'Just ideas: kinds of work people post here. Tap one to look for jobs like it.'}
+          ? 'Kinds of work you can pick up. Click one to look for jobs like it, or add the skill.'
+          : 'Kinds of work you can pick up. Tap one to look for jobs like it, or add the skill.'}
       </RNText>
       <View style={{ marginTop: 12 }}>
         {desktop || tablet ? (
@@ -1738,6 +1846,7 @@ function EarnIdeas({ onSearch }: { onSearch: (q: string) => void }) {
             {EARN_IDEAS.map((x) => (
               <IdeaCard key={x.title} idea={x} onPress={() => onSearch(x.search)} priceLabel="People often pay" cta="Find jobs like this" />
             ))}
+            <IdeaCard testID="home-add-skill" idea={ADD_SKILL} onPress={onAddSkill} hidePrice cta="Add to my skills" />
           </Rail>
         ) : (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -1746,6 +1855,9 @@ function EarnIdeas({ onSearch }: { onSearch: (q: string) => void }) {
                 <IdeaCard idea={x} onPress={() => onSearch(x.search)} priceLabel="People often pay" cta="Find jobs like this" fill />
               </View>
             ))}
+            <View style={{ flexGrow: 1, flexBasis: '40%', maxWidth: '50%' }}>
+              <IdeaCard testID="home-add-skill" idea={ADD_SKILL} onPress={onAddSkill} hidePrice cta="Add to my skills" fill />
+            </View>
           </View>
         )}
       </View>
