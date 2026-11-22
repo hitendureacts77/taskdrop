@@ -45,6 +45,8 @@ import { BidSheet } from './BidSheet';
 import { Rail, useRailItemWidth } from './Rail';
 import { NearYou } from './NearYou';
 import { JobsNearHero } from './JobsNearHero';
+import { MapShortcuts } from './MapShortcuts';
+import { SafeOnTaskDrop } from './SafeOnTaskDrop';
 import { HeroCard } from './Hero';
 import { Drop, Ripples } from './Ripples';
 import { cardSurface } from './ui';
@@ -383,12 +385,14 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
             <>
               <PulseLine pulse={pulse} first />
               {hero}
+              <MapShortcuts worker={false} />
               <OnlyOnTaskDrop
                 onHunt={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
                 onBigDay={() => go('bigDay')}
                 onPrompt={(prompt) => go('aiPost', { prompt })}
               />
               {published}
+              <SafeOnTaskDrop worker={false} />
               <HomeTemplates onPick={(x) => go('aiPost', { prompt: x.prompt, when: x.when })} />
               <NearYou />
               <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
@@ -429,6 +433,9 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         <JustPosted tasks={posted} onOpen={(prompt) => go('aiPost', { prompt })} />
         {hero}
 
+        {/* Shortcuts straight to the map's features (helpers near you, the full map). */}
+        <MapShortcuts worker={false} />
+
         {/* D22 H1: what only TaskDrop does, as big icons right under the ask box. */}
         <OnlyOnTaskDrop
           onHunt={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
@@ -437,6 +444,9 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         />
 
         {published}
+
+        {/* Why hiring here beats paying offline: held money, milestones, problem reports. */}
+        <SafeOnTaskDrop worker={false} />
 
         <HomeTemplates onPick={(x) => go('aiPost', { prompt: x.prompt, when: x.when })} />
 
@@ -1150,6 +1160,7 @@ function EarnTop() {
       {/* D32: a short live map of jobs near you, right after the search pill (the desktop header holds the search). */}
       <View testID="home-jobs-map" style={{ marginTop: desktop ? 0 : 20 }}>
         <JobsNearHero onOpenMap={() => go('explore')} />
+        <MapShortcuts worker />
       </View>
 
       {/* 1. Skills */}
@@ -1175,6 +1186,9 @@ function EarnTop() {
       )}
 
       {nearSection}
+
+      {/* Helper assurance: the pay is held before they start, released on approval, milestones; offline is risky. */}
+      <SafeOnTaskDrop worker />
 
       {/* 3. From anywhere */}
       <SectionTitle title="Remote & online" icon="compass" style={{ marginTop: 32 }} />
