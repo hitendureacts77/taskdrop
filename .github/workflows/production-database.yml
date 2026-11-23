@@ -20,7 +20,7 @@ name: Production database and functions
 # Secrets of the environment `production-database` (names only; values live in the PROD_ section of .env.all-secrets):
 #   PROD_SUPABASE_DB_PASSWORD     production database password (Supabase -> Project Settings -> Database)
 #   PROD_SUPABASE_ACCESS_TOKEN    a Supabase access token of the account that owns the production organization
-#   PROD_<NAME> for each function secret: INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY, INNGEST_MONEY_JOBS,
+#   PROD_<NAME> for each function secret: INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY,
 #     INNGEST_PUSH_RECEIPT_WAIT, IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_URL_ENDPOINT, IMAGEKIT_ENV,
 #     SENTRY_DSN, SENTRY_ENVIRONMENT, EXPO_BUILDS_TOKEN, GOOGLE_MAPS_API_KEY, FIREBASE_PROJECT_NUMBER, ALLOWED_ORIGINS,
 #     MSG91_AUTHKEY, MSG91_TEMPLATE_ID. A name not set is skipped and listed, never blanked in Supabase.
@@ -124,7 +124,6 @@ jobs:
           PROD_SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
           PROD_INNGEST_EVENT_KEY: ${{ secrets.PROD_INNGEST_EVENT_KEY }}
           PROD_INNGEST_SIGNING_KEY: ${{ secrets.PROD_INNGEST_SIGNING_KEY }}
-          PROD_INNGEST_MONEY_JOBS: ${{ secrets.PROD_INNGEST_MONEY_JOBS }}
           PROD_INNGEST_PUSH_RECEIPT_WAIT: ${{ secrets.PROD_INNGEST_PUSH_RECEIPT_WAIT }}
           PROD_IMAGEKIT_PUBLIC_KEY: ${{ secrets.PROD_IMAGEKIT_PUBLIC_KEY }}
           PROD_IMAGEKIT_PRIVATE_KEY: ${{ secrets.PROD_IMAGEKIT_PRIVATE_KEY }}

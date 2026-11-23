@@ -41,7 +41,6 @@ export const STAGING_PROJECT = "wjxvingpfbfvkfqhrguj";
 const COMMON = [
   "INNGEST_EVENT_KEY",
   "INNGEST_SIGNING_KEY",
-  "INNGEST_MONEY_JOBS", // "on" lets Inngest run the three money sweeps; not a secret
   "INNGEST_PUSH_RECEIPT_WAIT", // a setting, not a secret
   "IMAGEKIT_PUBLIC_KEY",
   "IMAGEKIT_PRIVATE_KEY",

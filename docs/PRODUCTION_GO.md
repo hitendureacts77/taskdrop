@@ -29,7 +29,7 @@ The scripts refuse staging, refuse any other database, and refuse to run on a la
 | `PROD_SUPABASE_DB_PASSWORD` | Supabase production → Project Settings → Database → password |
 | `PROD_SUPABASE_ACCESS_TOKEN` | supabase.com → Account → Access Tokens → new token, name `github-production` (signed in as hitendureacts@gmail.com) |
 | `PROD_INNGEST_EVENT_KEY`, `PROD_INNGEST_SIGNING_KEY` | Inngest production environment |
-| `PROD_INNGEST_MONEY_JOBS`, `PROD_INNGEST_PUSH_RECEIPT_WAIT` | Settings, same as staging's |
+| `PROD_INNGEST_PUSH_RECEIPT_WAIT` | Settings, same as staging's (no `PROD_INNGEST_MONEY_JOBS`: the money sweeps run on pg_cron, plan 3.5c) |
 | `PROD_IMAGEKIT_PUBLIC_KEY`, `PROD_IMAGEKIT_PRIVATE_KEY`, `PROD_IMAGEKIT_URL_ENDPOINT`, `PROD_IMAGEKIT_ENV` | Production ImageKit (5.5) |
 | `PROD_SENTRY_DSN`, `PROD_SENTRY_ENVIRONMENT` | Sentry project `taskdrop-production` (5.6); environment `production` |
 | `PROD_EXPO_BUILDS_TOKEN` | Expo, read-only token for the production project |
