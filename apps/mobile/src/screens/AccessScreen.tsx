@@ -60,7 +60,7 @@ const spaced = spacedMobile;
 export function AccessScreen() {
   const t = useTheme();
   const { desktop } = useLayout();
-  const { go, reset, back, params } = useNav();
+  const { go, reset, back, replace, params } = useNav();
   const { celebrate, flash } = useActions();
   const { requestCode, verifyCode, signInWithGoogle, signInWithApple, signOut, continueAsGuest } = useAuth();
   // Opened from the "Make your account" pop-up: Not now goes back, and signing in resumes what the guest was doing.
@@ -140,13 +140,18 @@ export function AccessScreen() {
       if (route === 'home') {
         back();
         runPendingAfterSignIn();
+      } else if (route === 'username') {
+        // An existing account with no username (plan 1.18): it picks one, then what the guest was doing finishes.
+        toSetup.current = true;
+        replace('pickUsername');
       } else {
         toSetup.current = true;
         go('setup', { quick: true });
       }
       return;
     }
-    if (route === 'home') reset('home');
+    // No username (plan 1.18): Home underneath, and the gate opens over it (components/UsernameGate).
+    if (route === 'home' || route === 'username') reset('home');
     else go('setup');
   };
 

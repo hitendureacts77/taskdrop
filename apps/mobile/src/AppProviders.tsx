@@ -20,6 +20,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppGate } from './components/AppGate';
 import { PushBridge } from './components/PushBridge';
 import { SessionWatch } from './components/SessionWatch';
+import { UsernameGate } from './components/UsernameGate';
 import { PresenceBeat } from './components/PresenceBeat';
 import { PublicPageLink } from './components/PublicPageLink';
 import { refreshAppConfig } from './lib/appConfig';
@@ -55,6 +56,7 @@ export function Background() {
     <ErrorBoundary silent>
       <PushBridge />
       <SessionWatch />
+      <UsernameGate />
       <PresenceBeat />
       <PublicPageLink />
     </ErrorBoundary>
