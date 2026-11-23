@@ -391,6 +391,7 @@ Inside a task, every line is one of three kinds: **CLICK** (you do it), **SAY** 
 | Releasing a change | Staging first, one quiet day, then production to 20% of phones | [Release card](#c-release), [5.0e](#t5-0e) | Have |
 | Google Play | Listing, data safety checked against a scan of the code, a reviewer login, 12 testers for 14 days, 20% rollout | [3.1](#t3-1), [3.3](#t3-3), [6.6](#t6-6) | Have, **code scan added** |
 | Found on Google and WhatsApp | One heading per page, a title and description, a share preview that looks right on WhatsApp, a sitemap, Search Console | [4.3](#t4-3), [6.4](#t6-4) | **Checklist added** |
+| Website finish: 20 basics people notice (clickable logo and email, mobile menu, working footer, custom 404, no placeholder text, success and error messages, no sideways scroll) | Run on every public page at phone and laptop width before launch | [3.6](#t3-6) (T13), [4.3](#t4-3) | **Added 23 Nov** |
 | Moving to the real address | Every place that names the web address is changed in one pass | [5.10](#t5-10) | Have, **3 lines added** |
 | Email | The sender domain is proven (SPF, DKIM, DMARC), no test links in emails, one test in a real inbox | [4.10](#t4-10), decision 48 | **Checklist added** |
 | Backups | A nightly copy outside Supabase and one practised restore before GO | [5.9](#t5-9), [6.5](#t6-5) | Have |
@@ -3934,6 +3935,32 @@ Each moved job used one or two Inngest steps per run, so steps fall by about the
 | T10 Everything works | Every screen at every phone size, light and dark, keyboard use and screen-reader use; the admin's pages at laptop width, light and dark |
 | T12 Recovery | What the app shows when SMS, payments or photos are down, and the undo for each database change. Staging's free plan has no backups, so the restore itself is practised on a scratch copy with the nightly-copy script Claude writes for production (5.9); the admin shows its error page, not a blank screen, when Supabase is down, and its emergency switches still save |
 | Lighthouse | Google's page-quality score for the website (speed, accessibility, best practices) |
+| T13 Website finish (20 points) | The 20 "fix before you show it to anyone" checks from the vibe-coded-website list (added 23 Nov, from an Instagram reel by krishanu.builds), run on the public pages (4.3), the guest Home and the admin login. List below |
+
+**The 20-point website finish list** (added 23 Nov). Claude runs it on staging at 390 and 1440 wide, light and dark, and lists every miss. Some points were already in the plan; the rest are new here.
+
+| # | Check | What "true" looks like for TaskDrop | Was it in the plan? |
+|---|---|---|---|
+| 1 | No sideways scrolling | At 320, 360, 390, 820 wide the page never scrolls left or right | Yes, [1.14](#t1-14) level 1; now also a line here |
+| 2 | No broken links | A crawler follows every link on every public page, the footer, emails sent by 4.10 and the legal pages; no 404, no link to staging (`taskdrop.in`) from production | **New** |
+| 3 | A mobile menu | On a phone the website header opens a menu (Home, How it works, Earn, Fees, Safety, Help, Sign in), closes on tap outside and on Back, and works with the keyboard | **New** |
+| 4 | A favicon | Shows in the browser tab, Google results, and as the home-screen icon (the drop with the check) | Yes, [4.3](#t4-3) |
+| 5 | Page titles | Every page has its own title of about 60 characters, none says "TaskDrop" alone or "Untitled" | Yes, [4.3](#t4-3) |
+| 6 | Meta descriptions | Every page has its own description of about 150 characters, no two the same | Yes, [4.3](#t4-3) |
+| 7 | Footer links | Every footer link opens a real page (Terms, Privacy, Refunds, Grievance, Contact, Help, Safety); none is `#` | **New** |
+| 8 | A custom 404 page | A wrong address shows a TaskDrop page in the brand with a "Go to Home" button and a search or help link, not the browser's or Vercel's default; the app and admin do the same | **New** |
+| 9 | The copyright year | The footer year is worked out from the date, never typed in, and the name matches the company paperwork (S.2) | **New** |
+| 10 | Compress images | Every picture on the public pages is WebP or AVIF, sized for the screen (under about 200 KB each), lazy-loaded below the first screen, with alt text. App photos already go through ImageKit | Part (videos only, [6.1 card](#c-design)); now covers pictures too |
+| 11 | No broken buttons | Every button and tab on every public page and guest screen does something: opens a page, a sheet or a sign-in; none is dead, and none works only with a mouse | **New** (the bug hunt [2.14](#t2-14) reads code; this clicks them) |
+| 12 | Success messages | After every form (post a task, send an offer, Request TaskDrop in your area, feedback board, Contact) the person sees a clear "Done" message saying what happens next | **New** |
+| 13 | Error messages | Every form shows a plain-words reason in the field when it fails ("Enter a 10-digit number"), not a raw error or nothing; the page never goes blank (the error page covers a crash) | Part (`lib/errors.ts`, T12); now checked form by form |
+| 14 | No placeholder text | No "Lorem ipsum", "Coming soon", "TODO", "example.com", test phone numbers or placeholder address on production. The footer address waits for S.2: until then show only the support email, not a fake address | **New** |
+| 15 | No unused navigation | No menu item or tab leads to an empty or future-scope page (iOS, Apple sign-in, Live Track, anything marked `[-]`); the admin menu hides what is off | **New** |
+| 16 | No mobile overflow | No text, button, card or table is cut off or hangs outside its box at 320 wide, with a long name, long Hindi or Tamil text, a big system font and 200% zoom | Yes, [1.14](#t1-14) and T10; now also a line here |
+| 17 | The logo is clickable | The logo goes to Home on every page, including the legal pages and the 404 page | **New** |
+| 18 | Phone numbers are clickable | Any phone number TaskDrop shows opens the dialler (`tel:`). Today only the support email is public; the line stays true if a number is added later | **New** |
+| 19 | The email is clickable | `admin@taskdrop.in` opens the mail app (`mailto:`) on every page that shows it, with a subject filled in on the Contact and Grievance pages | **New** |
+| 20 | Every page is mobile-ready | The 20 points above, plus tap targets of 44 points or more and readable text without zooming, hold on every page, not just Home. Lighthouse mobile score for each public page is recorded | Yes, [1.14](#t1-14), T10, [F1](#t3-6); now listed per page |
 
 1. SAY:
 
@@ -3944,7 +3971,7 @@ run quality tests round 3
 2. For each finding, reply "fix" or "accept" (only Medium and Low can be accepted).
 3. SAY "merge the fixes".
 
-**Done when:** no Critical or High problem is open and every Medium has your answer.
+**Done when:** no Critical or High problem is open, every Medium has your answer, and every line of the 20-point website finish list above is true on staging (or has your "accept").
 
 **Part done 2 Nov (PR 200, results in `docs/QUALITY_ROUND3.md`):** Lighthouse on the website: accessibility **100** on phone and laptop; performance **35** (phone-sized) and **62** (laptop). A staging load test (`npm run test:load`): 180 reads from 3 people, no errors; one person sent 330 reads in a minute and exactly 300 were answered and 30 refused with 429. **No Critical or High problem.** **For your decision:** **F1 (Medium)** the website's first load is slow on a phone-class processor because the app is one 1.3 MB script; fixing means splitting it, which is real work. Fix, or accept for now (the Android app is not affected)? **F2 (Low)** the "Continue with Google" button's spoken name does not contain its visible text; a one-line fix. Fix or accept? **F3 is a launch trap, now in 5.10 and 5.11:** `vercel.json` tells Google not to list `taskdrop.in`, which becomes production's name. **Still to do:** speed on the phone, a full every-screen light/dark/screen-reader pass, T12 (what the app shows when SMS, payments or photos are down) and the nightly database copy script. The phone was not connected.
 
@@ -4102,7 +4129,8 @@ build the public pages
    - a **canonical address** (the production address, never `taskdrop.in` while it is staging);
    - **share tags** (Open Graph and Twitter) with a 1200 × 630 picture, checked on a real **WhatsApp** message and on LinkedIn, because most links in India are shared on WhatsApp;
    - a favicon, and the business details for Google (schema.org Organization and WebSite);
-   - a `sitemap.xml` and a `robots.txt` that allow the production address and block staging.
+   - a `sitemap.xml` and a `robots.txt` that allow the production address and block staging;
+   - the **website finish list** (added 23 Nov, 20 points in [3.6](#t3-6)): a clickable logo, a mobile menu, a footer where every link works, a copyright year worked out from the date, a custom 404 page, clickable email (`mailto:`) and phone (`tel:`), compressed pictures with alt text, no placeholder text, success and error messages on every form, no sideways scrolling.
    
    These pages are plain and fast instead of being app screens, because the app's website draws itself in the browser and Google reads that poorly. Target: 70 or more on a phone-sized speed test (F1 in 3.6). Search Console comes in 6.4.
 
@@ -4841,7 +4869,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-7" data-short="Production Expo + Play">
-<summary>[BOTH] <b>5.7</b> Production Expo project and the Android app identity <small>· Part built 23 Nov: project taskdrop-production exists with all 9 production variables (no debug token), build guard wired; waiting for your upload of the push key (FCM) and the upload keystore</small></summary>
+<summary>[BOTH] <b>5.7</b> Production Expo project and the Android app identity <small>· Part built 23 Nov: project taskdrop-production exists with all 9 production variables (no debug token), build guard wired; the upload keystore was already uploaded on 15 Nov (checked in Expo 23 Nov); waiting for your upload of the push key (FCM V1 service account key)</small></summary>
 
 **Why separate:** the Expo project holds the app's build secrets, the push key and the update channels. With a separate production project, a staging update can never reach real users' phones. Sign in at https://expo.dev as **hitendureacts**.
 
@@ -6626,6 +6654,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-23 (20-point website finish list added):** From an Instagram reel ("20 things to tell Claude to fix on your vibecoded website") you asked whether those checks are in the plan. Eight were already covered in part (favicon, page titles, meta descriptions in 4.3; sideways scrolling, mobile overflow and every-page-mobile in 1.14, T10 and F1; compressed pictures for videos only; error messages in T12). Twelve were not: broken links, a mobile menu, working footer links, a custom 404 page, a worked-out copyright year, broken buttons, success messages, no placeholder text, no unused navigation, a clickable logo, clickable phone, clickable email. Added them all as test **T13 "Website finish (20 points)"** with a 20-row table under task 3.6, a line in 4.3's search and share checklist, a "Done when" condition, and a row in the coverage table. Nothing built or run; it runs with round 3.
 - **2026-11-22 (D32, the phone check and the roadmap page: progress moved into the plan):** You asked to save the progress in this plan. Added the card **"22 November: Home idea templates and map cards (D32) built, on your phone, plus the roadmap page and the one-tap login plan"** under **Do these now**, decision row **D32**, and a line in task 1.16. D32 is merged (PR 473), the roadmap page and one-tap plan are in PR 472, and a new APK with D32 is installed on your phone. The 1.1.0 update did not reach it (a local build needs a new APK). Open: your look at the phone, the one-tap login answers.
 - **2026-11-20 (the Upwork-style design D31, Top up, the OTA and the browser tests: progress moved into the plan):** You asked to store the progress in this plan. Added the card **"18 to 20 November: the Upwork-style design (D31) built, Top up, the OTA, and the browser tests working again"** under **Do these now**: PRs 442 and 444 (the D31 screens and leftovers), PR 447 (**Top up** on open posts, migration 194, live on staging), OTA `33b6ca71` on the beta channel, PRs 448 and 449 (the End-to-end job runs again in about 9 minutes and went green on 20 Nov: 54 passed, 1 flaky), and the staging test-data changes you approved (Asha back to ₹5,000, Meera's name restored, Asha and Ravi no longer "new" accounts). Yours: check the OTA on your phone, the five phone boards whose design was lost, EAS minutes back on 1 Dec. Claude's Top up click-through is done too: the new browser test `e2e/topup.spec.ts` passed on staging. Nothing on production.
 - **2026-11-20 (OWASP, data in India, cookie bar: the rest moved into the plan):** You asked to move what is left and the progress into this plan. Added the card **"17 to 20 November: OWASP fix, data in India, cookie bar"** under **Do these now** (done list, your three steps, Claude's four), the picomatch exception to the Security section, three production rows (password settings, migration 192, Sentry EU) to 5.9's settings table, and 2.24 now says merged.
