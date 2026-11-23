@@ -182,17 +182,6 @@ export function ScreenHost() {
   if (desktop && usesAuthFrame(screen, inApp)) {
     return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
   }
-  // Tablet web: the icon rail in place of the tab bar, content centred.
-  if (tablet && !usesAuthFrame(screen, inApp)) {
-    return (
-      <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
-        <SideNav rail />
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <View style={{ flex: 1, width: '100%', maxWidth: FULL.includes(screen) ? undefined : TABLET_CONTENT }}>{content}</View>
-        </View>
-      </View>
-    );
-  }
   if (desktop) {
     // A column of the screen's class with a gutter each side, under the page
     // header (DesktopPage.tsx); full maps fill the whole area and keep their
@@ -213,11 +202,22 @@ export function ScreenHost() {
     );
   }
 
+  // Phone and tablet share ONE tree shape (task 1.14: turning a tablet, opening a foldable or resizing the window
+  // must not rebuild the screen and lose a half-written task). Position decides what React keeps, so `content`
+  // stays at the same place in both: [rail or nothing] then [one column holding content, then the phone's button
+  // and tab bar or nothing]. On a phone the column is the whole screen, exactly as before.
+  const rail = tablet && !usesAuthFrame(screen, inApp);
+  const phoneBars = !rail;
   return (
-    <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
-      {content}
-      {screen === 'home' && !keyboardOpen && <CreateFab />}
-      {TABBED.includes(screen) && !keyboardOpen && <BottomTabBar />}
+    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
+      {rail ? <SideNav rail /> : null}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <View style={{ flex: 1, width: '100%', maxWidth: rail && !FULL.includes(screen) ? TABLET_CONTENT : undefined }}>
+          {content}
+          {phoneBars && screen === 'home' && !keyboardOpen && <CreateFab />}
+          {phoneBars && TABBED.includes(screen) && !keyboardOpen && <BottomTabBar />}
+        </View>
+      </View>
     </View>
   );
 }

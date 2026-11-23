@@ -48,6 +48,11 @@ export type Ctx = {
   /** Whether the caller has a confirmed phone number; undefined when unknown. */
   phoneVerified?: boolean;
   /**
+   * Whether the caller's profile has a username (plan 1.18); resolves undefined when it could not be read. Asked
+   * only for USERNAME_OPS. Absent (tests, the signed-out reads), nothing is refused for it.
+   */
+  usernameSet?: () => Promise<boolean | undefined>;
+  /**
    * The server copy's shared answers (plan 3.5b layer D). Used only for the ops on PUBLIC_MEMO_OPS and only while
    * `controls.public_cache_memo` is on; absent, null or off, every op runs as before.
    */
@@ -68,6 +73,18 @@ export class OpError extends Error {
 // ------------------------------------------------------------ safe wording --
 
 export const GENERIC = "Something went wrong. Please try again.";
+
+/**
+ * Plan 1.18 (decision 51): a signed-in person always has a username. Until one is set, these are refused: posting,
+ * offers, chat and the money actions that start something. Reading, and finishing work already under way (mark done,
+ * approve, cancel, dispute), stay open, so the app's "Pick a username" page is the only door.
+ */
+export const USERNAME_OPS: ReadonlySet<string> = new Set([
+  "createTask", "placeBid", "updateBid", "sendMessage", "sendCrewMessage", "askTaskQuestion", "answerTaskQuestion",
+  "huntSendFind", "lockBid", "payTaskFromWallet", "raiseTopUp", "startPromotion", "requestWithdrawal",
+  "addPayoutDestination",
+]);
+export const USERNAME_REQUIRED_MESSAGE = "Pick a username first.";
 
 /** What a customer is told about a database failure. Never a table, column or policy name. */
 export function safeMessage(err: DbError): string {

@@ -323,8 +323,9 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
       .select()
       .single();
     if (error) {
-      await logServer("error", "razorpay", "link created but payment row not saved", { link_id: link.id, purpose, error: error.message, user_id: userId });
-      return json({ error: error.message }, 500);
+      const errorId = crypto.randomUUID().slice(0, 8);
+      await logServer("error", "razorpay", "link created but payment row not saved", { link_id: link.id, purpose, error: error.message, user_id: userId, error_id: errorId });
+      return json({ error: `Something went wrong. Please try again. (ref ${errorId})` }, 500);
     }
     await logServer("info", "razorpay", "payment link created", { payment_id: row.id, purpose, task_id: body.taskId ?? null, amount_minor: amount, user_id: userId });
 
@@ -340,7 +341,11 @@ Deno.serve(guarded("razorpay", async (req: Request) => {
       .eq("id", body.paymentId ?? "")
       .eq("user_id", userId)
       .maybeSingle();
-    if (error) return json({ error: error.message }, 500);
+    if (error) {
+      const errorId = crypto.randomUUID().slice(0, 8);
+      await logServer("error", "razorpay", "could not read payment for sync", { payment_id: body.paymentId ?? null, error: error.message, user_id: userId, error_id: errorId });
+      return json({ error: `Something went wrong. Please try again. (ref ${errorId})` }, 500);
+    }
     if (!row) return json({ error: "Payment not found" }, 404);
     if (row.status === "paid") {
       // Paid but the task is not funded: the first attempt could not finish and nothing else retries it, so try

@@ -19,8 +19,6 @@ import {
   chunk,
   compareProviderPayment,
   deadKeys,
-  digestAlert,
-  type Digest,
   expoReceipts,
   expoSend,
   lockScreenSafe,
@@ -42,13 +40,9 @@ import {
   toEvents,
   tokensForKeys,
   type WaitingTicket,
-  checkSnapshotFreshness,
   type CronHealth,
   cronHealthReport,
   jobFailure,
-  refreshPublicSnapshots,
-  SNAPSHOT_MARKER_KEY,
-  type SnapshotMarker,
 } from "./jobs.ts";
 
 /**
@@ -168,12 +162,6 @@ const jobFailureReport = inngest.createFunction(
   },
 );
 
-/** Sent events are kept two weeks for debugging. */
-const outboxPrune = inngest.createFunction(
-  { id: "outbox-prune", triggers: [{ cron: "TZ=Asia/Kolkata 15 4 * * *" }], onFailure: reportFailure("outbox-prune") },
-  async ({ step }) => ({ pruned: await step.run("prune", () => call<number>(rpc, "outbox_prune")) }),
-);
-
 // -------------------------------------------------------------- team alerts --
 
 /** A help request, a withdrawal, a failed payout or a dispute becomes a message for the team. */
@@ -195,27 +183,8 @@ const teamAlert = inngest.createFunction(
   },
 );
 
-/** Totals only, every morning at 9:00 India time. */
-const dailyDigest = inngest.createFunction(
-  { id: "daily-digest", triggers: [{ cron: "TZ=Asia/Kolkata 0 9 * * *" }], onFailure: reportFailure("daily-digest") },
-  async ({ step }) => {
-    const totals = await step.run("collect totals", () => call<Digest>(rpc, "daily_digest"));
-    const id = await step.run("save digest", () => saveAlert(rpc, digestAlert(totals), totals));
-    return { alert: id };
-  },
-);
 
 // --------------------------------------------------- rules and reconciliation --
-
-/**
- * The automation rules an admin switched on (Admin → Rules): who needs a
- * follow-up. The rules and the "once per person" guard live in Postgres
- * (run_crm_rules); this only rings the bell on a schedule.
- */
-const crmRules = inngest.createFunction(
-  { id: "crm-rules", triggers: [{ cron: "0 */3 * * *" }], concurrency: 1, onFailure: reportFailure("crm-rules") },
-  async ({ step }) => ({ created: await step.run("run rules", () => call<number>(rpc, "run_crm_rules")) }),
-);
 
 const RZP = "https://api.razorpay.com/v1";
 
@@ -410,49 +379,6 @@ const strayImageKitFiles = inngest.createFunction(
   },
 );
 
-/** A job that was started and is past its time gets the OVERDUE label. Nothing else changes. */
-const overdueTasks = inngest.createFunction(
-  { id: "overdue-tasks", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("overdue-tasks") },
-  async ({ step }) => ({ marked: await step.run("mark overdue", () => call<number>(rpc, "run_overdue_tasks")) }),
-);
-
-/**
- * Plan 3.5b, layer C: every 20 minutes the database works out Trending, Top helpers and today's numbers once and keeps
- * the copy (refresh_public_snapshots, migration 149). Another refresh already running counts as success. A refresh that
- * keeps failing is reported after the last retry like every job; the first step also checks that the last finished
- * refresh is under 30 minutes old and, if not, logs an error for Sentry and leaves a team alert.
- */
-const snapshotMarker: SnapshotMarker = {
-  async get() {
-    const { data, error } = await db.from("settings").select("value").eq("key", SNAPSHOT_MARKER_KEY).maybeSingle();
-    if (error) throw new Error(`settings: ${error.message}`);
-    return typeof data?.value === "string" ? data.value : null;
-  },
-  async set(iso) {
-    const { error } = await db.from("settings").upsert({ key: SNAPSHOT_MARKER_KEY, value: iso });
-    if (error) throw new Error(`settings: ${error.message}`);
-  },
-};
-
-const publicSnapshots = inngest.createFunction(
-  { id: "public-snapshots", triggers: [{ cron: "*/20 * * * *" }], concurrency: 1, retries: 3, onFailure: reportFailure("public-snapshots") },
-  async ({ step }) => {
-    const freshness = await step.run("check age", () =>
-      checkSnapshotFreshness(rpc, snapshotMarker, async (message, ageMinutes) => {
-        await logServer("error", "public-snapshots", message, { ageMinutes });
-        await captureServerError(new Error(message), { job: "public-snapshots", step: "stale" });
-      }));
-    const refreshed = await step.run("refresh", () => refreshPublicSnapshots(rpc, snapshotMarker));
-    return { ...refreshed, ageBeforeMinutes: freshness.ageMinutes === null ? null : Math.floor(freshness.ageMinutes) };
-  },
-);
-
-/** Counters, sign-in codes, old notifications, the admin live feed: records that have outlived their use. */
-const housekeeping = inngest.createFunction(
-  { id: "housekeeping", triggers: [{ cron: "17 */3 * * *" }], concurrency: 1, onFailure: reportFailure("housekeeping") },
-  async ({ step }) => ({ removed: await step.run("tidy", () => call<Record<string, number>>(rpc, "run_housekeeping")) }),
-);
-
 /**
  * Watches the bridge itself: events left unsent for 15 minutes mean Inngest is
  * not receiving them. Leaves one team alert, then stays quiet for six hours.
@@ -462,25 +388,7 @@ const outboxWatchdog = inngest.createFunction(
   async ({ step }) => ({ checked: await step.run("check outbox", () => call<Record<string, unknown>>(rpc, "run_outbox_watchdog")) }),
 );
 
-/**
- * SMS pumping watch (task 2.8): bots ask for sign-in codes to thousands of numbers and you pay for each SMS. When the day has sent
- * many codes and almost none were used, this leaves one admin alert (then stays quiet for six hours).
- */
-const smsPumpingWatch = inngest.createFunction(
-  { id: "sms-pumping-watch", triggers: [{ cron: "33 * * * *" }], concurrency: 1, onFailure: reportFailure("sms-pumping-watch") },
-  async ({ step }) => ({ checked: await step.run("check codes sent and used", () => call<Record<string, unknown>>(rpc, "run_sms_pumping_watch")) }),
-);
-
-/**
- * Two reminders that need a clock: finished work waiting for the poster's
- * approval (it is approved for them within 24 hours), and a started job that is
- * due within the hour. Each goes out once per task and person, as an ordinary
- * in-app notification (and push, when push is on). No money moves.
- */
-const taskReminders = inngest.createFunction(
-  { id: "task-reminders", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("task-reminders") },
-  async ({ step }) => ({ sent: await step.run("remind", () => call<Record<string, unknown>>(rpc, "run_task_reminders")) }),
-);
+// Moved to pg_cron (plan 3.5c, migration 200): daily-digest, public-snapshots, sms-pumping-watch and task-reminders.
 
 /**
  * The production safety alarm (plan task 5.9, holes H1 and H15). Every hour: is any test shortcut on in
@@ -547,11 +455,8 @@ const userCreated = userFunction("user-created", "taskdrop/user.signed_up");
 const userUpdated = userFunction("user-updated", "taskdrop/user.updated");
 const userDeleted = userFunction("user-deleted", "taskdrop/user.deleted");
 
-/** Every night: puts the ledger right if an event was ever missed. Normally reports all zeros. */
-const userSyncRepair = inngest.createFunction(
-  { id: "user-sync-repair", triggers: [{ cron: "TZ=Asia/Kolkata 10 3 * * *" }], concurrency: 1, onFailure: reportFailure("user-sync-repair") },
-  async ({ step }) => ({ fixed: await step.run("repair", () => call<Record<string, number>>(rpc, "user_sync_repair")) }),
-);
+// Moved to pg_cron (plan 3.5c, migration 199): outbox-prune, crm-rules, overdue-tasks, housekeeping and
+// user-sync-repair now run inside the database through private.run_cron_job. See docs/INNGEST.md.
 
 // -------------------------------------------------------------- money sweeps --
 
@@ -663,9 +568,9 @@ const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
 Deno.serve(serve({
   client: inngest,
   functions: [
-    outboxSweeper, jobFailureReport, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
-    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, overdueTasks, publicSnapshots, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders, safetyAlarm,
-    userCreated, userUpdated, userDeleted, userSyncRepair,
+    outboxSweeper, jobFailureReport, teamAlert, nightlyReconcile,
+    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, outboxWatchdog, safetyAlarm,
+    userCreated, userUpdated, userDeleted,
     moneyMoves, moneyMatch,
     ...moneyJobs,
   ],

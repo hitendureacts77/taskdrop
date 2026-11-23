@@ -52,10 +52,7 @@ also drops those fields from anything it stores, for an event queued before this
 |---|---|---|
 | `outbox-sweeper` | every 10 minutes | re-sends unconfirmed outbox events, marks them sent. In the same step it asks `cron_health()` whether a pg_cron job stopped and, at most once an hour, tells Sentry (`fatal` for a money job) |
 | `job-failure-report` | event `job.failed` | tells Sentry that a pg_cron job failed or stopped (`fatal` for a money job, which emails the owner). The team alert is already written by the database |
-| `outbox-prune` | daily 04:15 IST | removes sent events older than 14 days, and team alerts older than 30 days |
 | `team-alert` | support / withdrawal / payout failed / dispute events | writes a message to `admin_alerts` |
-| `daily-digest` | daily 09:00 IST | writes the day's totals to `admin_alerts` |
-| `crm-rules` | every 3 hours | calls `run_crm_rules()`: the automation rules an admin switched on (Admin → Rules) create follow-up tasks, once per rule per person |
 | `nightly-reconcile` | daily 02:30 IST | calls `run_reconciliation()` (our own money checks), then compares the last 3 days of payments with Razorpay payment links and saves both to `reconciliation_runs`; a difference leaves an `admin_alerts` row. Reports only, never changes money |
 | `auto-complete-due` | hourly at :27 | calls `run_auto_complete_due()` |
 | `settle-cleared-earnings` | hourly at :47 | calls `settle_cleared_earnings()` |
@@ -64,19 +61,15 @@ also drops those fields from anything it stores, for an event queued before this
 | `account-files` | event `user.deleted` | removes whatever files of the deleted account are still in storage (the api function already tried once); empty when nothing is left. Also marks the account's ImageKit pictures deleted (migration 109), except those a kept record still uses |
 | `media-purge` | hourly at :41 | marks pictures nobody finished uploading (pending for 24 h) as deleted, then removes deleted pictures from ImageKit in batches of 50, with retries. Waits, without failing, until the ImageKit secrets are set. See `docs/MEDIA.md` |
 | `stray-imagekit-files` | weekly, Sunday 03:30 India time | removes ImageKit files in this deployment's folder that have no `media` row (by path or file id) and are over 2 days old, at most 200 per run; no-op until the ImageKit secrets are set; removes nothing if the database cannot be asked. `IMAGEKIT_ORPHAN_DRY_RUN=1` only counts. Needs no migration (H41) |
-| `public-snapshots` | every 20 min | calls `refresh_public_snapshots()` (migration 149, plan 3.5b layer C): Trending, Top helpers and today's numbers are worked out once and kept. Another refresh already running counts as success. If the last finished refresh is over 30 minutes old it logs an error for Sentry and leaves one team alert (the time is kept in the settings row `public_snapshots_last_ok`) |
-| `overdue-tasks` | every 30 min | calls `run_overdue_tasks()`: a started job past its due time becomes `OVERDUE`. Only the label changes; no money moves |
 | `user-created` | event `user.signed_up` | records the person in the `user_sync` ledger |
 | `user-updated` | event `user.updated` | counts the update and keeps which fields changed in the ledger |
 | `user-deleted` | event `user.deleted` | marks the person deleted in the ledger. Deleted is final: a late update or sign-up cannot revive them |
-| `user-sync-repair` | daily 03:10 IST | calls `user_sync_repair()`: adds anyone the ledger missed, marks deleted or removed accounts as deleted. Normally reports all zeros |
-| `housekeeping` | every 3 hours at :17 | calls `run_housekeeping()`: removes expired sign-in codes, send and search counters, rate counters, password attempts older than 30 days, notifications older than 90 days, admin live-feed rows older than 30 days (only rows nobody else is holding), free ad events (clicks) older than `ad_events_keep_days` (migration 152; paid events stay) |
 | `outbox-watchdog` | hourly at :52 | calls `run_outbox_watchdog()`: events unsent for 15+ minutes mean the bridge to Inngest is broken (wrong key, function not deployed or synced). Leaves one team alert, then stays quiet for six hours |
 | `safety-alarm` | every hour, at :23 | production only (any project but staging or localhost; quiet on staging). Fires a `fatal` Sentry event, which the alert rule emails at once, if production has a test shortcut on: `dev_otp_for_all` not off, the environment setting not `production`, a test-only function secret set (`ALLOW_ANY_OTP`, `TEST_PHONES`, an App Check debug token, `INNGEST_DEV`), or a Razorpay test key. Reads only. Rules and tests in `supabase/functions/_shared/safetyAlarm.ts` (plan task 5.9) |
-| `task-reminders` | every 30 min | calls `run_task_reminders()`: tells a poster that finished work will be approved for them within 24 hours, and a worker that a started job is due within the hour. Once per task and person, as an in-app notification (and push when push is on). No money moves |
 
-Also on a schedule: `sms-pumping-watch` (hourly at :33, counts today's codes) and `money-moves`
-(Plan B, hourly at :12 plus the `money.move` event; the task screen also asks for a waiting move when it opens).
+Also on a schedule: `money-moves` (Plan B, hourly at :12 plus the `money.move` event; the task
+screen also asks for a waiting move when it opens) and `money-match` (Plan B, nightly 02:30 IST,
+our ledger against Razorpay's settlement report). Both call Razorpay, so they stay on Inngest.
 
 **Run budget.** Each Inngest account (staging `taskdrop`, production `TaskDrop Production`) is on the
 free Hobby plan: 50,000 executions a month for all jobs together, and every `step.run` counts as
@@ -120,6 +113,31 @@ asks `cron_health()` every 10 minutes, so if pg_cron itself stops, Sentry still 
 | pg_cron job | Schedule (UTC) | India time | `max_gap` | Once a day | Money | Since |
 |---|---|---|---|---|---|---|
 | `job-watchdog` | `*/5 * * * *` | every 5 min | 15 min (watched by Inngest) | no | no | 198 |
+| `housekeeping` | `17 * * * *` | :47 every hour | 2 h | no | no | 199 |
+| `outbox-prune`, catch-up `outbox-prune-catchup` | `45 22 * * *`, `45 23 * * *` | 04:15, 05:15 | 26 h | yes | no | 199 |
+| `user-sync-repair`, catch-up `user-sync-repair-catchup` | `40 21 * * *`, `40 22 * * *` | 03:10, 04:10 | 26 h | yes | no | 199 |
+| `crm-rules` | `0 */3 * * *` | 05:30, 08:30 ... | 4 h | no | no | 199 |
+| `overdue-tasks` | `1-59/10 * * * *` | every 10 min | 30 min | no | no | 199 |
+| `task-reminders` | `2-59/15 * * * *` | every 15 min | 45 min | no | no | 200 |
+| `sms-pumping-watch` | `8-59/15 * * * *` | every 15 min | 45 min | no | no | 200 |
+| `daily-digest`, catch-up `daily-digest-catchup` | `30 3 * * *`, `30 4 * * *` | 09:00, 10:00 | 26 h | yes | no | 200 |
+| `public-snapshots` | `3-59/10 * * * *` | every 10 min | 30 min | no | no | 200 |
+
+What they run: `housekeeping` calls `run_housekeeping()` (expired sign-in codes, send and search
+counters, rate counters, password attempts older than 30 days, notifications older than 90 days,
+admin live-feed rows older than 30 days, free ad events older than `ad_events_keep_days`);
+`outbox-prune` calls `outbox_prune()` (sent events older than 14 days, team alerts older than 30);
+`user-sync-repair` calls `user_sync_repair()` (puts the `user_sync` ledger right; normally all zeros);
+`crm-rules` calls `run_crm_rules()` (the automation rules an admin switched on, once per rule per
+person); `overdue-tasks` calls `run_overdue_tasks()` (a started job past its due time becomes
+`OVERDUE`; only the label changes). `task-reminders` calls `run_task_reminders()` (finished work
+waiting for approval, a started job due within the hour; once per task and person, as in-app
+notifications whose push still goes through Inngest's `push-notification`); `sms-pumping-watch`
+calls `run_sms_pumping_watch()` (many codes sent, few used: one alert per 6 h); `daily-digest`
+writes the day's totals as a `digest` team alert (`private.digest_alert` holds the words);
+`public-snapshots` checks the age of the kept public lists (older than 30 minutes is a failure
+report, plus one `public_snapshots_stale` alert while 45 minutes or less), then calls
+`private.refresh_public_snapshots()` and writes the `public_snapshots_last_ok` settings row.
 
 Check them on the database:
 

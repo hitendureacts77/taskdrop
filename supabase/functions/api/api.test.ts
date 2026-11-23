@@ -1578,6 +1578,38 @@ await t("the verified-phone switch refuses only a known unverified caller, and o
   assert.equal(f.calls.length, 0, "nothing reached the database");
 });
 
+await t("no username, no posting, offers, chat or money; reading and an unknown answer still go ahead (plan 1.18)", async () => {
+  const task = { pillar: "services", title: "Fix tap", benchmarkMinor: 10000, timeLimitMinutes: 30 };
+  const without = () => Promise.resolve(false as boolean | undefined);
+  for (const op of ["createTask", "placeBid", "sendMessage", "sendCrewMessage", "lockBid", "huntSendFind", "requestWithdrawal"]) {
+    const f = fake();
+    const r = await runOp(op, {}, ctx(f, { usernameSet: without }));
+    assert.ok(!r.ok && r.error.code === "USERNAME_REQUIRED" && r.error.message === "Pick a username first.", op);
+    assert.equal(f.calls.length, 0, op + ": nothing reached the database");
+  }
+  // Reading, setting the username itself, and finishing work already under way are never blocked.
+  for (const op of ["listOpenTasks", "updateProfileExtras", "markWorkDone", "confirmRelease", "cancelTask"]) {
+    const r = await runOp(op, {}, ctx(fake(), { usernameSet: without }));
+    assert.ok(r.ok || r.error.code !== "USERNAME_REQUIRED", op + " is not gated");
+  }
+  let asked = 0;
+  const unknown = () => { asked++; return Promise.resolve(undefined); };
+  assert.equal((await runOp("createTask", task, ctx(fake(), { usernameSet: unknown }))).ok, true, "a failed read never refuses");
+  assert.equal((await runOp("createTask", task, ctx(fake(), { usernameSet: () => Promise.resolve(true) }))).ok, true, "with one");
+  await runOp("listOpenTasks", {}, ctx(fake(), { usernameSet: unknown }));
+  assert.equal(asked, 1, "a read does not even ask");
+});
+
+await t("a username can be changed but never emptied (plan 1.18)", async () => {
+  for (const username of [null, "", "   "]) {
+    const f = fake();
+    const r = await runOp("updateProfileExtras", { username }, ctx(f));
+    assert.ok(!r.ok && r.error.code === "USERNAME_REQUIRED", JSON.stringify(username));
+    assert.equal(f.calls.length, 0);
+  }
+  assert.equal((await runOp("updateProfileExtras", { bio: "Plumber" }, ctx(fake()))).ok, true, "other fields alone are fine");
+});
+
 await t("an auto-hire task cannot be posted unless the wallet covers the budget plus the fee", async () => {
   const task = { pillar: "services", title: "Fix tap", benchmarkMinor: 10000, timeLimitMinutes: 30, assignmentMode: "auto" };
   const withWallet = (balance: number) =>
