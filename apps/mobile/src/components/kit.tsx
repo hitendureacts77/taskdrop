@@ -55,8 +55,8 @@ export function BottomSheet({
   maxHeight?: `${number}%`;
 }) {
   const t = useTheme();
-  const { desktop, tablet } = useLayout();
-  const dialog = desktop || tablet;
+  const { desktop, tablet, nativeWide } = useLayout();
+  const dialog = desktop || tablet || nativeWide;
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!visible) {
