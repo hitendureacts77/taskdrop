@@ -19,8 +19,6 @@ import {
   chunk,
   compareProviderPayment,
   deadKeys,
-  digestAlert,
-  type Digest,
   expoReceipts,
   expoSend,
   lockScreenSafe,
@@ -42,13 +40,9 @@ import {
   toEvents,
   tokensForKeys,
   type WaitingTicket,
-  checkSnapshotFreshness,
   type CronHealth,
   cronHealthReport,
   jobFailure,
-  refreshPublicSnapshots,
-  SNAPSHOT_MARKER_KEY,
-  type SnapshotMarker,
 } from "./jobs.ts";
 
 /**
@@ -189,15 +183,6 @@ const teamAlert = inngest.createFunction(
   },
 );
 
-/** Totals only, every morning at 9:00 India time. */
-const dailyDigest = inngest.createFunction(
-  { id: "daily-digest", triggers: [{ cron: "TZ=Asia/Kolkata 0 9 * * *" }], onFailure: reportFailure("daily-digest") },
-  async ({ step }) => {
-    const totals = await step.run("collect totals", () => call<Digest>(rpc, "daily_digest"));
-    const id = await step.run("save digest", () => saveAlert(rpc, digestAlert(totals), totals));
-    return { alert: id };
-  },
-);
 
 // --------------------------------------------------- rules and reconciliation --
 
@@ -395,37 +380,6 @@ const strayImageKitFiles = inngest.createFunction(
 );
 
 /**
- * Plan 3.5b, layer C: every 20 minutes the database works out Trending, Top helpers and today's numbers once and keeps
- * the copy (refresh_public_snapshots, migration 149). Another refresh already running counts as success. A refresh that
- * keeps failing is reported after the last retry like every job; the first step also checks that the last finished
- * refresh is under 30 minutes old and, if not, logs an error for Sentry and leaves a team alert.
- */
-const snapshotMarker: SnapshotMarker = {
-  async get() {
-    const { data, error } = await db.from("settings").select("value").eq("key", SNAPSHOT_MARKER_KEY).maybeSingle();
-    if (error) throw new Error(`settings: ${error.message}`);
-    return typeof data?.value === "string" ? data.value : null;
-  },
-  async set(iso) {
-    const { error } = await db.from("settings").upsert({ key: SNAPSHOT_MARKER_KEY, value: iso });
-    if (error) throw new Error(`settings: ${error.message}`);
-  },
-};
-
-const publicSnapshots = inngest.createFunction(
-  { id: "public-snapshots", triggers: [{ cron: "*/20 * * * *" }], concurrency: 1, retries: 3, onFailure: reportFailure("public-snapshots") },
-  async ({ step }) => {
-    const freshness = await step.run("check age", () =>
-      checkSnapshotFreshness(rpc, snapshotMarker, async (message, ageMinutes) => {
-        await logServer("error", "public-snapshots", message, { ageMinutes });
-        await captureServerError(new Error(message), { job: "public-snapshots", step: "stale" });
-      }));
-    const refreshed = await step.run("refresh", () => refreshPublicSnapshots(rpc, snapshotMarker));
-    return { ...refreshed, ageBeforeMinutes: freshness.ageMinutes === null ? null : Math.floor(freshness.ageMinutes) };
-  },
-);
-
-/**
  * Watches the bridge itself: events left unsent for 15 minutes mean Inngest is
  * not receiving them. Leaves one team alert, then stays quiet for six hours.
  */
@@ -434,25 +388,7 @@ const outboxWatchdog = inngest.createFunction(
   async ({ step }) => ({ checked: await step.run("check outbox", () => call<Record<string, unknown>>(rpc, "run_outbox_watchdog")) }),
 );
 
-/**
- * SMS pumping watch (task 2.8): bots ask for sign-in codes to thousands of numbers and you pay for each SMS. When the day has sent
- * many codes and almost none were used, this leaves one admin alert (then stays quiet for six hours).
- */
-const smsPumpingWatch = inngest.createFunction(
-  { id: "sms-pumping-watch", triggers: [{ cron: "33 * * * *" }], concurrency: 1, onFailure: reportFailure("sms-pumping-watch") },
-  async ({ step }) => ({ checked: await step.run("check codes sent and used", () => call<Record<string, unknown>>(rpc, "run_sms_pumping_watch")) }),
-);
-
-/**
- * Two reminders that need a clock: finished work waiting for the poster's
- * approval (it is approved for them within 24 hours), and a started job that is
- * due within the hour. Each goes out once per task and person, as an ordinary
- * in-app notification (and push, when push is on). No money moves.
- */
-const taskReminders = inngest.createFunction(
-  { id: "task-reminders", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("task-reminders") },
-  async ({ step }) => ({ sent: await step.run("remind", () => call<Record<string, unknown>>(rpc, "run_task_reminders")) }),
-);
+// Moved to pg_cron (plan 3.5c, migration 200): daily-digest, public-snapshots, sms-pumping-watch and task-reminders.
 
 /**
  * The production safety alarm (plan task 5.9, holes H1 and H15). Every hour: is any test shortcut on in
@@ -632,8 +568,8 @@ const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
 Deno.serve(serve({
   client: inngest,
   functions: [
-    outboxSweeper, jobFailureReport, teamAlert, dailyDigest, nightlyReconcile,
-    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, publicSnapshots, outboxWatchdog, smsPumpingWatch, taskReminders, safetyAlarm,
+    outboxSweeper, jobFailureReport, teamAlert, nightlyReconcile,
+    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, outboxWatchdog, safetyAlarm,
     userCreated, userUpdated, userDeleted,
     moneyMoves, moneyMatch,
     ...moneyJobs,
