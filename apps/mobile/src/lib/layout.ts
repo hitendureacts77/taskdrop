@@ -1,4 +1,7 @@
 import { Platform, useWindowDimensions } from 'react-native';
+import { isNativeWide, nativeColumns, nativeContentWidth, TABLET_CONTENT, TABLET_MIN_WIDTH } from './widthClass';
+
+export { TABLET_CONTENT, TABLET_MIN_WIDTH };
 
 /**
  * Phone, tablet or desktop layout, from one codebase. Laid out by width,
@@ -16,13 +19,9 @@ import { Platform, useWindowDimensions } from 'react-native';
 
 /** From this browser width up, the web build lays out for a desktop. */
 export const DESKTOP_MIN_WIDTH = 1024;
-/** From this browser width up (and below desktop), the tablet rail layout. */
-export const TABLET_MIN_WIDTH = 600;
 export const SIDEBAR_WIDTH = 240;
 export const RAIL_WIDTH = 84;
 
-/** Content width on a tablet. */
-export const TABLET_CONTENT = 720;
 
 /**
  * Desktop columns (docs/design/desktop-fit/PLAN.md, Q1). FULL fills the area
@@ -68,6 +67,8 @@ export type Layout = {
   desktop: boolean;
   /** Web, 600–1023 wide: the icon-rail layout. */
   tablet: boolean;
+  /** A native app screen 600 wide or more (tablet, opened foldable, split-screen): content held to 720, two columns, bottom tabs stay. */
+  nativeWide: boolean;
   /** The window in layout px: on a desktop that is the real window divided by `scale`. */
   width: number;
   height: number;
@@ -98,12 +99,19 @@ export function useLayout(): Layout {
       cls === 'full' ? main : Math.min(main - 2 * gutter, cls === 'feed' ? FEED_MAX : cls === 'read' ? READ_MAX : FORM_MAX);
     const feed = contentWidth('feed');
     const columns = clamp(1, Math.floor((feed + 16) / (CARD_MIN + 16)), 4) as Layout['columns'];
-    return { desktop, tablet, width, height, scale, gutter, contentWidth, twoPane: feed >= TWO_PANE_MIN, columns };
+    return { desktop, tablet, nativeWide: false, width, height, scale, gutter, contentWidth, twoPane: feed >= TWO_PANE_MIN, columns };
+  }
+  const nativeWide = isNativeWide(web, win.width);
+  if (nativeWide) {
+    // An Android tablet, opened foldable or split-screen (task 1.14): no rail, the bottom tabs stay.
+    const held = nativeContentWidth(width);
+    const contentWidth = (cls: ColumnClass) => (cls === 'full' ? width : held);
+    return { desktop, tablet, nativeWide, width, height, scale, gutter: 0, contentWidth, twoPane: false, columns: nativeColumns(width) };
   }
   const main = tablet ? Math.min(width - RAIL_WIDTH, TABLET_CONTENT) : width;
   const contentWidth = (cls: ColumnClass) => (tablet && cls === 'full' ? width - RAIL_WIDTH : main);
   const columns: Layout['columns'] = tablet && main >= 640 ? 2 : 1;
-  return { desktop, tablet, width, height, scale, gutter: 0, contentWidth, twoPane: false, columns };
+  return { desktop, tablet, nativeWide, width, height, scale, gutter: 0, contentWidth, twoPane: false, columns };
 }
 
 /** Plain check, for code that runs outside a component. */

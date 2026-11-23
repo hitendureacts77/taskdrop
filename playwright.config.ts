@@ -41,7 +41,7 @@ export default defineConfig({
     {
       name: "web-desktop",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /desktop(Web|Rules)\.spec\.ts/,
+      testIgnore: /(desktop(Web|Rules)|sizes)\.spec\.ts/,
       dependencies: ["setup"],
       use: { viewport: { width: 1280, height: 900 } },
     },
@@ -59,6 +59,8 @@ export default defineConfig({
       dependencies: ["setup"],
       use: { viewport: { width: 1440, height: 900 } },
     },
+    // Plan task 1.14 level 1: sizes.spec.ts sets its own six widths (320 to 1920) per test.
+    { name: "web-sizes", testMatch: /sizes\.spec\.ts/, dependencies: ["setup"] },
     // ... and the guard that the phone (390 x 844) and tablet (820 x 1180) look never changes (zero pixels).
     {
       name: "web-phone-same",
