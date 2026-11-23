@@ -14,6 +14,7 @@ import { HeroBackground } from '../components/Hero';
 import { FloatCard } from '../components/BrandArt';
 import { useLayout } from '../lib/layout';
 import { isReadyMobile, normalizeMobileInput, spacedMobile } from '../lib/phone';
+import { listenForSmsCode } from '../lib/webOtp';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { BottomSheet, Field, PrimaryButton } from '../components/kit';
@@ -59,7 +60,7 @@ const spaced = spacedMobile;
 export function AccessScreen() {
   const t = useTheme();
   const { desktop } = useLayout();
-  const { go, reset, back, params } = useNav();
+  const { go, reset, back, replace, params } = useNav();
   const { celebrate, flash } = useActions();
   const { requestCode, verifyCode, signInWithGoogle, signInWithApple, signOut, continueAsGuest } = useAuth();
   // Opened from the "Make your account" pop-up: Not now goes back, and signing in resumes what the guest was doing.
@@ -139,13 +140,18 @@ export function AccessScreen() {
       if (route === 'home') {
         back();
         runPendingAfterSignIn();
+      } else if (route === 'username') {
+        // An existing account with no username (plan 1.18): it picks one, then what the guest was doing finishes.
+        toSetup.current = true;
+        replace('pickUsername');
       } else {
         toSetup.current = true;
         go('setup', { quick: true });
       }
       return;
     }
-    if (route === 'home') reset('home');
+    // No username (plan 1.18): Home underneath, and the gate opens over it (components/UsernameGate).
+    if (route === 'home' || route === 'username') reset('home');
     else go('setup');
   };
 
@@ -225,6 +231,13 @@ export function AccessScreen() {
   // without this the effect below fired a second verify when `busy` flipped back, and the server
   // answered "Request a code first" on top of Home (P1-7). Cleared when a new code is sent.
   const accepted = useRef(false);
+  // Website: Chrome on Android can fill the code from the SMS with one tap (WebOTP); the effect below then
+  // verifies it. Stops when the code step closes. Does nothing in the apps.
+  useEffect(() => {
+    if (stage !== 'code') return;
+    return listenForSmsCode((code) => setOtp(code));
+  }, [stage]);
+
   useEffect(() => {
     if (!complete || busy || verifying.current || accepted.current || stage !== 'code') return;
     verifying.current = true;
@@ -700,7 +713,9 @@ export function AccessScreen() {
                   keyboardType="number-pad"
                   inputMode="numeric"
                   maxLength={6}
-                  autoComplete="sms-otp"
+                  // Browsers only know "one-time-code"; react-native-web passes "sms-otp" through untouched, which
+                  // they ignore, so phones never offered the code from the SMS on the website (one-tap plan 1.1).
+                  autoComplete={Platform.OS === 'web' ? 'one-time-code' : 'sms-otp'}
                   textContentType="oneTimeCode"
                   accessibilityLabel="Six-digit code"
                   style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 46, opacity: 0 }}

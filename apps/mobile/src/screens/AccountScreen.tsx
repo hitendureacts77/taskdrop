@@ -125,14 +125,16 @@ export function AccountScreen() {
   const saveProfile = async () => {
     if (!userId) return;
     if (!name.trim()) return flash('Add a display name');
-    if (username.trim() && !handleOk) return flash('Usernames are 3–20 characters: a–z, 0–9 and _');
+    // Every account keeps a username (plan 1.18): it can be changed, not removed.
+    if (!username.trim()) return flash('Pick a username first.');
+    if (!handleOk) return flash('Usernames are 3–20 characters: a–z, 0–9 and _');
     if (nameCarriesContact(name) || nameCarriesContact(username)) {
       return flash('Names and usernames can’t contain a phone number or email. Contacts are shared once a task starts.');
     }
     setSavingProfile(true);
     try {
       await updateProfile(userId, { displayName: name.trim() });
-      const p = await updateProfileExtras(userId, { username: username.trim() || null });
+      const p = await updateProfileExtras(userId, { username: username.trim() });
       setProfile(p);
       celebrate('Saved');
     } catch (e) {

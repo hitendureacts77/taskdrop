@@ -7,6 +7,7 @@ import { subscribeLive } from '../lib/live';
 import { count, log } from '../lib/monitoring';
 import { noteChange, reusePublic, reuseWhileFresh } from '../lib/freshness';
 import { isPlanB } from '../lib/moneyFlow';
+import { signInRouteFor, type SignInRoute } from '../lib/username';
 import type { Database, Tables, Enums } from '@taskdrop/db-types';
 
 /**
@@ -254,10 +255,13 @@ export function forgetProfile(userId: string): void {
   profileCache.delete(userId);
 }
 
-/** Where a freshly-signed-in user should land: setup for a first run, home otherwise. */
-export async function postSignInRoute(userId: string): Promise<'home' | 'setup'> {
+/**
+ * Where a freshly-signed-in user should land: setup for a first run, the "Pick a username" page for a finished
+ * setup with no username (plan 1.18), home otherwise.
+ */
+export async function postSignInRoute(userId: string): Promise<SignInRoute> {
   try {
-    return (await getProfile(userId))?.onboarded_at ? 'home' : 'setup';
+    return signInRouteFor(await getProfile(userId));
   } catch (e) {
     // Reads already retry on a blip (lib/retry.ts). If the profile still cannot be read, a returning
     // person is far more likely than a new one, and putting them through onboarding again risks

@@ -6,6 +6,7 @@ import { ScreenScope } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { hasPendingAccountAction } from '../lib/guest';
 import { CreateFab } from '../components/CreateFab';
+import { WideFrame } from '../components/WideFrame';
 import { REGISTRY } from './registry';
 import { useTabParams } from './navParams';
 import type { NativeTab } from './nativeTabs';
@@ -45,7 +46,9 @@ function Tab({ name }: { name: NativeTab }) {
     // content clear of it. The top is each screen's own (ui.tsx Screen).
     <SafeAreaView edges={{ bottom: true }} style={{ flex: 1, backgroundColor: t.colors.bg }}>
       <ScreenScope params={params} name={name}>
-        <Comp />
+        <WideFrame full={name === 'explore'}>
+          <Comp />
+        </WideFrame>
       </ScreenScope>
       {name === 'home' && focused ? <CreateFab bottom={16} /> : null}
     </SafeAreaView>

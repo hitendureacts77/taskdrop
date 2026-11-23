@@ -20,7 +20,7 @@ import type { ScreenName } from '../providers/navTypes';
 import { NATIVE_HEADER_SCREENS } from './nativeHeader';
 
 /** Sign-in and welcome screens: no swiping back out of them. */
-const NO_BACK = ['splash', 'welcome', 'signup', 'setup'];
+const NO_BACK = ['splash', 'welcome', 'signup', 'setup', 'pickUsername'];
 const FADE = ['splash', 'intro', 'welcome'];
 
 /**

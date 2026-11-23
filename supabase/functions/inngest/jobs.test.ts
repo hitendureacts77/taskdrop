@@ -8,8 +8,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
-  ALERT_EVENTS, alertFor, call, checkSnapshotFreshness, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, lockScreenSafe, ownFiles, personIdFor, PLAIN_PUSH,
-  readTickets, refreshPublicSnapshots, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type PushMessage, type Rpc, type SnapshotMarker,
+  ALERT_EVENTS, alertFor, call, chunk, compareProviderPayment, deadKeys, expoReceipts, expoSend, lockScreenSafe, ownFiles, personIdFor, PLAIN_PUSH,
+  cronHealthReport, jobFailure, readTickets, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type PushMessage, type Rpc,
 } from "./jobs.ts";
 
 test("outbox rows become Inngest events keyed by the outbox id", () => {
@@ -85,20 +85,6 @@ test("text a person typed never reaches an alert or its stored data, even from a
   const kept = safeData(old);
   assert.deepEqual(Object.keys(kept).sort(), ["amount_rupees", "category", "from", "name", "poster", "ticket_id"]);
   assert.doesNotMatch(JSON.stringify(kept), /9876543210|asha@okbank|Cross Road/);
-});
-
-test("the daily digest reads as totals", () => {
-  const a = digestAlert({
-    date: "2026-10-12", people_total: 40, new_people: 3, jobs_posted: 7, jobs_finished: 5,
-    earned_rupees: 1234.5, withdrawals_waiting: 2, withdrawals_waiting_rupees: 800, open_disputes: 1, open_help_requests: 4,
-  });
-  assert.equal(a.kind, "digest");
-  assert.equal(a.title, "Daily digest, 2026-10-12");
-  const lines = a.body.split("\n");
-  assert.equal(lines.length, 5);
-  assert.match(lines[0], /3 new people \(40 in all\)/);
-  assert.match(lines[2], /₹1,234.5/);
-  assert.match(lines[3], /2 withdrawals waiting \(₹800\)/);
 });
 
 test("a database error is thrown so Inngest retries the step", async () => {
@@ -293,68 +279,6 @@ test("pictures: a full batch says there may be more; an empty one does nothing",
   assert.deepEqual(none.marked, []);
 });
 
-// ------------------------------------------------------ public snapshots --
-
-function memoryMarker(initial: string | null = null) {
-  const m = { value: initial, sets: 0 } as { value: string | null; sets: number } & SnapshotMarker;
-  m.get = async () => m.value;
-  m.set = async (iso: string) => { m.value = iso; m.sets++; };
-  return m;
-}
-const T0 = new Date("2026-11-04T12:00:00Z");
-const minutesAgo = (n: number) => new Date(T0.getTime() - n * 60_000).toISOString();
-
-test("public snapshots: a finished refresh is recorded and reports the time taken", async () => {
-  const calls: string[] = [];
-  const rpc: Rpc = async (name) => { calls.push(name); return { data: { skipped: false, took_ms: { highlights: 3 } }, error: null }; };
-  const marker = memoryMarker();
-  const r = await refreshPublicSnapshots(rpc, marker, () => T0);
-  assert.deepEqual(calls, ["refresh_public_snapshots"]);
-  assert.equal(r.skipped, false);
-  assert.deepEqual(r.took_ms, { highlights: 3 });
-  assert.equal(marker.value, T0.toISOString());
-});
-
-test("public snapshots: another refresh already running is a success and records nothing", async () => {
-  const rpc: Rpc = async () => ({ data: { skipped: true }, error: null });
-  const marker = memoryMarker(minutesAgo(5));
-  const r = await refreshPublicSnapshots(rpc, marker, () => T0);
-  assert.deepEqual(r, { skipped: true });
-  assert.equal(marker.sets, 0);
-});
-
-test("public snapshots: a database error throws so Inngest retries and reports it", async () => {
-  const rpc: Rpc = async () => ({ data: null, error: { message: "boom" } });
-  const marker = memoryMarker();
-  await assert.rejects(refreshPublicSnapshots(rpc, marker, () => T0), /refresh_public_snapshots: boom/);
-  assert.equal(marker.sets, 0);
-  const odd: Rpc = async () => ({ data: null, error: null });
-  await assert.rejects(refreshPublicSnapshots(odd, marker, () => T0), /unexpected answer/);
-});
-
-test("public snapshots: stale copy reports to Sentry and leaves one team alert; fresh, unknown and old-alert cases stay quiet", async () => {
-  const saved: Array<Record<string, unknown>> = [];
-  const rpc: Rpc = async (name, args) => { if (name === "record_admin_alert") saved.push(args ?? {}); return { data: "alert-id", error: null }; };
-  const reports: string[] = [];
-  const report = async (m: string) => { reports.push(m); };
-
-  assert.deepEqual(await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(10)), report, () => T0), { ageMinutes: 10, stale: false });
-  assert.deepEqual(await checkSnapshotFreshness(rpc, memoryMarker(null), report, () => T0), { ageMinutes: null, stale: false });
-  assert.deepEqual(await checkSnapshotFreshness(rpc, memoryMarker("not a time"), report, () => T0), { ageMinutes: null, stale: false });
-  assert.equal(reports.length + saved.length, 0);
-
-  const r = await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(35)), report, () => T0);
-  assert.equal(r.stale, true);
-  assert.equal(reports.length, 1);
-  assert.equal(saved.length, 1);
-  assert.equal(saved[0].p_kind, "public_snapshots_stale");
-
-  // Much older: still reported to Sentry every run, but the team alert is not repeated.
-  await checkSnapshotFreshness(rpc, memoryMarker(minutesAgo(120)), report, () => T0);
-  assert.equal(reports.length, 2);
-  assert.equal(saved.length, 1);
-});
-
 // ------------------------------------------------- stray ImageKit files --
 
 import { ORPHAN_MAX_DELETES, ORPHAN_PAGE, runStraySweep, sweepStrayImageKitFiles, type KnownFiles } from "./jobs.ts";
@@ -536,4 +460,28 @@ test("other kinds (offers, task progress) keep the database wording", () => {
   assert.equal(lockScreenSafe(odd), odd);
   const proto = pushOf("constructor", "Hi", "There");
   assert.equal(lockScreenSafe(proto), proto);
+});
+
+test("a job.failed event becomes a Sentry message with ids and codes only", () => {
+  assert.deepEqual(jobFailure({ job: "overdue-tasks", sqlstate: "57014", run_id: 42, money: false }), {
+    job: "overdue-tasks", sqlstate: "57014", runId: "42", money: false, message: "pg_cron job overdue-tasks failed (57014)",
+  });
+  assert.equal(jobFailure({ job: "settle-cleared-often", sqlstate: "STALE", run_id: null, money: true })?.money, true);
+  assert.equal(jobFailure({ job: "job-watchdog", sqlstate: "STALE" })?.message, "pg_cron job job-watchdog stopped (no run in time)");
+  assert.equal(jobFailure({ job: "housekeeping", sqlstate: "CRON" })?.message, "pg_cron job housekeeping failed inside pg_cron");
+  // Malformed or foreign events are not reported, and nothing but the known fields is read.
+  assert.equal(jobFailure({ job: "Robert'); drop table", sqlstate: "P0001" }), null);
+  assert.equal(jobFailure({ job: "housekeeping", sqlstate: "anything at all" }), null);
+  assert.equal(jobFailure(undefined), null);
+  assert.equal(jobFailure({ job: "housekeeping", sqlstate: "P0001", money: "yes" })?.money, false);
+});
+
+test("cron_health is reported only when it says so, and money makes it fatal", () => {
+  assert.equal(cronHealthReport(null), null);
+  assert.equal(cronHealthReport({ stopped: [], money: false, report: true }), null);
+  assert.equal(cronHealthReport({ stopped: [{ job: "overdue-tasks", money: false }], money: false, report: false }), null);
+  assert.deepEqual(cronHealthReport({ stopped: [{ job: "overdue-tasks", money: false }, { job: "job-watchdog", money: false }], money: false, report: true }), {
+    message: "pg_cron jobs stopped: overdue-tasks, job-watchdog", money: false, jobs: ["overdue-tasks", "job-watchdog"],
+  });
+  assert.equal(cronHealthReport({ stopped: [{ job: "auto-complete-due", money: true }], money: true, report: true })?.money, true);
 });

@@ -119,24 +119,7 @@ export const ALERT_EVENTS = [
   "taskdrop/money.move_failed",
 ] as const;
 
-// ------------------------------------------------------------------ digest --
-
-export type Digest = Record<string, unknown>;
-
-export function digestAlert(d: Digest): Alert {
-  const n = (k: string) => Number(d[k] ?? 0);
-  return {
-    kind: "digest",
-    title: `Daily digest, ${text(d.date, "today")}`,
-    body: [
-      `${n("new_people")} new people (${n("people_total")} in all)`,
-      `${n("jobs_posted")} jobs posted, ${n("jobs_finished")} finished`,
-      `TaskDrop earned ${rupees(d.earned_rupees)}`,
-      `${n("withdrawals_waiting")} withdrawals waiting (${rupees(d.withdrawals_waiting_rupees)})`,
-      `${n("open_disputes")} open disputes, ${n("open_help_requests")} open help requests`,
-    ].join("\n"),
-  };
-}
+// The daily digest's words moved into SQL (private.digest_alert, migration 200, plan 3.5c).
 
 export async function saveAlert(rpc: Rpc, a: Alert, data: Record<string, unknown> = {}): Promise<string> {
   return call<string>(rpc, "record_admin_alert", {
@@ -475,65 +458,38 @@ export async function runStraySweep(
   return await sweepStrayImageKitFiles(cfg, fetcher, known, opts);
 }
 
-// ------------------------------------------------------ public snapshots --
+// The public lists' refresh and age check moved into SQL (private.run_public_snapshots, migration 200, plan 3.5c).
 
-/** Plan 3.5b layer C: the kept copies are only used while younger than this (migration 149), so older means the job is behind. */
-export const SNAPSHOT_STALE_MINUTES = 30;
-/** The team alert is left only while the copy is this old or less, so a stale copy rings the bell once or twice, not every 20 minutes. */
-export const SNAPSHOT_ALERT_WINDOW_MINUTES = 45;
-/** The settings row that remembers when a refresh last finished (the kept table itself is closed to the service key). */
-export const SNAPSHOT_MARKER_KEY = "public_snapshots_last_ok";
+// --------------------------------------------------------------- pg_cron jobs --
 
-/** Where the time of the last finished refresh is kept. */
-export type SnapshotMarker = { get(): Promise<string | null>; set(iso: string): Promise<void> };
+/** What a `job.failed` event means for Sentry (plan 3.5c). Null when the event is not one of ours. */
+export type JobFailure = { job: string; sqlstate: string; runId: string | null; money: boolean; message: string };
+
+const JOB_NAME = /^[a-z0-9-]{1,80}$/;
+const SQLSTATE = /^([0-9A-Z]{5}|STALE|CRON)$/;
 
 /**
- * Asks the database to work out Trending, Top helpers and today's numbers again.
- * Another refresh already running is not a failure ({ skipped: true }). An error from the
- * database throws, so Inngest retries and, after the last retry, reports it.
+ * A pg_cron job failed (`private.report_job_failure`). The event holds ids and fixed codes only;
+ * anything else in it is ignored, and a malformed one is not reported.
  */
-export async function refreshPublicSnapshots(
-  rpc: Rpc,
-  marker: SnapshotMarker,
-  now: () => Date = () => new Date(),
-): Promise<{ skipped: boolean; took_ms?: unknown }> {
-  const r = await call<{ skipped?: unknown; took_ms?: unknown } | null>(rpc, "refresh_public_snapshots");
-  if (r === null || typeof r !== "object") throw new Error("refresh_public_snapshots: unexpected answer");
-  if (r.skipped === true) return { skipped: true };
-  await marker.set(now().toISOString());
-  return { skipped: false, took_ms: r.took_ms };
+export function jobFailure(data: Record<string, unknown> | undefined): JobFailure | null {
+  const job = typeof data?.job === "string" ? data.job : "";
+  const sqlstate = typeof data?.sqlstate === "string" ? data.sqlstate : "";
+  if (!JOB_NAME.test(job) || !SQLSTATE.test(sqlstate)) return null;
+  const run = data?.run_id;
+  const runId = typeof run === "number" || (typeof run === "string" && /^\d+$/.test(run)) ? String(run) : null;
+  const money = data?.money === true;
+  const what = sqlstate === "STALE" ? "stopped (no run in time)" : sqlstate === "CRON" ? "failed inside pg_cron" : `failed (${sqlstate})`;
+  return { job, sqlstate, runId, money, message: `pg_cron job ${job} ${what}` };
 }
 
-/** Minutes since the last finished refresh, or null when none was ever recorded or the value is not a time. */
-export function snapshotAgeMinutes(lastOk: string | null, now: Date): number | null {
-  if (!lastOk) return null;
-  const t = Date.parse(lastOk);
-  if (Number.isNaN(t)) return null;
-  return Math.max(0, (now.getTime() - t) / 60_000);
-}
+/** The answer of `cron_health()`, which Inngest's outbox-sweeper asks so it notices when pg_cron stops. */
+export type CronHealth = { stopped?: { job?: unknown; money?: unknown }[]; money?: unknown; report?: unknown };
 
-export function staleSnapshotAlert(ageMinutes: number): Alert {
-  const m = Math.floor(ageMinutes);
-  return {
-    kind: "public_snapshots_stale",
-    title: "Kept copies of the public lists are out of date",
-    body: `The last refresh finished ${m} minutes ago (the app falls back to live answers after ${SNAPSHOT_STALE_MINUTES}). Check the public-snapshots job in Inngest.`,
-  };
-}
-
-/**
- * Staleness check: when the last finished refresh is older than 30 minutes, tell Sentry (every run, it groups
- * them) and leave one team alert. Nothing recorded yet is not an alert (the switch may never have been used).
- */
-export async function checkSnapshotFreshness(
-  rpc: Rpc,
-  marker: SnapshotMarker,
-  report: (message: string, ageMinutes: number) => Promise<void>,
-  now: () => Date = () => new Date(),
-): Promise<{ ageMinutes: number | null; stale: boolean }> {
-  const age = snapshotAgeMinutes(await marker.get(), now());
-  if (age === null || age <= SNAPSHOT_STALE_MINUTES) return { ageMinutes: age, stale: false };
-  await report(`public snapshots are ${Math.floor(age)} minutes old`, Math.floor(age));
-  if (age <= SNAPSHOT_ALERT_WINDOW_MINUTES) await saveAlert(rpc, staleSnapshotAlert(age), { age_minutes: Math.floor(age) });
-  return { ageMinutes: age, stale: true };
+/** What to tell Sentry, or null when there is nothing to report this time (nothing stopped, or reported within the hour). */
+export function cronHealthReport(h: CronHealth | null | undefined): { message: string; money: boolean; jobs: string[] } | null {
+  if (!h || h.report !== true || !Array.isArray(h.stopped) || h.stopped.length === 0) return null;
+  const jobs = h.stopped.map((s) => (typeof s?.job === "string" && JOB_NAME.test(s.job) ? s.job : "?"));
+  const money = h.money === true || h.stopped.some((s) => s?.money === true);
+  return { message: `pg_cron jobs stopped: ${jobs.join(", ")}`, money, jobs };
 }

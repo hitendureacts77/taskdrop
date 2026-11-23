@@ -1,7 +1,7 @@
 import type { Category, Template } from './taskBrief';
 
 /**
- * "Idea templates for you" on Hire Home (D32). The templates are the ones the composer already has (TEMPLATES);
+ * "Quick templates" on Hire Home (D32). The templates are the ones the composer already has (TEMPLATES);
  * this file only says which category each one sits under (for the chips) and which day it suggests. Static order:
  * no ranking, no network.
  */
