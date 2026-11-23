@@ -232,7 +232,13 @@ begin
       ('user-sync-repair',         'user-sync-repair', '40 21 * * *'),
       ('user-sync-repair-catchup', 'user-sync-repair', '40 22 * * *'),
       ('crm-rules',                'crm-rules',        '0 */3 * * *'),
-      ('overdue-tasks',            'overdue-tasks',    '1-59/10 * * * *')
+      ('overdue-tasks',            'overdue-tasks',    '1-59/10 * * * *'),
+      -- PR 3 (migration 200)
+      ('task-reminders',           'task-reminders',    '2-59/15 * * * *'),
+      ('sms-pumping-watch',        'sms-pumping-watch', '8-59/15 * * * *'),
+      ('daily-digest',             'daily-digest',      '30 3 * * *'),
+      ('daily-digest-catchup',     'daily-digest',      '30 4 * * *'),
+      ('public-snapshots',         'public-snapshots',  '3-59/10 * * * *')
     ) as t(jobname, job, schedule)
   loop
     if not exists (select 1 from cron.job
@@ -242,7 +248,8 @@ begin
     end if;
   end loop;
 
-  for r in select unnest(array['housekeeping', 'outbox-prune', 'user-sync-repair', 'crm-rules', 'overdue-tasks']) as job loop
+  for r in select unnest(array['housekeeping', 'outbox-prune', 'user-sync-repair', 'crm-rules', 'overdue-tasks',
+                                   'task-reminders', 'sms-pumping-watch', 'public-snapshots']) as job loop
     delete from private.job_runs where job = r.job;
     v_out := private.run_cron_job(r.job);
     if v_out ->> 'status' <> 'ok' then
@@ -250,6 +257,90 @@ begin
         (select error from private.job_runs where id = (v_out ->> 'run')::bigint);
     end if;
   end loop;
+end $$;
+
+-- ---- 11. the daily digest: the same words as the old Inngest job, once a day --------------------
+do $$
+declare
+  v_alert jsonb;
+  v_out   jsonb;
+begin
+  -- The fixed input and expected text of the old digestAlert test (supabase/functions/inngest/jobs.test.ts).
+  v_alert := private.digest_alert(jsonb_build_object(
+    'date', '2026-10-12', 'people_total', 40, 'new_people', 3, 'jobs_posted', 7, 'jobs_finished', 5,
+    'earned_rupees', 1234.5, 'withdrawals_waiting', 2, 'withdrawals_waiting_rupees', 800,
+    'open_disputes', 1, 'open_help_requests', 4));
+  if v_alert ->> 'kind' <> 'digest' or v_alert ->> 'title' <> 'Daily digest, 2026-10-12' then
+    raise exception 'FAIL: digest kind or title changed: %', v_alert;
+  end if;
+  if v_alert ->> 'body' <> E'3 new people (40 in all)\n7 jobs posted, 5 finished\nTaskDrop earned ₹1,234.5\n2 withdrawals waiting (₹800)\n1 open disputes, 4 open help requests' then
+    raise exception 'FAIL: digest words changed: %', v_alert ->> 'body';
+  end if;
+  if private.digest_alert('{}'::jsonb) ->> 'title' <> 'Daily digest, today' then
+    raise exception 'FAIL: a digest with no date does not say today';
+  end if;
+  if private.inr(1234567.891) <> '₹12,34,567.89' or private.inr(0) <> '₹0' or private.inr(999) <> '₹999'
+     or private.inr(1000) <> '₹1,000' or private.inr(null) <> '₹0' then
+    raise exception 'FAIL: rupees are not written the Indian way: % % % %', private.inr(1234567.891), private.inr(0), private.inr(999), private.inr(1000);
+  end if;
+
+  delete from public.admin_alerts where kind = 'digest';
+  delete from private.job_runs where job = 'daily-digest';
+  v_out := private.run_cron_job('daily-digest');
+  if v_out ->> 'status' <> 'ok' then
+    raise exception 'FAIL: the digest did not run green: %', v_out;
+  end if;
+  v_out := private.run_cron_job('daily-digest');   -- the catch-up an hour later
+  if v_out ->> 'status' <> 'skipped' then
+    raise exception 'FAIL: the digest catch-up ran a second time: %', v_out;
+  end if;
+  if (select count(*) from public.admin_alerts where kind = 'digest') <> 1 then
+    raise exception 'FAIL: expected one digest alert';
+  end if;
+end $$;
+
+-- ---- 12. the public lists' age check --------------------------------------------------------------
+do $$
+declare
+  v_out jsonb;
+  v_marker timestamptz;
+begin
+  delete from public.admin_alerts where kind in ('public_snapshots_stale', 'job_failed');
+
+  -- 40 minutes old: one stale alert and one failure report.
+  insert into public.settings (key, value) values ('public_snapshots_last_ok', to_jsonb(now() - interval '40 minutes'))
+  on conflict (key) do update set value = excluded.value;
+  v_out := private.run_public_snapshots();
+  if (select count(*) from public.admin_alerts where kind = 'public_snapshots_stale') <> 1 then
+    raise exception 'FAIL: a 40-minute-old copy did not leave one stale alert';
+  end if;
+  if (select count(*) from public.admin_alerts where kind = 'job_failed' and data ->> 'job' = 'public-snapshots') <> 1 then
+    raise exception 'FAIL: a 40-minute-old copy was not reported';
+  end if;
+  -- The refresh moved the marker.
+  select (value #>> '{}')::timestamptz into v_marker from public.settings where key = 'public_snapshots_last_ok';
+  if v_marker < now() - interval '1 minute' then
+    raise exception 'FAIL: a finished refresh did not move the marker';
+  end if;
+
+  -- 50 minutes old: a report, but no new stale alert.
+  delete from public.admin_alerts where kind = 'job_failed';
+  update public.settings set value = to_jsonb(now() - interval '50 minutes') where key = 'public_snapshots_last_ok';
+  v_out := private.run_public_snapshots();
+  if (select count(*) from public.admin_alerts where kind = 'public_snapshots_stale') <> 1 then
+    raise exception 'FAIL: a 50-minute-old copy left another stale alert';
+  end if;
+  if (select count(*) from public.admin_alerts where kind = 'job_failed' and data ->> 'job' = 'public-snapshots') <> 1 then
+    raise exception 'FAIL: a 50-minute-old copy was not reported';
+  end if;
+
+  -- Not a time: treated as never recorded, no alert.
+  delete from public.admin_alerts where kind in ('public_snapshots_stale', 'job_failed');
+  update public.settings set value = '"not a time"'::jsonb where key = 'public_snapshots_last_ok';
+  perform private.run_public_snapshots();
+  if exists (select 1 from public.admin_alerts where kind in ('public_snapshots_stale', 'job_failed')) then
+    raise exception 'FAIL: an unreadable marker raised an alert';
+  end if;
 end $$;
 
 rollback;
