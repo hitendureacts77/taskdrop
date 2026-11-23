@@ -4690,7 +4690,7 @@ I want to launch.
 </details>
 
 <details id="t5-2" data-short="Production Supabase">
-<summary>[BOTH] <b>5.2</b> Production Supabase: a new organization and project <small>· 30 minutes · $25 a month</small></summary>
+<summary>[BOTH] <b>5.2</b> Production Supabase: a new organization and project <small>· Done 15 Nov (free plan so far; the Pro upgrade waits for launch)</small></summary>
 
 **Why a new organization:** Supabase charges the Pro plan per organization. With production in its own organization, only production pays, and staging stays free in today's organization.
 
@@ -4718,7 +4718,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-3" data-short="Production Google + Firebase">
-<summary>[BOTH] <b>5.3</b> Production Firebase and Google Cloud project <small>· 1 to 2 hours · pay as you use</small></summary>
+<summary>[BOTH] <b>5.3</b> Production Firebase and Google Cloud project <small>· Part built 17 Nov, waiting for your App Check step at the Play internal test</small></summary>
 
 **Production only.** Nothing is created or restricted here until you are in Step 5; staging is left as it is (see task 1.3). **Every production Google key is limited when it is made. An unlimited key can be copied from the app or the website and run up your bill or be used for abuse.**
 
@@ -4784,7 +4784,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-4" data-short="Production Inngest">
-<summary>[YOU] <b>5.4</b> Production Inngest: a separate organization <small>· 15 minutes · free to start</small></summary>
+<summary>[YOU] <b>5.4</b> Production Inngest: a separate organization <small>· Done 16 Nov (synced, jobs run green on production)</small></summary>
 
 **Why separate:** the free plan's run limit (50,000 a month) was already more than half used by testers alone. In a separate organization, staging tests can never use up production's runs, and the keys are different.
 
@@ -4797,7 +4797,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-5" data-short="Production ImageKit">
-<summary>[YOU] <b>5.5</b> Production ImageKit: a separate account <small>· 15 minutes · free to start</small></summary>
+<summary>[YOU] <b>5.5</b> Production ImageKit: a separate account <small>· Done 15 Nov (keys in the production secrets)</small></summary>
 
 **Why separate:** with its own account, the staging server's key cannot read or delete real users' photos, and staging uploads never use production's bandwidth.
 
@@ -4810,7 +4810,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-6" data-short="Production Sentry">
-<summary>[BOTH] <b>5.6</b> Production Sentry projects <small>· 20 minutes · free to start</small></summary>
+<summary>[BOTH] <b>5.6</b> Production Sentry projects <small>· Done 15 Nov (production DSN set; alarm sends to it)</small></summary>
 
 **Why separate:** real errors are never buried under test errors, and alerts for real users go only to you. Sign in at https://sentry.io as **hitendureacts@gmail.com** (organization `hitendu`).
 
@@ -4870,7 +4870,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-8" data-short="Production Vercel">
-<summary>[BOTH] <b>5.8</b> Production Vercel projects for the website and the admin <small>· 40 minutes · $20 a month</small></summary>
+<summary>[BOTH] <b>5.8</b> Production Vercel projects for the website and the admin <small>· Part built 17 Nov: both projects live on the free plan, waiting for your Pro upgrade</small></summary>
 
 **Why separate projects:** the production projects hold only production settings, so a staging value can never end up in production. Vercel's free plan is for non-commercial use, so production needs Pro. Sign in at https://vercel.com as **hitendureacts@gmail.com**.
 
