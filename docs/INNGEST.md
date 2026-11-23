@@ -54,9 +54,6 @@ also drops those fields from anything it stores, for an event queued before this
 | `job-failure-report` | event `job.failed` | tells Sentry that a pg_cron job failed or stopped (`fatal` for a money job, which emails the owner). The team alert is already written by the database |
 | `team-alert` | support / withdrawal / payout failed / dispute events | writes a message to `admin_alerts` |
 | `nightly-reconcile` | daily 02:30 IST | calls `run_reconciliation()` (our own money checks), then compares the last 3 days of payments with Razorpay payment links and saves both to `reconciliation_runs`; a difference leaves an `admin_alerts` row. Reports only, never changes money |
-| `auto-complete-due` | hourly at :27 | calls `run_auto_complete_due()` |
-| `settle-cleared-earnings` | hourly at :47 | calls `settle_cleared_earnings()` |
-| `settle-finished-campaigns` | every 3 hours at :07 | calls `settle_finished_campaigns()` |
 | `push-notification` | event `notification.created` | reads the message from the database, sends it to Expo, waits 15 minutes, reads Expo's receipts and forgets devices that are gone |
 | `account-files` | event `user.deleted` | removes whatever files of the deleted account are still in storage (the api function already tried once); empty when nothing is left. Also marks the account's ImageKit pictures deleted (migration 109), except those a kept record still uses |
 | `media-purge` | hourly at :41 | marks pictures nobody finished uploading (pending for 24 h) as deleted, then removes deleted pictures from ImageKit in batches of 50, with retries. Waits, without failing, until the ImageKit secrets are set. See `docs/MEDIA.md` |
@@ -77,18 +74,14 @@ one more. At the old pace (sweeper every 5 min, four jobs every 10) both account
 releases waited until someone opened the task. Since plan 3.5c (migrations 198 to 201) every
 database-only timer runs on pg_cron instead, at no cost. Inngest's own timers are now the
 sweeper (144 a day), `media-purge`, `money-moves` and `safety-alarm` (24 each), the two nightly
-money checks and the weekly stray-file sweep: about 220 runs a day, plus 56 while staging still
-runs the three wallet money sweeps on Inngest (`INNGEST_MONEY_JOBS=on`; plan 3.5c PR 5 moves them
-back to pg_cron). That is roughly 600 executions a day, about 18,000 a month, which leaves most of
+money checks and the weekly stray-file sweep: about 220 runs a day; the three wallet money sweeps run on pg_cron too (migration 202).
+That is roughly 500 executions a day, about 15,000 a month, which leaves most of
 the 50,000 for event-driven runs (push, money moves, people sync). The outbox sweeper stays at 10
 minutes because the watchdog alarms at 25. Before making any Inngest schedule faster, check the
 account's Billing → Usage page (every 5 minutes is about 17,000 executions a month).
 
-The three money sweeps run on Inngest only when `INNGEST_MONEY_JOBS=on`. **Staging has it on**
-and its pg_cron copies were unscheduled on 25 Oct (`supabase/cutover/inngest_money_jobs.sql`), so
-while staging's Inngest is out of its monthly runs the sweeps do not run there at all. Plan 3.5c
-PR 5 puts them back on pg_cron for good, through the wrapper; it waits for the owner's answer
-(23 Nov). Every function reports its final failure to Sentry.
+The three money sweeps run on pg_cron through the wrapper (migration 202, see "Why the money sweeps
+stay on pg_cron"). Every function reports its final failure to Sentry.
 
 Push, `account-files`, `overdue-tasks` and `housekeeping` need migration 101; the live-feed clean-up inside `housekeeping` needs 104; `outbox-watchdog` and `task-reminders` need 105; `media-purge` and the picture step in `account-files` need 109. Push also has a
 switch (next section). `notification.created` holds ids and the kind only: the title and body
@@ -129,6 +122,9 @@ stop at once is nobody told.
 | `daily-digest`, catch-up `daily-digest-catchup` | `30 3 * * *`, `30 4 * * *` | 09:00, 10:00 | 26 h | yes | no | 200 |
 | `public-snapshots` | `3-59/10 * * * *` | every 10 min | 30 min | no | no | 200 |
 | `outbox-watchdog` | `5-59/10 * * * *` | every 10 min | 30 min | no | no | 201 |
+| `auto-complete-due` | `*/15 * * * *` | every 15 min | 45 min | no | **yes** | 202 |
+| `settle-cleared-often` | `*/5 * * * *` | every 5 min | 15 min | no | **yes** | 202 |
+| `settle-finished-campaigns` | `7 * * * *` | :37 every hour | 2 h | no | **yes** | 202 |
 
 What they run: `housekeeping` calls `run_housekeeping()` (expired sign-in codes, send and search
 counters, rate counters, password attempts older than 30 days, notifications older than 90 days,
@@ -232,15 +228,21 @@ Event Key is set on the function. After step 5 they also go out instantly.
 `admin_alerts` (`select * from admin_alerts order by created_at desc limit 5;`) and a
 `team-alert` run in the Inngest dashboard.
 
-## Moving the money sweeps off pg_cron
+## Why the money sweeps stay on pg_cron
 
-1. Set `INNGEST_MONEY_JOBS=on` (`supabase secrets set INNGEST_MONEY_JOBS=on`) and redeploy.
-2. In the Inngest dashboard, run each of the three once (Invoke) and see it green.
-3. Run `supabase/cutover/inngest_money_jobs.sql` by hand. It unschedules the pg_cron
-   copies. To go back, the same file lists the four `cron.schedule` lines.
+`auto-complete-due` (`private.auto_complete_due()`), `settle-cleared-often` (`settle_cleared_earnings()`) and
+`settle-finished-campaigns` (`settle_finished_campaigns()`) only change rows inside the database, so they
+run where the money is (owner, 23 Nov 2026; plan 3.5c PR 5, migration 202):
 
-Both runners may be on together for a while: each sweep takes row locks and only
-touches work that is due.
+- no monthly run limit: when staging's Inngest ran out on 16 Nov the sweeps, then on Inngest, stopped;
+- one moving part fewer: no keys, sync or outside service between the timer and the money;
+- failures are not silent: the wrapper writes every run to `private.job_runs`; a failure or a stop leaves a
+  team alert at once and a `fatal` Sentry issue (`money = true`), which emails the owner.
+
+Every sweep takes row locks and only touches work that is due, so a second run pays nobody twice.
+`supabase/cutover/inngest_money_jobs.sql` is retired (its old content is in git history) and the
+`INNGEST_MONEY_JOBS` switch is gone from the code; the leftover Supabase secret does nothing and can be
+removed with `supabase secrets unset INNGEST_MONEY_JOBS`.
 
 ## Running it on your PC
 

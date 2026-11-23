@@ -3775,9 +3775,9 @@ start 3.5b
 </details>
 
 <details id="t3-5c" data-short="Fewer Inngest runs">
-<summary>[CLAUDE] <b>3.5c</b> Background jobs, hybrid: database-only jobs move to pg_cron, Inngest keeps only outside calls <small>· added 9 Nov · 13 jobs on pg_cron (23 Nov) · your time: 20 minutes · free (no new tool) · answer Q1 to Q5 first</small></summary>
+<summary>[CLAUDE] <b>3.5c</b> Background jobs, hybrid: database-only jobs move to pg_cron, Inngest keeps only outside calls <small>· added 9 Nov · 16 jobs on pg_cron incl. the money sweeps (23 Nov) · your time: 20 minutes · free (no new tool) · answer Q1 to Q5 first</small></summary>
 
-**Progress 23 Nov:** PRs 485, 487, 490 and 492 merged (migrations 198 to 201). 13 jobs now run on pg_cron; 7 already ran green on staging. crm-rules, user-sync-repair, outbox-prune and daily-digest run for the first time tomorrow. **PR 5** (money sweeps back to pg_cron) is waiting for your answer; removing the `INNGEST_MONEY_JOBS` secret is yours.
+**Progress 23 Nov:** PRs 485, 487, 490 and 492 merged (migrations 198 to 201). 13 jobs now run on pg_cron; 7 already ran green on staging. crm-rules, user-sync-repair, outbox-prune and daily-digest run for the first time tomorrow. **PR 5 built 23 Nov** (your answer: yes, migration 202): the three money sweeps run on pg_cron through the wrapper, marked as money jobs (a failure or stop emails you through Sentry as fatal); the Inngest copies, the `INNGEST_MONEY_JOBS` switch and the cutover file are gone. On staging they had stopped since 16 Nov (they were on Inngest, which ran out). **Waiting for your** OK to run `supabase secrets unset INNGEST_MONEY_JOBS` on staging (the leftover setting now does nothing). Next: PR 6 (diagrams, and the runs per day a week later).
 
 **What it is, in plain words:** Inngest's free plan ran out once. Most of what Inngest runs on a timer is a job that only asks the database to do something (tidy old rows, mark overdue tasks, send reminders, write the daily digest). The database can run those itself with its own timer (pg_cron, already used for the three money sweeps). Inngest then keeps only the jobs that talk to the outside world (push to phones, ImageKit, Razorpay, file clean-up) or need retries one person at a time.
 
@@ -3800,7 +3800,7 @@ start 3.5c
 
 **Done when:** every job in the table below runs where its verdict says; each pg_cron job has a green run on staging at its time; one forced failure was seen as a team alert and in Sentry; Inngest lists only the jobs that stay; `AGENTS.md`, `docs/INNGEST.md` and the architecture page say hybrid; the runs per day after a week are written here.
 
-**Status:** Not started (9 Nov). Plan only; nothing changed in the code or the database.
+**Status:** PRs 1 to 5 built and merged 23 Nov (migrations 198 to 202); PR 6 (diagrams, runs per day a week later) open.
 </details>
 
 ### 3.5c in detail: every background job, the design and the build steps (for Claude)
@@ -6648,6 +6648,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-23 (3.5c PR 5, money sweeps):** You said yes: the three money sweeps (auto-complete, settle cleared earnings, settle finished campaigns) moved back to pg_cron for good through the job runner (migration 202), as money jobs that alert you on failure. Inngest no longer runs them and the `INNGEST_MONEY_JOBS` switch is gone. On staging they had stopped since 16 Nov.
 - **2026-11-23 (plan catch-up):** ticked 2.11, 2.12, 5.0a, 5.0e; 2.20 audit done (PR 484, no Critical or High; Mediums are H81 to H83, Low fixes PRs 488 + admin 71); 2.18 done (PR 486, H71 to H76 closed); 1.14 level 1 built (PRs 483 + 491); 1.18 built (PR 489, waiting for your check); 3.2 store file built, waiting for your Play upload; 3.5c 13 jobs on pg_cron (PRs 485, 487, 490, 492); 4.3 and 4.5 designs drafted (PR 482, waiting for you); 2.21 summary updated; H7 accepted, H8 and H12 closed.
 - **2026-11-23 (Home ideas, counteroffer, feature votes):** 23 Nov: Home ideas titled "Idea templates for you" on both Homes (old templates block now "Quick templates"), "Send a counteroffer" choice on the worker job page, "Suggest a feature" vote card on both Homes · Done 23 Nov ([PR 493](https://github.com/hitendureacts77/taskdrop/pull/493)). Checked on the Android phone 23 Nov (Expo Go, staging): both titles, vote card on both Homes, Accept / counteroffer choice; Android app still needs an OTA, waiting for your yes.
 - **2026-11-22 (the Telugu app walkthrough video: progress moved into the plan):** You asked to save the progress in this plan. Added a **Progress, 22 November** paragraph to task 4.7: the 2-minute Telugu walkthrough (version 3: steady phone, no zoom-in on each tap, milestones explained as one checklist paid once), where the files are, and what is open (watch it through, the "@seed_ravi" handle and repeated "Kitchen tap" rows, the AI voice label, normal-speed recording).
