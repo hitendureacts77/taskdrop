@@ -5,7 +5,7 @@
 --   * every view runs with the rights of the person asking;
 --   * the signed-out role holds no right on any table or view;
 --   * the signed-out role can run only the functions on the short list below;
---   * a table created now gives nobody any right.
+--   * a table or sequence created now gives nobody any right (migrations 156 and 197).
 --
 -- Everything runs inside one transaction that is rolled back.
 --
@@ -75,6 +75,8 @@ $$;
 
 -- A new table gives nobody any right. Run as the role that runs the migrations.
 create table public.h71_probe (id integer primary key);
+-- A new counter (the sequence behind a serial id) gives nobody any right either (migration 197).
+create sequence public.h71_probe_seq;
 
 do $$
 begin
@@ -82,6 +84,13 @@ begin
      or has_table_privilege('authenticated', 'public.h71_probe', 'insert')
      or has_table_privilege('anon', 'public.h71_probe', 'select') then
     raise exception 'H71: a new table starts with rights for the app roles (migration 156)';
+  end if;
+  if has_sequence_privilege('authenticated', 'public.h71_probe_seq', 'usage')
+     or has_sequence_privilege('authenticated', 'public.h71_probe_seq', 'select')
+     or has_sequence_privilege('authenticated', 'public.h71_probe_seq', 'update')
+     or has_sequence_privilege('anon', 'public.h71_probe_seq', 'usage')
+     or has_sequence_privilege('anon', 'public.h71_probe_seq', 'update') then
+    raise exception 'H71: a new sequence starts with rights for the app roles (migration 197)';
   end if;
 end;
 $$;
