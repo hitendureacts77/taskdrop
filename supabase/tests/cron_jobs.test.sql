@@ -387,4 +387,79 @@ begin
   end if;
 end $$;
 
+-- ---- 14. the money sweeps (migration 202): on pg_cron through the wrapper, money = true, safe twice ----
+do $$
+declare
+  r        record;
+  v_out    jsonb;
+  v_wallet text;
+  v_counts bigint[];
+  v_event  jsonb;
+begin
+  for r in
+    select * from (values
+      ('auto-complete-due',         '*/15 * * * *', interval '45 minutes'),
+      ('settle-cleared-often',      '*/5 * * * *',  interval '15 minutes'),
+      ('settle-finished-campaigns', '7 * * * *',    interval '2 hours')
+    ) as t(job, schedule, max_gap)
+  loop
+    if not exists (select 1 from cron.job
+                    where jobname = r.job and schedule = r.schedule and active
+                      and command = format('set statement_timeout = ''5min''; select private.run_cron_job(%L)', r.job)) then
+      raise exception 'FAIL: money sweep % is not scheduled at % through the wrapper', r.job, r.schedule;
+    end if;
+    if not exists (select 1 from private.cron_jobs
+                    where job = r.job and money and max_gap = r.max_gap and not once_per_ist_day) then
+      raise exception 'FAIL: money sweep % is not listed as a money job with max_gap %', r.job, r.max_gap;
+    end if;
+  end loop;
+
+  -- The old names and bare commands are gone.
+  if exists (select 1 from cron.job where jobname = 'settle-cleared-earnings')
+     or exists (select 1 from cron.job
+                 where command ~ '(auto_complete_due|settle_cleared_earnings|settle_finished_campaigns)\(\)') then
+    raise exception 'FAIL: a bare money sweep is still scheduled outside the wrapper';
+  end if;
+
+  -- Each sweep runs green through the wrapper, and a second run right after changes no money.
+  for r in select unnest(array['auto-complete-due', 'settle-cleared-often', 'settle-finished-campaigns']) as job loop
+    delete from private.job_runs where job = r.job;
+    v_out := private.run_cron_job(r.job);
+    if v_out ->> 'status' <> 'ok' then
+      raise exception 'FAIL: % did not run green through the wrapper: % (%)', r.job, v_out,
+        (select error from private.job_runs where id = (v_out ->> 'run')::bigint);
+    end if;
+
+    select coalesce(md5(string_agg(w::text, ',' order by w.user_id)), '') into v_wallet from public.wallets w;
+    v_counts := array[(select count(*) from public.money_ledger), (select count(*) from public.platform_ledger),
+                      (select count(*) from public.wallet_adjustments)];
+    v_out := private.run_cron_job(r.job);
+    if v_out ->> 'status' <> 'ok' then
+      raise exception 'FAIL: % second run was not green: %', r.job, v_out;
+    end if;
+    if (select coalesce(md5(string_agg(w::text, ',' order by w.user_id)), '') from public.wallets w) <> v_wallet
+       or array[(select count(*) from public.money_ledger), (select count(*) from public.platform_ledger),
+                (select count(*) from public.wallet_adjustments)] <> v_counts then
+      raise exception 'FAIL: a second % run right after the first changed money', r.job;
+    end if;
+    if (select coalesce((select value::text::bigint from jsonb_each(result) limit 1), 0)
+          from private.job_runs where id = (v_out ->> 'run')::bigint) <> 0 then
+      raise exception 'FAIL: a second % run found due work the first one left: %', r.job,
+        (select result from private.job_runs where id = (v_out ->> 'run')::bigint);
+    end if;
+  end loop;
+
+  -- A failing money sweep is reported as a money job (Sentry "fatal").
+  delete from public.admin_alerts where kind = 'job_failed';
+  delete from private.outbox where kind = 'job.failed';
+  perform private.report_job_failure('settle-cleared-often', 'P0001', null);
+  select data into v_event from private.outbox where kind = 'job.failed' order by created_at desc limit 1;
+  if v_event is null or (v_event ->> 'money')::boolean is not true or v_event ->> 'job' <> 'settle-cleared-often' then
+    raise exception 'FAIL: a failing money sweep was not reported as a money job: %', v_event;
+  end if;
+  if not exists (select 1 from public.admin_alerts where kind = 'job_failed' and data ->> 'job' = 'settle-cleared-often') then
+    raise exception 'FAIL: a failing money sweep left no team alert';
+  end if;
+end $$;
+
 rollback;

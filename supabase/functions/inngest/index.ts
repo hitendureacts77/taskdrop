@@ -61,7 +61,6 @@ import {
  * Secrets (supabase secrets set ...):
  *   INNGEST_SIGNING_KEY   verifies that calls really come from Inngest
  *   INNGEST_EVENT_KEY     lets this function send events
- *   INNGEST_MONEY_JOBS    "on" to let Inngest run the three money sweeps (default off)
  *   INNGEST_DEV           "1" when talking to a local `inngest-cli dev` server
  *   INNGEST_PUSH_RECEIPT_WAIT  how long push waits before reading Expo's receipts (default "15m"; tests only)
  *   IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_URL_ENDPOINT, IMAGEKIT_ENV
@@ -450,21 +449,8 @@ const userDeleted = userFunction("user-deleted", "taskdrop/user.deleted");
 // Moved to pg_cron (plan 3.5c, migration 199): outbox-prune, crm-rules, overdue-tasks, housekeeping and
 // user-sync-repair now run inside the database through private.run_cron_job. See docs/INNGEST.md.
 
-// -------------------------------------------------------------- money sweeps --
-
-/**
- * The three money sweeps. The rules live in Postgres (auto_complete_due,
- * settle_cleared_earnings, settle_finished_campaigns); these only ring the bell
- * on a schedule. They stay OFF until INNGEST_MONEY_JOBS=on, because pg_cron
- * runs them today. All three are safe to run twice, so a short overlap while
- * switching over cannot pay anyone twice. See supabase/cutover/.
- */
-function sweep(id: string, cron: string, fn: string) {
-  return inngest.createFunction(
-    { id, triggers: [{ cron }], concurrency: 1, retries: 4, onFailure: reportFailure(id) },
-    async ({ step }) => ({ [fn]: await step.run(fn, () => call<number>(rpc, fn)) }),
-  );
-}
+// The three money sweeps (auto-complete-due, settle-cleared-often, settle-finished-campaigns) run on
+// pg_cron for good through private.run_cron_job (plan 3.5c, migration 202); INNGEST_MONEY_JOBS is gone.
 
 // ------------------------------------------------------------------ Plan B money (migration 195) --
 
@@ -549,14 +535,6 @@ const moneyMatch = inngest.createFunction(
   },
 );
 
-const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
-  ? [
-    sweep("auto-complete-due", "27 * * * *", "run_auto_complete_due"),
-    sweep("settle-cleared-earnings", "47 * * * *", "settle_cleared_earnings"),
-    sweep("settle-finished-campaigns", "7 */3 * * *", "settle_finished_campaigns"),
-  ]
-  : [];
-
 Deno.serve(serve({
   client: inngest,
   functions: [
@@ -564,7 +542,6 @@ Deno.serve(serve({
     pushNotification, accountFiles, mediaPurge, strayImageKitFiles, safetyAlarm,
     userCreated, userUpdated, userDeleted,
     moneyMoves, moneyMatch,
-    ...moneyJobs,
   ],
   servePath: "/functions/v1/inngest",
 }));
