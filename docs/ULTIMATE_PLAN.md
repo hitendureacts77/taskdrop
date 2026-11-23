@@ -4739,7 +4739,7 @@ I want to launch.
 </details>
 
 <details id="t5-2" data-short="Production Supabase">
-<summary>[BOTH] <b>5.2</b> Production Supabase: a new organization and project <small>· 30 minutes · $25 a month</small></summary>
+<summary>[BOTH] <b>5.2</b> Production Supabase: a new organization and project <small>· Done 15 Nov (free plan so far; the Pro upgrade waits for launch)</small></summary>
 
 **Why a new organization:** Supabase charges the Pro plan per organization. With production in its own organization, only production pays, and staging stays free in today's organization.
 
@@ -4767,7 +4767,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-3" data-short="Production Google + Firebase">
-<summary>[BOTH] <b>5.3</b> Production Firebase and Google Cloud project <small>· 1 to 2 hours · pay as you use</small></summary>
+<summary>[BOTH] <b>5.3</b> Production Firebase and Google Cloud project <small>· Part built 17 Nov, waiting for your App Check step at the Play internal test</small></summary>
 
 **Production only.** Nothing is created or restricted here until you are in Step 5; staging is left as it is (see task 1.3). **Every production Google key is limited when it is made. An unlimited key can be copied from the app or the website and run up your bill or be used for abuse.**
 
@@ -4833,7 +4833,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-4" data-short="Production Inngest">
-<summary>[YOU] <b>5.4</b> Production Inngest: a separate organization <small>· 15 minutes · free to start</small></summary>
+<summary>[YOU] <b>5.4</b> Production Inngest: a separate organization <small>· Done 16 Nov (synced, jobs run green on production)</small></summary>
 
 **Why separate:** the free plan's run limit (50,000 a month) was already more than half used by testers alone. In a separate organization, staging tests can never use up production's runs, and the keys are different.
 
@@ -4846,7 +4846,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-5" data-short="Production ImageKit">
-<summary>[YOU] <b>5.5</b> Production ImageKit: a separate account <small>· 15 minutes · free to start</small></summary>
+<summary>[YOU] <b>5.5</b> Production ImageKit: a separate account <small>· Done 15 Nov (keys in the production secrets)</small></summary>
 
 **Why separate:** with its own account, the staging server's key cannot read or delete real users' photos, and staging uploads never use production's bandwidth.
 
@@ -4859,7 +4859,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-6" data-short="Production Sentry">
-<summary>[BOTH] <b>5.6</b> Production Sentry projects <small>· 20 minutes · free to start</small></summary>
+<summary>[BOTH] <b>5.6</b> Production Sentry projects <small>· Done 15 Nov (production DSN set; alarm sends to it)</small></summary>
 
 **Why separate:** real errors are never buried under test errors, and alerts for real users go only to you. Sign in at https://sentry.io as **hitendureacts@gmail.com** (organization `hitendu`).
 
@@ -4890,7 +4890,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-7" data-short="Production Expo + Play">
-<summary>[BOTH] <b>5.7</b> Production Expo project and the Android app identity <small>· 30 minutes · free to start</small></summary>
+<summary>[BOTH] <b>5.7</b> Production Expo project and the Android app identity <small>· Done 23 Nov (project taskdrop-production with all 9 production variables and no debug token, build guard wired, upload keystore in since 15 Nov, FCM V1 push key uploaded 23 Nov; checked in Expo)</small></summary>
 
 **Why separate:** the Expo project holds the app's build secrets, the push key and the update channels. With a separate production project, a staging update can never reach real users' phones. Sign in at https://expo.dev as **hitendureacts**.
 
@@ -4919,7 +4919,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-8" data-short="Production Vercel">
-<summary>[BOTH] <b>5.8</b> Production Vercel projects for the website and the admin <small>· 40 minutes · $20 a month</small></summary>
+<summary>[BOTH] <b>5.8</b> Production Vercel projects for the website and the admin <small>· Part built 17 Nov: both projects live on the free plan, waiting for your Pro upgrade</small></summary>
 
 **Why separate projects:** the production projects hold only production settings, so a staging value can never end up in production. Vercel's free plan is for non-commercial use, so production needs Pro. Sign in at https://vercel.com as **hitendureacts@gmail.com**.
 
@@ -6676,6 +6676,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-23 (20-point website finish list added):** From an Instagram reel ("20 things to tell Claude to fix on your vibecoded website") you asked whether those checks are in the plan. Eight were already covered in part (favicon, page titles, meta descriptions in 4.3; sideways scrolling, mobile overflow and every-page-mobile in 1.14, T10 and F1; compressed pictures for videos only; error messages in T12). Twelve were not: broken links, a mobile menu, working footer links, a custom 404 page, a worked-out copyright year, broken buttons, success messages, no placeholder text, no unused navigation, a clickable logo, clickable phone, clickable email. Added them all as test **T13 "Website finish (20 points)"** with a 20-row table under task 3.6, a line in 4.3's search and share checklist, a "Done when" condition, and a row in the coverage table. Nothing built or run; it runs with round 3.
 - **2026-11-23 (3.5c PR 5, money sweeps):** You said yes: the three money sweeps (auto-complete, settle cleared earnings, settle finished campaigns) moved back to pg_cron for good through the job runner (migration 202), as money jobs that alert you on failure. Inngest no longer runs them and the `INNGEST_MONEY_JOBS` switch is gone. On staging they had stopped since 16 Nov.
 - **2026-11-23 (20-point website finish list added):** From an Instagram reel ("20 things to tell Claude to fix on your vibecoded website") you asked whether those checks are in the plan. Eight were already covered in part (favicon, page titles, meta descriptions in 4.3; sideways scrolling, mobile overflow and every-page-mobile in 1.14, T10 and F1; compressed pictures for videos only; error messages in T12). Twelve were not: broken links, a mobile menu, working footer links, a custom 404 page, a worked-out copyright year, broken buttons, success messages, no placeholder text, no unused navigation, a clickable logo, clickable phone, clickable email. Added them all as test **T13 "Website finish (20 points)"** with a 20-row table under task 3.6, a line in 4.3's search and share checklist, a "Done when" condition, and a row in the coverage table. Nothing built or run; it runs with round 3.
 - **2026-11-23 (plan catch-up):** ticked 2.11, 2.12, 5.0a, 5.0e; 2.20 audit done (PR 484, no Critical or High; Mediums are H81 to H83, Low fixes PRs 488 + admin 71); 2.18 done (PR 486, H71 to H76 closed); 1.14 level 1 built (PRs 483 + 491); 1.18 built (PR 489, waiting for your check); 3.2 store file built, waiting for your Play upload; 3.5c 13 jobs on pg_cron (PRs 485, 487, 490, 492); 4.3 and 4.5 designs drafted (PR 482, waiting for you); 2.21 summary updated; H7 accepted, H8 and H12 closed.
