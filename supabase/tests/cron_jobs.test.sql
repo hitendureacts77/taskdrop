@@ -204,7 +204,7 @@ declare
   v_job text;
 begin
   for v_cmd in select command from cron.job where command like '%run_cron_job%' loop
-    if v_cmd !~ $re$^set statement_timeout = '[0-9]+min'; select private\.run_cron_job\('[a-z0-9-]+'\)$$re$ then
+    if v_cmd !~ $re$^set statement_timeout = '[0-9]+min'; select private\.run_cron_job\('[a-z0-9-]+'\)\Z$re$ then
       raise exception 'FAIL: a pg_cron command does not have the wrapper shape: %', v_cmd;
     end if;
     v_job := substring(v_cmd from $re$run_cron_job\('([a-z0-9-]+)'\)$re$);
