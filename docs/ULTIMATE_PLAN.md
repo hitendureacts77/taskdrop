@@ -820,12 +820,12 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H4 | The admin app falls back to the master database key if its own secret is missing | High | 2.5 |
 | H5 | No secret scanner runs on code changes, and nothing stops a commit that contains a key | High | 2.5 |
 | H6 | The secrets file and the keystore passwords sit together in OneDrive | High | 2.1 |
-| H7 | 15 package warnings in the user app, **7 of them high** (the admin app has 0) | Medium | 2.6 |
-| H8 | Server functions answer requests from any website (CORS `*`). Not open today because a login token is needed, but wider than needed | Medium | 2.6 |
+| H7 | 15 package warnings in the user app, **7 of them high** (the admin app has 0) | Medium | **Accepted risk** (6 advisories, 2 high, explained; review by 13 Dec; the Expo upgrade removes them) |
+| H8 | Server functions answer requests from any website (CORS `*`). Not open today because a login token is needed, but wider than needed | Medium | **Closed 1 Nov** (2.6, PR 156) |
 | H9 | The full content security policy only reports problems; it does not block them yet | Medium | **Closed 4 Nov** (2.6, PR 233: the website's policy now blocks bad scripts; the report address stays on) |
 | H10 | Sign-in limits trust a network address that can be faked, and there is no daily cap on SMS | Medium (costs money once SMS is real) | 2.8 |
 | H11 | Leaked-password protection is off (Supabase only offers it on the paid plan) | Medium | 5.2 turns it on in production |
-| H12 | An unused key, `OMNIROUTE_API_KEY`, is still set | Low | 2.6 |
+| H12 | An unused key, `OMNIROUTE_API_KEY`, is still set | Low | **Closed 1 Nov** (2.6: the key was not found anywhere, nothing to delete) |
 | H13 | An old column `payout_upi` is readable by signed-in people (it is empty) | Low | 3.9 |
 | H14 | No 2-step sign-in on your accounts. Most real hacks steal a login, not a key, and with your no-key-replacement rule a stolen login does more damage | High | **Left open by your decision (31 Oct 2026).** The fix, 2.1b (authenticator app on 8 accounts), is future scope. Passkeys stay in F.1 |
 | H15 | A brand-new database built from the code starts with "any phone signs in" on (migration 053), and the `production` app build setting in `eas.json` still points at the staging database. Staging also records every session as a video replay | High for production (fine on staging) | 5.7 and 5.9 fix them; a safety alarm (5.9) catches them if they ever come back |
@@ -880,16 +880,19 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H68 | Guests browse every post and profile without any 18+ question (the age check is only at sign-up) | Low (your decision) | **Waiting for your "fix" or "accept"** (decision 25) |
 | H69 | Two short memories in the app (answers reused for 30 seconds, and signed photo links) are kept per device, not per person. Signing in or out stops the reuse, but the photo links stay in memory for the next person on a shared phone. They only open pictures the server had already shown that phone, so nothing new is exposed (found 4 Nov while designing caching) | Low | 3.5b (layer A) |
 | H70 | When a new server copy starts, a second request that arrives while the first is still loading the secrets gets an empty value instead of waiting. That request can then fail, or skip a check, for no reason (found 4 Nov while designing caching) | Low | 3.5b (layer D) |
-| H71 | New doors start open. A new database function can be called by everyone, and a new table can be read by every signed-in person, until a migration says otherwise, and no test covers every table's row rules. Nothing is open today (all 68 tables have row rules, and the signed-out role can run 1 function, on purpose), so this is a trap for the next change, not a leak (found 6 Nov, 2.18) | Low | 2.18 part C |
-| H72 | The built-bundle secret test skips itself when no build is present, which is the case in the main CI check; the admin's test has the same "when one exists" shape, and the Android bundle was checked by hand once (1 Nov). Today's scan of `taskdrop.in` found no server key, and the source is scanned on every change (found 6 Nov, 2.18) | Low | 2.18 part D |
-| H73 | `razorpayx-webhook` runs without Supabase's login check on staging, which is right, but that setting is not in `supabase/config.toml` and `check-endpoints` does not look for it. On a new production project the function may be created with the login check on: RazorpayX sends no login, so payout updates would be refused with no error in the app. 5.9's test only covers the Razorpay webhook. Not proven on a new project; found by reading the settings on 6 Nov (2.18) | Medium (production only) | 2.18 part E |
-| H74 | Row rules guard rows, not columns. Every signed-in person can read 28 columns of `profiles` and 51 of `tasks`, including a task's funding fields, and 29 database calls in `api` ask for every column, so a column added later would reach people unreviewed. No private value was found (`payout_upi` is empty on every row; profile locations are rounded). The same trap as H62, for signed-in people. Includes H13 and H45 (found 6 Nov, 2.18) | Medium | 2.18 part A |
-| H75 | The built Android app has been checked from its settings and for keys, but never opened up the way an attacker would: entry points, app links, debug settings (found 6 Nov, 2.18) | Low | 2.18 part G |
-| H76 | The Razorpay webhook does not compare the amount Razorpay reports with the amount on record. The signature is checked and the link is made by the server, so this is a second net, not a known way in (found 6 Nov, 2.18) | Low | 2.18 part E |
+| H71 | New doors start open. A new database function can be called by everyone, and a new table can be read by every signed-in person, until a migration says otherwise, and no test covers every table's row rules. Nothing is open today (all 68 tables have row rules, and the signed-out role can run 1 function, on purpose), so this is a trap for the next change, not a leak (found 6 Nov, 2.18) | Low | **Closed 23 Nov** (2.18, PR 486) |
+| H72 | The built-bundle secret test skips itself when no build is present, which is the case in the main CI check; the admin's test has the same "when one exists" shape, and the Android bundle was checked by hand once (1 Nov). Today's scan of `taskdrop.in` found no server key, and the source is scanned on every change (found 6 Nov, 2.18) | Low | **Closed 23 Nov** (2.18, PR 486) |
+| H73 | `razorpayx-webhook` runs without Supabase's login check on staging, which is right, but that setting is not in `supabase/config.toml` and `check-endpoints` does not look for it. On a new production project the function may be created with the login check on: RazorpayX sends no login, so payout updates would be refused with no error in the app. 5.9's test only covers the Razorpay webhook. Not proven on a new project; found by reading the settings on 6 Nov (2.18) | Medium (production only) | **Closed 23 Nov** (2.18, PR 486) |
+| H74 | Row rules guard rows, not columns. Every signed-in person can read 28 columns of `profiles` and 51 of `tasks`, including a task's funding fields, and 29 database calls in `api` ask for every column, so a column added later would reach people unreviewed. No private value was found (`payout_upi` is empty on every row; profile locations are rounded). The same trap as H62, for signed-in people. Includes H13 and H45 (found 6 Nov, 2.18) | Medium | **Closed 23 Nov** (2.18, PR 486) |
+| H75 | The built Android app has been checked from its settings and for keys, but never opened up the way an attacker would: entry points, app links, debug settings (found 6 Nov, 2.18) | Low | **Closed 23 Nov** (2.18, PR 486) |
+| H76 | The Razorpay webhook does not compare the amount Razorpay reports with the amount on record. The signature is checked and the link is made by the server, so this is a second net, not a known way in (found 6 Nov, 2.18) | Low | **Closed 23 Nov** (2.18, PR 486) |
 | H77 | The admin's rate limiter lets every call through when its counter cannot be reached (`src/lib/rate-limit.ts` returns "allowed" on an error), so the 10-a-minute admin sign-in limit and the authenticator limit vanish during a database hiccup (found 13 Nov) | Medium | 2.14 part F, round 3 |
 | H78 | The admin sends no security events to Sentry: failed staff sign-ins, wrong authenticator codes and calls refused for the wrong role are not tagged `security_event`, so the "Security spike" alert (2.10) cannot see an attack on the admin (found 13 Nov) | Medium | 2.14 part F, round 3 |
 | H79 | The admin's door check (`scripts/check-endpoints.mjs`) proves every route has a role check and a limit, but not that a plain person or a lower staff role is actually refused; only `live/token` is tested that way (`docs/SECURITY_ROLES.md` F3) | Low | 2.18 part B |
 | H80 | The admin has no browser tests: no Playwright smoke on `admin.taskdrop.in`, so a broken page or a lost role gate ships unseen, and the debug loop's "admin golden path" is not written down (found 13 Nov) | Low | 2.14 part G, 2.19 |
+| H81 | The website keeps the sign-in session in `localStorage` (`lib/secureStorage.ts:63`), so a script injected into the page could read it (found 23 Nov, audit F1) | Medium | 2.20 |
+| H82 | `ALLOW_ANY_OTP` is still on in staging (`phone-auth/index.ts:76-82`): any phone number signs in with any code. It must be off before launch (found 23 Nov, audit F2) | Medium | 2.20, 5.9 |
+| H83 | The gateway lockdown is not on yet, so the database can still be reached outside the `api` door (found 23 Nov, audit F3) | Medium | 3.9 |
 | — | Accepted on purpose: an old Razorpay **test** key in the code history; `get_app_controls` readable signed out; 7 private tables closed to the app | Info | Nothing to do |
 
 **The bugs found (your walkthrough, the phone runs and the break-it pass)**
@@ -1784,7 +1787,9 @@ design D22
 </details>
 
 <details id="t1-14" data-short="Fits every screen">
-<summary>[CLAUDE] <b>1.14</b> Fits every phone, tablet and laptop: one layout that follows the width of the screen <small>· added 11 Nov · decision 40: level 1 before launch (a fix, allowed inside the freeze) · not started · your time: 20 minutes · free</small></summary>
+<summary>[CLAUDE] <b>1.14</b> Fits every phone, tablet and laptop: one layout that follows the width of the screen <small>· added 11 Nov · decision 40: level 1 before launch (a fix, allowed inside the freeze) · level 1 built 23 Nov · your time: 20 minutes · free</small></summary>
+
+**Level 1 built 23 Nov (PRs 483 + 491):** on Android, 600 wide and up keeps a centred 720 column; state is kept when the screen is resized; the 320-wide header is fixed; the sizes test passes at 11 sizes. **Still left:** bigger 48-point tap targets (changes the look, waiting for your OK), the admin sites (item 11), unlocking native rotation (next build), a tablet/foldable phone check, and Firefox/WebKit runs.
 
 **What you asked (11 Nov):** TaskDrop must work on every mobile, tablet and laptop screen, and the plan must say how.
 
@@ -2065,7 +2070,9 @@ done 1.17
 </details>
 
 <details id="t1-18" data-short="Username is compulsory">
-<summary>[CLAUDE] <b>1.18</b> Everyone who signs in must set a username: no way in without one <small>· added 14 Nov, from your message · decision 51: yes · a fix, allowed inside the freeze · not started · your time: 10 minutes · free</small></summary>
+<summary>[CLAUDE] <b>1.18</b> Everyone who signs in must set a username: no way in without one <small>· added 14 Nov, from your message · decision 51: yes · a fix, allowed inside the freeze · built 23 Nov · your time: 10 minutes · free</small></summary>
+
+**Built 23 Nov (PR 489):** a pick-username gate page; the api refuses posting, offers, chat and money actions until a username is set. 32 staging profiles have none. **Waiting for your check** on taskdrop.in in a private window. The phone needs an OTA (not published).
 
 **What you said (14 Nov):** if a person signs in, they must set a username too. It is compulsory.
 
@@ -2533,7 +2540,7 @@ Prove the key protection works.
 </details>
 
 <details id="t2-11" data-short="Money safety limits">
-<summary>[BOTH] <b>2.11</b> Money safety limits: new accounts, self-dealing, and money mismatches <small>· your time: 20 minutes</small></summary>
+<summary>[BOTH] <b>2.11</b> Money safety limits: new accounts, self-dealing, and money mismatches <small>· your time: 20 minutes · Done 23 Nov</small></summary>
 
 **Why:** the tests in 2.7 and 2.9 stop hackers. This task stops people who use the app as designed, but dishonestly: a brand-new account paying a large amount with a stolen card, or one person posting a task and "doing" it from a second account to move money. Apps that hold money are a target for both. This closes hole H17.
 
@@ -2565,7 +2572,7 @@ start money safety limits
 </details>
 
 <details id="t2-12" data-short="One front door (API gateway)">
-<summary>[CLAUDE] <b>2.12</b> One front door: nothing reaches the database except through the API gateway <small>· your time: none · Built 2 Nov, repeat keys too; the last door (H3) closes in 3.9</small></summary>
+<summary>[CLAUDE] <b>2.12</b> One front door: nothing reaches the database except through the API gateway <small>· your time: none · Built 2 Nov, repeat keys too; the last door (H3) closes in 3.9 · Done 23 Nov</small></summary>
 
 **Why:** you asked for a design where nothing goes to the main server directly: an API gateway in front of it, and the habits a good SaaS app follows. TaskDrop already has that gateway. It is the `api` server function: the app names what it wants (`placeBid`, `getTask`), and `api` decides how, under the caller's own login, with every check in one place. This task checked every road from the app to the database, closed the ones that skipped the gateway, and added a CI check so no new one can appear.
 
@@ -3078,7 +3085,9 @@ start 2.17
 </details>
 
 <details id="t2-18" data-short="Outside testers' advice">
-<summary>[BOTH] <b>2.18</b> The outside testers' advice: every point from the 8 Upwork proposals, checked, and the new ones closed <small>· your time: 30 minutes · added 6 Nov · checked on staging the same day, fixes not started</small></summary>
+<summary>[BOTH] <b>2.18</b> The outside testers' advice: every point from the 8 Upwork proposals, checked, and the new ones closed <small>· your time: 30 minutes · added 6 Nov · checked on staging the same day · Done 23 Nov</small></summary>
+
+**Done 23 Nov (PR 486):** migration 197 makes new sequences start closed; `scripts/check-apk.mjs` (`npm run check:apk`) checks a built APK and passed on the 22 Nov APK. H72, H73, H74 and H76 were already closed (proof in PR 486). H71 to H76 are all closed.
 
 **Why:** on 6 November you posted a security review job on Upwork, received 8 proposals, and asked for the best practices in them to go into this plan. Claude read all 8 in full, plus the two public worked examples one of them linked (a database review and a server-function review), and checked each point against the code and staging the same day, reading only. Most of it TaskDrop already does. Six things are new, holes **H71 to H76**, and four working habits are new (parts F, H, I and J). Nothing was changed on staging, and no code changed: this task is the plan for it.
 
@@ -3262,7 +3271,9 @@ start debug round
 </details>
 
 <details id="t2-20" data-short="Audit prompt">
-<summary>[BOTH] <b>2.20</b> The 8-section audit prompt for vibe-coded apps: one checklist verdict per item, on both code folders <small>· your time: about 5 minutes · added 10 Nov · not run yet · read-only, does not reopen Gate 1</small></summary>
+<summary>[BOTH] <b>2.20</b> The 8-section audit prompt for vibe-coded apps: one checklist verdict per item, on both code folders <small>· your time: about 5 minutes · added 10 Nov · read-only, does not reopen Gate 1 · Done 23 Nov</small></summary>
+
+**Done 23 Nov (PR 484, `docs/SECURITY_AUDIT_PROMPT.md`):** 53 pass, 3 fail, 14 partial, 12 not applicable. No Critical or High. The three Medium findings are now holes H81 to H83. The Low fixes are done: PR 488 (Razorpay errors show a short reference instead of raw text; the unused `@taskdrop/schemas` and `expo-symbols` removed) and admin PR 71 (payout service errors).
 
 **Why:** you shared a security guide for vibe-coded apps (Google Doc "Security For Vibe-Coded Apps (+ Prompt)", from Maker School). Its numbers: about 45% of AI-written code brings in a serious hole, and most exposed Supabase databases came from row-rule mistakes. Its fix list (secrets, row rules, server-side checks, packages, sign-in checks, then limits, CORS and file uploads) is already covered by the Security table and by tasks 2.5 to 2.16. What the guide adds is a different way to check: one prompt that makes the AI give **every** checklist item its own PASS, FAIL, PARTIAL or N/A verdict with the file and line as proof, then a posture rating, quick wins and a fix order. It is a second pair of eyes with a fixed list, so nothing is skipped, and it costs one run.
 
@@ -3305,7 +3316,7 @@ start 2.20
 </details>
 
 <details id="t2-21" data-short="Plan B money flow">
-<summary>[BOTH] <b>2.21</b> The money flow, Plan B: pay per task, the payment company holds the money <small>· added 11 Nov · locked 18 Nov · design written (docs/design/plan-b-money/DESIGN.md) · code built 19 Nov in PR 428 (user app) and admin PR 66, not merged yet; handover: docs/design/plan-b-money/HANDOVER.md; real money waits for Razorpay's written answer and the lawyer's yes</small></summary>
+<summary>[BOTH] <b>2.21</b> The money flow, Plan B: pay per task, the payment company holds the money <small>· added 11 Nov · locked 18 Nov · design written (docs/design/plan-b-money/DESIGN.md) · live on staging: PRs 455 + 457 (user app), admin PR 69, migration 195; walk-through passed (PR 459); handover: docs/design/plan-b-money/HANDOVER.md; real money waits for Razorpay's written answer and the lawyer's yes</small></summary>
 
 **Why this task exists:** decision 29 (9 Nov) chose Plan B, and everything after Step 4 depends on it: production, the ₹10 test, the AI attacker (2.16) and the paid tester (decision 30). Until the final pass it had no number, no steps and no gate line. Plan B means TaskDrop never holds a balance, so it needs no RBI wallet licence (PPI).
 
@@ -3547,6 +3558,8 @@ If you would rather not type all this, SAY "Fill the Play Console for me" and wa
 <details id="t3-2" data-short="Upload the AAB">
 <summary>[BOTH] <b>3.2</b> Build the store file (AAB) and upload it for testers <small>· 1 hour</small></summary>
 
+**Built 23 Nov:** `C:\td-tools\taskdrop-staging-store-r23-vc5.aab` (versionCode 5, 1.1.0, arm64, 32.9 MB, signed with the EAS upload key). **Waiting for your Play Console upload** to internal testing, the tester list and the closed track; then send the Play app-signing SHA-256 and say "done 3.2".
+
 **Why now:** the store file is a snapshot of the app. It is built from the finished code and goes only to the testing tracks, never to Production.
 
 **Do not wait for the "finished" app (CEO rewrite, 11 Nov).** Google's 14 days count from the day the 12th tester joins, and you may upload newer store files during the test. So build the first store file as soon as Gate 2a is ticked, even while 1.13 and 1.14 are still being built. **If Expo's free Android builds are used up** (they were, until 1 December): Claude first builds on this PC, for free, from a folder with no spaces in its name (the 10 November try failed in `C:\complete taskdrop\...`). If that fails after one day of trying, one month of Expo's Starter plan is the right spend: three lost weeks cost more than the fee. Claude asks you before anything is paid.
@@ -3762,7 +3775,9 @@ start 3.5b
 </details>
 
 <details id="t3-5c" data-short="Fewer Inngest runs">
-<summary>[CLAUDE] <b>3.5c</b> Background jobs, hybrid: database-only jobs move to pg_cron, Inngest keeps only outside calls <small>· added 9 Nov · Not started · your time: 20 minutes · free (no new tool) · answer Q1 to Q5 first</small></summary>
+<summary>[CLAUDE] <b>3.5c</b> Background jobs, hybrid: database-only jobs move to pg_cron, Inngest keeps only outside calls <small>· added 9 Nov · 13 jobs on pg_cron (23 Nov) · your time: 20 minutes · free (no new tool) · answer Q1 to Q5 first</small></summary>
+
+**Progress 23 Nov:** PRs 485, 487, 490 and 492 merged (migrations 198 to 201). 13 jobs now run on pg_cron; 7 already ran green on staging. crm-rules, user-sync-repair, outbox-prune and daily-digest run for the first time tomorrow. **PR 5** (money sweeps back to pg_cron) is waiting for your answer; removing the `INNGEST_MONEY_JOBS` secret is yours.
 
 **What it is, in plain words:** Inngest's free plan ran out once. Most of what Inngest runs on a timer is a job that only asks the database to do something (tidy old rows, mark overdue tasks, send reminders, write the daily digest). The database can run those itself with its own timer (pg_cron, already used for the three money sweeps). Inngest then keeps only the jobs that talk to the outside world (push to phones, ImageKit, Razorpay, file clean-up) or need retries one person at a time.
 
@@ -4084,6 +4099,8 @@ write my marketing plan and the first 30 days of posts
 <details id="t4-3" data-short="Public pages">
 <summary>[CLAUDE] <b>4.3</b> Build the public pages that Google can read <small>· your time: 30 minutes</small></summary>
 
+**Design drafted 23 Nov (PR 482, `docs/design/public-pages/DESIGN.md` + `mockup.html`).** Waiting for your approval and your answers to the open questions in the DESIGN.md. Nothing built.
+
 **Why:** Google cannot properly read the app's screens. Plain, fast pages can be found on Google. They go live on the production web address (5.10), next to the production app, on launch day.
 
 **Pages:** Home, How it works, Earn with TaskDrop, Fees (3% service fee, 10% commission, the 5% cancel fine, shown plainly), Safety, Categories, Help, Contact, the legal pages, and a "Request TaskDrop in your area" form.
@@ -4129,6 +4146,8 @@ build the public pages
 
 <details id="t4-5" data-short="Smart alerts">
 <summary>[CLAUDE] <b>4.5</b> Smart alerts: tell the right workers about a new task (your idea) <small>· your time: 20 minutes</small></summary>
+
+**Design drafted 23 Nov (PR 482, `docs/design/smart-alerts/DESIGN.md` + `mockup.html`).** Waiting for your approval and your answers to the open questions in the DESIGN.md. Nothing built.
 
 **What it is:** when a task is posted, the app notifies workers who have done that kind of task before, are near the task's area (remote tasks: by category only), and were active recently. There is a daily limit so nobody is spammed, and every worker can switch the alerts off. It starts simple, without AI, and is measured by how fast tasks get their first offer.
 
@@ -4506,7 +4525,7 @@ The two you asked for are rows 1 and 3/4. Row 2 exists only because Google's 12-
 Steps 2 to 5 do not wait for Gate 4. They cost nothing and make staging match the way production will be built, so the rehearsal happens early.
 
 <details id="t5-0a" data-short="Code ready for two copies">
-<summary>[CLAUDE] <b>5.0a</b> Make the code ready for two copies <small>· your time: 2 minutes</small></summary>
+<summary>[CLAUDE] <b>5.0a</b> Make the code ready for two copies <small>· your time: 2 minutes · Done 23 Nov</small></summary>
 
 **Why first:** every later task (the staging APK, the production APK, the two websites) depends on the code knowing which copy it is. Today it does not: `apps/mobile/eas.json` points the `production` build at the **staging** database (hole H15), the web header rules treat every `…vercel.app` address as staging, and the app's name and package are fixed.
 
@@ -4634,7 +4653,7 @@ Build the production APK.
 </details>
 
 <details id="t5-0e" data-short="The release routine">
-<summary>[CLAUDE] <b>5.0e</b> The release routine: how one change travels to both copies <small>· one page · Claude follows it every time</small></summary>
+<summary>[CLAUDE] <b>5.0e</b> The release routine: how one change travels to both copies <small>· one page · Claude follows it every time · Done 23 Nov</small></summary>
 
 | Step | Staging | Production |
 |---|---|---|
@@ -5917,7 +5936,8 @@ The app never decides the amount and never sees the secret key. If the payment m
 | **api** (Supabase server function) | The front door for every read and write: checks login, App Check, limits and input | Holding data |
 | **Database** (Postgres) | Owns all data and all money rules; row rules decide who sees each row | Slow outside calls |
 | **Vault** | Keeps the secret keys, readable only by the server | Anything else |
-| **Inngest** | Reminders, pushes, retries and money sweeps, with a log of every run | Holding data (the database is the source of truth) |
+| **pg_cron** | Scheduled jobs that run inside the database (13 jobs since 23 Nov: tidy-ups, reminders, the daily digest) | Slow calls to outside services (those stay on Inngest) |
+| **Inngest** | Outside calls: pushes, retries and money sweeps, with a log of every run | Holding data (the database is the source of truth) |
 | **ImageKit** | Stores photos, resizes them, serves them fast | Videos and documents (kept in Supabase files) |
 | **Razorpay / RazorpayX** | Takes payments; pays workers | Deciding amounts (the server does) |
 | **MSG91** | Sends sign-in codes | Deciding who gets a code |
@@ -6628,6 +6648,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-23 (plan catch-up):** ticked 2.11, 2.12, 5.0a, 5.0e; 2.20 audit done (PR 484, no Critical or High; Mediums are H81 to H83, Low fixes PRs 488 + admin 71); 2.18 done (PR 486, H71 to H76 closed); 1.14 level 1 built (PRs 483 + 491); 1.18 built (PR 489, waiting for your check); 3.2 store file built, waiting for your Play upload; 3.5c 13 jobs on pg_cron (PRs 485, 487, 490, 492); 4.3 and 4.5 designs drafted (PR 482, waiting for you); 2.21 summary updated; H7 accepted, H8 and H12 closed.
 - **2026-11-23 (Home ideas, counteroffer, feature votes):** 23 Nov: Home ideas titled "Idea templates for you" on both Homes (old templates block now "Quick templates"), "Send a counteroffer" choice on the worker job page, "Suggest a feature" vote card on both Homes · Done 23 Nov ([PR 493](https://github.com/hitendureacts77/taskdrop/pull/493)). Checked on the Android phone 23 Nov (Expo Go, staging): both titles, vote card on both Homes, Accept / counteroffer choice; Android app still needs an OTA, waiting for your yes.
 - **2026-11-22 (the Telugu app walkthrough video: progress moved into the plan):** You asked to save the progress in this plan. Added a **Progress, 22 November** paragraph to task 4.7: the 2-minute Telugu walkthrough (version 3: steady phone, no zoom-in on each tap, milestones explained as one checklist paid once), where the files are, and what is open (watch it through, the "@seed_ravi" handle and repeated "Kitchen tap" rows, the AI voice label, normal-speed recording).
 - **2026-11-22 (D32, the phone check and the roadmap page: progress moved into the plan):** You asked to save the progress in this plan. Added the card **"22 November: Home idea templates and map cards (D32) built, on your phone, plus the roadmap page and the one-tap login plan"** under **Do these now**, decision row **D32**, and a line in task 1.16. D32 is merged (PR 473), the roadmap page and one-tap plan are in PR 472, and a new APK with D32 is installed on your phone. The 1.1.0 update did not reach it (a local build needs a new APK). Open: your look at the phone, the one-tap login answers.
