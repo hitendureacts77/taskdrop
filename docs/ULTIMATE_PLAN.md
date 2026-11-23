@@ -4841,7 +4841,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-7" data-short="Production Expo + Play">
-<summary>[BOTH] <b>5.7</b> Production Expo project and the Android app identity <small>· 30 minutes · free to start</small></summary>
+<summary>[BOTH] <b>5.7</b> Production Expo project and the Android app identity <small>· Part built 23 Nov: build guard and project-id wiring done, project id saved; waiting for your OK to set the production variables and upload the push key and keystore</small></summary>
 
 **Why separate:** the Expo project holds the app's build secrets, the push key and the update channels. With a separate production project, a staging update can never reach real users' phones. Sign in at https://expo.dev as **hitendureacts**.
 
