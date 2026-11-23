@@ -1,6 +1,6 @@
 import {
   type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, RESERVED_USERNAMES, bad, bool, coordOrNull, int, isoOrNull, nowIso, num, numOrNull, oneOf, priceMinor,
-  rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
+  rows, rpcOp, str, strOrNull, strings, take, toOpError, USERNAME_REQUIRED_MESSAGE, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
 import { planBOn, readFees } from "./reads.ts";
@@ -681,6 +681,8 @@ export const WRITE_OPS: Record<string, Op> = {
     const patch: Record<string, unknown> = {};
     if (a.username !== undefined) {
       const u = strOrNull(a, "username", 40);
+      // Everyone signed in keeps a username (plan 1.18, decision 51): it can be changed, never removed.
+      if (!u) throw new OpError(USERNAME_REQUIRED_MESSAGE, "USERNAME_REQUIRED");
       refuseContactInName(u);
       if (u && RESERVED_USERNAMES.has(u.toLowerCase())) throw new OpError("That username is reserved. Pick another.", "DUPLICATE");
       patch.username = u ? u.toLowerCase() : null;

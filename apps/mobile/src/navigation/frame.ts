@@ -7,7 +7,7 @@
  */
 
 /** Screens shown before sign-in. */
-export const PRE_AUTH: readonly string[] = ['splash', 'intro', 'welcome', 'signup', 'setup'];
+export const PRE_AUTH: readonly string[] = ['splash', 'intro', 'welcome', 'signup', 'setup', 'pickUsername'];
 /** Pages anyone may read. */
 export const PUBLIC: readonly string[] = ['copyright', 'terms', 'privacy', 'support'];
 

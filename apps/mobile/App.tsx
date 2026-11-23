@@ -32,7 +32,8 @@ function Routes() {
     // Earning, signed in or as a guest: the whole app turns royal blue. Sign-up and the
     // welcome screens keep the brand green.
     <RoleTheme worker={usesWorkerColours({ session, guest, mode })}>
-    <NavProvider initial={postAuthRoute ?? (session || guest ? 'home' : 'splash')}>
+    {/* No username yet (plan 1.18): Home underneath, and the gate (components/UsernameGate) opens over it. */}
+    <NavProvider initial={postAuthRoute === 'setup' ? 'setup' : postAuthRoute || session || guest ? 'home' : 'splash'}>
       <ThemedStatusBar />
       <Background />
       <WebShell>

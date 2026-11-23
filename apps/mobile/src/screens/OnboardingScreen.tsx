@@ -19,10 +19,10 @@ import { releaseAccountHold, runPendingAfterSignIn } from '../lib/guest';
 import { ownerMatches, resumable } from '../lib/postWizard';
 import { loadWizard } from '../lib/postWizardStore';
 import { getProfile, updateProfile } from '../data/api';
-import { applyReferralCode, updateProfileExtras, usernameAvailable, type EarnGoal } from '../data/extras';
+import { applyReferralCode, updateProfileExtras, type EarnGoal } from '../data/extras';
+import { UsernameField, useUsernameCheck } from '../components/UsernameField';
 import { EarnGoalPicker, isEarnGoal } from '../components/EarnGoalPicker';
 import { RoleTheme } from '../providers/ThemeProvider';
-import { nameCarriesContact } from '../lib/mask';
 import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
 import { useFileDrop } from '../lib/useFileDrop';
 import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
@@ -33,6 +33,7 @@ import { useLayout } from '../lib/layout';
 const STEPS = ['Welcome', 'Username', 'Your intent', 'Why you earn', 'Skills', 'About you', 'Done'] as const;
 type Intent = 'post' | 'earn' | 'both';
 // Step numbers used below. The two earning steps are skipped for someone who only posts.
+const USERNAME = 1;
 const WHY_EARN = 3;
 const SKILLS = 4;
 const ABOUT = 5;
@@ -52,11 +53,12 @@ export function OnboardingScreen() {
   const { setMode } = useMode();
   const { flash, celebrate } = useActions();
   const { userId } = useAuth();
-  // From guest mode only "About you" is asked now; the rest is offered at a later sign-in (decision 21).
+  // From guest mode only the username and "About you" are asked now; the rest is offered at a later sign-in
+  // (decision 21). The username is compulsory for every account (decision 51, plan 1.18).
   const quick = Boolean(params.quick);
   // A guest who backs out of the quick finish gets their open sheet back.
   useEffect(() => (quick ? releaseAccountHold : undefined), [quick]);
-  const [step, setStep] = useState(quick ? ABOUT : 0);
+  const [step, setStep] = useState(quick ? USERNAME : 0);
   const [busy, setBusy] = useState(false);
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   useEffect(() => {
@@ -65,7 +67,6 @@ export function OnboardingScreen() {
 
   const [code, setCode] = useState('');
   const [username, setUsername] = useState('');
-  const [free, setFree] = useState<boolean | null>(null);
   const [intent, setIntent] = useState<Intent>('both');
   const [earnGoal, setEarnGoal] = useState<EarnGoal | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
@@ -98,6 +99,8 @@ export function OnboardingScreen() {
           : '',
       );
       setUsername(p.username ?? '');
+      // The quick finish skips the username step for an account that already has one.
+      if (quick && p.username) setStep((s) => (s === USERNAME ? ABOUT : s));
       setSkills(p.skills ?? []);
       setBio(p.bio ?? '');
       setLangs(p.languages ?? []);
@@ -112,22 +115,9 @@ export function OnboardingScreen() {
         setAvatar(await signedMediaUrl(p.avatar_url, 'thumb'));
       }
     });
-  }, [userId]);
+  }, [userId, quick]);
 
-  useEffect(() => {
-    const h = username.trim();
-    if (!/^[a-z0-9_]{3,20}$/.test(h)) {
-      setFree(null);
-      return;
-    }
-    // alive: a slow answer for an earlier handle must not overwrite the answer for the one now typed (Y4).
-    let alive = true;
-    const id = setTimeout(() => void usernameAvailable(h).then((ok) => alive && setFree(ok)), 350);
-    return () => {
-      alive = false;
-      clearTimeout(id);
-    };
-  }, [username]);
+  const check = useUsernameCheck(username);
 
   const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -140,6 +130,8 @@ export function OnboardingScreen() {
   const skipped = (s: number) => intent === 'post' && (s === WHY_EARN || s === SKILLS);
   const next = () =>
     setStep((s) => {
+      // The quick finish asks only the username and About you.
+      if (quick && s === USERNAME) return ABOUT;
       let n = s + 1;
       while (skipped(n)) n += 1;
       return Math.min(DONE, n);
@@ -311,33 +303,21 @@ export function OnboardingScreen() {
     );
   }
 
-  if (step === 1) {
-    const ok = /^[a-z0-9_]{3,20}$/.test(username) && !nameCarriesContact(username);
+  if (step === USERNAME) {
     body = (
       <>
         <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>Pick a username</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
           It’s how people find you, and you can sign in with it once you set a password.
         </RNText>
-        <Field
-          value={username}
-          onChangeText={(v) => setUsername(v.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase().slice(0, 20))}
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoFocus
-          placeholder="yourname"
-          left={<RNText style={tx('600', 16, t.colors.muted)}>@</RNText>}
-          style={{ marginTop: 20 }}
-          error={username && !ok ? '3–20 characters: a–z, 0–9 and _' : free === false ? 'That username is taken' : null}
-          hint={free ? '✓ Available' : undefined}
-        />
+        <UsernameField value={username} onChangeText={setUsername} check={check} style={{ marginTop: 20 }} />
       </>
     );
     footer = (
       <PrimaryButton
         label="Continue"
         busy={busy}
-        disabled={!ok || free === false}
+        disabled={!check.ok || check.free === false}
         onPress={() => void run(async () => {
           if (userId) await updateProfileExtras(userId, { username });
         })}
