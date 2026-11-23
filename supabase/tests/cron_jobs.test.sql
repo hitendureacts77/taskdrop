@@ -238,7 +238,9 @@ begin
       ('sms-pumping-watch',        'sms-pumping-watch', '8-59/15 * * * *'),
       ('daily-digest',             'daily-digest',      '30 3 * * *'),
       ('daily-digest-catchup',     'daily-digest',      '30 4 * * *'),
-      ('public-snapshots',         'public-snapshots',  '3-59/10 * * * *')
+      ('public-snapshots',         'public-snapshots',  '3-59/10 * * * *'),
+      -- PR 4 (migration 201)
+      ('outbox-watchdog',          'outbox-watchdog',   '5-59/10 * * * *')
     ) as t(jobname, job, schedule)
   loop
     if not exists (select 1 from cron.job
@@ -249,7 +251,7 @@ begin
   end loop;
 
   for r in select unnest(array['housekeeping', 'outbox-prune', 'user-sync-repair', 'crm-rules', 'overdue-tasks',
-                                   'task-reminders', 'sms-pumping-watch', 'public-snapshots']) as job loop
+                                   'task-reminders', 'sms-pumping-watch', 'public-snapshots', 'outbox-watchdog']) as job loop
     delete from private.job_runs where job = r.job;
     v_out := private.run_cron_job(r.job);
     if v_out ->> 'status' <> 'ok' then
@@ -340,6 +342,48 @@ begin
   perform private.run_public_snapshots();
   if exists (select 1 from public.admin_alerts where kind in ('public_snapshots_stale', 'job_failed')) then
     raise exception 'FAIL: an unreadable marker raised an alert';
+  end if;
+end $$;
+
+-- ---- 13. the outbox watchdog (25 minutes) and the nightly money check heartbeat --------------------
+do $$
+declare
+  v_out jsonb;
+begin
+  delete from private.outbox where sent_at is null;
+  delete from public.admin_alerts where kind in ('outbox_stuck', 'job_failed');
+
+  -- 20 minutes unsent: not stuck yet under the 25-minute rule.
+  insert into private.outbox (kind, data, created_at) values ('test.young', '{}'::jsonb, now() - interval '20 minutes');
+  v_out := private.run_cron_job('outbox-watchdog');
+  if v_out ->> 'status' <> 'ok' or exists (select 1 from public.admin_alerts where kind = 'outbox_stuck') then
+    raise exception 'FAIL: a 20-minute-old event was called stuck: %', v_out;
+  end if;
+
+  -- 30 minutes unsent: one alert, and a second run stays quiet.
+  insert into private.outbox (kind, data, created_at) values ('test.old', '{}'::jsonb, now() - interval '30 minutes');
+  perform private.run_cron_job('outbox-watchdog');
+  perform private.run_cron_job('outbox-watchdog');
+  if (select count(*) from public.admin_alerts where kind = 'outbox_stuck') <> 1 then
+    raise exception 'FAIL: a 30-minute-old event did not leave exactly one alert';
+  end if;
+
+  -- No reconciliation_runs row in 26 hours: nightly-reconcile is reported once.
+  delete from public.reconciliation_runs;
+  perform private.run_job_watchdog();
+  perform private.run_job_watchdog();
+  if (select count(*) from public.admin_alerts
+       where kind = 'job_failed' and data ->> 'job' = 'nightly-reconcile' and data ->> 'sqlstate' = 'STALE') <> 1 then
+    raise exception 'FAIL: a missing nightly money check was not reported exactly once';
+  end if;
+
+  -- A recent row: quiet.
+  delete from public.admin_alerts where kind = 'job_failed';
+  insert into public.reconciliation_runs (kind, from_day, to_day) values ('internal', current_date - 3, current_date);
+  v_out := private.run_job_watchdog();
+  if (v_out ->> 'reconcile_ran')::boolean is not true
+     or exists (select 1 from public.admin_alerts where kind = 'job_failed' and data ->> 'job' = 'nightly-reconcile') then
+    raise exception 'FAIL: a recent money check was reported as missing: %', v_out;
   end if;
 end $$;
 
