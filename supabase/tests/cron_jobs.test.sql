@@ -217,4 +217,39 @@ begin
   end loop;
 end $$;
 
+-- ---- 10. the moved jobs: each runs green through the wrapper and is scheduled as planned ----------
+do $$
+declare
+  r     record;
+  v_out jsonb;
+begin
+  for r in
+    select * from (values
+      -- PR 2 (migration 199)
+      ('housekeeping',             'housekeeping',     '17 * * * *'),
+      ('outbox-prune',             'outbox-prune',     '45 22 * * *'),
+      ('outbox-prune-catchup',     'outbox-prune',     '45 23 * * *'),
+      ('user-sync-repair',         'user-sync-repair', '40 21 * * *'),
+      ('user-sync-repair-catchup', 'user-sync-repair', '40 22 * * *'),
+      ('crm-rules',                'crm-rules',        '0 */3 * * *'),
+      ('overdue-tasks',            'overdue-tasks',    '1-59/10 * * * *')
+    ) as t(jobname, job, schedule)
+  loop
+    if not exists (select 1 from cron.job
+                    where jobname = r.jobname and schedule = r.schedule and active
+                      and command like '%select private.run_cron_job(''' || r.job || ''')') then
+      raise exception 'FAIL: pg_cron job % is not scheduled at % through the wrapper', r.jobname, r.schedule;
+    end if;
+  end loop;
+
+  for r in select unnest(array['housekeeping', 'outbox-prune', 'user-sync-repair', 'crm-rules', 'overdue-tasks']) as job loop
+    delete from private.job_runs where job = r.job;
+    v_out := private.run_cron_job(r.job);
+    if v_out ->> 'status' <> 'ok' then
+      raise exception 'FAIL: % did not run green through the wrapper: % (%)', r.job, v_out,
+        (select error from private.job_runs where id = (v_out ->> 'run')::bigint);
+    end if;
+  end loop;
+end $$;
+
 rollback;
