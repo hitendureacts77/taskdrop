@@ -1,15 +1,17 @@
-# Background jobs: Inngest
+# Background jobs: pg_cron and Inngest
 
-Background work (schedules, retries, alerts, calls to outside services) runs on
-**Inngest** (owner decision, 2026-10-12).
+Background work is **hybrid** (owner decision 2026-11-09, plan task 3.5c; replaces "Inngest only"
+from 2026-10-12). A job that is one SQL function on a timer, with no outside call, runs on
+Supabase **pg_cron** inside the database. Anything that calls an outside service, needs retries
+with back-off, or must run one person at a time runs on **Inngest**.
 
 ## The split
 
-| Postgres owns | Inngest owns |
-|---|---|
-| The rules and the money: prices, fees, who gets paid, balances | When things run: schedules, retries, back-off |
-| What happened, written in the same transaction as the change | Calls to the outside world: push, payouts, email |
-| The sweeps themselves (`auto_complete_due`, `settle_cleared_earnings`, ...) | Ringing the bell on those sweeps |
+| Postgres owns | pg_cron owns | Inngest owns |
+|---|---|---|
+| The rules and the money: prices, fees, who gets paid, balances | Timed database-only jobs: the money sweeps, prunes, reminders, watchdogs (through `private.run_cron_job`) | Calls to the outside world: push, ImageKit and file clean-up, Razorpay checks and Plan B money moves |
+| What happened, written in the same transaction as the change | One run at a time, every run written to `private.job_runs`, failures to the team and Sentry | Retries with back-off, one person at a time, and the outbox bridge |
+| The sweeps themselves (`auto_complete_due`, `settle_cleared_earnings`, ...) | Ringing the bell on those sweeps | Telling Sentry when a pg_cron job fails (`job-failure-report`) |
 
 Inngest never decides an amount. A mistake in an Inngest function can send a late
 or duplicate message; it cannot move money on its own.
@@ -42,12 +44,14 @@ also drops those fields from anything it stores, for an event queued before this
 | `taskdrop/withdrawal.requested` | a worker asks to withdraw | `payout_id`, `amount_rupees`, `name`, `via` |
 | `taskdrop/payout.failed` | a withdrawal fails and the money goes back | `payout_id`, `amount_rupees`, `name` |
 | `taskdrop/dispute.opened` | a job is disputed | `task_id`, `poster` |
+| `taskdrop/job.failed` | a pg_cron job failed, stopped, or died inside pg_cron (at most once an hour per job; a money job every 15 minutes; a stopped job every 6 hours) | `job`, `sqlstate` (or `STALE` / `CRON`), `run_id`, `money` |
 
 ## The functions (`supabase/functions/inngest/`)
 
 | Function | Trigger | Does |
 |---|---|---|
-| `outbox-sweeper` | every 10 minutes | re-sends unconfirmed outbox events, marks them sent |
+| `outbox-sweeper` | every 10 minutes | re-sends unconfirmed outbox events, marks them sent. In the same step it asks `cron_health()` whether a pg_cron job stopped and, at most once an hour, tells Sentry (`fatal` for a money job) |
+| `job-failure-report` | event `job.failed` | tells Sentry that a pg_cron job failed or stopped (`fatal` for a money job, which emails the owner). The team alert is already written by the database |
 | `outbox-prune` | daily 04:15 IST | removes sent events older than 14 days, and team alerts older than 30 days |
 | `team-alert` | support / withdrawal / payout failed / dispute events | writes a message to `admin_alerts` |
 | `daily-digest` | daily 09:00 IST | writes the day's totals to `admin_alerts` |
@@ -94,6 +98,39 @@ Push, `account-files`, `overdue-tasks` and `housekeeping` need migration 101; th
 switch (next section). `notification.created` holds ids and the kind only: the title and body
 are read by the Edge Function and handed to Expo, and Inngest keeps only counts and a one-way
 key per device.
+
+## pg_cron jobs (plan 3.5c)
+
+Every pg_cron command has one shape: `set statement_timeout = '<n>min'; select private.run_cron_job('<job>')`.
+The wrapper (migration 198):
+
+1. refuses a job that is not in `private.cron_jobs`;
+2. runs one copy at a time (a non-blocking advisory lock; a run that finds a slower one still going writes `skipped`);
+3. skips a once-a-day job that already ran today (India date), so a catch-up run an hour later is safe;
+4. sets `lock_timeout` to 10 s and runs the job in a sub-transaction through the fixed list in `private.cron_dispatch` (no dynamic SQL);
+5. writes `ok`, `skipped` or `failed` to `private.job_runs` (a failure keeps its SQLSTATE and at most 300 characters of the message, never the detail);
+6. on a failure, `private.report_job_failure` leaves a `job_failed` team alert and a `job.failed` event, which Inngest's `job-failure-report` turns into a Sentry issue.
+
+Two watchers, each on the other system: `job-watchdog` (pg_cron, every 5 min) reports a job whose last
+green run is older than its `max_gap` (`STALE`) or a run that failed inside pg_cron itself (`CRON`), and
+prunes `job_runs` (30 days) and `cron.job_run_details` (7 days) once an hour. Inngest's `outbox-sweeper`
+asks `cron_health()` every 10 minutes, so if pg_cron itself stops, Sentry still hears. pg_cron's
+`outbox-watchdog` (once moved, PR 4) sees the reverse. Only if both stop at once is nobody told.
+
+| pg_cron job | Schedule (UTC) | India time | `max_gap` | Once a day | Money | Since |
+|---|---|---|---|---|---|---|
+| `job-watchdog` | `*/5 * * * *` | every 5 min | 15 min (watched by Inngest) | no | no | 198 |
+
+Check them on the database:
+
+```sql
+select jobname, schedule, active from cron.job order by 1;
+select job, status, started_at, sqlstate, error from private.job_runs order by id desc limit 20;
+```
+
+Adding a job: a migration adds its row to `private.cron_jobs`, its case to `private.cron_dispatch`
+(replace the whole function) and its `cron.schedule` line, and removes the Inngest copy in the same PR.
+`supabase/tests/cron_jobs.test.sql` fails if a scheduled job has no row or no case.
 
 ## People: created, updated, deleted
 
@@ -194,6 +231,7 @@ Vault secret.
 
 - `npm test` runs the job logic (`supabase/functions/inngest/jobs.test.ts`).
 - `npm run test:db` also runs `supabase/tests/watchdog_reminders.test.sql` (live-feed titles, one payment per payment link, the watchdog and the reminders) and `supabase/tests/inngest_jobs.test.sql`.
+- `npm run test:db` runs `supabase/tests/cron_jobs.test.sql`: the pg_cron wrapper, failure reports (one alert and one ids-only event per hour), the watchdog, `cron_health`, once-a-day jobs, who may call what, and that every scheduled job goes through the wrapper.
 - CI type-checks the Inngest function with Deno (`deno check`), which the Node unit tests cannot do.
 - `npm run test:db` runs `supabase/tests/outbox.test.sql`: events are queued with the
   change, carry no contact details, the sweeper sees only old unsent events, only the
@@ -204,5 +242,4 @@ Vault secret.
 
 Withdrawal payouts with retries, stuck-payout reconciliation, refund retries and webhook
 hand-off. They touch the money flow, so they wait for the lawyer's answer (R3). Each is moved
-one at a time, with the old job removed in the same deploy as its replacement. Do not add new
-pg_cron jobs while this is in progress.
+one at a time, with the old job removed in the same deploy as its replacement.

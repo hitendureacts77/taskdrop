@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   ALERT_EVENTS, alertFor, call, checkSnapshotFreshness, chunk, compareProviderPayment, deadKeys, digestAlert, expoReceipts, expoSend, lockScreenSafe, ownFiles, personIdFor, PLAIN_PUSH,
-  readTickets, refreshPublicSnapshots, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type PushMessage, type Rpc, type SnapshotMarker,
+  cronHealthReport, jobFailure, readTickets, refreshPublicSnapshots, safeData, saveAlert, toEvents, tokenKey, tokensForKeys, userSyncArgs, USER_EVENTS, type Fetch, type PushMessage, type Rpc, type SnapshotMarker,
 } from "./jobs.ts";
 
 test("outbox rows become Inngest events keyed by the outbox id", () => {
@@ -536,4 +536,28 @@ test("other kinds (offers, task progress) keep the database wording", () => {
   assert.equal(lockScreenSafe(odd), odd);
   const proto = pushOf("constructor", "Hi", "There");
   assert.equal(lockScreenSafe(proto), proto);
+});
+
+test("a job.failed event becomes a Sentry message with ids and codes only", () => {
+  assert.deepEqual(jobFailure({ job: "overdue-tasks", sqlstate: "57014", run_id: 42, money: false }), {
+    job: "overdue-tasks", sqlstate: "57014", runId: "42", money: false, message: "pg_cron job overdue-tasks failed (57014)",
+  });
+  assert.equal(jobFailure({ job: "settle-cleared-often", sqlstate: "STALE", run_id: null, money: true })?.money, true);
+  assert.equal(jobFailure({ job: "job-watchdog", sqlstate: "STALE" })?.message, "pg_cron job job-watchdog stopped (no run in time)");
+  assert.equal(jobFailure({ job: "housekeeping", sqlstate: "CRON" })?.message, "pg_cron job housekeeping failed inside pg_cron");
+  // Malformed or foreign events are not reported, and nothing but the known fields is read.
+  assert.equal(jobFailure({ job: "Robert'); drop table", sqlstate: "P0001" }), null);
+  assert.equal(jobFailure({ job: "housekeeping", sqlstate: "anything at all" }), null);
+  assert.equal(jobFailure(undefined), null);
+  assert.equal(jobFailure({ job: "housekeeping", sqlstate: "P0001", money: "yes" })?.money, false);
+});
+
+test("cron_health is reported only when it says so, and money makes it fatal", () => {
+  assert.equal(cronHealthReport(null), null);
+  assert.equal(cronHealthReport({ stopped: [], money: false, report: true }), null);
+  assert.equal(cronHealthReport({ stopped: [{ job: "overdue-tasks", money: false }], money: false, report: false }), null);
+  assert.deepEqual(cronHealthReport({ stopped: [{ job: "overdue-tasks", money: false }, { job: "job-watchdog", money: false }], money: false, report: true }), {
+    message: "pg_cron jobs stopped: overdue-tasks, job-watchdog", money: false, jobs: ["overdue-tasks", "job-watchdog"],
+  });
+  assert.equal(cronHealthReport({ stopped: [{ job: "auto-complete-due", money: true }], money: true, report: true })?.money, true);
 });
