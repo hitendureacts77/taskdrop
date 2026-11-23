@@ -4869,7 +4869,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-7" data-short="Production Expo + Play">
-<summary>[BOTH] <b>5.7</b> Production Expo project and the Android app identity <small>· Part built 23 Nov: project taskdrop-production exists with all 9 production variables (no debug token), build guard wired; the upload keystore was already uploaded on 15 Nov (checked in Expo 23 Nov); waiting for your upload of the push key (FCM V1 service account key)</small></summary>
+<summary>[BOTH] <b>5.7</b> Production Expo project and the Android app identity <small>· Done 23 Nov (project taskdrop-production with all 9 production variables and no debug token, build guard wired, upload keystore in since 15 Nov, FCM V1 push key uploaded 23 Nov; checked in Expo)</small></summary>
 
 **Why separate:** the Expo project holds the app's build secrets, the push key and the update channels. With a separate production project, a staging update can never reach real users' phones. Sign in at https://expo.dev as **hitendureacts**.
 
