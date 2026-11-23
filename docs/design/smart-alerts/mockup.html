@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart alerts mockup (task 4.5) | taskdrop.</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#F3F4F1;--surface:#fff;--surface2:#ECEEE9;--line:#E2E5DF;--ink:#121417;--text:#3F444A;--muted:#5F6368;
+--jade:#0E8F72;--jadeDeep:#0A6F58;--jadeSoft:#E7F5EF;--jadeBorder:#BFE3D5;--royal:#2F5BEA;--royalDeep:#1E40AF;--royalSoft:#EAF0FE;
+--gold:#E0A85A;--goldSoft:#FBF1E0;--goldInk:#8A5A12;--signal:#E0724A;--signalSoft:#FBEDE7;--signalDeep:#A8461F;--font:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0E1012;--surface:#16191C;--surface2:#1E2226;--line:#2A2F34;--ink:#F2F3F1;--text:#C9CDD2;--muted:#9AA0A6;--jade:#2FBF96;--jadeDeep:#57D1AE;--jadeSoft:#12271F;--jadeBorder:#1E3A30;--royal:#6B8CFF;--royalDeep:#9DB4FF;--royalSoft:#172036;--goldSoft:#2A2216;--goldInk:#E8BE80;--signalSoft:#2C1A14;--signalDeep:#F08A66}}
+:root[data-theme="dark"]{--bg:#0E1012;--surface:#16191C;--surface2:#1E2226;--line:#2A2F34;--ink:#F2F3F1;--text:#C9CDD2;--muted:#9AA0A6;--jade:#2FBF96;--jadeDeep:#57D1AE;--jadeSoft:#12271F;--jadeBorder:#1E3A30;--royal:#6B8CFF;--royalDeep:#9DB4FF;--royalSoft:#172036;--goldSoft:#2A2216;--goldInk:#E8BE80;--signalSoft:#2C1A14;--signalDeep:#F08A66}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5}
+h1,h2,h3{color:var(--ink);margin:0;letter-spacing:-.02em}
+header{padding:16px;max-width:1100px;margin:0 auto}
+header h1{font-size:24px}header p{color:var(--muted);margin:4px 0 0;max-width:720px;font-size:14px}
+.top{display:flex;gap:8px;align-items:center;margin-top:10px}
+.top button{font:inherit;font-size:13px;font-weight:700;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:999px;padding:6px 12px;cursor:pointer}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px 40px;display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.col h2{font-size:15px;margin:0 0 4px}.col>p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.phone{width:100%;max-width:340px;margin:0 auto;border:8px solid #1b1d20;border-radius:34px;background:var(--bg);overflow:hidden;min-height:560px}
+.lock{background:linear-gradient(160deg,#164e63,#0b1f2a);min-height:560px;padding:44px 12px 12px;color:#fff}
+.lock .time{text-align:center;font-size:54px;font-weight:300;letter-spacing:-.03em}
+.lock .date{text-align:center;font-size:13px;opacity:.8;margin-bottom:26px}
+.push{background:rgba(255,255,255,.92);color:#121417;border-radius:16px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+.push .app{display:flex;gap:6px;align-items:center;font-size:11px;font-weight:700;color:#5F6368;margin-bottom:3px}
+.push .dot{width:14px;height:14px;border-radius:4px;background:#0E8F72}
+.push b{display:block;font-size:13.5px}
+.bar{padding:12px 14px;background:var(--surface);border-bottom:1px solid var(--line);font-weight:800;color:var(--ink);display:flex;gap:10px;align-items:center}
+.row{display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
+.row.unread{background:var(--jadeSoft)}
+.ic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;flex:none}
+.ic.j{background:var(--jadeDeep)}.ic.r{background:var(--royalDeep)}
+.row b{display:block;color:var(--ink);font-size:14px}.row span{font-size:12.5px;color:var(--muted)}.row small{font-size:11px;color:var(--muted)}
+.set{padding:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h3{font-size:14.5px}.card p{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+.sw{display:flex;gap:12px;align-items:center;justify-content:space-between}
+.tog{width:46px;height:26px;border-radius:99px;background:var(--jadeDeep);position:relative;flex:none;border:0;cursor:pointer}
+.tog::after{content:"";position:absolute;top:3px;left:23px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
+.tog[aria-checked="false"]{background:var(--line)}.tog[aria-checked="false"]::after{left:3px}
+.chip{display:inline-block;font-size:12px;font-weight:700;border:1px solid var(--line);border-radius:99px;padding:5px 11px;margin:6px 6px 0 0;color:var(--text)}
+.chip.on{background:var(--royalSoft);border-color:var(--royal);color:var(--royalDeep)}
+.idea{border:1.5px dashed var(--gold);background:var(--goldSoft);color:var(--goldInk);border-radius:10px;padding:8px 12px;font-size:12px;margin:10px 0}
+.admin{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;font-size:13px}
+.admin h3{font-size:15px;margin-bottom:8px}
+.admin .f{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding:9px 0;align-items:center}
+.admin .f code{background:var(--surface2);padding:2px 6px;border-radius:6px}
+.btn{font:inherit;font-weight:800;font-size:13px;border:0;border-radius:10px;padding:8px 14px;background:var(--signal);color:#fff;cursor:pointer}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.stat div{background:var(--surface2);border-radius:10px;padding:10px;text-align:center}
+.stat b{display:block;font-size:20px;color:var(--ink)}.stat span{font-size:11px;color:var(--muted)}
+.chart{display:flex;align-items:flex-end;gap:10px;height:110px;margin:8px 0}
+.chart i{flex:1;border-radius:6px 6px 0 0;display:block}
+.chart small{display:block;text-align:center;font-size:11px;color:var(--muted);margin-top:4px}
+</style>
+</head>
+<body>
+<header>
+<h1>Smart alerts: tell the right workers about a new task</h1>
+<p>Design for plan task 4.5, for the owner to approve. Nothing is built. Alerts are written in the same style as the task 1.7 notifications: short title, the task named in the body, one next step. Dashed boxes mark IDEAS (not live).</p>
+<div class="top"><button id="th">Dark</button></div>
+</header>
+<div class="wrap">
+
+<section class="col"><h2>1. What the worker sees: lock screen</h2><p>Two alerts: a nearby task and an online task. The text is the same one saved in the bell list.</p>
+<div class="phone"><div class="lock"><div class="time">9:41</div><div class="date">Monday 23 November</div>
+<div class="push"><div class="app"><span class="dot"></span>taskdrop. · now</div><b>New task near you</b>To do "Fix a leaking kitchen tap", 2 km away. Open it to send your offer.</div>
+<div class="push"><div class="app"><span class="dot"></span>taskdrop. · 2m</div><b>New online task for you</b>To do "Design a logo for a bakery". Open it to send your offer.</div>
+</div></div></section>
+
+<section class="col"><h2>2. The bell list (Earn mode, royal blue)</h2><p>Same row layout as today's notifications screen; new kind <code>task_alert</code>. Opening it goes to the task (the way an offer alert opens the task).</p>
+<div class="phone"><div class="bar">Notifications</div>
+<div class="row unread"><div class="ic r">+</div><div><b>New task near you</b><span>To do "Fix a leaking kitchen tap", 2 km away. Open it to send your offer.</span><br><small>just now</small></div></div>
+<div class="row unread"><div class="ic r">+</div><div><b>New online task for you</b><span>To do "Design a logo for a bakery". Open it to send your offer.</span><br><small>2 min ago</small></div></div>
+<div class="row"><div class="ic j">&#10003;</div><div><b>Asha picked you</b><span>For "Fix a leaking kitchen tap". You can start once they have paid.</span><br><small>yesterday</small></div></div>
+<div class="row"><div class="ic j">&#10003;</div><div><b>Asha approved your work</b><span>"Fix a leaking kitchen tap": your earnings will show in your wallet soon.</span><br><small>2 days ago</small></div></div>
+<div class="set"><div class="idea">Wording rules (same as 1.7): title under about 30 characters, task named in quotes, one next step, no build-team words, no price in the title. The distance shows only for nearby tasks; the area name, never the address, until a worker is chosen (privacy rule).</div></div>
+</div></section>
+
+<section class="col"><h2>3. The worker's off switch (IDEA: a new screen)</h2><p>Lives in Account, under Notifications. The switch is private to the worker and is checked on the server before anything is sent.</p>
+<div class="phone"><div class="bar">&larr; Task alerts</div><div class="set">
+<div class="card"><div class="sw"><div><h3>Tell me about new tasks</h3><p>We only alert you about tasks like ones you have done, in your area or online.</p></div><button class="tog" role="switch" aria-checked="true" aria-label="Tell me about new tasks" onclick="this.setAttribute('aria-checked',this.getAttribute('aria-checked')!=='true')"></button></div></div>
+<div class="card"><h3>How many a day</h3><p>At most this many, and never more than one per task.</p><span class="chip">1</span><span class="chip on">3</span><span class="chip">5</span></div>
+<div class="card"><h3>Pause for</h3><p>Back on automatically after.</p><span class="chip on">Not paused</span><span class="chip">1 day</span><span class="chip">7 days</span></div>
+<div class="card"><h3>Quiet hours</h3><p>No alerts from 10 pm to 8 am (India time).</p></div>
+<div class="idea">IDEA: the quiet hours line is a proposal; the owner decides the default. Turning off never affects alerts about your own tasks, offers or payments (those are separate and stay on).</div>
+</div></div></section>
+
+<section class="col"><h2>4. Admin kill switch and numbers (IDEA: admin app)</h2><p>Admin repo, next to the app controls. Changing it writes an admin log entry with a reason, like the existing app controls.</p>
+<div class="admin"><h3>Smart alerts</h3>
+<div class="f"><span>Send smart alerts</span><button class="tog" role="switch" aria-checked="true" aria-label="Send smart alerts" onclick="this.setAttribute('aria-checked',this.getAttribute('aria-checked')!=='true')"></button></div>
+<div class="f"><span>Daily cap per worker</span><code>3</code></div>
+<div class="f"><span>Most workers alerted per task</span><code>10</code></div>
+<div class="f"><span>Nearby radius</span><code>10 km</code></div>
+<div class="f"><span>Active within</span><code>7 days</code></div>
+<div class="f"><span>Hold-back group (no alerts, for a fair test)</span><code>10%</code></div>
+<div class="f"><span>Reason for last change</span><span style="color:var(--muted)">required when switching</span></div>
+<div class="f" style="border:0"><span></span><button class="btn">Turn off for everyone</button></div></div>
+<div class="idea">Example numbers below are made-up shapes to show the layout, not results.</div>
+<div class="admin" style="margin-top:12px"><h3>How well is it working? (last 14 days)</h3>
+<div class="stat"><div><b>--</b><span>median minutes to first offer</span></div><div><b>--%</b><span>tasks with an offer in 1 hour</span></div><div><b>--%</b><span>alerts opened</span></div></div>
+<div class="chart"><div style="flex:1"><i style="height:100px;background:var(--line)"></i><small>Hold-back<br>(no alert)</small></div><div style="flex:1"><i style="height:62px;background:var(--royal)"></i><small>Alerted</small></div></div>
+<div class="stat"><div><b>--%</b><span>alerted workers who offered</span></div><div><b>--%</b><span>turned alerts off</span></div><div><b>--</b><span>alerts a worker gets a day</span></div></div></div>
+</section>
+</div>
+<script>
+const b=document.getElementById('th');b.onclick=()=>{const d=document.documentElement.dataset.theme!=='dark';document.documentElement.dataset.theme=d?'dark':'light';b.textContent=d?'Light':'Dark'};
+</script>
+</body>
+</html>

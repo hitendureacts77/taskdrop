@@ -537,3 +537,37 @@ export async function checkSnapshotFreshness(
   if (age <= SNAPSHOT_ALERT_WINDOW_MINUTES) await saveAlert(rpc, staleSnapshotAlert(age), { age_minutes: Math.floor(age) });
   return { ageMinutes: age, stale: true };
 }
+
+// --------------------------------------------------------------- pg_cron jobs --
+
+/** What a `job.failed` event means for Sentry (plan 3.5c). Null when the event is not one of ours. */
+export type JobFailure = { job: string; sqlstate: string; runId: string | null; money: boolean; message: string };
+
+const JOB_NAME = /^[a-z0-9-]{1,80}$/;
+const SQLSTATE = /^([0-9A-Z]{5}|STALE|CRON)$/;
+
+/**
+ * A pg_cron job failed (`private.report_job_failure`). The event holds ids and fixed codes only;
+ * anything else in it is ignored, and a malformed one is not reported.
+ */
+export function jobFailure(data: Record<string, unknown> | undefined): JobFailure | null {
+  const job = typeof data?.job === "string" ? data.job : "";
+  const sqlstate = typeof data?.sqlstate === "string" ? data.sqlstate : "";
+  if (!JOB_NAME.test(job) || !SQLSTATE.test(sqlstate)) return null;
+  const run = data?.run_id;
+  const runId = typeof run === "number" || (typeof run === "string" && /^\d+$/.test(run)) ? String(run) : null;
+  const money = data?.money === true;
+  const what = sqlstate === "STALE" ? "stopped (no run in time)" : sqlstate === "CRON" ? "failed inside pg_cron" : `failed (${sqlstate})`;
+  return { job, sqlstate, runId, money, message: `pg_cron job ${job} ${what}` };
+}
+
+/** The answer of `cron_health()`, which Inngest's outbox-sweeper asks so it notices when pg_cron stops. */
+export type CronHealth = { stopped?: { job?: unknown; money?: unknown }[]; money?: unknown; report?: unknown };
+
+/** What to tell Sentry, or null when there is nothing to report this time (nothing stopped, or reported within the hour). */
+export function cronHealthReport(h: CronHealth | null | undefined): { message: string; money: boolean; jobs: string[] } | null {
+  if (!h || h.report !== true || !Array.isArray(h.stopped) || h.stopped.length === 0) return null;
+  const jobs = h.stopped.map((s) => (typeof s?.job === "string" && JOB_NAME.test(s.job) ? s.job : "?"));
+  const money = h.money === true || h.stopped.some((s) => s?.money === true);
+  return { message: `pg_cron jobs stopped: ${jobs.join(", ")}`, money, jobs };
+}

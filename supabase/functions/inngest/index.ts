@@ -43,6 +43,9 @@ import {
   tokensForKeys,
   type WaitingTicket,
   checkSnapshotFreshness,
+  type CronHealth,
+  cronHealthReport,
+  jobFailure,
   refreshPublicSnapshots,
   SNAPSHOT_MARKER_KEY,
   type SnapshotMarker,
@@ -121,12 +124,47 @@ const reportFailure = (job: string) => async ({ error }: { error: unknown }) => 
 const outboxSweeper = inngest.createFunction(
   { id: "outbox-sweeper", triggers: [{ cron: "*/10 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-sweeper") },
   async ({ step }) => {
-    const rows = await step.run("load unsent", () => call<OutboxRow[]>(rpc, "outbox_pending", { p_limit: 200 }));
+    const rows = await step.run("load unsent", async () => {
+      // Plan 3.5c: Inngest also watches pg_cron (pg_cron's outbox-watchdog watches Inngest), in this same step so
+      // it costs no extra run. A failure here never stops the sweep.
+      await checkCronHealth();
+      return call<OutboxRow[]>(rpc, "outbox_pending", { p_limit: 200 });
+    });
     if (!rows || rows.length === 0) return { forwarded: 0 };
 
     await step.sendEvent("forward", toEvents(rows));
     await step.run("mark sent", () => call<number>(rpc, "outbox_mark_sent", { p_ids: rows.map((r) => r.id) }));
     return { forwarded: rows.length };
+  },
+);
+
+/** Asks the database whether a pg_cron job has stopped; at most once an hour it says to report, and then Sentry hears. */
+async function checkCronHealth(): Promise<void> {
+  try {
+    const report = cronHealthReport(await call<CronHealth | null>(rpc, "cron_health"));
+    if (!report) return;
+    await logServer("error", "pg_cron", report.message, { jobs: report.jobs.join(","), money: String(report.money) });
+    await captureServerError(new Error(report.message), { job: "outbox-sweeper", check: "pg_cron" }, report.money ? "fatal" : "error");
+  } catch (e) {
+    await logServer("warn", "pg_cron", "cron_health could not be read", { error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+/**
+ * Plan 3.5c: a pg_cron job failed or stopped. The database already left a team alert
+ * (private.report_job_failure); this tells Sentry, `fatal` for a money job so the alert rule
+ * from task 2.10 emails the owner. The event holds ids and codes only.
+ */
+const jobFailureReport = inngest.createFunction(
+  { id: "job-failure-report", triggers: [{ event: "taskdrop/job.failed" }], retries: 3, onFailure: reportFailure("job-failure-report") },
+  async ({ event, step }) => {
+    const f = jobFailure(event.data);
+    if (!f) return { skipped: "not a pg_cron job failure" };
+    await step.run("tell Sentry", async () => {
+      await logServer("error", "pg_cron", f.message, { job: f.job, sqlstate: f.sqlstate, run: f.runId ?? "" });
+      await captureServerError(new Error(f.message), { job: f.job, sqlstate: f.sqlstate, run: f.runId ?? "" }, f.money ? "fatal" : "error");
+    });
+    return { job: f.job, sqlstate: f.sqlstate, money: f.money };
   },
 );
 
@@ -625,7 +663,7 @@ const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
 Deno.serve(serve({
   client: inngest,
   functions: [
-    outboxSweeper, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
+    outboxSweeper, jobFailureReport, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
     pushNotification, accountFiles, mediaPurge, strayImageKitFiles, overdueTasks, publicSnapshots, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders, safetyAlarm,
     userCreated, userUpdated, userDeleted, userSyncRepair,
     moneyMoves, moneyMatch,

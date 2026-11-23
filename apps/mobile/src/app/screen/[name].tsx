@@ -3,6 +3,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../providers/ThemeProvider';
 import { ScreenScope } from '../../providers/NavProvider';
 import type { ScreenName } from '../../providers/navTypes';
+import { WideFrame } from '../../components/WideFrame';
 import { Placeholder } from '../../screens/Placeholder';
 import { REGISTRY } from '../../navigation/registry';
 import { getParams } from '../../navigation/navParams';
@@ -21,7 +22,7 @@ export default function ScreenRoute() {
   return (
     <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
       <NativeHeaderCtx.Provider value={NATIVE_HEADER_SCREENS.includes(screen)}>
-        <ScreenScope params={getParams(k)} name={screen}>{Comp ? <Comp /> : <Placeholder name={screen} />}</ScreenScope>
+        <ScreenScope params={getParams(k)} name={screen}><WideFrame full={screen === 'nearMap' || screen === 'explore'}>{Comp ? <Comp /> : <Placeholder name={screen} />}</WideFrame></ScreenScope>
       </NativeHeaderCtx.Provider>
     </View>
   );

@@ -68,7 +68,7 @@
       "themeColor": "#0E8F72",
       "backgroundColor": "#0F1012",
       "display": "standalone",
-      "orientation": "portrait",
+      "orientation": "any",
       "startUrl": "/",
       "output": "single"
     },
