@@ -50,6 +50,7 @@ import { SafeOnTaskDrop } from './SafeOnTaskDrop';
 import { HeroCard } from './Hero';
 import { Drop, Ripples } from './Ripples';
 import { cardSurface } from './ui';
+import { HomeFeedbackCard } from './HomeFeedbackCard';
 import { useLayout } from '../lib/layout';
 import { useReducedMotion } from '../lib/motion';
 import type { IconName } from './Icon';
@@ -397,6 +398,7 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
               <NearYou />
               <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
               {manage}
+              <HomeFeedbackCard />
               {footer}
             </>
           }
@@ -496,6 +498,8 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
             </View>
           </>
         ) : null}
+
+        <HomeFeedbackCard />
         {sheets}
       </View>
       {footer}
@@ -1224,6 +1228,8 @@ function EarnTop() {
         <HitArea x={8} y={12} />
         <RNText style={tx('700', 13, t.colors.accentDeep)}>See every open job ›</RNText>
       </Pressable>
+
+      <HomeFeedbackCard />
     </>
   );
 
@@ -1559,7 +1565,7 @@ const MANAGE: { icon: IconName; title: string; prompt: string }[] = [
   { icon: 'users', title: 'Queue for me', prompt: 'Stand in the queue for me at ' },
 ];
 
-// Poster ideas (D29, owner 11 Nov): outcome jobs no other app does, under "Ideas you can get done" (D31).
+// Poster ideas (D29, owner 11 Nov): outcome jobs no other app does, under "Idea templates for you" (D31).
 type PosterIdea = { icon: IconName; title: string; problem: string; price: string; prompt: string };
 const POSTER_IDEAS: { group: string; ideas: PosterIdea[] }[] = [
   {
@@ -1618,7 +1624,7 @@ function offerLine(price: string): string {
 }
 
 /**
- * "Ideas you can get done" (D29 ideas, D31 boards): outcome jobs no other app does, read as ideas -- each card
+ * "Idea templates for you" (D29 ideas, D31 boards): outcome jobs no other app does, read as ideas -- each card
  * carries the Idea tag, what people often offer, and "Post this idea", which fills the composer.
  */
 function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
@@ -1628,7 +1634,7 @@ function PosterIdeas({ onPrompt }: { onPrompt: (prompt: string) => void }) {
   const { desktop, tablet } = useLayout();
   return (
     <View style={{ marginTop: 32 }}>
-      <SectionTitle title="Ideas you can get done" icon="sparkle" />
+      <SectionTitle title="Idea templates for you" icon="sparkle" />
       <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
         {desktop
           ? 'Just ideas, not services from TaskDrop. Click one to post it as your own task; helpers send offers and you pick one.'
@@ -1736,7 +1742,7 @@ function IdeaCard({
   );
 }
 
-// D32: "Idea templates for you" on Hire Home. The composer's own templates under category chips; a tap opens the
+// D32: "Quick templates" on Hire Home. The composer's own templates under category chips; a tap opens the
 // new-task screen with the words and the suggested day already in, and the poster changes anything.
 function HomeTemplates({ onPick }: { onPick: (x: HomeTemplate) => void }) {
   const t = useTheme();
@@ -1768,7 +1774,7 @@ function HomeTemplates({ onPick }: { onPick: (x: HomeTemplate) => void }) {
   const cards = shown.map((x) => <TemplateCard key={x.key} item={x} onPress={() => onPick(x)} wide={desktop || tablet} />);
   return (
     <View testID="home-templates" style={{ marginTop: 32 }}>
-      <SectionTitle title="Idea templates for you" icon="sparkle" />
+      <SectionTitle title="Quick templates" icon="sparkle" />
       <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 18 })}>
         {desktop
           ? 'Click one to start your post. The words and day are filled in; you change anything.'

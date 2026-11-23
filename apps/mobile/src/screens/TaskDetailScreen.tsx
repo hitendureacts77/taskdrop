@@ -193,6 +193,13 @@ function TaskDetailBody() {
   }, [params.row]);
 
   const [quote, setQuote] = useState(detail.amountMinor);
+  // A worker either accepts the posted price (the stepper stays hidden and the offer is the budget) or chooses to
+  // send a counteroffer (the stepper opens at the budget). A task with no price posted can only be a quote.
+  const [counterOn, setCounterOn] = useState(false);
+  const counterMode = counterOn || detail.amountMinor <= 0;
+  useEffect(() => {
+    if (!counterOn) setQuote(detail.amountMinor);
+  }, [counterOn, detail.amountMinor]);
 
   // Only a real row has a uuid; sample rows keep the design copy.
   const realId = detail.id && /^[0-9a-f-]{36}$/i.test(detail.id) ? detail.id : null;
@@ -749,6 +756,54 @@ function TaskDetailBody() {
           <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
             {countering ? 'YOUR COUNTEROFFER' : 'YOUR OFFER'}
           </RNText>
+          {worker && detail.amountMinor > 0 ? (
+            <View style={{ gap: 8, marginBottom: 14 }}>
+              {([
+                [`Accept ${formatINR(detail.amountMinor)}`, false],
+                ['Send a counteroffer', true],
+              ] as const).map(([label, on]) => {
+                const picked = counterOn === on;
+                return (
+                  <Pressable
+                    key={label}
+                    onPress={() => {
+                      setCounterOn(on);
+                      if (!on) setQuote(detail.amountMinor);
+                    }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: picked, checked: picked }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      minHeight: 48,
+                      paddingHorizontal: 14,
+                      borderRadius: 14,
+                      borderWidth: 1.5,
+                      borderColor: picked ? t.colors.accent : t.colors.line,
+                      backgroundColor: picked ? t.colors.accentSoft : t.colors.surface,
+                      opacity: pressed ? 0.85 : 1,
+                    })}
+                  >
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 999,
+                        borderWidth: 2,
+                        borderColor: picked ? t.colors.accent : t.colors.line,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {picked ? <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: t.colors.accent }} /> : null}
+                    </View>
+                    <RNText style={tx('700', 14.5, picked ? t.colors.accentDeep : t.colors.ink, { flex: 1 })}>{label}</RNText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
           {worker && realId ? (
             <View style={{ flexDirection: 'row', backgroundColor: t.colors.surface2, borderRadius: 14, padding: 4, gap: 4, marginBottom: 14 }}>
               {([['Price only', false], ['Price + proposal', true]] as const).map(([label, on]) => (
@@ -773,6 +828,12 @@ function TaskDetailBody() {
               ))}
             </View>
           ) : null}
+          {worker && !counterMode ? (
+            <View style={{ alignItems: 'center' }}>
+              <RNText style={tx('800', 34, t.colors.ink, { letterSpacing: -0.8 })}>{formatINR(detail.amountMinor)}</RNText>
+              <RNText style={tx('500', 12, t.colors.muted, { marginTop: 2 })}>The posted price</RNText>
+            </View>
+          ) : (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Pressable
               onPress={() => setQuote((q) => Math.max(MIN_QUOTE_MINOR, q - QUOTE_STEP_MINOR))}
@@ -822,6 +883,7 @@ function TaskDetailBody() {
               <Icon name="plus" size={18} color={t.colors.ink} strokeWidth={2.2} />
             </Pressable>
           </View>
+          )}
 
           {split && worker && realId && quote > 0 ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: t.colors.accentSoft, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 12, marginTop: 14 }}>
