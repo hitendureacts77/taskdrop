@@ -64,7 +64,6 @@ also drops those fields from anything it stores, for an event queued before this
 | `user-created` | event `user.signed_up` | records the person in the `user_sync` ledger |
 | `user-updated` | event `user.updated` | counts the update and keeps which fields changed in the ledger |
 | `user-deleted` | event `user.deleted` | marks the person deleted in the ledger. Deleted is final: a late update or sign-up cannot revive them |
-| `outbox-watchdog` | hourly at :52 | calls `run_outbox_watchdog()`: events unsent for 15+ minutes mean the bridge to Inngest is broken (wrong key, function not deployed or synced). Leaves one team alert, then stays quiet for six hours |
 | `safety-alarm` | every hour, at :23 | production only (any project but staging or localhost; quiet on staging). Fires a `fatal` Sentry event, which the alert rule emails at once, if production has a test shortcut on: `dev_otp_for_all` not off, the environment setting not `production`, a test-only function secret set (`ALLOW_ANY_OTP`, `TEST_PHONES`, an App Check debug token, `INNGEST_DEV`), or a Razorpay test key. Reads only. Rules and tests in `supabase/functions/_shared/safetyAlarm.ts` (plan task 5.9) |
 
 Also on a schedule: `money-moves` (Plan B, hourly at :12 plus the `money.move` event; the task
@@ -75,17 +74,21 @@ our ledger against Razorpay's settlement report). Both call Razorpay, so they st
 free Hobby plan: 50,000 executions a month for all jobs together, and every `step.run` counts as
 one more. At the old pace (sweeper every 5 min, four jobs every 10) both accounts used about
 2,500 a day, and staging ran out on 16 Nov 2026: events then sat in the outbox and Plan B
-releases waited until someone opened the task. Today's schedules, with the money sweeps on (staging
-has them on and no pg_cron), come to about 590 runs a day, roughly 1,250 executions, or 37,000 a
-month, which leaves about 13,000 for event-driven runs (push, money moves, people sync). Every
-scheduled job only rings a bell for rules that wait hours or days, so an hour's delay changes
-nothing a person sees; the outbox sweeper stays at 10 minutes because the watchdog alarms at 15
-and the snapshots at 20 because the stale alarm is at 30. Before making any schedule faster,
-check the account's Billing → Usage page (every 5 minutes is about 17,000 executions a month).
+releases waited until someone opened the task. Since plan 3.5c (migrations 198 to 201) every
+database-only timer runs on pg_cron instead, at no cost. Inngest's own timers are now the
+sweeper (144 a day), `media-purge`, `money-moves` and `safety-alarm` (24 each), the two nightly
+money checks and the weekly stray-file sweep: about 220 runs a day, plus 56 while staging still
+runs the three wallet money sweeps on Inngest (`INNGEST_MONEY_JOBS=on`; plan 3.5c PR 5 moves them
+back to pg_cron). That is roughly 600 executions a day, about 18,000 a month, which leaves most of
+the 50,000 for event-driven runs (push, money moves, people sync). The outbox sweeper stays at 10
+minutes because the watchdog alarms at 25. Before making any Inngest schedule faster, check the
+account's Billing → Usage page (every 5 minutes is about 17,000 executions a month).
 
-The three money sweeps are **off** until `INNGEST_MONEY_JOBS=on`, because pg_cron runs them
-today (see "Moving the money sweeps"). Every function reports its final failure to
-Sentry.
+The three money sweeps run on Inngest only when `INNGEST_MONEY_JOBS=on`. **Staging has it on**
+and its pg_cron copies were unscheduled on 25 Oct (`supabase/cutover/inngest_money_jobs.sql`), so
+while staging's Inngest is out of its monthly runs the sweeps do not run there at all. Plan 3.5c
+PR 5 puts them back on pg_cron for good, through the wrapper; it waits for the owner's answer
+(23 Nov). Every function reports its final failure to Sentry.
 
 Push, `account-files`, `overdue-tasks` and `housekeeping` need migration 101; the live-feed clean-up inside `housekeeping` needs 104; `outbox-watchdog` and `task-reminders` need 105; `media-purge` and the picture step in `account-files` need 109. Push also has a
 switch (next section). `notification.created` holds ids and the kind only: the title and body
@@ -108,7 +111,10 @@ Two watchers, each on the other system: `job-watchdog` (pg_cron, every 5 min) re
 green run is older than its `max_gap` (`STALE`) or a run that failed inside pg_cron itself (`CRON`), and
 prunes `job_runs` (30 days) and `cron.job_run_details` (7 days) once an hour. Inngest's `outbox-sweeper`
 asks `cron_health()` every 10 minutes, so if pg_cron itself stops, Sentry still hears. pg_cron's
-`outbox-watchdog` (once moved, PR 4) sees the reverse. Only if both stop at once is nobody told.
+`outbox-watchdog` sees the reverse: events unsent for 25 minutes mean Inngest is not receiving
+them (one alert, then quiet for six hours). `job-watchdog` also watches Inngest's money check: no
+`reconciliation_runs` row in 26 hours reports `nightly-reconcile` as stopped. Only if both systems
+stop at once is nobody told.
 
 | pg_cron job | Schedule (UTC) | India time | `max_gap` | Once a day | Money | Since |
 |---|---|---|---|---|---|---|
@@ -122,6 +128,7 @@ asks `cron_health()` every 10 minutes, so if pg_cron itself stops, Sentry still 
 | `sms-pumping-watch` | `8-59/15 * * * *` | every 15 min | 45 min | no | no | 200 |
 | `daily-digest`, catch-up `daily-digest-catchup` | `30 3 * * *`, `30 4 * * *` | 09:00, 10:00 | 26 h | yes | no | 200 |
 | `public-snapshots` | `3-59/10 * * * *` | every 10 min | 30 min | no | no | 200 |
+| `outbox-watchdog` | `5-59/10 * * * *` | every 10 min | 30 min | no | no | 201 |
 
 What they run: `housekeeping` calls `run_housekeeping()` (expired sign-in codes, send and search
 counters, rate counters, password attempts older than 30 days, notifications older than 90 days,

@@ -112,7 +112,7 @@ const reportFailure = (job: string) => async ({ error }: { error: unknown }) => 
  * Re-sends events the fast path (pg_net) did not get through. Runs every
  * ten minutes: it is only the backup, the free plan allows 50,000 executions a
  * month for all jobs together (the budget is in docs/INNGEST.md), and the
- * watchdog only worries after 15. The outbox id is the event
+ * watchdog (pg_cron, migration 201) only worries after 25. The outbox id is the event
  * id, so one that did arrive is dropped as a duplicate rather than run twice.
  */
 const outboxSweeper = inngest.createFunction(
@@ -379,16 +379,8 @@ const strayImageKitFiles = inngest.createFunction(
   },
 );
 
-/**
- * Watches the bridge itself: events left unsent for 15 minutes mean Inngest is
- * not receiving them. Leaves one team alert, then stays quiet for six hours.
- */
-const outboxWatchdog = inngest.createFunction(
-  { id: "outbox-watchdog", triggers: [{ cron: "52 * * * *" }], concurrency: 1, onFailure: reportFailure("outbox-watchdog") },
-  async ({ step }) => ({ checked: await step.run("check outbox", () => call<Record<string, unknown>>(rpc, "run_outbox_watchdog")) }),
-);
-
-// Moved to pg_cron (plan 3.5c, migration 200): daily-digest, public-snapshots, sms-pumping-watch and task-reminders.
+// Moved to pg_cron (plan 3.5c, migration 200): daily-digest, public-snapshots, sms-pumping-watch and task-reminders;
+// (migration 201) outbox-watchdog, which must not run on the system it watches.
 
 /**
  * The production safety alarm (plan task 5.9, holes H1 and H15). Every hour: is any test shortcut on in
@@ -569,7 +561,7 @@ Deno.serve(serve({
   client: inngest,
   functions: [
     outboxSweeper, jobFailureReport, teamAlert, nightlyReconcile,
-    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, outboxWatchdog, safetyAlarm,
+    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, safetyAlarm,
     userCreated, userUpdated, userDeleted,
     moneyMoves, moneyMatch,
     ...moneyJobs,
