@@ -168,12 +168,6 @@ const jobFailureReport = inngest.createFunction(
   },
 );
 
-/** Sent events are kept two weeks for debugging. */
-const outboxPrune = inngest.createFunction(
-  { id: "outbox-prune", triggers: [{ cron: "TZ=Asia/Kolkata 15 4 * * *" }], onFailure: reportFailure("outbox-prune") },
-  async ({ step }) => ({ pruned: await step.run("prune", () => call<number>(rpc, "outbox_prune")) }),
-);
-
 // -------------------------------------------------------------- team alerts --
 
 /** A help request, a withdrawal, a failed payout or a dispute becomes a message for the team. */
@@ -206,16 +200,6 @@ const dailyDigest = inngest.createFunction(
 );
 
 // --------------------------------------------------- rules and reconciliation --
-
-/**
- * The automation rules an admin switched on (Admin → Rules): who needs a
- * follow-up. The rules and the "once per person" guard live in Postgres
- * (run_crm_rules); this only rings the bell on a schedule.
- */
-const crmRules = inngest.createFunction(
-  { id: "crm-rules", triggers: [{ cron: "0 */3 * * *" }], concurrency: 1, onFailure: reportFailure("crm-rules") },
-  async ({ step }) => ({ created: await step.run("run rules", () => call<number>(rpc, "run_crm_rules")) }),
-);
 
 const RZP = "https://api.razorpay.com/v1";
 
@@ -410,12 +394,6 @@ const strayImageKitFiles = inngest.createFunction(
   },
 );
 
-/** A job that was started and is past its time gets the OVERDUE label. Nothing else changes. */
-const overdueTasks = inngest.createFunction(
-  { id: "overdue-tasks", triggers: [{ cron: "*/30 * * * *" }], concurrency: 1, onFailure: reportFailure("overdue-tasks") },
-  async ({ step }) => ({ marked: await step.run("mark overdue", () => call<number>(rpc, "run_overdue_tasks")) }),
-);
-
 /**
  * Plan 3.5b, layer C: every 20 minutes the database works out Trending, Top helpers and today's numbers once and keeps
  * the copy (refresh_public_snapshots, migration 149). Another refresh already running counts as success. A refresh that
@@ -445,12 +423,6 @@ const publicSnapshots = inngest.createFunction(
     const refreshed = await step.run("refresh", () => refreshPublicSnapshots(rpc, snapshotMarker));
     return { ...refreshed, ageBeforeMinutes: freshness.ageMinutes === null ? null : Math.floor(freshness.ageMinutes) };
   },
-);
-
-/** Counters, sign-in codes, old notifications, the admin live feed: records that have outlived their use. */
-const housekeeping = inngest.createFunction(
-  { id: "housekeeping", triggers: [{ cron: "17 */3 * * *" }], concurrency: 1, onFailure: reportFailure("housekeeping") },
-  async ({ step }) => ({ removed: await step.run("tidy", () => call<Record<string, number>>(rpc, "run_housekeeping")) }),
 );
 
 /**
@@ -547,11 +519,8 @@ const userCreated = userFunction("user-created", "taskdrop/user.signed_up");
 const userUpdated = userFunction("user-updated", "taskdrop/user.updated");
 const userDeleted = userFunction("user-deleted", "taskdrop/user.deleted");
 
-/** Every night: puts the ledger right if an event was ever missed. Normally reports all zeros. */
-const userSyncRepair = inngest.createFunction(
-  { id: "user-sync-repair", triggers: [{ cron: "TZ=Asia/Kolkata 10 3 * * *" }], concurrency: 1, onFailure: reportFailure("user-sync-repair") },
-  async ({ step }) => ({ fixed: await step.run("repair", () => call<Record<string, number>>(rpc, "user_sync_repair")) }),
-);
+// Moved to pg_cron (plan 3.5c, migration 199): outbox-prune, crm-rules, overdue-tasks, housekeeping and
+// user-sync-repair now run inside the database through private.run_cron_job. See docs/INNGEST.md.
 
 // -------------------------------------------------------------- money sweeps --
 
@@ -663,9 +632,9 @@ const moneyJobs = Deno.env.get("INNGEST_MONEY_JOBS") === "on"
 Deno.serve(serve({
   client: inngest,
   functions: [
-    outboxSweeper, jobFailureReport, outboxPrune, teamAlert, dailyDigest, crmRules, nightlyReconcile,
-    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, overdueTasks, publicSnapshots, housekeeping, outboxWatchdog, smsPumpingWatch, taskReminders, safetyAlarm,
-    userCreated, userUpdated, userDeleted, userSyncRepair,
+    outboxSweeper, jobFailureReport, teamAlert, dailyDigest, nightlyReconcile,
+    pushNotification, accountFiles, mediaPurge, strayImageKitFiles, publicSnapshots, outboxWatchdog, smsPumpingWatch, taskReminders, safetyAlarm,
+    userCreated, userUpdated, userDeleted,
     moneyMoves, moneyMatch,
     ...moneyJobs,
   ],
