@@ -46,6 +46,8 @@ export function AppHeader() {
   // Phones under 380 points (many Androids are 360): a tighter header, so the
   // avatar is never pushed off the edge.
   const tight = !desktop && !tablet && width < 380;
+  // The very smallest phones (320): a little tighter again, so the header never scrolls sideways (task 1.14).
+  const tiny = tight && width < 340;
   // A desktop browser has the page header above every screen's column instead
   // (navigation/DesktopPage.tsx), holding the same tools.
   if (desktop) return null;
@@ -55,8 +57,8 @@ export function AppHeader() {
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: desktop || tablet ? 32 : tight ? 12 : 16,
-        gap: tight ? 6 : 8,
+        paddingHorizontal: desktop || tablet ? 32 : tiny ? 8 : tight ? 12 : 16,
+        gap: tiny ? 4 : tight ? 6 : 8,
         paddingTop: desktop || tablet ? 16 : 10,
         paddingBottom: 8,
       }}
@@ -66,8 +68,8 @@ export function AppHeader() {
       {!desktop && !tablet ? (
         <>
           <Pressable onPress={() => reset('home')} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
-            <RNText style={tx('800', tight ? 19 : 21, t.colors.ink, { letterSpacing: -0.6 })}>
-              taskdrop<RNText style={tx('800', tight ? 19 : 21, t.colors.accent)}>.</RNText>
+            <RNText style={tx('800', tiny ? 16 : tight ? 19 : 21, t.colors.ink, { letterSpacing: -0.6 })}>
+              taskdrop<RNText style={tx('800', tiny ? 16 : tight ? 19 : 21, t.colors.accent)}>.</RNText>
             </RNText>
           </Pressable>
           <View style={{ marginLeft: 4 }}>
