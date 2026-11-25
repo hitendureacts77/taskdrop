@@ -680,7 +680,7 @@ export function LocationSheet({
 
           {note && (
             <View style={{ marginTop: 10 }}>
-              <RNText style={tx('600', 12, t.colors.signal, { lineHeight: 17 })}>{note}</RNText>
+              <RNText style={tx('600', 12, t.colors.signalDeep, { lineHeight: 17 })}>{note}</RNText>
               {blocked && (
                 <Pressable
                   onPress={() => {

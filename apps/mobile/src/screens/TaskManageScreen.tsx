@@ -348,7 +348,7 @@ export function TaskManageScreen() {
       {milestones.length > 0 ? (
         <View style={card}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="flag" size={16} color={t.colors.purple} />
+            <Icon name="flag" size={16} color={t.colors.accent} />
             <RNText style={tx('800', 15, t.colors.ink)}>Steps ({milestones.length})</RNText>
           </View>
           {milestones.map((m, i) => (

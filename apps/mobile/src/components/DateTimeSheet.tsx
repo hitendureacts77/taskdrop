@@ -566,7 +566,7 @@ export function DateTimeSheet({
               </View>
 
               {note ? (
-                <RNText style={tx('500', 12, t.colors.signal, { marginTop: 10, lineHeight: 18 })}>{note}</RNText>
+                <RNText style={tx('500', 12, t.colors.signalDeep, { marginTop: 10, lineHeight: 18 })}>{note}</RNText>
               ) : null}
             </View>
           </ScrollView>

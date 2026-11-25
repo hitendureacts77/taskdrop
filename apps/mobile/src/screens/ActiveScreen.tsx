@@ -491,7 +491,7 @@ export function ActiveScreen() {
       accessibilityLabel="Report a problem"
       style={{ alignSelf: 'center', marginTop: 10, padding: 8 }}
     >
-      <RNText style={tx('700', 13, t.colors.signal)}>Report a problem</RNText>
+      <RNText style={tx('700', 13, t.colors.signalDeep)}>Report a problem</RNText>
     </Pressable>
   );
 

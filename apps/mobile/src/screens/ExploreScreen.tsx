@@ -614,7 +614,7 @@ export function SearchBox({
           accessibilityLabel="Go"
           style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Icon name={submitIcon} size={16} color="#FFFFFF" strokeWidth={2} />
+          <Icon name={submitIcon} size={16} color={t.colors.onBtn} strokeWidth={2} />
         </Pressable>
       </View>
       {right}

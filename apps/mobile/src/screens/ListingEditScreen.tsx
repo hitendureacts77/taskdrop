@@ -166,7 +166,7 @@ export function ListingEditScreen() {
       }
     >
       <Icon name="close" size={14} color={t.colors.signal} />
-      <RNText style={tx('700', 13, t.colors.signal)}>Take this service down</RNText>
+      <RNText style={tx('700', 13, t.colors.signalDeep)}>Take this service down</RNText>
     </Pressable>
   ) : null;
 
