@@ -7,6 +7,7 @@ import {
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
+import { chatStateFrom, readChatStates } from "./chat.ts";
 import {
   ASSIGNMENT_SELECT, BID_SELECT, CREW_MESSAGE_SELECT, MESSAGE_SELECT, PROFILE_OWNER_SELECT, PROFILE_PUBLIC_SELECT, PROOF_SELECT,
   NOTIFICATION_SELECT, PAYMENT_SELECT, PAYOUT_DESTINATION_SELECT, PAYOUT_SELECT, PROMOTION_SELECT, REVIEW_SELECT,
@@ -986,11 +987,15 @@ export const READ_OPS: Record<string, Op> = {
       await ctx.db.from("tasks").select("id,title,status,updated_at").in("id", [...ids]),
     );
     const byId = new Map(tasks.map((t) => [t.id, t]));
+    // 1.19 row B: whether each chat is open, closing (48 hours after completion) or closed, and why.
+    // A failed read leaves `chat` null rather than failing the list.
+    const chats = await readChatStates(ctx, [...ids], true);
     return [...ids]
       .map((id) => {
         const m = latest.get(id);
         const t = byId.get(id);
         return {
+          chat: chats.get(id) ?? null,
           taskId: id,
           title: t?.title ?? "Task",
           status: t?.status ?? "",
@@ -1000,6 +1005,17 @@ export const READ_OPS: Record<string, Op> = {
         };
       })
       .sort((x, y) => new Date(y.lastAt).getTime() - new Date(x.lastAt).getTime());
+  },
+
+  /**
+   * 1.19 row B (migration 215): the caller's chat state for one task, for the notice above the message box:
+   * { taskId, open, state: 'open' | 'closing' | 'closed', reason, message, closesAt, deleteAfter }.
+   */
+  chatState: async (ctx, a) => {
+    const taskId = uuid(a, "taskId");
+    return (await readChatStates(ctx, [taskId])).get(taskId) ?? chatStateFrom({
+      task_id: taskId, state: "closed", can_send: false, reason: "not_participant", closes_at: null, delete_after: null,
+    });
   },
 
   /** A task's thread, oldest first; with `after`, only messages newer than it. */

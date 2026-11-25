@@ -38,7 +38,7 @@ export const NEVER_REUSE: ReadonlySet<string> = new Set([
   // task status and offers
   'getTask', 'getTaskDetail', 'canQuoteOn', 'getMyBid', 'myBidTaskIds', 'listBidsForTask', 'listMyBids', 'getProof',
   // chat and contacts
-  'listMessages', 'listThreads', 'listCrewMessages', 'taskContactPhone', 'getNotification',
+  'listMessages', 'chatState', 'listThreads', 'listCrewMessages', 'taskContactPhone', 'getNotification',
   // City Hunt finds: what unlocks, and whether a find was accepted (money)
   'huntFinds',
   // people map (migration 159): a spot and a consent choice are never shown from a stale copy

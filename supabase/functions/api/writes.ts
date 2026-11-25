@@ -3,6 +3,7 @@ import {
   rows, rpcOp, str, strOrNull, strings, take, toOpError, USERNAME_REQUIRED_MESSAGE, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
+import { assertChatOpen } from "./chat.ts";
 import { planBOn, readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
 import { MEDIA, OFFER_LIMITS, PRICE_LIMITS, PROFILE_LIMITS, PROOF_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
@@ -567,9 +568,13 @@ export const WRITE_OPS: Record<string, Op> = {
     if (body.startsWith("::media::media:")) await assertOwnImage(ctx, body.slice("::media::".length), ["chat"]);
     // Any other chat photo is a plain storage path, and must be in the sender's own folder (B59).
     else if (body.startsWith("::media::")) assertOwnFolder(ctx, body.slice("::media::".length), "body");
+    // 1.19 row B (migration 215): only while the task is locked to the two of them, and for 48 hours after it
+    // is completed. CHAT_CLOSED says why; the insert policy refuses it as well.
+    const taskId = uuid(a, "taskId");
+    await assertChatOpen(ctx, taskId);
     // Until the work starts, contact details stay inside TaskDrop. The task is only looked up when the text needs it.
     if (!body.startsWith("::media::") && findContactIssue(body)) {
-      const t = rows(await db.from("tasks").select("status").eq("id", uuid(a, "taskId")))[0] as { status?: string } | undefined;
+      const t = rows(await db.from("tasks").select("status").eq("id", taskId))[0] as { status?: string } | undefined;
       if (!t?.status || !CONTACTS_OPEN.includes(t.status)) {
         throw new OpError(
           "Phone numbers, emails, links, chat handles and addresses can’t be shared until the work starts. Keep talking here — it keeps your payment protected.",
@@ -580,7 +585,7 @@ export const WRITE_OPS: Record<string, Op> = {
     return take(
       await db
         .from("messages")
-        .insert({ task_id: uuid(a, "taskId"), sender_id: userId, body })
+        .insert({ task_id: taskId, sender_id: userId, body })
         .select()
         .single(),
     );
