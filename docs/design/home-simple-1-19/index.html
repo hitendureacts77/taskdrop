@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simpler Home and tabs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Tokens copied from apps/mobile/src/theme.ts (light, dark) and ThemeProvider WORKER_ACCENT (Earn). */
+:root{
+  --bg:#F3F4F1;--surface:#FFFFFF;--surface2:#ECEEE9;--line:#E2E5DF;--ink:#121417;--text:#3F444A;--muted:#5F6368;
+  --gold:#E0A85A;--goldSoft:#FBF1E0;--goldInk:#8A5A12;--signal:#E0724A;--signalSoft:#FBEDE7;--signalDeep:#A8461F;
+  --ai:#7F77DD;--aiSoft:#F0EFFC;--online:#12804A;--shadow:rgba(18,20,23,.07);
+}
+:root[data-theme="dark"]{
+  --bg:#0E1012;--surface:#16191C;--surface2:#1E2226;--line:#2A2F34;--ink:#F2F3F1;--text:#C9CDD2;--muted:#9AA0A6;
+  --goldSoft:#2A2216;--goldInk:#E8BE80;--signalSoft:#2C1A14;--signalDeep:#F08A66;--aiSoft:#1E1C33;--online:#4ADE9A;--shadow:rgba(0,0,0,.35);
+}
+.hire{--acc:#0E8F72;--accDeep:#0A6F58;--accSoft:#E7F5EF;--accBorder:#BFE3D5;--btn:#0A6F58;--onBtn:#fff;--h1:#0D8A6F;--h2:#0A6F58;--h3:#064A3B}
+.earn{--acc:#2F5BEA;--accDeep:#2448D8;--accSoft:#EAF0FE;--accBorder:#C5D3FA;--btn:#2F5BEA;--onBtn:#fff;--h1:#4069F2;--h2:#2F5BEA;--h3:#1A3BA8}
+:root[data-theme="dark"] .hire{--acc:#2FBF96;--accDeep:#57D1AE;--accSoft:#12271F;--accBorder:#1E3A30;--btn:#2FBF96;--onBtn:#04140D;--h1:#0E8F72;--h2:#0B5E4B;--h3:#06372C}
+:root[data-theme="dark"] .earn{--acc:#6B8CFF;--accDeep:#9DB4FF;--accSoft:#172036;--accBorder:#26345A;--btn:#6B8CFF;--onBtn:#0B1330;--h1:#3A62E8;--h2:#2547BD;--h3:#152C7A}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Plus Jakarta Sans",system-ui,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+a{color:inherit}
+.page{max-width:1360px;margin:0 auto;padding:28px 16px 80px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:8px}
+.top h1{font-size:28px;font-weight:800;letter-spacing:-.8px;color:var(--ink);flex:1;min-width:240px}
+.toggle{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.toggle button{font:inherit;font-size:13px;font-weight:700;border:0;background:none;color:var(--muted);padding:7px 14px;border-radius:999px;cursor:pointer}
+.toggle button.on{background:var(--ink);color:var(--bg)}
+.lede{max-width:820px;color:var(--text);margin:6px 0 4px}
+.words{font-size:13px;color:var(--muted)}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 8px}
+nav.toc a{font-size:13px;font-weight:700;text-decoration:none;background:var(--surface);border:1px solid var(--line);padding:6px 12px;border-radius:999px;color:var(--ink)}
+section.block{margin-top:44px}
+section.block>h2{font-size:22px;font-weight:800;letter-spacing:-.5px;color:var(--ink)}
+section.block>p.sub{color:var(--muted);max-width:860px;margin-top:4px}
+.row{display:flex;flex-wrap:wrap;gap:28px;margin-top:20px;align-items:flex-start}
+.cap{max-width:390px;font-size:13px;color:var(--muted);margin-top:10px}
+.cap b{color:var(--ink)}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;max-width:420px;font-size:13.5px}
+.note h3{font-size:15px;color:var(--ink);margin-bottom:6px}
+.note ul{padding-left:18px}.note li{margin:3px 0}
+.moved{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--goldInk);background:var(--goldSoft);border-radius:999px;padding:2px 8px}
+
+/* ---------- clutter table / feature table ---------- */
+table.t{width:100%;border-collapse:collapse;margin-top:16px;background:var(--surface);border-radius:16px;overflow:hidden;border:1px solid var(--line);font-size:13.5px}
+.t th{text-align:left;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);background:var(--surface2);padding:9px 12px}
+.t td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+.t td.c{text-align:center;font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink)}
+.t tr.grp td{background:var(--surface2);font-weight:800;color:var(--ink)}
+.tw{overflow-x:auto}
+
+/* ---------- phone ---------- */
+.phone{width:390px;flex:0 0 390px;border-radius:46px;background:#0b0c0e;outline:1px solid var(--line);padding:10px;box-shadow:0 20px 50px var(--shadow)}
+.screen{position:relative;height:844px;border-radius:38px;overflow:hidden;background:var(--bg);display:flex;flex-direction:column}
+body.full .screen{height:auto}
+body.full .scroll{overflow:visible}
+.sb{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:700;color:var(--ink)}
+.scroll{flex:1;overflow-y:auto;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.px{padding:0 20px}
+.tabbar{flex:0 0 74px;display:flex;background:var(--surface);border-top:1px solid var(--line);padding:8px 6px 16px}
+.tabbar div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted);position:relative}
+.tabbar div.on{color:var(--accDeep);font-weight:700}
+.tabbar div.on .ic{background:var(--accSoft);border-radius:999px;padding:3px 14px}
+.tabbar .bd{position:absolute;top:-2px;left:56%;background:#B4512C;color:#fff;font-size:10px;font-weight:800;border-radius:999px;padding:0 5px}
+.fab{position:absolute;right:18px;bottom:92px;width:56px;height:56px;border-radius:20px 20px 20px 6px;background:var(--btn);color:var(--onBtn);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px var(--shadow);transform:rotate(-45deg)}
+.fab svg{transform:rotate(45deg)}
+body.full .fab{display:none}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+
+/* header */
+.ah{display:flex;align-items:center;gap:8px;padding:6px 16px 10px 20px}
+.wm{font-size:20px;font-weight:800;letter-spacing:-.6px;color:var(--ink)}.wm i{font-style:normal;color:var(--acc)}
+.ms{display:flex;background:var(--surface2);border-radius:999px;padding:3px;margin-left:4px}
+.ms b{font-size:12px;font-weight:700;padding:4px 11px;border-radius:999px;color:var(--muted)}
+.ms b.on{background:var(--btn);color:var(--onBtn)}
+.sp{flex:1}
+.ib{width:38px;height:38px;border-radius:999px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--ink);position:relative}
+.ib .bd{position:absolute;top:-3px;right:-3px;background:#B4512C;color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:17px;height:17px;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg)}
+.av{width:38px;height:38px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff;position:relative;flex:0 0 auto}
+.av.s{width:30px;height:30px;font-size:12px}.av.xs{width:24px;height:24px;font-size:10px;border:2px solid var(--surface)}
+.av .dot{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:999px;background:var(--online);border:2px solid var(--surface)}
+.faces{display:flex}.faces .av{margin-left:-7px}.faces .av:first-child{margin-left:0}
+
+/* title row (consistent tab header) */
+.tt{display:flex;align-items:flex-end;gap:10px;padding:4px 20px 12px}
+.tt h2{font-size:26px;font-weight:800;letter-spacing:-.7px;color:var(--ink);line-height:1.1}
+.tt .ls{font-size:12.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px}
+.btnp{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--btn);color:var(--onBtn);font-weight:800;font-size:13.5px;border-radius:12px;padding:9px 14px;white-space:nowrap}
+.btno{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:transparent;color:var(--accDeep);border:1.5px solid var(--accBorder);font-weight:800;font-size:13.5px;border-radius:12px;padding:8px 14px;white-space:nowrap}
+.btnq{font-size:13px;font-weight:700;color:var(--accDeep)}
+.seg{display:flex;background:var(--surface2);border-radius:12px;padding:3px}
+.seg b{font-size:12.5px;font-weight:700;color:var(--muted);padding:6px 12px;border-radius:9px}
+.seg b.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px var(--shadow)}
+
+/* live */
+.live{width:8px;height:8px;border-radius:999px;background:var(--online);display:inline-block;position:relative;flex:0 0 auto}
+.live::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:2px solid var(--online);opacity:0;animation:ping 2.2s ease-out infinite}
+@keyframes ping{0%{transform:scale(.5);opacity:.7}80%,100%{transform:scale(1.4);opacity:0}}
+.area{display:flex;align-items:center;gap:8px;padding:2px 20px 0}
+.area .pl{display:flex;align-items:center;gap:6px;font-weight:800;color:var(--ink);font-size:15px;min-width:0}
+.area .pl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.livepill{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--ink);background:var(--accSoft);border-radius:999px;padding:6px 11px;white-space:nowrap}
+.ticker{margin:10px 20px 0;display:flex;align-items:center;gap:10px;height:34px;border-radius:12px;background:var(--surface);border:1px solid var(--line);overflow:hidden;padding-left:10px}
+.ticker .lb{font-size:10.5px;font-weight:800;letter-spacing:1px;color:var(--accDeep);white-space:nowrap;display:flex;gap:6px;align-items:center}
+.ticker .tr{flex:1;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 12px,#000 85%,transparent)}
+.ticker .tr div{display:inline-flex;gap:22px;white-space:nowrap;font-size:12.5px;color:var(--text);animation:slide 38s linear infinite}
+.ticker .tr div b{color:var(--ink);font-weight:700}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.ticker .tr div,.live::after,.pop{animation:none!important}}
+
+/* hero */
+.hero{margin:12px 20px 0;border-radius:24px;padding:20px;color:#fff;background:linear-gradient(140deg,var(--h1),var(--h2) 55%,var(--h3));position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:200px;height:200px;border-radius:999px;border:28px solid rgba(255,255,255,.07)}
+.hero h3{padding-right:38px;font-size:24px;font-weight:800;letter-spacing:-.6px;line-height:1.2}
+.hero .tag{font-size:13px;font-weight:500;opacity:.92;margin-top:4px}
+.hq{position:absolute;right:16px;top:16px;width:30px;height:30px;border-radius:999px;background:rgba(0,0,0,.16);display:flex;align-items:center;justify-content:center;font-weight:800;z-index:1}
+.ask{margin-top:14px;background:var(--surface);border-radius:16px;padding:7px 7px 7px 14px;display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.ask>span:first-of-type{flex:1;color:var(--muted);font-size:14.5px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1}
+.chip{font-size:12.5px;font-weight:700;border-radius:999px;padding:6px 12px;background:rgba(0,0,0,.16);color:#fff}
+.trust{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18);display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;position:relative;z-index:1}
+.trust span{flex:1;opacity:.95}.trust b{white-space:nowrap}
+.lvl{display:flex;align-items:flex-end;gap:14px;margin-top:6px}
+.bar{height:6px;border-radius:999px;background:rgba(255,255,255,.25);overflow:hidden;margin-top:9px}.bar i{display:block;height:100%;width:40%;background:#fff;border-radius:999px}
+
+/* sections */
+.sec{margin-top:26px}
+.sh{display:flex;align-items:baseline;gap:8px}
+.sh h4{font-size:17px;font-weight:800;letter-spacing:-.3px;color:var(--ink);flex:1}
+.sh .a{font-size:13px;font-weight:700;color:var(--accDeep);white-space:nowrap}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:0 2px 10px var(--shadow)}
+.need{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line)}
+.need:first-child{border-top:0}
+.need .w{flex:1;min-width:0}
+.need .w b{display:block;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.need .w small{font-size:12px;color:var(--muted)}
+.map{height:132px;border-radius:20px 20px 0 0;position:relative;overflow:hidden;background:var(--surface2)}
+.map svg{position:absolute;inset:0;width:100%;height:100%}
+.mapfoot{display:flex;align-items:center;gap:10px;padding:11px 14px}
+.mapfoot .w{flex:1;font-size:12.5px;color:var(--muted)}.mapfoot .w b{display:block;font-size:14px;color:var(--ink)}
+.sc{display:flex;gap:8px;margin-top:10px;overflow:hidden}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 12px;white-space:nowrap}
+.pill.on{background:var(--btn);border-color:var(--btn);color:var(--onBtn)}
+.pill .n{font-size:11px;background:var(--signal);color:#fff;border-radius:999px;padding:0 6px}
+.only{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+.only div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--ink);text-align:center;line-height:1.2;position:relative}
+.only i{width:54px;height:54px;border-radius:18px;display:flex;align-items:center;justify-content:center;color:#fff}
+.only .new{position:absolute;top:-6px;right:2px;font-size:9px;font-weight:800;background:var(--gold);color:#3a2606;border-radius:999px;padding:1px 5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.idea{padding:12px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.idea .ic{width:32px;height:32px;border-radius:10px;background:var(--accSoft);color:var(--accDeep);display:flex;align-items:center;justify-content:center}
+.idea b{display:block;font-size:13.5px;color:var(--ink);margin-top:8px;line-height:1.25}
+.idea small{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+.idea em{display:block;font-style:normal;font-size:12px;font-weight:800;color:var(--accDeep);margin-top:6px}
+.idtag{font-size:10px;font-weight:800;letter-spacing:.6px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+.rail{display:flex;gap:10px;margin-top:12px;overflow:hidden}
+.svc{flex:0 0 230px;border-radius:18px;overflow:hidden;background:var(--surface);border:1px solid var(--line)}
+.svc .ph{height:96px;background:linear-gradient(135deg,var(--accSoft),var(--surface2));display:flex;align-items:center;justify-content:center;color:var(--accDeep)}
+.svc .bd2{padding:10px 12px}
+.svc b{font-size:13.5px;color:var(--ink);display:block}
+.svc small{font-size:12px;color:var(--muted)}
+.job{padding:14px;margin-top:10px}
+.job .h{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--muted);font-weight:600}
+.job b.t2{display:block;font-size:15px;color:var(--ink);margin-top:5px}
+.job .f{display:flex;align-items:center;gap:10px;margin-top:10px}
+.job .pr{font-size:18px;font-weight:800;color:var(--ink);flex:1}
+.urg{font-size:10px;font-weight:800;background:var(--signalSoft);color:var(--signalDeep);border-radius:999px;padding:1px 7px}
+
+/* ---------- task cards (My tasks / My work) ---------- */
+.tc{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:0 2px 10px var(--shadow);margin-top:12px}
+.tc .r1{display:flex;align-items:center;gap:8px}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;border-radius:999px;padding:4px 10px 4px 8px;white-space:nowrap}
+.st i{width:7px;height:7px;border-radius:999px;background:currentColor}
+.st.acc{background:var(--accSoft);color:var(--accDeep)}
+.st.gold{background:var(--goldSoft);color:var(--goldInk)}
+.st.coral{background:var(--signalSoft);color:var(--signalDeep)}
+.st.mut{background:var(--surface2);color:var(--muted)}
+.st.wait{background:var(--surface2);color:var(--ink)}
+.tc .meta{font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.tc .dots{color:var(--muted)}
+.tc h5{font-size:16px;font-weight:800;letter-spacing:-.2px;color:var(--ink);margin-top:9px;line-height:1.3}
+.tc .who{display:flex;align-items:center;gap:10px;margin-top:12px}
+.tc .who .w{flex:1;min-width:0;font-size:12px;color:var(--muted)}
+.tc .who .w b{display:block;font-size:13.5px;color:var(--ink)}
+.tc .money{text-align:right}
+.tc .money b{display:block;font-size:19px;font-weight:800;color:var(--ink);letter-spacing:-.3px}
+.tc .money small{font-size:11px;font-weight:700;color:var(--muted);display:inline-flex;align-items:center;gap:3px}
+.tc .money small.held{color:var(--accDeep)}
+.track{display:flex;align-items:center;gap:4px;margin-top:12px}
+.track i{flex:1;height:4px;border-radius:999px;background:var(--line)}
+.track i.d{background:var(--acc)}
+.track i.n{background:linear-gradient(90deg,var(--acc) 50%,var(--line) 50%)}
+.tl{display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:var(--muted);margin-top:4px;letter-spacing:.2px}
+.tc .when{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-top:10px;font-weight:600}
+.tc .when b{color:var(--ink)}
+.tc .hint{margin-top:10px;font-size:12px;font-weight:600;border-radius:10px;padding:8px 10px}
+.tc .hint.gold{background:var(--goldSoft);color:var(--goldInk)}
+.tc .hint.acc{background:var(--accSoft);color:var(--accDeep)}
+.tc .hint.mut{background:var(--surface2);color:var(--muted)}
+.tc .act{display:flex;align-items:center;gap:12px;margin-top:12px}
+.tc .act .btnp,.tc .act .btno{flex:1;padding:11px 14px;font-size:14px}
+.tc.dim{opacity:.82}
+.fresh{font-size:10.5px;font-weight:800;background:var(--signal);color:#fff;border-radius:999px;padding:1px 7px}
+.pop{animation:pop .5s ease-out 1s both}
+@keyframes pop{0%{transform:scale(.7);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+.swipe{flex:1;display:flex;align-items:center;gap:10px;background:var(--btn);color:var(--onBtn);border-radius:12px;padding:5px 14px 5px 5px;font-weight:800;font-size:14px}
+.swipe i{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-style:normal}
+.cards2{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:4px 22px;margin-top:8px}
+.cards2 .lbl{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:18px}
+.anat{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:16px}
+.anat div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;font-size:13px}
+.anat b{display:block;color:var(--ink)}
+
+/* header strips */
+.hs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(390px,100%),1fr));gap:18px;margin-top:18px}
+.hstrip{background:var(--bg);border:1px solid var(--line);border-radius:22px;overflow:hidden;padding-top:10px}
+.hstrip .lab{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:0 20px 6px}
+
+/* desktop */
+.desk{width:100%;max-width:1280px;border-radius:18px;overflow:hidden;border:1px solid var(--line);box-shadow:0 20px 50px var(--shadow);background:var(--bg);margin-top:20px}
+.dbar{height:34px;background:var(--surface2);display:flex;align-items:center;gap:6px;padding:0 14px}
+.dbar i{width:11px;height:11px;border-radius:999px;background:var(--line)}
+.dbar span{margin-left:14px;font-size:12px;color:var(--muted);background:var(--surface);border-radius:8px;padding:3px 12px}
+.dbody{display:grid;grid-template-columns:232px 1fr 320px;min-height:820px}
+.side{background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:4px}
+.side .it{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;font-weight:600;font-size:14px;color:var(--text)}
+.side .it.on{background:var(--accSoft);color:var(--accDeep);font-weight:800}
+.side .it .bd{margin-left:auto;background:#B4512C;color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:0 7px}
+.side hr{border:0;border-top:1px solid var(--line);margin:10px 0}
+.dmain{padding:20px 28px 40px;min-width:0}
+.drail{padding:20px 20px 40px 0;display:flex;flex-direction:column;gap:16px}
+.dtop{display:flex;align-items:center;gap:14px}
+.dsearch{flex:1;max-width:460px;margin:0 auto;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:9px 16px;color:var(--muted);font-size:14px}
+table.dt{width:100%;border-collapse:collapse;font-size:13.5px}
+.dt td{padding:11px 14px;border-top:1px solid var(--line)}
+.dt tr:first-child td{border-top:0}
+.rc{padding:14px 16px}
+.rc h4{font-size:15px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px}
+.rr{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:13px}
+.rr:first-of-type{border-top:0}
+.rr .w{flex:1;min-width:0}.rr .w b{display:block;color:var(--ink);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gb{height:4px;border-radius:999px;background:var(--surface2);margin-top:5px}.gb i{display:block;height:100%;border-radius:999px;background:var(--acc)}
+.before{width:250px;flex:0 0 250px}
+.before .bk{border-radius:10px;padding:7px 10px;margin-top:5px;font-size:12px;font-weight:700;background:var(--surface);border:1px solid var(--line);color:var(--ink);display:flex;justify-content:space-between;gap:6px}
+.before .bk.x{background:var(--goldSoft);border-color:transparent;color:var(--goldInk)}
+.before .bk.m{background:var(--accSoft);border-color:transparent;color:var(--accDeep)}
+.before h3{font-size:15px;color:var(--ink)}
+.before p{font-size:12px;color:var(--muted)}
+.qs li{margin:8px 0}
+@media (max-width:640px){
+  .phone{zoom:.85}
+  .before{width:100%;flex-basis:100%}
+  .desk{overflow-x:auto}
+  .dbody{min-width:1100px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <h1>1.19 F, G, I: a simpler Home and tabs</h1>
+    <div class="toggle" id="themeT"><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
+    <div class="toggle" id="lenT"><button data-l="phone" class="on">Phone height</button><button data-l="full">Whole page</button></div>
+  </div>
+  <p class="lede"><b>Design only, for your OK.</b> Every feature stays; nothing is removed. Home answers three things in order: <b>what is happening near me</b>, <b>what do I need done</b>, <b>what needs me now</b>. Everything else is one tap away, in a sheet or a chip, or lives in the tab it belongs to. My tasks cards show status, the one next step, the price, the person and the date at a glance.</p>
+  <p class="words">Style words: warm and trustworthy, calm and clear, local and quick. Hire is always jade, Earn always royal blue (guests too). Gold = waiting on you, coral = a problem, violet only for the AI writer. Copy is taken from the app's source; names, areas and prices are sample data.</p>
+  <nav class="toc">
+    <a href="#walk">1. What feels cluttered</a><a href="#hire">2a. Hire Home</a><a href="#earn">2b. Earn Home</a><a href="#heads">2c. Tab headers</a><a href="#cards">2d. My tasks cards</a><a href="#desk">Desktop Home</a><a href="#motion">Alive, gently</a><a href="#features">3. Every feature, where it lives</a><a href="#questions">Open questions</a>
+  </nav>
+
+  <!-- 1. WALK -->
+  <section class="block" id="walk">
+    <h2>1. The walk: what a new customer and a new worker meet today</h2>
+    <p class="sub">Walked on taskdrop.in as a guest in Hire and Earn at 390 x 844 (25 Nov), and read every tab's source for the signed-in parts (My tasks, My work, Wallet, Profile). Hire Home is about <b class="num">5.8</b> phone screens tall and Earn Home about <b class="num">5.5</b> for a guest, before any tasks of your own are added.</p>
+    <div class="tw"><table class="t" id="clutter"></table></div>
+  </section>
+
+  <!-- 2a HIRE -->
+  <section class="block" id="hire">
+    <h2>2a. Hire Home, simpler</h2>
+    <p class="sub">Eight short blocks instead of fourteen. The four idea sections become one Ideas block with chips; "Why hiring here is safer" becomes one line in the hero that opens the same three points; "Busy on TaskDrop" joins Just posted in the live sheet you open from "active now"; the feature-vote card goes to Profile.</p>
+    <div class="row">
+      <div class="before" id="beforeHire"></div>
+      <div><div class="phone hire"><div class="screen" id="pHire"></div></div><p class="cap"><b>New customer, signed in, two tasks live.</b> First screen: area and live count, Just posted, the ask box, what needs you. Map, Only on TaskDrop, Ideas and Services follow.</p></div>
+      <div><div class="phone hire"><div class="screen" id="pHireSheet"></div></div><p class="cap"><b>Tap "12 active now":</b> the live sheet. Just posted (full list) and Busy on TaskDrop now live here, one tap from Home, still on Explore's Busy now tab.</p></div>
+    </div>
+  </section>
+
+  <!-- 2b EARN -->
+  <section class="block" id="earn">
+    <h2>2b. Earn Home, simpler</h2>
+    <p class="sub">The level card and the search become one hero. Matches your skills, Jobs near you, Remote &amp; online and Needed today showed the same jobs again and again; they become one "Jobs for you" list with four chips. The radius buttons sit inside "Near you".</p>
+    <div class="row">
+      <div class="before" id="beforeEarn"></div>
+      <div><div class="phone earn"><div class="screen" id="pEarn"></div></div><p class="cap"><b>New worker, one job picked.</b> The hero holds level, jobs on the go and search; "Needs you now" shows the job to start; one jobs list with chips.</p></div>
+      <div><div class="phone earn"><div class="screen" id="pEarnNear"></div></div><p class="cap"><b>Chip "Near you" picked:</b> the radius buttons (3, 10, 25, 50 km) appear; "Today" carries the Urgent count. "See all 142 jobs" opens the Find work list.</p></div>
+    </div>
+  </section>
+
+  <!-- 2c HEADERS -->
+  <section class="block" id="heads">
+    <h2>2c. The same header on every tab</h2>
+    <p class="sub">Row 1 is identical everywhere: wordmark, Hire/Earn switch, notifications, messages, your face. Row 2 (every tab but Home) is the tab's name, one live line (counts that change) and at most one action on the right. Today Explore has no header, My tasks starts with a green summary card, My work with four stat tiles, Wallet with its balance card; each tab looks like a different app.</p>
+    <div class="hs" id="heads2"></div>
+  </section>
+
+  <!-- 2d CARDS -->
+  <section class="block" id="cards">
+    <h2>2d. My tasks and My work cards</h2>
+    <p class="sub">One card, read top to bottom in two seconds: <b>status</b> (colour and words), <b>what</b> (title, nearby or remote), <b>who and how much</b> (face, name, rating, price and whether it is held), <b>when</b>, then <b>one button</b>. The button is filled only when the next step is yours; when you are waiting, it is an outline. Everything else (View details, Create similar, Top up, Close task) stays in the ⋯ menu as today.</p>
+    <div class="anat">
+      <div><b>1. Status pill</b>Jade = moving; gold = waiting on you; coral = a problem; grey = closed. Words from statusBadge(), never colour alone.</div>
+      <div><b>2. Title + where</b>Two lines max. "Nearby · Kondapur" or "Remote", so remote tasks are never hidden.</div>
+      <div><b>3. Person + money</b>Their face (green dot when active now), name, rating. Price big, tabular, with "held safely" or "not paid yet".</div>
+      <div><b>4. Track + date</b>The 5-step track (Posted, Offers, Hired, Working, Done) as a thin bar; the next date in words.</div>
+      <div><b>5. One button</b>"Choose an offer (3)", "Pay to start", "Review the work", "Swipe to start", "Finish and send proof".</div>
+    </div>
+    <div class="row">
+      <div><div class="phone hire"><div class="screen" id="pTasks"></div></div><p class="cap"><b>My tasks.</b> The green "at a glance" card and the tab pills said the same numbers; the counts now live in the tabs and the live line. Search is the magnifier in the title row (same field, same words).</p></div>
+      <div><div class="phone earn"><div class="screen" id="pWork"></div></div><p class="cap"><b>My work.</b> The four stat tiles become one line under the title (Earned, Completed, Active, Success; tap opens My earnings and jobs).</p></div>
+    </div>
+    <div class="cards2 hire" id="posterStates"></div>
+    <div class="cards2 earn" id="workerStates"></div>
+  </section>
+
+  <!-- DESKTOP -->
+  <section class="block" id="desk">
+    <h2>Desktop Home (web, SideNav)</h2>
+    <p class="sub">Same blocks, wider: the ask box with its picture, what needs you as a short table, Only on TaskDrop and Ideas. The right rail keeps the live things together: active now, Just posted, Busy on TaskDrop, the helpers map.</p>
+    <div class="desk hire" id="dHome"></div>
+  </section>
+
+  <!-- MOTION -->
+  <section class="block" id="motion">
+    <h2>Alive, without noise</h2>
+    <div class="row">
+      <div class="note"><h3>What makes it feel active</h3><ul>
+        <li>The area row always carries a live number: "12 helpers active now", "23 open near you" (from the pulse the app already reads).</li>
+        <li>Just posted keeps moving as one slim line.</li>
+        <li>Faces have the green "active now" dot (presence is automatic, no go-live switch).</li>
+        <li>New offers show a small coral "1 new" badge on the card and on the tab.</li>
+        <li>Counts in the tab headers are real numbers, a dash while loading, never a fake 0.</li>
+      </ul></div>
+      <div class="note"><h3>Motion (all off with reduce motion)</h3><ul>
+        <li>Live dot: a soft ring every 2.2 s.</li>
+        <li>Ticker: about 40 px a second, still when reduced.</li>
+        <li>"1 new" badge: pops once (scale 0.7 to 1, 500 ms) when an offer lands.</li>
+        <li>Cards: the existing stagger (60 ms each, up to 6) on first load only.</li>
+        <li>Chip switch in Ideas and Jobs for you: cards cross-fade 250 ms (motion.ui).</li>
+        <li>No moving hero on Home (design card rule 8).</li>
+      </ul></div>
+      <div class="note"><h3>What gets quieter</h3><ul>
+        <li>One hero per screen, not three tinted cards in a row.</li>
+        <li>No helper text under every heading; the chips and cards say it.</li>
+        <li>No second copy of the same jobs or the same ideas.</li>
+        <li>Section gaps stay 32 px (D10) but there are half as many sections.</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="block" id="features">
+    <h2>3. Every feature on today's five tabs, and where it lives now</h2>
+    <p class="sub">Taps are counted from the tab's own screen (0 = visible there, before or after scrolling). Nothing is removed; "merged" means two things that showed the same data now show it once. Same table in FEATURES.md.</p>
+    <div class="tw"><table class="t" id="ftable"></table></div>
+  </section>
+
+  <section class="block" id="questions">
+    <h2>Open questions for you</h2>
+    <ol class="qs" id="qlist"></ol>
+    <p class="sub" style="margin-top:12px">Build order (small, look-only PRs) is in PLAN.md beside this page.</p>
+  </section>
+</div>
+
+<script type="application/json" id="featuresData">
+[
+["Header (every tab)","taskdrop. wordmark, back to Home","Top left","Same","0","0",""],
+["Header (every tab)","Hire / Earn switch","Top left","Same","0","0",""],
+["Header (every tab)","Notifications, with unread count","Bell","Same","1","1",""],
+["Header (every tab)","Messages, with unread count","Chat icon","Same","1","1",""],
+["Header (every tab)","Account menu (View profile, Saved tasks, Balance, Bank & UPI, How fees work, My complaints, Account & settings, Help & support, Ideas & feedback, Send feedback, Sign out)","Your face, opens a drawer","Same (question 2)","1","1","Every row also on Profile or Wallet"],
+["Header (every tab)","Sign in pill (guests)","Top right","Same","0","0",""],
+["Header (every tab)","Android app banner and Staging line (web)","Above the header","Same","0","0",""],
+["Hire Home","Your area and the location sheet","Area bar, own row","Area row, with the live count beside it","1","1",""],
+["Hire Home","Pulse: done near you today, helpers active now","Own green row","Live pill in the area row","0","0","Merged"],
+["Hire Home","Just posted strip; tap for the full list; tap a title to post one like it","Strip under the area","Slim ticker under the area; full list in the live sheet","0","0",""],
+["Hire Home","Ask box: What do you need done?, Post","Hero","Hero","0","0",""],
+["Hire Home","Day chips Today, In 2 days, This week","Hero","Hero","0","0",""],
+["Hire Home","How TaskDrop works (?)","Hero corner","Hero corner","1","1",""],
+["Hire Home","Why hiring through TaskDrop is safer (held money, milestones, report a problem, going offline is risky)","Full section","One line in the hero, opens the same text in a sheet","0","1","Moved one tap deeper"],
+["Hire Home","Your published tasks, with next step, and Manage","Card rail, 4th section","Needs you now card (top 2) + All in My tasks","0","0","Higher up"],
+["Hire Home","Helpers near you map card + Helpers near you / Full map (row H)","Under the hero","Under Needs you now","0","0",""],
+["Hire Home","Only on TaskDrop: Find it for me, Plan a big day, Many hands, Get opinions, Price check","Section","Same, first in the Ideas area","0","0",""],
+["Hire Home","Quick templates (12 category chips, 20 templates)","Own section","Ideas block, chip Quick templates; all of them in Explore list, Ideas","0","1","Merged into one block"],
+["Hire Home","Idea templates for you (18 poster ideas, 6 groups)","Own section","Ideas block: For you shows 4, each group is a chip","0","0 to 1","Merged into one block"],
+["Hire Home","Ideas for you to manage your tasks (9 tiles)","Own section","Ideas block, chip Everyday","0","1","5 of 9 were also templates"],
+["Hire Home","See all ideas","—","Ideas block link to Explore list, Ideas","—","1","New link"],
+["Hire Home","Busy on TaskDrop (category, open count, average price; tap to post)","Own section","Live sheet from the active-now pill; also Explore list, Busy now","0","1","Moved one tap deeper"],
+["Hire Home","Suggest a feature card (vote, Suggest an idea)","Bottom of Home","Profile, Ideas & feedback; also the account menu","0","2","Moved to Profile"],
+["Hire Home","Services near you (gig cards, hire)","Bottom of Home","Bottom of Home, same rail","0","0",""],
+["Hire Home","Drop button + (Post a request)","Floating","Floating","1","1",""],
+["Hire Home","Search helpers and services (desktop header, results list)","Desktop header","Same","0","0",""],
+["Earn Home","Your area, jobs near you","Area bar","Area row with live count","1","1",""],
+["Earn Home","Level card: level, progress to next, jobs on the go","Hero","Hero","0","0",""],
+["Earn Home","How TaskDrop works (?)","Hero corner","Hero corner","1","1",""],
+["Earn Home","Search jobs pill (opens Find work search)","Under the hero","Inside the hero","1","1",""],
+["Earn Home","Jobs near you map card + Jobs near you / Remote work / Full map","Under search","Under Needs you now","0","0",""],
+["Earn Home","Needs you now (start a job, send proof)","Only on My work","Also on Home, top 2","1","0","Added to Home, same data"],
+["Earn Home","Matches your skills + Edit skills","Section","Jobs for you, chip For you; Edit skills link","0","0","Merged into one list"],
+["Earn Home","Jobs near your area + radius 3 / 10 / 25 / 50 km","Section","Jobs for you, chip Near you","0","1","Merged into one list"],
+["Earn Home","Remote & online","Section","Jobs for you, chip Remote","0","1","Merged into one list"],
+["Earn Home","Needed today (Urgent)","Section","Jobs for you, chip Today, with count","0","1","Merged into one list"],
+["Earn Home","Show N more, See every open job","Under each list","See all N jobs, opens the Find work list","1","1",""],
+["Earn Home","Your pay is protected (held first, paid on approval, milestones, offline is risky)","Full section","One line in the hero, opens the same text in a sheet","0","1","Moved one tap deeper"],
+["Earn Home","Idea templates for you (6 ways to earn + Add a skill)","Section of cards","Ways to earn rail","0","0",""],
+["Earn Home","Apply / offer sheet, Save a job","On job cards","On job cards","1","1",""],
+["Earn Home","Suggest a feature card","Bottom","Profile, Ideas & feedback","0","2","Moved to Profile"],
+["Earn Home","Drop button + (Offer a service)","Floating","Floating","1","1",""],
+["Earn Home","Desktop rail: level card, On the go, How it works","Desktop rail","Desktop rail","0","0",""],
+["Explore / Find work","Full map: helpers, tasks, My people layer, You marker, clusters","Tab opens on the map","Same, with the common header row 1 over the map","0","0",""],
+["Explore / Find work","Location sheet, look at another place","Map","Same","1","1",""],
+["Explore / Find work","Map / List switch","Floating button","Header row 2, right","1","1",""],
+["Explore (Hire list)","Near you (helpers, tasks, services nearby, Full map)","List","List","1","1",""],
+["Explore (Hire list)","Ideas & templates search, Ideas / Busy now tabs","List","List; Ideas also holds all Home ideas","1","1",""],
+["Explore (Hire list)","Post again, Start from a template + tags, People often ask for + Shuffle, How TaskDrop works","List, Ideas tab","Same","1","1",""],
+["Find work (Earn list)","Search, Filters sheet (nearby or remote, distance, price, Auto-hire, counter offers, due in 24 h, show first), filter chips with x","List","Same","1","1",""],
+["Find work (Earn list)","Jobs / Busy now / How it works tabs","List","Same","1","1",""],
+["My tasks","Your tasks at a glance (Active, To review, Completed)","Green card","Counts in the tabs and the live line under the title","0","0","Merged"],
+["My tasks","Needs you now","Under the summary","Top of the list","0","0",""],
+["My tasks","Turn on alerts card","When something is posted","Same","0","0",""],
+["My tasks","Search tasks, category…","Search box","Magnifier in the title row opens the same box","0","1","Same placeholder (e2e)"],
+["My tasks","Needs providers filter","Pill","Chip in the filter row","0","0",""],
+["My tasks","Drafts: continue, delete","List of drafts","Drafts · N row, opens the list","0","1",""],
+["My tasks","Open / In progress / Completed / Closed tabs with counts","Pills","Same, sticky","0","0",""],
+["My tasks","Card: Choose an offer, Pay to start, Track, Review the work, Book again, Leave a review, Post again, Close, Top up","On the card","On the card (one main button, the rest as before)","0","0",""],
+["My tasks","Task options menu: View details, Create similar, Top up, Close task","⋯ on the card","Same","1","1",""],
+["My tasks","Top up sheet, Close confirm, Delete draft confirm","Sheets","Same","1","1",""],
+["My tasks","Post a request (desktop header button)","Desktop","Title row on every size","1","1",""],
+["My work","Earned, Completed, Active, Success tiles","Four tiles","One stat line under the title; tap for My earnings and jobs","0","0","Merged"],
+["My work","Account card (guests), alerts card, Needs you now","Top","Same","0","0",""],
+["My work","Active / Offers / Closed / Saved / My services tabs","Pills","Same","0","0",""],
+["My work","Card: Swipe to start, Finish and send proof, Open job, Edit offer","On the card","On the card","0","0",""],
+["My work","Offer a service","Desktop header","Title row","1","1",""],
+["Wallet","Balance, Add money, Withdraw (min, UPI), held money, withdrawals on the way","Wallet","Same, under the common header","0","0","Plan B changes come separately"],
+["Wallet","Earnings / Spending, periods, Spending insights, Transactions","Wallet","Same","0","0",""],
+["Wallet","Bring a friend (invite code), How fees work","Wallet","Same; How fees work also in the title row","0","0",""],
+["Profile","Your profile, See as others, reviews (See all)","Profile","Same, See as others in the title row","0","0",""],
+["Profile","Finish your profile checklist (photo, area, a line about you, skills)","Profile","Same","0","0",""],
+["Profile","Getting things done / Earning money / Looking around","Profile","Same","0","0",""],
+["Profile","Edit my profile, Saved tasks, My regulars (hire again), Streaks and badges, Promote a request or service, My earnings and jobs, Work for you, My complaints, Help & support, Ideas & feedback, Account & settings, Terms, Privacy, Sign out","Profile list","Same; Ideas & feedback now also shows the vote card","1","1",""]
+]
+</script>
+
+<script>
+(function(){
+const P={
+ home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+ map:'<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>',
+ list:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/>',
+ wallet:'<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+ bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
+ chat:'<path d="M4 5h16v11H9l-5 4z"/>',
+ search:'<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>',
+ pin:'<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ chev:'<path d="M9 6l6 6-6 6"/>',
+ down:'<path d="M6 9l6 6 6-6"/>',
+ shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+ star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+ check:'<path d="M5 12l5 5 9-10"/>',
+ clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/>',
+ sparkle:'<path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>',
+ bolt:'<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>',
+ globe:'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c3 3 3 14 0 17M12 3.5c-3 3-3 14 0 17"/>',
+ dots:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+ filter:'<path d="M4 6h16M7 12h10M10 18h4"/>',
+ users:'<circle cx="9" cy="9" r="3.2"/><path d="M3 20c.8-3.4 3-5 6-5s5.2 1.6 6 5"/><circle cx="17" cy="8" r="2.6"/><path d="M16 14c2.6 0 4.3 1.6 5 4.5"/>',
+ cal:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4M9 15l2 2 4-4"/>',
+ tag:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8" r="1.4"/>',
+ camera:'<rect x="3" y="7" width="18" height="13" rx="2.5"/><circle cx="12" cy="13.5" r="3.5"/><path d="M9 7l1.5-3h3L15 7"/>',
+ wrench:'<path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3z"/><path d="M14.5 6.5L17 4"/>',
+ heart:'<path d="M12 20s-8-4.6-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.4 12 20 12 20z"/>',
+ eye:'<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+ brief:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2M3 12h18"/>',
+ trend:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+ send:'<path d="M21 3L10 14M21 3l-7 18-4-7-7-4z"/>',
+ home2:'<path d="M4 11l8-6 8 6v9H4z"/>',
+ compass:'<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+ help:'<circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/>',
+ refresh:'<path d="M20 12a8 8 0 1 1-2.3-5.6L20 9M20 4v5h-5"/>',
+ card:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/>',
+ phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/>'
+};
+const ic=(n,s)=>`<svg class="i" viewBox="0 0 24 24" ${s?`style="width:${s}px;height:${s}px"`:''}>${P[n]||''}</svg>`;
+const FACE={Ravi:'#C2410C',Anjali:'#7C3AED',Suresh:'#0369A1',Priya:'#BE185D',Lakshmi:'#4D7C0F',Farhan:'#0F766E',Meena:'#B45309',Arjun:'#1D4ED8',Kavya:'#9D174D'};
+const av=(n,cls='',live=false)=>`<span class="av ${cls}" style="background:${FACE[n]||'#555'}">${n[0]}${live?'<span class="dot"></span>':''}</span>`;
+const $=id=>document.getElementById(id);
+
+/* ---------- shared phone parts ---------- */
+const sb=()=>`<div class="sb"><span class="num">9:41</span><span style="font-size:12px">▂▄▆ ᯤ ▮</span></div>`;
+const header=(m)=>`<div class="ah"><span class="wm">taskdrop<i>.</i></span><span class="ms"><b class="${m==='hire'?'on':''}">Hire</b><b class="${m==='earn'?'on':''}">Earn</b></span><span class="sp"></span><span class="ib">${ic('bell')}<span class="bd">2</span></span><span class="ib">${ic('chat')}<span class="bd">1</span></span>${av('Priya')}</div>`;
+const title=(t,live,act)=>`<div class="tt"><div style="flex:1;min-width:0"><h2>${t}</h2><div class="ls">${live}</div></div>${act||''}</div>`;
+const tabbar=(m,on)=>{const tabs=[['home','Home'],['map',m==='earn'?'Find work':'Explore'],['list',m==='earn'?'My Work':'My Tasks'],['wallet','Wallet'],['user','Profile']];
+ return `<div class="tabbar">${tabs.map((x,i)=>`<div class="${i===on?'on':''}"><span class="ic">${ic(x[0],20)}</span>${x[1]}${i===2?'<span class="bd">2</span>':''}</div>`).join('')}</div>`};
+const fab=()=>`<div class="fab">${ic('plus',24)}</div>`;
+const phone=(m,on,body,withFab)=>sb()+`<div class="scroll">${body}<div style="height:28px"></div></div>`+(withFab?fab():'')+tabbar(m,on);
+const mapSvg=(m)=>{const pts=[[60,40],[120,82],[178,52],[240,96],[300,44],[210,30],[90,100],[330,88],[150,22]];
+ return `<svg viewBox="0 0 350 132" preserveAspectRatio="none"><path d="M0 70 Q90 50 170 80 T350 60" stroke="var(--line)" stroke-width="9" fill="none"/><path d="M120 0 L150 132 M260 0 L230 132" stroke="var(--line)" stroke-width="6" fill="none"/>
+ <circle cx="175" cy="70" r="46" fill="var(--acc)" opacity=".10"/><circle cx="175" cy="70" r="7" fill="var(--accDeep)" stroke="#fff" stroke-width="3"/>
+ ${pts.map((p,i)=>m==='earn'?`<rect x="${p[0]-17}" y="${p[1]-10}" width="34" height="19" rx="9.5" fill="var(--surface)" stroke="var(--acc)" stroke-width="1.5"/><text x="${p[0]}" y="${p[1]+4}" font-size="9.5" font-weight="800" text-anchor="middle" fill="var(--ink)" font-family="Plus Jakarta Sans">₹${[450,800,1.2,650,300,2.5,550,900,700][i]>10?[450,800,1.2,650,300,2.5,550,900,700][i]:[450,800,1.2,650,300,2.5,550,900,700][i]+'k'}</text>`:`<circle cx="${p[0]}" cy="${p[1]}" r="11" fill="${Object.values(FACE)[i]}" stroke="#fff" stroke-width="2.5"/>${i%3===0?`<circle cx="${p[0]+8}" cy="${p[1]+8}" r="4" fill="var(--online)" stroke="#fff" stroke-width="1.5"/>`:''}`).join('')}</svg>`};
+
+/* ---------- Hire Home ---------- */
+const ticker=`<div class="ticker"><span class="lb"><span class="live"></span>JUST POSTED</span><div class="tr"><div>${['Find a tailor who can stitch a blazer in 3 days · <b>₹450</b>','Maths tuition for class 8 (3 days a week) · <b>₹5,700</b>','Write 5 blog posts about home loans · <b>₹3,850</b>','Cook lunch for a small house party (8 people) · <b>₹3,300</b>','Find the cheapest cylinder refill near Kondapur · <b>₹300</b>'].concat(['Find a tailor who can stitch a blazer in 3 days · <b>₹450</b>','Maths tuition for class 8 (3 days a week) · <b>₹5,700</b>','Write 5 blog posts about home loans · <b>₹3,850</b>','Cook lunch for a small house party (8 people) · <b>₹3,300</b>','Find the cheapest cylinder refill near Kondapur · <b>₹300</b>']).map(x=>`<span>${x}</span>`).join('')}</div></div></div>`;
+const area=(m)=>`<div class="area"><span class="pl">${ic('pin',17)}<span>Kondapur, Hyderabad</span>${ic('down',15)}</span><span class="livepill"><span class="live"></span><span class="num">${m==='earn'?'23 open near you':'12 active now'}</span></span></div>`;
+const heroHire=`<div class="hero"><span class="hq">?</span><h3>What do you need done?</h3><div class="tag">Ask for anything. Someone gets it done for you.</div>
+<div class="ask"><span>Tap to type it your way: clean my kitchen</span><span class="btnp">Post ${ic('chev',14)}</span></div>
+<div class="chips"><span class="chip">Today</span><span class="chip">In 2 days</span><span class="chip">This week</span></div>
+<div class="trust">${ic('shield',16)}<span>Your money is held until you approve</span><b>Why it's safer ›</b></div></div>`;
+const needs=(m)=>m==='earn'
+ ?`<div class="sec px"><div class="sh"><h4>Needs you now</h4><span class="a">All in My work ›</span></div><div class="card" style="margin-top:10px">
+ <div class="need">${av('Priya','s',true)}<div class="w"><b>Deliver documents to Madhapur</b><small>Priya picked you · today by 5 pm</small></div><span class="btnp" style="padding:7px 11px">Swipe to start</span></div>
+ <div class="need">${av('Meena','s')}<div class="w"><b>Edit a 30-second reel for my bakery</b><small>Remote · send proof by Thu</small></div><span class="btno" style="padding:6px 10px">Send proof</span></div></div></div>`
+ :`<div class="sec px"><div class="sh"><h4>Needs you now</h4><span class="a">All 5 in My tasks ›</span></div><div class="card" style="margin-top:10px">
+ <div class="need"><span class="faces">${av('Ravi','xs')}${av('Anjali','xs')}${av('Suresh','xs')}</span><div class="w"><b>Deep clean my 2BHK before Diwali</b><small><span class="num">3 offers · from ₹1,500</span></small></div><span class="fresh pop" style="margin-right:-4px">1 new</span><div style="display:none"></div><span class="btnp" style="padding:7px 11px">Choose</span></div>
+ <div class="need">${av('Anjali','s',true)}<div class="w"><b>Logo for my bakery</b><small>Anjali sent the work · remote</small></div><span class="btnp" style="padding:7px 11px">Review</span></div></div></div>`;
+const mapCard=(m)=>`<div class="sec px"><div class="card"><div class="map">${mapSvg(m)}</div><div class="mapfoot"><div class="w"><b class="num">${m==='earn'?'23 jobs within 5 km':'18 helpers within 5 km'}</b>${m==='earn'?'plus 96 remote jobs you can do from anywhere':'6 active now · people online can send offers too'}</div><span class="btno" style="padding:7px 12px">${ic('map',15)} Open the map</span></div></div>
+<div class="sc">${m==='earn'?`<span class="pill">${ic('pin',14)} Jobs near you</span><span class="pill">${ic('globe',14)} Remote work</span><span class="pill">${ic('map',14)} Full map</span>`:`<span class="pill">${ic('users',14)} Helpers near you</span><span class="pill">${ic('map',14)} Full map</span>`}</div></div>`;
+const only=`<div class="sec px"><div class="sh"><h4>Only on TaskDrop</h4><span class="idtag">IDEAS</span></div><div class="only">
+<div><span class="new">NEW</span><i style="background:var(--goldSoft);color:var(--goldInk)">${ic('search',24)}</i>Find it<br>for me</div>
+<div><i style="background:var(--acc)">${ic('cal',24)}</i>Plan a<br>big day</div>
+<div><i style="background:#4A90D9">${ic('users',24)}</i>Many<br>hands</div>
+<div><i style="background:var(--signal)">${ic('chat',24)}</i>Get<br>opinions</div>
+<div><i style="background:#2F5BEA">${ic('tag',24)}</i>Price<br>check</div></div></div>`;
+const ideaCard=(i,t,p,pr)=>`<div class="idea"><span class="ic">${ic(i,17)}</span><b>${t}</b><small>${p}</small><em class="num">${pr}</em></div>`;
+const ideas=`<div class="sec px"><div class="sh"><h4>Ideas to post</h4><span class="a">See all ›</span></div>
+<div class="sc" style="margin-top:10px"><span class="pill on">For you</span><span class="pill">Money back</span><span class="pill">Be there for me</span><span class="pill">Before I buy</span><span class="pill">Quick templates</span><span class="pill">Everyday</span></div>
+<div class="grid2">${ideaCard('wallet','Get my PF out','PF claim stuck? Someone fixes it and follows up.','₹800+')}${ideaCard('eye','Watch my plot','Monthly photos of your plot, and alerts.','₹500 a month')}${ideaCard('phone','Make a call for me','What was said and agreed','Day: Today')}${ideaCard('brief','Hand off a task','A finished piece of your work','Day: In 2 days')}</div>
+<p style="font-size:11.5px;color:var(--muted);margin-top:8px">Just ideas. Tap one and it fills your post; you set the price and pick who does it.</p></div>`;
+const services=`<div class="sec px"><div class="sh"><h4>Services near you</h4><span class="a num">12 offered</span></div><div class="rail">
+<div class="svc"><div class="ph">${ic('camera',30)}</div><div class="bd2"><b>Product photos for Instagram</b><small>${'Lakshmi'} · ★ 4.9 · from <b class="num" style="display:inline;color:var(--ink)">₹1,500</b></small></div></div>
+<div class="svc"><div class="ph">${ic('wrench',30)}</div><div class="bd2"><b>Tap and pipe repairs</b><small>Ravi · ★ 4.8 · from ₹300</small></div></div></div></div>`;
+$('pHire').innerHTML=phone('hire',0,header('hire')+area('hire')+ticker+heroHire+needs('hire')+mapCard('hire')+only+ideas+services,true);
+
+$('pHireSheet').innerHTML=phone('hire',0,`<div style="opacity:.35;pointer-events:none">${header('hire')+area('hire')+ticker+heroHire}</div>`,false)+
+`<div style="position:absolute;left:0;right:0;bottom:0;top:170px;background:var(--surface);border-radius:26px 26px 0 0;box-shadow:0 -10px 30px var(--shadow);padding:10px 20px;overflow:hidden">
+<div style="width:40px;height:5px;border-radius:9px;background:var(--line);margin:0 auto 14px"></div>
+<div class="sh"><h4>Live near Kondapur</h4><span class="a">Close</span></div>
+<div style="display:flex;gap:10px;margin-top:12px"><div class="card" style="flex:1;padding:12px;box-shadow:none"><b class="num" style="font-size:22px;color:var(--ink)">34</b><div style="font-size:12px;color:var(--muted)">done near you today</div></div><div class="card" style="flex:1;padding:12px;box-shadow:none"><b class="num" style="font-size:22px;color:var(--ink);display:flex;align-items:center;gap:8px">12 <span class="live"></span></b><div style="font-size:12px;color:var(--muted)">helpers active now</div></div></div>
+<div class="sh" style="margin-top:18px"><h4 style="font-size:15px">Just posted</h4><span class="a">Tap one to post one like it</span></div>
+${[['Find a tailor who can stitch a blazer in 3 days','₹450','4 min'],['Maths tuition for class 8 (3 days a week)','₹5,700','11 min'],['Write 5 blog posts about home loans · remote','₹3,850','25 min']].map(x=>`<div class="rr"><div class="w"><b>${x[0]}</b><span style="font-size:11.5px;color:var(--muted)">${x[2]} ago</span></div><b class="num" style="color:var(--ink)">${x[1]}</b></div>`).join('')}
+<div class="sh" style="margin-top:14px"><h4 style="font-size:15px">Busy on TaskDrop</h4></div>
+${[['Home Services',48,'~₹1,881',100],['Repairs & Maintenance',46,'~₹1,256',95],['Errands & Delivery',32,'~₹484',66],['Local Checks & Info',23,'~₹435',48]].map(x=>`<div class="rr"><div class="w"><b>${x[0]}</b><div class="gb"><i style="width:${x[3]}%"></i></div></div><span class="num" style="font-size:12px;color:var(--muted)">${x[1]} open · ${x[2]}</span></div>`).join('')}
+</div>`;
+
+/* ---------- Earn Home ---------- */
+const heroEarn=`<div class="hero"><span class="hq">?</span><div style="font-size:12px;font-weight:700;opacity:.9">Find your next job</div>
+<div class="lvl"><div style="flex:1"><div style="font-size:26px;font-weight:800;letter-spacing:-.7px">Starter</div><div class="bar"><i></i></div><div style="font-size:12px;margin-top:7px;opacity:.92">5 jobs + ★ 4 to Trusted</div></div><div style="text-align:center;min-width:64px"><div class="num" style="font-size:30px;font-weight:800">1</div><div style="font-size:11.5px;font-weight:600;opacity:.9">on the go</div></div></div>
+<div class="ask">${ic('search',17)}<span>Search jobs: data entry, logo, tutoring…</span><span class="btnp" style="width:38px;height:38px;padding:0;border-radius:999px">${ic('search',16)}</span></div>
+<div class="trust">${ic('shield',16)}<span>Your pay is protected: held before you start</span><b>How ›</b></div></div>`;
+const job=(t,where,who,price,extra='')=>`<div class="card job"><div class="h">${ic(where==='Remote'?'globe':'pin',13)}<span>${where}</span>${extra}<span style="flex:1"></span>${ic('star',15)}</div><b class="t2">${t}</b><div style="font-size:12px;color:var(--muted);margin-top:3px">${who}</div><div class="f"><span class="pr num">${price}</span><span class="btnp">Apply</span></div></div>`;
+const jobsFor=(chip)=>`<div class="sec px"><div class="sh"><h4>Jobs for you</h4><span class="a">Edit skills</span></div>
+<div class="sc" style="margin-top:10px"><span class="pill ${chip==='you'?'on':''}">For you</span><span class="pill ${chip==='near'?'on':''}">Near you</span><span class="pill">Remote</span><span class="pill">Today <span class="n num">3</span></span></div>
+${chip==='near'?`<div class="seg" style="margin-top:10px;width:max-content"><b>3 km</b><b class="on">10 km</b><b>25 km</b><b>50 km</b></div>`:`<div style="font-size:12px;color:var(--muted);margin-top:8px">Photo &amp; Video · Errands · Data entry</div>`}
+${chip==='near'
+ ?job('Help shift a 1BHK on Saturday','Nearby · Gachibowli · 3.2 km','by Arjun · ★ 4.7 · Active now','₹2,200')+job('Queue for me at the passport office','Nearby · Kondapur · 1.1 km','by Kavya · ★ 4.9','₹600','<span class="urg">URGENT</span>')+job('Check this flat before I rent it','Nearby · Madhapur · 4.6 km','by Farhan · new poster','₹800')
+ :job('Shoot product photos for my saree shop','Nearby · Kondapur · 2 km','by Lakshmi · ★ 5.0 · Active now','₹1,500')+job('Edit a 30-second reel with captions','Remote','by Meena · ★ 4.8','₹900')+job('Fill my college options for counselling','Remote','by Arjun · ★ 4.7','₹800','<span class="urg">TODAY</span>')}
+<div style="text-align:center;margin-top:14px"><span class="btno">See all 142 open jobs ›</span></div></div>`;
+const ways=`<div class="sec px"><div class="sh"><h4>Ways to earn</h4><span class="idtag">IDEAS</span></div><div class="rail">
+${[['camera','Shoot product photos','₹1,500+'],['wallet','Chase a stuck claim','₹800+'],['heart','Hospital runner','₹1,500 a day']].map(x=>`<div class="idea" style="flex:0 0 150px">${`<span class="ic">${ic(x[0],17)}</span>`}<b>${x[1]}</b><em class="num">${x[2]}</em></div>`).join('')}
+<div class="idea" style="flex:0 0 150px;border-style:dashed"><span class="ic">${ic('star',17)}</span><b>Add a skill</b><small>See jobs that match</small></div></div></div>`;
+$('pEarn').innerHTML=phone('earn',0,header('earn')+area('earn')+heroEarn+needs('earn')+mapCard('earn')+jobsFor('you')+ways,true);
+$('pEarnNear').innerHTML=phone('earn',0,header('earn')+jobsFor('near')+ways,true);
+
+/* ---------- before columns ---------- */
+const before=(rows,label,h)=>`<h3>Today (${label})</h3><p>${h}</p>`+rows.map(r=>`<div class="bk ${r[1]}"><span>${r[0]}</span><span>${r[2]||''}</span></div>`).join('')+`<p style="margin-top:8px"><span class="moved">moved</span> = one tap deeper or another tab. Green = merged into a block above.</p>`;
+$('beforeHire').innerHTML=before([
+ ['Area bar','',''],['Pulse line (2 numbers)','m','→ area row'],['Just posted strip','',''],['Ask box hero','',''],['Helpers near you map','',''],['Only on TaskDrop','',''],['Your published tasks','m','→ Needs you now'],['Why hiring is safer','x','→ hero line'],['Quick templates (20)','m','→ Ideas'],['Idea templates (18)','m','→ Ideas'],['Manage ideas (9)','m','→ Ideas'],['Busy on TaskDrop','x','→ live sheet'],['Suggest a feature','x','→ Profile'],['Services near you','','']
+],'Hire','14 blocks, about 5.8 screens for a guest.');
+$('beforeEarn').innerHTML=before([
+ ['Area bar','',''],['Level card','m','→ hero'],['Search pill','m','→ hero'],['Jobs near you map','',''],['Matches your skills','m','→ Jobs for you'],['Jobs near area + radius','m','→ chip'],['Your pay is protected','x','→ hero line'],['Remote & online','m','→ chip'],['Needed today','m','→ chip'],['Idea templates (6 + skill)','',''],['See every open job','',''],['Suggest a feature','x','→ Profile']
+],'Earn','12 blocks, about 5.5 screens; the same jobs showed in 2 or 3 lists.');
+
+/* ---------- tab headers ---------- */
+const H=[
+ ['hire','Home (Hire)',header('hire')+area('hire')],
+ ['earn','Home (Earn)',header('earn')+area('earn')],
+ ['hire','Explore (Hire)',header('hire')+title('Explore','<span class="live"></span><span class="num">18 helpers and 132 tasks around Kondapur</span>','<span class="seg"><b class="on">Map</b><b>List</b></span>')],
+ ['earn','Find work (Earn)',header('earn')+title('Find work','<span class="num">142 open · 23 near you · 96 remote</span>','<span class="seg"><b class="on">Map</b><b>List</b></span>')],
+ ['hire','My tasks (Hire)',header('hire')+title('My tasks','<span class="num">2 need you · 5 active · 7 done</span>',`<span class="ib">${ic('search')}</span><span class="btnp">${ic('plus',15)} Post</span>`)],
+ ['earn','My work (Earn)',header('earn')+title('My work','<span class="num">₹18,400 earned · 12 done · 1 active · 96%</span>',`<span class="btnp">${ic('plus',15)} Offer a service</span>`)],
+ ['hire','Wallet',header('hire')+title('Wallet','<span class="num">₹3,700 held safely in 2 tasks</span>','<span class="btno">How fees work</span>')],
+ ['hire','Profile',header('hire')+title('Profile','@priya · Kondapur · ★ 4.9','<span class="btno">See as others</span>')]
+];
+$('heads2').innerHTML=H.map(h=>`<div class="hstrip ${h[0]}"><div class="lab">${h[1]}</div>${h[2]}<div style="height:10px"></div></div>`).join('');
+
+/* ---------- task cards ---------- */
+const track=(n)=>`<div class="track">${[0,1,2,3,4].map(i=>`<i class="${i<n?'d':i===n?'n':''}"></i>`).join('')}</div><div class="tl"><span>Posted</span><span>Offers</span><span>Hired</span><span>Working</span><span>Done</span></div>`;
+const tcard=(o)=>`<div class="tc ${o.dim?'dim':''}"><div class="r1"><span class="st ${o.tone}"><i></i>${o.status}</span><span class="meta">${o.meta}</span><span class="dots">${ic('dots')}</span></div>
+<h5>${o.title}</h5>
+<div class="who">${o.face}<div class="w">${o.who}</div><div class="money"><b class="num">${o.price}</b><small class="${o.held?'held':''}">${o.held?ic('shield',12):''}${o.priceSub}</small></div></div>
+${o.track!==undefined?track(o.track):''}
+<div class="when">${ic('clock',14)}${o.when}</div>
+${o.hint?`<div class="hint ${o.hintTone||'gold'}">${o.hint}</div>`:''}
+<div class="act">${o.act}</div></div>`;
+const P_STATES=[
+ ['Open, waiting for offers',{tone:'wait',status:'Waiting for offers',meta:'Home Services · Nearby · Kondapur',title:'Watch my plot in Shamshabad, monthly photos',face:`<span class="av s" style="background:var(--surface2);color:var(--muted)">${ic('users',15)}</span>`,who:'<b>No offers yet</b>Helpers nearby and online can see it',price:'₹500',priceSub:'your price · a month',track:1,when:'Posted <b>2 h ago</b> · due <b>Sun 30 Nov</b>',act:`<span class="btno">Open task</span><span class="btnq">Top up</span>`}],
+ ['Offers in',{tone:'acc',status:'3 offers in',meta:'Home Services · Nearby · Kondapur',title:'Deep clean my 2BHK before Diwali',face:`<span class="faces">${av('Ravi','xs',true)}${av('Anjali','xs')}${av('Suresh','xs')}</span>`,who:'<b>Ravi, Anjali, Suresh</b>from ₹1,500 · <span class="fresh pop">1 new</span>',price:'₹1,800',priceSub:'your price',track:1,when:'Posted <b>yesterday</b> · due <b>Sat 29 Nov</b>',act:`<span class="btnp">Choose an offer (3)</span>`}],
+ ['Hired, pay to start (same card, other words)',{tone:'gold',status:'Pay to start',meta:'Errands & Delivery · Nearby',title:'Queue for me at the RTO, Kondapur',face:av('Farhan','s',true),who:'<b>Farhan · ★ 4.6</b>Active now',price:'₹600',priceSub:'not paid yet',track:2,when:'Hired <b>today 9:10</b> · due <b>tomorrow</b>',hint:'Farhan starts once you pay. TaskDrop holds the money until you approve.',hintTone:'acc',act:`<span class="btnp">Pay to start</span>`}],
+ ['Ongoing',{tone:'acc',status:'Working',meta:'Repairs & Maintenance · Nearby',title:'Fix the leaking kitchen tap',face:av('Ravi','s',true),who:'<b>Ravi Kumar · ★ 4.8</b>Active now',price:'₹650',held:1,priceSub:'held safely',track:3,when:'Started <b>today 10:30</b> · due <b>today 6 pm</b>',act:`<span class="btno">Track work</span>`}],
+ ['Waiting for your approval',{tone:'gold',status:'Review the work',meta:'Design & Creative · Remote',title:'Logo for my bakery, Meena’s Oven',face:av('Anjali','s',true),who:'<b>Anjali Rao · ★ 4.9</b>sent the work 3 h ago',price:'₹2,500',held:1,priceSub:'held safely',track:4,when:'Approve or report by <b>Thu 27 Nov</b>',hint:'If you say nothing for 3 days, it completes and Anjali is paid.',act:`<span class="btnp">Review the work</span>`}],
+ ['Done',{tone:'acc',status:'✓ Done',meta:'Photo & Video · Remote',title:'Edit my raw footage into a 30-second reel',face:av('Suresh','s'),who:'<b>Suresh · ★ 5.0</b>Approved Sat 22 Nov',price:'₹900',priceSub:'paid',track:5,when:'Finished <b>Sat 22 Nov</b>',act:`<span class="btnp">Book again</span><span class="btnq">Leave a review</span>`}],
+ ['Cancelled / closed',{dim:1,tone:'mut',status:'Closed',meta:'Shopping & Sourcing · Nearby',title:'Find a cricket kit under ₹3,000',face:`<span class="av s" style="background:var(--surface2);color:var(--muted)">${ic('tag',15)}</span>`,who:'<b>Closed before anyone was hired</b>Nothing was charged',price:'₹350',priceSub:'your price',when:'Closed <b>Fri 21 Nov</b>',act:`<span class="btno">Post again</span>`}]
+];
+const W_STATES=[
+ ['Offer sent',{tone:'wait',status:'Offer sent',meta:'Errands · Nearby · Madhapur',title:'Stand in the queue for me at the passport office',face:`<span class="av s" style="background:var(--surface2);color:var(--muted)">${ic('user',15)}</span>`,who:'<b>Customer shown when the job starts</b>sent 2 h ago',price:'₹1,080',priceSub:'you earn, after 10% fee',when:'Due <b>Fri 28 Nov</b>',hint:'Waiting for the customer',hintTone:'mut',act:`<span class="btno">Edit offer</span>`}],
+ ['Picked, start it',{tone:'acc',status:'You’re picked',meta:'Errands & Delivery · Nearby',title:'Deliver documents to Madhapur',face:av('Priya','s',true),who:'<b>Priya S. · ★ 4.9</b>Active now · Kondapur',price:'₹540',held:1,priceSub:'held until approval',when:'Today by <b>5 pm</b>',act:`<span class="swipe"><i>›</i>Swipe to start</span>`}],
+ ['Ongoing',{tone:'acc',status:'Working',meta:'Photo & Video · Remote',title:'Edit a 30-second reel for my bakery',face:av('Meena','s'),who:'<b>Meena · ★ 4.8</b>Remote',price:'₹810',held:1,priceSub:'held until approval',when:'Timer running · send by <b>Thu 27 Nov</b>',act:`<span class="btnp">Finish and send proof</span>`}],
+ ['Waiting for approval',{tone:'gold',status:'Waiting for approval',meta:'Design & Creative · Remote',title:'Logo for a bakery, Meena’s Oven',face:av('Kavya','s'),who:'<b>Kavya · ★ 4.7</b>proof sent today',price:'₹2,250',held:1,priceSub:'held until approval',when:'Completes by itself <b>Thu 27 Nov</b>',act:`<span class="btno">Open job</span>`}],
+ ['Done',{tone:'acc',status:'✓ Paid',meta:'Home Services · Nearby',title:'Deep clean a 2BHK in Kondapur',face:av('Arjun','s'),who:'<b>Arjun · ★ 4.7</b>approved Sat 22 Nov',price:'₹1,620',priceSub:'earned · clears 28 Nov',when:'Finished <b>Sat 22 Nov</b>',act:`<span class="btno">Open job</span>`}],
+ ['Cancelled / not picked',{dim:1,tone:'mut',status:'Not picked',meta:'Tutoring · Remote',title:'Maths tuition for class 8 (3 days a week)',face:`<span class="av s" style="background:var(--surface2);color:var(--muted)">${ic('user',15)}</span>`,who:'<b>The customer picked someone else</b>Closed Fri 21 Nov',price:'₹5,130',priceSub:'your offer, after fee',when:'Closed <b>Fri 21 Nov</b>',act:`<span class="btno">Open job</span>`}]
+];
+$('posterStates').innerHTML=`<div class="lbl" style="grid-column:1/-1;font-size:13px;color:var(--ink)">My tasks (Hire, jade): every state</div>`+P_STATES.map(s=>`<div><div class="lbl">${s[0]}</div>${tcard(s[1])}</div>`).join('');
+$('workerStates').innerHTML=`<div class="lbl" style="grid-column:1/-1;font-size:13px;color:var(--ink);margin-top:30px">My work (Earn, royal blue): every state</div>`+W_STATES.map(s=>`<div><div class="lbl">${s[0]}</div>${tcard(s[1])}</div>`).join('');
+
+$('pTasks').innerHTML=phone('hire',2,header('hire')+title('My tasks','<span class="num">2 need you · 5 active · 7 done</span>',`<span class="ib">${ic('search')}</span><span class="btnp">${ic('plus',15)} Post</span>`)+
+ `<div class="sc px" style="margin-top:0"><span class="pill on">Open <span class="num">2</span></span><span class="pill">In progress <span class="num">3</span></span><span class="pill">Completed 7</span><span class="pill">Closed 1</span></div>
+ <div class="px" style="display:flex;gap:8px;margin-top:10px"><span class="pill">${ic('users',14)} Needs providers <span class="n">1</span></span><span class="pill">Drafts · 1 ›</span></div>
+ <div class="px">${tcard(P_STATES[1][1])}${tcard(P_STATES[0][1])}</div>`,false);
+$('pWork').innerHTML=phone('earn',2,header('earn')+title('My work','<span class="num">₹18,400 earned · 12 done · 1 active · 96%</span>',`<span class="btnp">${ic('plus',15)} Offer a service</span>`)+
+ `<div class="sc px" style="margin-top:0"><span class="pill on">Active 2</span><span class="pill">Offers 3</span><span class="pill">Closed 12</span><span class="pill">Saved 4</span><span class="pill">My services</span></div>
+ <div class="px">${tcard(W_STATES[1][1])}${tcard(W_STATES[2][1])}</div>`,false);
+
+/* ---------- desktop ---------- */
+$('dHome').innerHTML=`<div class="dbar"><i></i><i></i><i></i><span>taskdrop.in</span></div><div class="dbody">
+<div class="side"><div style="display:flex;align-items:center;gap:8px;padding:0 8px 14px"><span class="wm">taskdrop<i>.</i></span></div>
+<div class="ms" style="margin:0 8px 12px;width:max-content"><b class="on">Hire</b><b>Earn</b></div>
+<span class="btnp" style="margin:0 6px 14px">${ic('plus',15)} Post a request</span>
+<div class="it on">${ic('home')}Home</div><div class="it">${ic('map')}Explore</div><div class="it">${ic('list')}My Tasks<span class="bd">2</span></div><div class="it">${ic('wallet')}Wallet</div><div class="it">${ic('user')}Profile</div><hr>
+<div class="it">${ic('chat')}Messages<span class="bd">1</span></div><div class="it">${ic('bell')}Notifications<span class="bd">2</span></div><div class="it">${ic('wrench')}Settings</div><div class="it">${ic('help')}Help &amp; support</div></div>
+<div class="dmain"><div class="dtop"><span class="pl" style="display:flex;align-items:center;gap:6px;font-weight:800;color:var(--ink)">${ic('pin',17)}Kondapur, Hyderabad ${ic('down',15)}</span><span class="dsearch">${ic('search',16)}Search helpers and services</span>${av('Priya')}</div>
+<div class="hero" style="margin:18px 0 0;padding:30px;display:flex;gap:28px;align-items:center"><div style="flex:1"><span class="hq">?</span><h3 style="font-size:34px;letter-spacing:-1px">What do you need done?</h3><div class="tag" style="font-size:14.5px">Ask for anything. Someone gets it done for you.</div>
+<div class="ask"><span>Type it your way: clean my kitchen</span><span class="btnp">Post ${ic('chev',14)}</span></div><div class="chips"><span class="chip">Today</span><span class="chip">In 2 days</span><span class="chip">This week</span></div>
+<div class="trust">${ic('shield',16)}<span>Your money is held until you approve</span><b>Why it's safer ›</b></div></div>
+<div style="width:200px;height:170px;border-radius:24px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;position:relative;z-index:1"><svg viewBox="0 0 24 24" style="width:110px;height:110px;fill:rgba(255,255,255,.9)"><path d="M12 2C9 6.5 5 10.5 5 14.5a7 7 0 0 0 14 0C19 10.5 15 6.5 12 2z"/><path d="M8.8 14.6l2.2 2.2 4.4-4.6" stroke="var(--h2)" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div></div>
+<div class="sec"><div class="sh"><h4>Needs you now</h4><span class="a">All 5 in My tasks ›</span></div><div class="card" style="margin-top:10px;overflow:hidden"><table class="dt">
+<tr><td><span class="st acc"><i></i>3 offers in</span></td><td><b style="color:var(--ink)">Deep clean my 2BHK before Diwali</b><br><small style="color:var(--muted)">Home Services · Nearby · due Sat 29 Nov</small></td><td><span class="faces">${av('Ravi','xs',true)}${av('Anjali','xs')}${av('Suresh','xs')}</span></td><td class="num" style="font-weight:800;color:var(--ink)">₹1,800</td><td style="text-align:right"><span class="btnp">Choose an offer (3)</span></td></tr>
+<tr><td><span class="st gold"><i></i>Review the work</span></td><td><b style="color:var(--ink)">Logo for my bakery, Meena’s Oven</b><br><small style="color:var(--muted)">Design & Creative · Remote · by Thu 27 Nov</small></td><td>${av('Anjali','xs',true)}</td><td class="num" style="font-weight:800;color:var(--ink)">₹2,500</td><td style="text-align:right"><span class="btnp">Review the work</span></td></tr>
+<tr><td><span class="st acc"><i></i>Working</span></td><td><b style="color:var(--ink)">Fix the leaking kitchen tap</b><br><small style="color:var(--muted)">Repairs · Nearby · due today 6 pm</small></td><td>${av('Ravi','xs',true)}</td><td class="num" style="font-weight:800;color:var(--ink)">₹650</td><td style="text-align:right"><span class="btno">Track work</span></td></tr></table></div></div>
+<div class="sec"><div class="sh"><h4>Only on TaskDrop</h4><span class="idtag">IDEAS</span></div><div class="only" style="max-width:560px">${only.split('<div class="only">')[1].split('</div></div>')[0]}</div></div></div>
+<div class="sec"><div class="sh"><h4>Ideas to post</h4><span class="a">See all ›</span></div><div class="sc" style="margin-top:10px"><span class="pill on">For you</span><span class="pill">Money back</span><span class="pill">Earn from it</span><span class="pill">Be there for me</span><span class="pill">Before I buy</span><span class="pill">Grow my business</span><span class="pill">My career</span><span class="pill">Quick templates</span><span class="pill">Everyday</span></div>
+<div class="grid2" style="grid-template-columns:repeat(3,1fr)">${ideaCard('wallet','Get my PF out','PF claim stuck? Someone fixes it and follows up.','₹800+')}${ideaCard('eye','Watch my plot','Monthly photos of your plot, and alerts.','₹500 a month')}${ideaCard('heart','Hospital runner','Billing, insurance desk and medicines.','₹1,500 a day')}${ideaCard('phone','Make a call for me','What was said and agreed','Day: Today')}${ideaCard('brief','Hand off a task','A finished piece of your work','Day: In 2 days')}${ideaCard('globe','Put my shop online','Google Maps, food apps, WhatsApp catalogue.','₹2,000+')}</div></div>
+<div class="sec"><div class="sh"><h4>Services near you</h4><span class="a num">12 offered</span></div><div class="rail">${services.split('<div class="rail">')[1].split('</div></div></div></div>')[0]}</div></div></div></div></div>
+<div class="drail"><div class="card rc"><h4><span class="live"></span>Live near Kondapur</h4><div style="display:flex;gap:16px;margin-top:8px"><div><b class="num" style="font-size:22px;color:var(--ink)">34</b><div style="font-size:12px;color:var(--muted)">done today</div></div><div><b class="num" style="font-size:22px;color:var(--ink)">12</b><div style="font-size:12px;color:var(--muted)">active now</div></div></div></div>
+<div class="card rc"><h4>Just posted</h4>${[['Find a tailor who can stitch a blazer in 3 days','₹450'],['Maths tuition for class 8','₹5,700'],['Write 5 blog posts about home loans','₹3,850'],['Cook lunch for a house party (8 people)','₹3,300']].map(x=>`<div class="rr"><div class="w"><b>${x[0]}</b></div><b class="num" style="color:var(--ink)">${x[1]}</b></div>`).join('')}</div>
+<div class="card rc"><h4>Busy on TaskDrop</h4>${[['Home Services','48 open',100],['Repairs & Maintenance','46 open',95],['Errands & Delivery','32 open',66],['Local Checks & Info','23 open',48]].map(x=>`<div class="rr"><div class="w"><b>${x[0]}</b><div class="gb"><i style="width:${x[2]}%"></i></div></div><span class="num" style="font-size:12px;color:var(--muted)">${x[1]}</span></div>`).join('')}</div>
+<div class="card" style="overflow:hidden"><div class="map">${mapSvg('hire')}</div><div class="mapfoot"><div class="w"><b>18 helpers within 5 km</b>6 active now</div><span class="btno" style="padding:6px 10px">Open the map</span></div></div></div>
+</div>`;
+
+/* ---------- clutter table ---------- */
+const C=[
+ ['Hire Home','Four idea sections in a row (Only on TaskDrop, Quick templates with 12 chips and 20 cards, Idea templates with 6 groups, Manage ideas with 9 tiles). 5 of the 9 tiles are also templates; Get opinions and Price check are both an icon and a template.','Too many entry points, repeats'],
+ ['Hire Home','"Why hiring through TaskDrop is safer" is a full section of 3 cards plus a warning paragraph, in the middle of the page.','Wall of text'],
+ ['Hire Home','Area bar, pulse line and Just posted are three separate rows before the ask box; a guest also sees "Set your location" and later "Set your area to see helpers near you".','Weak hierarchy, location asked twice'],
+ ['Hire Home','"Your published tasks" sits below the map and Only on TaskDrop, so the thing that needs you (offers waiting) is a scroll away.','Weak hierarchy'],
+ ['Hire Home','Every section has a sub-line of helper text ("Just ideas. Tap one and it fills your post…" appears twice).','Wall of text'],
+ ['Hire Home','The live parts (pulse, Just posted, Busy on TaskDrop) are scattered top, top and bottom, so nothing reads as one "live now" place.','Not active'],
+ ['Earn Home','Matches your skills, Jobs near you, Remote & online and Needed today are four lists that show the same jobs (as a guest, the same two test jobs appear in two lists).','Repeats'],
+ ['Earn Home','The location is asked three times as a guest: area bar, the map card and the "Jobs near you: Set your area" card.','Repeats'],
+ ['Earn Home','Level card and search pill are two blocks; the search is under the hero instead of in it.','Weak hierarchy'],
+ ['Earn Home','"Your pay is protected" section: three cards and a warning paragraph between two job lists.','Wall of text'],
+ ['Both Homes','A feature-vote card ("Suggest a feature", a test idea with 0 votes) ends both Homes; it is also in the account menu and Profile.','Unwanted information'],
+ ['Explore','No header: the tab opens on a map with a floating List button and a location sheet; the bottom tab still says "Explore" on the web in Earn mode while the phone says "Find work".','Inconsistent'],
+ ['Explore list','Templates, "People often ask for", Busy now and How it works repeat what Home already shows.','Repeats (kept, it becomes the full library)'],
+ ['My tasks','A green "Your tasks at a glance" card (Active, To review, Completed) repeats the tab counts right under it; then Needs you now, alerts, search, Needs providers, drafts and tabs before the first task.','Too much before the list'],
+ ['My tasks cards','An open card has a status line, category, a 3-cell table (OFFERS, YOUR PRICE, DUE), a 5-step track and two big buttons; a hired card has a tinted Next step box too. The person is a name only, no face.','Busy cards, weak at-a-glance'],
+ ['My work','Four stat tiles above five tabs; cards differ in shape between Active and Offers.','Busy'],
+ ['Wallet, Profile','Fine on their own, but each starts with its own kind of header, and the avatar menu repeats most Profile rows.','Inconsistent']
+];
+$('clutter').innerHTML='<tr><th>Screen</th><th>What a new person meets</th><th>Kind</th></tr>'+C.map(r=>`<tr><td><b style="color:var(--ink)">${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+
+/* ---------- feature table ---------- */
+const F=JSON.parse($('featuresData').textContent);let g='',rows='';
+F.forEach(r=>{if(r[0]!==g){g=r[0];rows+=`<tr class="grp"><td colspan="6">${g}</td></tr>`}
+ rows+=`<tr><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td class="c">${r[4]}</td><td class="c">${r[5]}</td><td>${r[6]?`<span class="moved">${r[6]}</span>`:''}</td></tr>`});
+$('ftable').innerHTML='<tr><th>Feature</th><th>Today</th><th>New design</th><th>Taps today</th><th>Taps new</th><th>Note</th></tr>'+rows;
+
+/* ---------- questions ---------- */
+const Q=[
+ '<b>The four idea sections become one "Ideas to post" block with chips</b> (For you, Money back, Be there for me, Before I buy, Quick templates, Everyday …), 4 cards showing, the rest one tap away and all of them in Explore\'s list. OK, or keep Quick templates as its own row?',
+ '<b>Your face in the header:</b> keep opening the account drawer (today), or open the Profile tab on phones (the drawer\'s rows are all on Profile and Wallet)? Desktop keeps the drawer either way.',
+ '<b>"Why it\'s safer" and "Your pay is protected"</b> become one line in the hero that opens the same three points in a sheet. OK to move them off the page?',
+ '<b>The "Suggest a feature" card</b> leaves both Homes and lives in Profile, Ideas &amp; feedback (and the account menu). OK?',
+ '<b>Earn Home\'s four job lists</b> become one "Jobs for you" list with chips For you, Near you (with the radius), Remote, Today. Which chip should be first for a new worker with no skills yet: For you or Near you?'
+];
+$('qlist').innerHTML=Q.map(q=>`<li>${q}</li>`).join('');
+
+/* ---------- toggles ---------- */
+const root=document.documentElement;
+function setTheme(t){root.setAttribute('data-theme',t);document.querySelectorAll('#themeT button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));try{localStorage.setItem('td-theme',t)}catch(e){}}
+let saved=null;try{saved=localStorage.getItem('td-theme')}catch(e){}
+setTheme(saved||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+document.querySelectorAll('#themeT button').forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
+document.querySelectorAll('#lenT button').forEach(b=>b.onclick=()=>{document.body.classList.toggle('full',b.dataset.l==='full');document.querySelectorAll('#lenT button').forEach(x=>x.classList.toggle('on',x===b))});
+})();
+</script>
+</body>
+</html>
