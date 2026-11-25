@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text as RNText,
@@ -8,11 +8,12 @@ import {
   TextInput,
   type TextStyle,
 } from 'react-native';
+import { PROMOTE_DEFAULTS } from '@taskdrop/rules';
 import { Screen } from '../components/ui';
 import { BackButton, LoadFailed, PrimaryButton, TopBar, systemHeader } from '../components/kit';
-import { reportError } from '../lib/errors';
-import { Icon } from '../components/Icon';
-import { useTheme, ring } from '../providers/ThemeProvider';
+import { reportError, messageOf } from '../lib/errors';
+import { Icon, type IconName } from '../components/Icon';
+import { useTheme, ring, PersonTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -22,21 +23,37 @@ import {
   syncPayment,
   activatePromotion,
   promotableTasks,
-  promotionTiers,
-  budgetsForMode,
-  DEFAULT_PROMOTION_TIERS,
+  promotionQuote,
+  joinPromotionLine,
+  leavePromotionLine,
   type PromotableTask,
+  type PromotionQuote,
 } from '../data/api';
 import { formatINR } from '../components/ui';
 import { Linking, Platform } from 'react-native';
 import { PaymentSheet } from '../components/PaymentSheet';
+import { PromotionResultsCard } from '../components/PromotionResultsCard';
 import { paymentReturnUrl } from '../lib/links';
+import { clockText, daysLabel, promotionPriceMinor, whenText } from '../lib/promoteText';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
 import { ActionBar, FormPage, FormSection } from '../components/FormPage';
 import { useLayout } from '../lib/layout';
 
+/**
+ * Promote a post. A task's poster is always in the Hire (jade) palette and a service owner in the Earn
+ * (blue) one, whatever mode the app is in (PersonTheme swaps the accent tokens).
+ */
 export function PromoteScreen() {
+  const { mode } = useMode();
+  return (
+    <PersonTheme role={mode === 'worker' ? 'worker' : 'poster'}>
+      <PromoteBody />
+    </PersonTheme>
+  );
+}
+
+function PromoteBody() {
   const t = useTheme();
   const { go, back, params } = useNav();
   const { mode } = useMode();
@@ -85,11 +102,11 @@ export function PromoteScreen() {
   const taskId = pickedId;
   const picked = mine.find((m) => m.id === pickedId) ?? null;
   // The list is collapsed once something is chosen. Five full-width cards
-  // pushed the budget and duration — the things this screen is actually for —
+  // pushed the days and the button -- the things this screen is actually for --
   // off the bottom of the screen.
   const [choosing, setChoosing] = useState(false);
-  // Nothing is listed until something is typed: this screen exists to set a
-  // budget, not to show everything the person has ever posted. A word from
+  // Nothing is listed until something is typed: this screen exists to promote
+  // one post, not to show everything the person has ever posted. A word from
   // the title finds the post.
   const [listingQuery, setListingQuery] = useState('');
 
@@ -99,81 +116,67 @@ export function PromoteScreen() {
     return mine.filter((m) => m.title.toLowerCase().includes(q));
   })();
 
-
   const worker = mode === 'worker';
-  const [budgetPick, setBudgetIdx] = useState(1);
-  const [durPick, setDurIdx] = useState(1);
-  const [audienceOn, setAudienceOn] = useState(false);
 
-  // The tiers staff set in the admin. The server refuses anything outside them, so
-  // the screen offers exactly these; until they load it shows what migration 114 seeds.
-  const [tiers, setTiers] = useState(DEFAULT_PROMOTION_TIERS);
-  useEffect(() => {
-    let alive = true;
-    void promotionTiers().then((v) => alive && setTiers(v));
-    return () => {
-      alive = false;
-    };
+  // The server's view of this post: flat day price, spots taken in its area, the line.
+  const [quote, setQuote] = useState<PromotionQuote | null>(null);
+  const [quoteFailed, setQuoteFailed] = useState(false);
+  const loadQuote = useCallback(async (id: string) => {
+    setQuoteFailed(false);
+    try {
+      setQuote(await promotionQuote(id));
+    } catch (e) {
+      reportError(e, 'promote-quote');
+      setQuoteFailed(true);
+    }
   }, []);
+  useEffect(() => {
+    setQuote(null);
+    if (taskId) void loadQuote(taskId);
+  }, [taskId, loadQuote]);
 
-  const budgets = budgetsForMode(tiers.budgets, worker);
-  const DURATIONS = tiers.days.map((d) => ({ label: d === 1 ? '1 day' : `${d} days`, days: d }));
-  // A tier that was picked may have been removed since: stay on the nearest one that exists.
-  const budgetIdx = Math.min(budgetPick, budgets.length - 1);
-  const durIdx = Math.min(durPick, DURATIONS.length - 1);
-  const budget = budgets[budgetIdx]!;
-  const days = DURATIONS[durIdx]!.days;
-  const total = budget * days;
+  const dayList = quote?.days?.length ? quote.days : [...PROMOTE_DEFAULTS.DAYS];
+  const dayPrice = quote?.dayPriceMinor ?? PROMOTE_DEFAULTS.DAY_PRICE_MINOR;
+  const line = quote?.line ?? null;
+  const [chosenDays, setChosenDays] = useState<number | null>(null);
+  // A held spot keeps the length the person queued for; otherwise the middle one.
+  const days =
+    line?.status === 'offered' && dayList.includes(line.days)
+      ? line.days
+      : chosenDays && dayList.includes(chosenDays)
+        ? chosenDays
+        : (dayList[1] ?? dayList[0]!);
+  const totalMinor = promotionPriceMinor(days, dayPrice);
 
-  // Design's reach model: base band, narrowed to 55% when the audience filter is
-  // on, scaled by the chosen budget relative to the middle tier.
-  const base = worker ? [900, 1600] : [1800, 3400];
-  const scale = (audienceOn ? 0.55 : 1) * (budget / (budgets[1] ?? budgets[0]!));
-  const reach = base.map((n) => Math.round(n * scale).toLocaleString('en-IN'));
+  const live = quote?.promotion?.status === 'active' ? quote.promotion : null;
+  const full = Boolean(quote && quote.taken >= quote.cap && !line);
+  const inLine = line?.status === 'waiting';
+  const held = line?.status === 'offered';
+  const service = worker || quote?.kind === 'service';
+  const noAlert = service || Boolean(quote?.remote);
+  const radius = quote?.radiusKm ?? 10;
 
   const label = (s: string, extra?: TextStyle, color?: string) => (
     <RNText style={tx('400', 11, color ?? t.colors.muted, { letterSpacing: 1.54, ...extra })}>{s}</RNText>
   );
 
-  const chipRow = (
-    items: string[],
-    active: number,
-    onPick: (i: number) => void,
-    extra?: TextStyle,
-  ) => (
-    <View style={{ flexDirection: 'row', gap: 8, ...(desktop ? { maxWidth: 440 } : null), ...extra }}>
-      {items.map((it, i) => {
-        const on = active === i;
-        return (
-          <Pressable
-            key={it}
-            onPress={() => onPick(i)}
-            style={({ pressed }) => ({
-              flex: 1,
-              borderRadius: 10,
-              paddingVertical: 10,
-              alignItems: 'center',
-              backgroundColor: on ? t.colors.accentSoft : 'transparent',
-              borderWidth: 1,
-              borderColor: on ? t.colors.accent : t.colors.line,
-              transform: [{ scale: pressed ? 0.96 : 1 }],
-            })}
-          >
-            <RNText style={tx('600', 13, on ? t.colors.ink : t.colors.muted)}>{it}</RNText>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
+  /** A refusal that means "the area filled up while you looked": show the Full state instead of an error. */
+  const handleRefusal = async (e: unknown, fallback: string) => {
+    const msg = messageOf(e, fallback);
+    if (/join the line/i.test(msg) && taskId) {
+      await loadQuote(taskId);
+      flash('That area just filled up. You can join the line.');
+    } else {
+      flash(msg);
+    }
+  };
 
   /**
    * Buy the placement.
    *
-   * This used to celebrate "Campaign live" and navigate away, having written
-   * nothing and charged nothing. A campaign is now a real row that stays
-   * pending until its payment settles — the server will not switch it on
-   * without a paid payment, so abandoning the payment page gets you nothing
-   * rather than free advertising.
+   * A promotion is a real row that stays pending until its payment settles: the server will not
+   * switch it on without a paid payment, so abandoning the payment page gets you nothing rather
+   * than free advertising. The price is flat: days x the day price.
    */
   const start = async () => {
     if (busy) return;
@@ -187,7 +190,6 @@ export function PromoteScreen() {
     }
     setBusy(true);
     try {
-      const totalMinor = total * 100;
       const promo = await startPromotion(taskId, days, totalMinor);
       const { paymentId, url } = await createPaymentLink({
         purpose: 'promotion',
@@ -199,7 +201,7 @@ export function PromoteScreen() {
       else setPayUrl(url);
       flash('Finish the payment, then come back and tap Activate');
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not start that campaign');
+      await handleRefusal(e, 'Could not start that promotion');
     } finally {
       setBusy(false);
     }
@@ -216,21 +218,43 @@ export function PromoteScreen() {
         return;
       }
       await activatePromotion(pending.promotionId, pending.paymentId);
-      celebrate(`Campaign live · ${formatINR(total * 100)} for ${days} ${days === 1 ? 'day' : 'days'}`);
+      celebrate(`Promoted · ${formatINR(totalMinor)} for ${daysLabel(days)}`);
       go(worker ? 'home' : 'orders');
     } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not activate that campaign');
+      flash(messageOf(e, 'Could not activate that promotion'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const join = async () => {
+    if (busy || !taskId) return;
+    setBusy(true);
+    try {
+      setQuote(await joinPromotionLine(taskId, days));
+      flash('You are in line. Nothing has been charged.');
+    } catch (e) {
+      await handleRefusal(e, 'Could not join the line');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const leave = async () => {
+    if (busy || !taskId) return;
+    setBusy(true);
+    try {
+      setQuote(await leavePromotionLine(taskId));
+      flash('You left the line');
+    } catch (e) {
+      flash(messageOf(e, 'Could not leave the line'));
     } finally {
       setBusy(false);
     }
   };
 
   /**
-   * What the money buys, in plain words.
-   *
-   * Everything in here has to stay true of what the code actually does: a paid
-   * campaign marks the listing sponsored, and sponsored listings sort to the
-   * top of the feed until the campaign ends. If that changes, this changes.
+   * What promoting does, in plain words. Everything in here has to stay true of what the code does.
    */
   const explainer = (
     <Modal
@@ -259,45 +283,26 @@ export function PromoteScreen() {
           </RNText>
 
           <RNText style={tx('400', 14, t.colors.text, { marginTop: 12, lineHeight: 21 })}>
-            A promoted post sits at the top of the list, above everything posted normally,
-            and is marked as promoted. That is all it does — it buys position, nothing
-            else.
+            A promoted post is shown above the others and is always labelled “Promoted”. It buys
+            position, nothing else.
           </RNText>
 
-          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>
-            What the budget changes
-          </RNText>
+          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>Why there is a limit</RNText>
           <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
-            The daily budget sets how many people your post is put in front of each day, and
-            the duration sets how many days that lasts. A bigger daily budget reaches more
-            people per day; more days reaches people who were not looking today. Same total
-            money, different shape — {formatINR(total * 100)} spread over {days}{' '}
-            {days === 1 ? 'day' : 'days'} is {formatINR(budget * 100)} a day.
+            Only {quote?.cap ?? 3} posts can be promoted in one area at a time, and they share the top 2
+            spots in turns, so each promoted post really gets seen. When it is full you can join the
+            line. It is first come, first served.
           </RNText>
 
-          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>
-            What it does not do
-          </RNText>
+          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>What it does not do</RNText>
           <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
-            It does not make anyone send an offer, and it does not change your price. A post with a
-            rate well under the going one will be seen more and still be passed over. If a
-            post has been up a while with no offers, the price is usually the reason — not
-            the position.
-          </RNText>
-
-          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>When it is worth it</RNText>
-          <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
-            Best on something urgent, or in a category with a lot posted at once where good
-            posts get buried. Least useful on something niche, where the few people who can
-            do it will find it anyway.
+            It does not make anyone send an offer, and it does not change your price. If a post has been
+            up a while with no offers, the price is usually the reason, not the position.
           </RNText>
 
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 18, lineHeight: 18 })}>
-            You are charged once, up front, for the days you choose, and it does not renew. You
-            only pay for what is delivered: if the campaign reaches fewer people than the budget
-            covers, or you stop it early, the rest comes back to your TaskDrop wallet when it
-            ends. The reach figure above is an estimate from how many people browse your city,
-            not a promise.
+            You pay once, up front, for the days you choose. It does not renew. Stop any time: unused
+            full days come back to you.
           </RNText>
 
           <Pressable
@@ -313,43 +318,277 @@ export function PromoteScreen() {
               transform: [{ scale: pressed ? 0.97 : 1 }],
             })}
           >
-            <RNText style={tx('700', 15, t.colors.onAccent)}>Got it</RNText>
+            <RNText style={tx('700', 15, t.colors.onBtn)}>Got it</RNText>
           </Pressable>
         </View>
       </View>
     </Modal>
   );
 
-  const reachCard = (
-    <View
-      style={{
-        marginTop: desktop ? 0 : 16,
-        backgroundColor: t.colors.accentSoft,
-        borderWidth: 1,
-        borderColor: t.colors.accentBorder,
-        borderRadius: 12,
-        paddingVertical: 13,
-        paddingHorizontal: 16,
-      }}
-    >
-      {label('ESTIMATED REACH', {}, t.colors.accentDeep)}
-      <RNText style={tx('800', 22, t.colors.ink, { marginTop: 4 })}>
-        {reach[0]} – {reach[1]}
-      </RNText>
-      <RNText style={tx('400', 12, t.colors.accentDeep, { marginTop: 3 })}>
-        {worker ? 'posters' : 'workers'} per day
-        {audienceOn ? ' in your radius' : ' across your city'}
-      </RNText>
+  // ---- what the main button does, per state ----
+  const startLabel = busy
+    ? 'Working…'
+    : pending
+      ? 'Activate promotion'
+      : `Promote for ${daysLabel(days)} · ${formatINR(totalMinor)}`;
+  const mainAction: { label: string; outline: boolean; onPress: () => void } | null = !taskId || live
+    ? null
+    : inLine
+      ? { label: busy ? 'Working…' : 'Leave the line', outline: true, onPress: () => void leave() }
+      : full && !pending
+        ? {
+            label: busy ? 'Working…' : `Join the line · you would be #${(quote?.waiting ?? 0) + 1}`,
+            outline: true,
+            onPress: () => void join(),
+          }
+        : { label: startLabel, outline: false, onPress: () => void (pending ? activate() : start()) };
+
+  const footNote = inLine
+    ? 'Nothing has been charged.'
+    : full && !pending
+      ? 'Free to join. When your turn comes we hold the spot for you for 30 minutes and send one alert. You pay only then, or skip and the next person gets it.'
+      : 'Always labelled “Promoted”. It doesn’t change your price or make anyone send an offer. Stop any time: unused full days come back to you.';
+
+  // ---- pieces of the page ----
+  const rows: { icon: IconName; title: string; body: string; show: boolean }[] = [
+    {
+      icon: 'trending',
+      title: service ? 'Top of the helpers list' : 'Top of Find work',
+      body: service
+        ? 'Shown above other helpers to people whose filters match you, in the list and on their Home.'
+        : 'Shown above other tasks to workers whose filters match it, in the list and on their Home.',
+      show: true,
+    },
+    {
+      icon: 'map',
+      title: 'Stands out on the map',
+      body: 'A bigger pin with a ring, drawn above the others.',
+      show: true,
+    },
+    {
+      icon: 'bell',
+      title: 'One alert to nearby workers',
+      body: 'Sent once, to up to 30 workers near the task who were active this week.',
+      show: !noAlert,
+    },
+    {
+      icon: 'eye',
+      title: 'Live results for you',
+      body: 'How many saw it, opened it and sent an offer.',
+      show: true,
+    },
+  ];
+
+  const benefitRows = (
+    <View style={{ marginTop: 14 }}>
+      {rows
+        .filter((r) => r.show)
+        .map((r) => (
+          <View key={r.title} style={{ flexDirection: 'row', gap: 12, paddingVertical: 9 }}>
+            <View
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                backgroundColor: t.colors.accentSoft,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name={r.icon} size={17} color={t.colors.accentDeep} strokeWidth={1.8} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <RNText style={tx('700', 14, t.colors.ink)}>{r.title}</RNText>
+              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2, lineHeight: 17 })}>{r.body}</RNText>
+            </View>
+          </View>
+        ))}
     </View>
   );
 
-  const startLabel = busy ? 'Working…' : pending ? 'Activate campaign' : `Start campaign · ₹${total.toLocaleString('en-IN')}`;
-  const payNote =
-    'One payment, up front. It does not renew. Stop any time: whatever isn’t delivered comes back to your TaskDrop wallet when the campaign ends.';
+  const nearbyBox =
+    quote && !quote.remote ? (
+      <View
+        style={{
+          marginTop: 12,
+          backgroundColor: t.colors.accentSoft,
+          borderWidth: 1,
+          borderColor: t.colors.accentBorder,
+          borderRadius: 12,
+          paddingVertical: 13,
+          paddingHorizontal: 16,
+        }}
+      >
+        {label(service ? 'NEAR THIS SERVICE NOW' : 'NEAR THIS TASK NOW', {}, t.colors.accentDeep)}
+        <RNText style={tx('700', 15, t.colors.ink, { marginTop: 4 })}>
+          {quote.nearbyActive} {service ? 'people' : 'workers'} active this week within 10 km
+        </RNText>
+        {quote.taken > 0 && quote.taken < quote.cap ? (
+          <>
+            <View style={{ height: 1, backgroundColor: t.colors.accentBorder, marginVertical: 10 }} />
+            {label(`BUSY HERE · ${quote.taken} other ${quote.taken === 1 ? 'task' : 'tasks'} promoted within ${radius} km`, {}, t.colors.accentDeep)}
+            <RNText style={tx('400', 12, t.colors.text, { marginTop: 4, lineHeight: 17 })}>
+              You share the top 2 spots with them in turns.
+            </RNText>
+          </>
+        ) : null}
+      </View>
+    ) : null;
+
+  const fullBox =
+    quote && full ? (
+      <View
+        style={{
+          marginTop: 12,
+          backgroundColor: t.colors.signalSoft,
+          borderWidth: 1,
+          borderColor: t.colors.signal,
+          borderRadius: 12,
+          paddingVertical: 13,
+          paddingHorizontal: 16,
+        }}
+      >
+        {label(
+          `FULL HERE RIGHT NOW · ${quote.cap} of ${quote.cap} promotion spots within ${radius} km are taken`,
+          {},
+          t.colors.signalDeep,
+        )}
+        <RNText style={tx('400', 13, t.colors.text, { marginTop: 6, lineHeight: 19 })}>
+          {quote.nextFreeAt ? `The next one opens ${whenText(quote.nextFreeAt)}. ` : ''}
+          {quote.waiting} {quote.waiting === 1 ? 'person is' : 'people are'} already in line. We keep it to {quote.cap} so
+          each promoted post really gets seen. The line is first come, first served.
+        </RNText>
+      </View>
+    ) : null;
+
+  const lineCard =
+    quote && line && inLine ? (
+      <View
+        style={{
+          marginTop: 12,
+          backgroundColor: t.colors.accentSoft,
+          borderWidth: 1,
+          borderColor: t.colors.accentBorder,
+          borderRadius: 12,
+          padding: 16,
+        }}
+      >
+        {label('YOU ARE IN LINE', {}, t.colors.accentDeep)}
+        <RNText style={tx('800', 20, t.colors.ink, { marginTop: 4 })}>
+          #{line.position} of {quote.waiting + 1} waiting near here
+        </RNText>
+        <RNText style={tx('400', 13, t.colors.text, { marginTop: 6, lineHeight: 19 })}>
+          All {quote.cap} spots within {radius} km are taken.
+          {quote.nextFreeAt ? ` The next one should open ${whenText(quote.nextFreeAt)}.` : ''} You joined at{' '}
+          {clockText(line.joinedAt)}.
+        </RNText>
+        {[
+          'When a spot is yours, you get one alert and we hold it for 30 minutes.',
+          'You pay then, at the same price as everyone, and it goes live at once.',
+          'Miss it and the spot goes to the next person. You can join again.',
+        ].map((s, i) => (
+          <View key={s} style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            <View
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: t.colors.btn,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <RNText style={tx('700', 12, t.colors.onBtn)}>{i + 1}</RNText>
+            </View>
+            <RNText style={tx('400', 13, t.colors.text, { flex: 1, lineHeight: 19 })}>{s}</RNText>
+          </View>
+        ))}
+      </View>
+    ) : null;
+
+  const heldCard =
+    held && line ? (
+      <View
+        style={{
+          marginTop: 12,
+          backgroundColor: t.colors.accentSoft,
+          borderWidth: 2,
+          borderColor: t.colors.accent,
+          borderRadius: 12,
+          padding: 16,
+        }}
+      >
+        {label(`YOUR SPOT IS FREE · held for you until ${clockText(line.offeredUntil)}`, {}, t.colors.accentDeep)}
+        <RNText style={tx('400', 13, t.colors.text, { marginTop: 6, lineHeight: 19 })}>
+          Promote now to take it. If you skip, the next person in line gets it.
+        </RNText>
+      </View>
+    ) : null;
+
+  const daysPicker = (
+    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, ...(desktop ? { maxWidth: 440 } : null) }}>
+      {dayList.map((d) => {
+        const on = d === days;
+        const locked = held && line?.days !== d;
+        return (
+          <Pressable
+            key={d}
+            disabled={locked}
+            onPress={() => setChosenDays(d)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            style={({ pressed }) => ({
+              flex: 1,
+              borderRadius: 10,
+              paddingVertical: 10,
+              alignItems: 'center',
+              backgroundColor: on ? t.colors.accentSoft : 'transparent',
+              borderWidth: 1,
+              borderColor: on ? t.colors.accent : t.colors.line,
+              opacity: locked ? 0.4 : 1,
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            })}
+          >
+            <RNText style={tx('700', 13, on ? t.colors.ink : t.colors.muted)}>{daysLabel(d)}</RNText>
+            <RNText style={tx('400', 12, on ? t.colors.accentDeep : t.colors.muted, { marginTop: 2 })}>
+              {formatINR(promotionPriceMinor(d, dayPrice))}
+            </RNText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+
+  const mainButtonPhone = mainAction ? (
+    <Pressable
+      onPress={mainAction.onPress}
+      disabled={busy}
+      style={({ pressed }) => ({
+        backgroundColor: mainAction.outline ? 'transparent' : t.colors.btn,
+        borderWidth: mainAction.outline ? 1.5 : 0,
+        borderColor: t.colors.accent,
+        borderRadius: 999,
+        paddingVertical: 16,
+        alignItems: 'center',
+        ...(mainAction.outline
+          ? null
+          : {
+              shadowColor: t.colors.accent,
+              shadowOpacity: 0.35,
+              shadowRadius: 22,
+              shadowOffset: { width: 0, height: 8 },
+              elevation: 6,
+            }),
+        transform: [{ scale: pressed ? 0.96 : 1 }],
+      })}
+    >
+      <RNText style={tx('700', 16, mainAction.outline ? t.colors.accentDeep : t.colors.onBtn)}>{mainAction.label}</RNText>
+    </Pressable>
+  ) : null;
 
   return (
     <Screen padded={false}>
-      {desktop ? <TopBar title={worker ? 'Promote this service' : 'Promote this task'} onBack={back} /> : null}
+      {desktop ? <TopBar title={service ? 'Promote this service' : 'Promote this task'} onBack={back} /> : null}
       <FormPage
         phoneActions="pinned"
         scrollProps={{
@@ -360,59 +599,46 @@ export function PromoteScreen() {
         }}
         aside={
           <>
-            {reachCard}
             <Pressable
               onPress={() => setExplaining(true)}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="How promotion works"
-              style={{ alignSelf: 'flex-start', marginTop: 14 }}
+              style={{ alignSelf: 'flex-start' }}
             >
               <RNText style={tx('700', 12, t.colors.accentDeep, { textDecorationLine: 'underline' })}>How this works</RNText>
             </Pressable>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 17 })}>{payNote}</RNText>
+            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 17 })}>{footNote}</RNText>
           </>
         }
         actions={
-          desktop ? (
-            <ActionBar>
-              <PrimaryButton label={startLabel} onPress={() => void (pending ? activate() : start())} />
-            </ActionBar>
-          ) : (
-            <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
-              <Pressable
-                onPress={() => void (pending ? activate() : start())}
-                style={({ pressed }) => ({
-                  backgroundColor: t.colors.btn,
-                  borderRadius: 999,
-                  paddingVertical: 16,
-                  alignItems: 'center',
-                  shadowColor: t.colors.accent,
-                  shadowOpacity: 0.35,
-                  shadowRadius: 22,
-                  shadowOffset: { width: 0, height: 8 },
-                  elevation: 6,
-                  transform: [{ scale: pressed ? 0.96 : 1 }],
-                })}
-              >
-                <RNText style={tx('700', 16, t.colors.onAccent)}>{startLabel}</RNText>
-              </Pressable>
-              {/* What settle_campaign (migration 046) actually does, next to the
-                  button that charges: one payment, no renewal, undelivered reach
-                  refunded to the wallet -- including when stopped early. */}
-              <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 17 })}>
-                {payNote}
-              </RNText>
-            </KeyboardSafe>
-          )
+          mainAction ? (
+            desktop ? (
+              <ActionBar>
+                <PrimaryButton
+                  label={mainAction.label}
+                  tone={mainAction.outline ? 'quiet' : 'accent'}
+                  busy={busy}
+                  onPress={mainAction.onPress}
+                />
+              </ActionBar>
+            ) : (
+              <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+                {mainButtonPhone}
+                <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 17 })}>
+                  {footNote}
+                </RNText>
+              </KeyboardSafe>
+            )
+          ) : undefined
         }
       >
         {desktop ? null : (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <BackButton onBack={back} title={worker ? 'Promote this service' : 'Promote this task'} />
+            <BackButton onBack={back} title={service ? 'Promote this service' : 'Promote this task'} />
             {systemHeader ? null : (
               <RNText style={tx('700', 17, t.colors.ink)}>
-                {worker ? 'Promote this service' : 'Promote this task'}
+                {service ? 'Promote this service' : 'Promote this task'}
               </RNText>
             )}
           </View>
@@ -570,121 +796,32 @@ export function PromoteScreen() {
         </View>
         </FormSection>
 
-        <FormSection title="Daily budget">
-        {desktop ? null : (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'baseline',
-            justifyContent: 'space-between',
-            marginTop: 18,
-          }}
-        >
-          {label('DAILY BUDGET')}
-          <Pressable
-            onPress={() => setExplaining(true)}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="How promotion works"
-          >
-            <RNText
-              style={tx('700', 12, t.colors.accentDeep, { textDecorationLine: 'underline' })}
-            >
-              How this works
-            </RNText>
-          </Pressable>
-        </View>
-        )}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'baseline',
-            gap: 8,
-            marginTop: desktop ? 0 : 9,
-            paddingBottom: 10,
-            borderBottomWidth: 1,
-            borderBottomColor: t.colors.accent,
-          }}
-        >
-          <RNText style={tx('800', 29, t.colors.ink)}>₹{budget}</RNText>
-          <RNText style={tx('400', 12, t.colors.muted, { marginLeft: 'auto' })}>
-            ₹{total.toLocaleString('en-IN')} over {DURATIONS[durIdx]!.label}
-          </RNText>
-        </View>
-        {chipRow(budgets.map((b) => `₹${b}`), budgetIdx, setBudgetIdx, { marginTop: 11 })}
-        </FormSection>
-
-        <FormSection title="Run for">
-        {desktop ? null : label('RUN FOR', { marginTop: 18 })}
-        {chipRow(DURATIONS.map((d) => d.label), durIdx, setDurIdx, { marginTop: desktop ? 0 : 10 })}
-        </FormSection>
-
-        <FormSection title="Show it to" hint="Optional">
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: desktop ? 0 : 20,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            {desktop ? null : label('SHOW IT TO · OPTIONAL')}
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: desktop ? 0 : 4 })}>
-              {audienceOn ? 'Narrowing who sees it' : 'Off · everyone in your city'}
-            </RNText>
+        {taskId && quoteFailed && !quote ? (
+          <View style={{ marginTop: 16 }}>
+            <LoadFailed title="Couldn’t load the promotion details" onRetry={() => void loadQuote(taskId)} />
           </View>
-          <Pressable
-            onPress={() => setAudienceOn((v) => !v)}
-            style={{
-              width: 42,
-              height: 24,
-              borderRadius: 999,
-              padding: 3,
-              backgroundColor: audienceOn ? t.colors.accent : t.colors.line,
-              justifyContent: 'center',
-            }}
-          >
-            <View
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 999,
-                backgroundColor: '#FFFFFF',
-                transform: [{ translateX: audienceOn ? 18 : 0 }],
-              }}
-            />
-          </Pressable>
-        </View>
+        ) : null}
 
-        {audienceOn && (
-          <View style={{ marginTop: 14 }}>
-            {[
-              worker ? 'Customers within 15 km' : 'Workers within 12 km',
-              worker ? 'Services' : 'Services · Products',
-            ].map((row, i) => (
-              <View
-                key={row}
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: i === 0 ? 0 : 11,
-                  paddingBottom: 11,
-                  borderBottomWidth: 1,
-                  borderBottomColor: t.colors.line,
-                }}
-              >
-                <RNText style={tx('400', 15, t.colors.ink)}>{row}</RNText>
-                <RNText style={tx('600', 13, t.colors.accentDeep)}>Change</RNText>
-              </View>
-            ))}
+        {live ? (
+          <View style={{ marginTop: 16 }}>
+            <PromotionResultsCard promotionId={live.id} service={service} onChanged={() => taskId && void loadQuote(taskId)} />
           </View>
-        )}
-
-        </FormSection>
-
-        {desktop ? null : reachCard}
+        ) : taskId ? (
+          <>
+            <RNText style={tx('800', 20, t.colors.ink, { marginTop: 20, letterSpacing: -0.4 })}>
+              {service ? 'Get more customers to see it' : 'Get more workers to see it'}
+            </RNText>
+            {benefitRows}
+            {inLine ? lineCard : full ? fullBox : nearbyBox}
+            {held ? heldCard : null}
+            {inLine ? null : (
+              <FormSection title="How long">
+                {desktop ? null : label('HOW LONG', { marginTop: 18 })}
+                {daysPicker}
+              </FormSection>
+            )}
+          </>
+        ) : null}
       </FormPage>
       {explainer}
       <PaymentSheet url={payUrl} visible={payUrl !== null} onClose={() => setPayUrl(null)} />

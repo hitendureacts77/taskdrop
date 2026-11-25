@@ -6,7 +6,6 @@ import {
   Pressable,
   Animated,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { Screen, ScreenList, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
@@ -34,7 +33,10 @@ import { Rail } from '../components/Rail';
 import { taskToFeedRow } from '../lib/openTask';
 import type { TaskWithPoster } from '../data/api';
 import { signedMediaUrls } from '../lib/media';
-import { adAuctionRanks, recordAdImpression, recordAdClick } from '../data/api';
+import { recordPromoView, recordAdClick } from '../data/api';
+import { PromotedPill, promotedBorder } from '../components/PromotedPill';
+import { pickPromotedItems, liftPromoted } from '../lib/promoted';
+import { usePromotedLive } from '../lib/usePromotedLive';
 import { Grid, LoadFailed, Shimmer } from '../components/kit';
 import { reportError } from '../lib/errors';
 import { useLayout } from '../lib/layout';
@@ -228,27 +230,6 @@ function ShimmerBar({
   );
 }
 
-function SponsoredMark({ t }: { t: Theme }) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 11,
-        paddingBottom: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: t.colors.line,
-      }}
-    >
-      <Svg width={11} height={11} viewBox="0 0 24 24" fill="none">
-        <Path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill={t.colors.accentDeep} />
-      </Svg>
-      <RNText style={tx('800', 9, t.colors.accentDeep, { letterSpacing: 1.62 })}>PROMOTED</RNText>
-    </View>
-  );
-}
-
 const FeedCard = memo(function FeedCard({
   row,
   index,
@@ -284,12 +265,14 @@ const FeedCard = memo(function FeedCard({
         style={{
           backgroundColor: t.colors.surface,
           borderWidth: 1,
-          borderColor: row.sponsored ? t.colors.accent : t.colors.line,
+          borderColor: t.colors.line,
+          // Only a promoted card in a top spot gets the 1.5px side-colour border (adRank > 0).
+          ...promotedBorder(t, worker ? 'earn' : 'hire', row.adRank > 0),
           borderRadius: 14,
           padding: 15,
         }}
       >
-        {row.sponsored && <SponsoredMark t={t} />}
+        {row.sponsored && <PromotedPill side={worker ? 'earn' : 'hire'} style={{ marginBottom: 11 }} />}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View
@@ -509,32 +492,49 @@ export function HomeScreen() {
     setFailed(false);
   }, [worker]);
 
-  // Which listings are being paid for right now. Without this, promotion was
-  // money for nothing: the card had a sponsored style and the flag was
-  // hard-coded false, so a live campaign changed nothing anyone could see.
-  // Who is winning the ad auction right now. The order is decided server-side
-  // (bid x action rate, paced, out-of-budget campaigns dropped); the client is
-  // told the running order and nothing else, so placement cannot be argued
-  // with from a phone.
-  const [adRanks, setAdRanks] = useState<Map<string, number>>(new Map());
+  // Promoted posts (task 1.19 row C): the server says which are live near the viewer; the app puts at most 2 on
+  // top, taking turns (pickPromotedTop), and only ones that match the chip. The rest keep their normal place
+  // and carry the PROMOTED pill. Workers see promoted requests, posters see promoted services.
+  const [homeAt, setHomeAt] = useState<{ lat: number; lng: number } | null>(null);
   useEffect(() => {
+    if (!userId) return;
     let alive = true;
-    void adAuctionRanks().then((m) => alive && setAdRanks(m));
+    void getProfile(userId)
+      .then((me) => {
+        if (alive && me?.loc_lat != null && me?.loc_lng != null) setHomeAt({ lat: me.loc_lat, lng: me.loc_lng });
+      })
+      .catch(() => {});
     return () => {
       alive = false;
     };
-  }, []);
+  }, [userId]);
+  const promoNear =
+    nearLat !== null && nearLng !== null ? { lat: nearLat, lng: nearLng, radiusKm: radiusKm ?? undefined } : homeAt;
+  const promoLive = usePromotedLive(worker ? 'request' : 'service', promoNear);
 
-  const allRows: FeedRow[] = (liveTasks ?? [])
-    .map((task) => {
-      const adRank = adRanks.get(task.id) ?? 0;
-      return { ...liveToFeedRow(task, worker), sponsored: adRank > 0, adRank };
-    })
-    // Sponsored above organic, then in the auction's own order (rank 1 first).
-    // Ties and organic rows keep the server's order, which is newest-first.
-    .sort((a, b) => Number(b.sponsored) - Number(a.sponsored) || a.adRank - b.adRank);
   // Chip index -> card tag. No selection shows every pillar.
   const FILTER_TAGS: FeedRow['tag'][] = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
+  const baseRows = useMemo(() => (liveTasks ?? []).map((task) => liveToFeedRow(task, worker)), [liveTasks, worker]);
+  const promo = useMemo(
+    () =>
+      pickPromotedItems({
+        items: baseRows,
+        live: promoLive,
+        keyOf: (r) => r.id,
+        matches: (r) => filter === null || r.tag === FILTER_TAGS[filter],
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [baseRows, promoLive, filter],
+  );
+  const allRows: FeedRow[] = useMemo(
+    () =>
+      liftPromoted(baseRows, promo.top).map((r) => ({
+        ...r,
+        sponsored: promo.badged.has(r.id),
+        adRank: promo.top.indexOf(r) + 1,
+      })),
+    [baseRows, promo],
+  );
   const feed: FeedRow[] =
     filter === null ? allRows : allRows.filter((row) => row.tag === FILTER_TAGS[filter]);
   // Urgent means flagged urgent, by whoever posted it. This used to render one
@@ -542,18 +542,18 @@ export function HomeScreen() {
   // on the front page of the marketplace, for every user, always.
   const urgentRows = feed.filter((row) => row.meta === 'Urgent').slice(0, 3);
 
-  // Delivery. A sponsored card that reaches the screen is an impression, and
-  // an impression is what the advertiser's daily budget actually buys — until
-  // this fired, "daily budget" could never be spent. Billed once per task per
-  // mount: re-sorting or filtering the feed is not a new view of the ad.
+  // Delivery. A promoted card that reaches the screen is a view (free; the server de-duplicates within 10
+  // minutes). Sent once per task and top/not-top per mount: re-sorting or filtering is not a new view.
   const billed = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const row of feed) {
-      if (!row.sponsored || billed.current.has(row.id)) continue;
-      billed.current.add(row.id);
-      void recordAdImpression(row.id).catch(() => {});
+      if (!row.sponsored) continue;
+      const k = row.id + (row.adRank > 0 ? ':top' : '');
+      if (billed.current.has(k)) continue;
+      billed.current.add(k);
+      void recordPromoView(row.id, searching ? 'search' : 'home', row.adRank > 0).catch(() => {});
     }
-  }, [feed]);
+  }, [feed, searching]);
 
   /**
    * One signing call for the whole page.

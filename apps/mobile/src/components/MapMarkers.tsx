@@ -27,6 +27,8 @@ export const FACE_PIN = { w: 152, h: 88, anchor: 30 } as const;
 export const FACE_STACK = { w: 176, h: 76, anchor: 25 } as const;
 export const PRICE_PIN = { w: 168, h: 76, anchor: 46 } as const;
 export const TASK_PIN = { w: 176, h: 98, anchor: 48 } as const;
+/** A promoted pin: a 52 px disc inside a 72 px soft ring, pointer and dot under it (the dot is the area's point). */
+export const PROMO_PIN = { w: 168, h: 84, anchor: 74 } as const;
 
 const RIM = '#FFFFFF';
 /** Muted face colours for people with no photo, picked from the id so a face keeps its colour. */
@@ -367,7 +369,35 @@ function TaskPinImpl({
   );
 }
 
+/**
+ * A promoted post on the map (task 1.19 row C): bigger than the rest (52 px against 30), filled with the side's
+ * colour (Earn royal blue, Hire jade) with a white border, a soft ring round it and a bolt above the price.
+ * Drawn above the other pins by its caller.
+ */
+function PromotedPinImpl({ price, side, on }: { price: string | null; side: 'earn' | 'hire'; on: boolean }) {
+  const t = useTheme();
+  const fill = side === 'earn' ? t.colors.purple : t.colors.hero;
+  return (
+    <View style={{ width: PROMO_PIN.w, height: PROMO_PIN.h, alignItems: 'center' }} collapsable={false}>
+      <View style={{ width: 72, height: 72, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ position: 'absolute', width: 72, height: 72, borderRadius: 36, backgroundColor: fill, opacity: 0.22 }} />
+        <View
+          style={[
+            { width: 52, height: 52, borderRadius: 26, backgroundColor: fill, borderWidth: on ? 3 : 2, borderColor: RIM, alignItems: 'center', justifyContent: 'center' },
+            lift,
+          ]}
+        >
+          <Icon name="bolt" size={price ? 12 : 20} color={RIM} strokeWidth={2.2} />
+          {price ? <RNText style={tx('800', 11, RIM, { fontVariant: ['tabular-nums'], letterSpacing: -0.2, marginTop: -1 })}>{price}</RNText> : null}
+        </View>
+      </View>
+      <Pointer color={fill} />
+    </View>
+  );
+}
+
 // Moving the map re-renders the pin layer every frame; these pins take plain values, so they only redraw when those change.
 export const FacePin = memo(FacePinImpl);
 export const PricePin = memo(PricePinImpl);
 export const TaskPin = memo(TaskPinImpl);
+export const PromotedPin = memo(PromotedPinImpl);

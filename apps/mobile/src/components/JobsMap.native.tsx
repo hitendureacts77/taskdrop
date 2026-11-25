@@ -29,7 +29,7 @@ import { MAX_FRESH, areaAt, introDelays, introEnd, rippleAt, tagAt } from '../li
 import { youRect } from '../lib/mapLabels';
 import { controlsRect, itemKey, pinLabels } from './MapPinLayer';
 import { useMapClock } from './useMapClock';
-import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN, TaskPin } from './MapMarkers';
+import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PricePin, PromotedPin, TASK_PIN, TaskPin } from './MapMarkers';
 
 export type { JobPin, MapTone, JobsMapProps } from './JobsMap.tiles';
 export { mapWords } from './JobsMap.tiles';
@@ -410,6 +410,23 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
           const pin = byId.get(it.id)!;
           const on = selectedId === it.id;
           const pick = () => onSelect(on ? null : it.id);
+          if (pin.promoted) {
+            // A promoted post: bigger, side-coloured and above the other pins (task 1.19 row C).
+            return (
+              <PinMarker
+                key={'pr-' + it.id}
+                faded={back}
+                at={place}
+                box={PROMO_PIN}
+                z={on ? 6 : 5}
+                label={'Promoted. ' + (people ? helperSays(pin) : `${pin.label}${pin.title ? ', ' + pin.title : ''}, ${pin.area ?? 'nearby'} area`)}
+                onPress={pick}
+                deps={[on, people, pin.label, pin.price]}
+              >
+                {() => <PromotedPin side={people ? 'hire' : 'earn'} price={people ? (pin.price ?? null) : pin.label} on={on} />}
+              </PinMarker>
+            );
+          }
           if (people) {
             const face = pin.face ?? { initials: '?', live: false };
             return (
