@@ -11,7 +11,7 @@ Generated from the table in `index.html` (same data). Taps are counted from the 
 | Hire / Earn switch | Top left | Same | 0 | 0 |  |
 | Notifications, with unread count | Bell | Same | 1 | 1 |  |
 | Messages, with unread count | Chat icon | Same | 1 | 1 |  |
-| Account menu (View profile, Saved tasks, Balance, Bank & UPI, How fees work, My complaints, Account & settings, Help & support, Ideas & feedback, Send feedback, Sign out) | Your face, opens a drawer | Same (question 2) | 1 | 1 | Every row also on Profile or Wallet |
+| Account menu (View profile, Saved tasks, Balance, Bank & UPI, How fees work, My complaints, Account & settings, Help & support, Ideas & feedback, Send feedback, Sign out) | Your face, opens a drawer | Phones: your face opens the Profile tab; desktop: the drawer as today | 1 | 1 | Every row also on Profile or Wallet |
 | Sign in pill (guests) | Top right | Same | 0 | 0 |  |
 | Android app banner and Staging line (web) | Above the header | Same | 0 | 0 |  |
 
@@ -49,8 +49,8 @@ Generated from the table in `index.html` (same data). Taps are counted from the 
 | Search jobs pill (opens Find work search) | Under the hero | Inside the hero | 1 | 1 |  |
 | Jobs near you map card + Jobs near you / Remote work / Full map | Under search | Under Needs you now | 0 | 0 |  |
 | Needs you now (start a job, send proof) | Only on My work | Also on Home, top 2 | 1 | 0 | Added to Home, same data |
-| Matches your skills + Edit skills | Section | Jobs for you, chip For you; Edit skills link | 0 | 0 | Merged into one list |
-| Jobs near your area + radius 3 / 10 / 25 / 50 km | Section | Jobs for you, chip Near you | 0 | 1 | Merged into one list |
+| Matches your skills + Edit skills | Section | Jobs for you, chip For you (first chip once they have skills); Edit skills link | 0 | 0 to 1 | Merged into one list |
+| Jobs near your area + radius 3 / 10 / 25 / 50 km | Section | Jobs for you, chip Near you (first chip for a new worker) | 0 | 0 | Merged into one list |
 | Remote & online | Section | Jobs for you, chip Remote | 0 | 1 | Merged into one list |
 | Needed today (Urgent) | Section | Jobs for you, chip Today, with count | 0 | 1 | Merged into one list |
 | Show N more, See every open job | Under each list | See all N jobs, opens the Find work list | 1 | 1 |  |

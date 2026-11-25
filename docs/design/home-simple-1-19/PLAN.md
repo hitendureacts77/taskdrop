@@ -17,18 +17,18 @@ Design: `index.html` in this folder (light and dark, phone frames, one desktop f
 | 7 | **Desktop Home rail**: live card, Just posted, Busy on TaskDrop, helpers map; Needs you now as a short table | `HomeSections.tsx` (DesktopColumns), `PublishedTable` | `desktopWeb`, `desktopRules.spec.ts` | Sonnet |
 | 8 | **Motion and the check** (row I): live-dot ring, ticker speed, "1 new" pop, chip cross-fade, all off with reduce-motion; dark-mode pass; then the 5-person check ("find X" tasks for a new customer and a new worker) | `motion` tokens, the parts above | none new | Opus plan, you run the 5-person check |
 
-PRs 1 to 3 do not touch Home, so they can start while you think about the Home questions. PR 4 and PR 5 wait on answers 1, 3, 4 and 5 below.
+## Decisions taken (25 Nov, owner said "take decisions on your own")
 
-## Open questions for you (max 5)
+1. **Ideas:** one "Ideas to post" block with chips (For you, Money back, Be there for me, Before I buy, Quick templates, Everyday). 4 cards show, the rest one chip away, all of them in Explore's list. Quick templates are a chip, not their own row.
+2. **Your face in the header:** on phones it opens the Profile tab (every drawer row is on Profile or Wallet). The desktop keeps the drawer.
+3. **Safety text:** "Why hiring here is safer" and "Your pay is protected" become one line in the hero that opens the same three points, word for word, in a sheet.
+4. **Suggest a feature:** leaves both Homes; lives in Profile, Ideas & feedback (and the desktop account menu).
+5. **Earn's first chip:** a new worker opens on Near you (with the radius); once they add skills it opens on For you.
+6. **Colour:** gold only for verified. "Waiting on you" (Review the work, Pay to start) is a ringed pill in the mode's colour (jade in Hire, blue in Earn); coral for problems; grey for waiting on the other person.
 
-1. **Ideas:** the four idea sections become one "Ideas to post" block with chips (4 cards showing, the rest one tap away, all of them in Explore's list). OK, or keep Quick templates as its own row?
-2. **Your face in the header:** keep opening the account drawer, or open the Profile tab on phones (every drawer row is also on Profile or Wallet)? The desktop keeps the drawer either way.
-3. **Safety text:** "Why hiring through TaskDrop is safer" and "Your pay is protected" become one line in the hero that opens the same three points in a sheet. OK?
-4. **Suggest a feature:** the card leaves both Homes and lives in Profile, Ideas & feedback (and the account menu). OK?
-5. **Earn's first chip:** for a new worker with no skills yet, should "Jobs for you" open on For you or on Near you?
+The owner can change any of these on sight of the final screens; the build follows the PR order above.
 
 ## Notes
 
-- Gold marks "waiting on you" on the cards (Review the work, Pay to start), as the app's `statusBadge` tones already do. If you want gold kept only for verified, these become jade with a bold word instead.
 - The walk was done on taskdrop.in as a guest (Hire and Earn, 390 x 844); the signed-in screens (My tasks, My work, Wallet, Profile) were read from the source, not walked. Names, areas and prices in the mock are sample data. The copy comes from the source.
-- Plan line to update when you OK it: ULTIMATE_PLAN task 1.19 rows F, G, I ("design drawn 25 Nov, waiting for your OK on docs/design/home-simple-1-19").
+- Plan line to update when you OK it: ULTIMATE_PLAN task 1.19 rows F, G, I ("final screens 25 Nov, decisions taken; waiting for your look at docs/design/home-simple-1-19").

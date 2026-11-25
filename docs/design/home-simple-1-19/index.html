@@ -152,7 +152,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stro
 .only{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
 .only div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--ink);text-align:center;line-height:1.2;position:relative}
 .only i{width:54px;height:54px;border-radius:18px;display:flex;align-items:center;justify-content:center;color:#fff}
-.only .new{position:absolute;top:-6px;right:2px;font-size:9px;font-weight:800;background:var(--gold);color:#3a2606;border-radius:999px;padding:1px 5px}
+.only .new{position:absolute;top:-6px;right:2px;font-size:9px;font-weight:800;background:var(--acc);color:var(--onBtn);border-radius:999px;padding:1px 5px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .idea{padding:12px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
 .idea .ic{width:32px;height:32px;border-radius:10px;background:var(--accSoft);color:var(--accDeep);display:flex;align-items:center;justify-content:center}
@@ -179,7 +179,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stro
 .st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;border-radius:999px;padding:4px 10px 4px 8px;white-space:nowrap}
 .st i{width:7px;height:7px;border-radius:999px;background:currentColor}
 .st.acc{background:var(--accSoft);color:var(--accDeep)}
-.st.gold{background:var(--goldSoft);color:var(--goldInk)}
+.st.you{background:var(--accSoft);color:var(--accDeep);box-shadow:inset 0 0 0 1.5px var(--accDeep)}
 .st.coral{background:var(--signalSoft);color:var(--signalDeep)}
 .st.mut{background:var(--surface2);color:var(--muted)}
 .st.wait{background:var(--surface2);color:var(--ink)}
@@ -201,7 +201,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stro
 .tc .when{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-top:10px;font-weight:600}
 .tc .when b{color:var(--ink)}
 .tc .hint{margin-top:10px;font-size:12px;font-weight:600;border-radius:10px;padding:8px 10px}
-.tc .hint.gold{background:var(--goldSoft);color:var(--goldInk)}
+
 .tc .hint.acc{background:var(--accSoft);color:var(--accDeep)}
 .tc .hint.mut{background:var(--surface2);color:var(--muted)}
 .tc .act{display:flex;align-items:center;gap:12px;margin-top:12px}
@@ -269,10 +269,10 @@ table.dt{width:100%;border-collapse:collapse;font-size:13.5px}
     <div class="toggle" id="themeT"><button data-t="light">Light</button><button data-t="dark">Dark</button></div>
     <div class="toggle" id="lenT"><button data-l="phone" class="on">Phone height</button><button data-l="full">Whole page</button></div>
   </div>
-  <p class="lede"><b>Design only, for your OK.</b> Every feature stays; nothing is removed. Home answers three things in order: <b>what is happening near me</b>, <b>what do I need done</b>, <b>what needs me now</b>. Everything else is one tap away, in a sheet or a chip, or lives in the tab it belongs to. My tasks cards show status, the one next step, the price, the person and the date at a glance.</p>
-  <p class="words">Style words: warm and trustworthy, calm and clear, local and quick. Hire is always jade, Earn always royal blue (guests too). Gold = waiting on you, coral = a problem, violet only for the AI writer. Copy is taken from the app's source; names, areas and prices are sample data.</p>
+  <p class="lede"><b>Final screens.</b> The 5 open questions are decided (list at the end); say if you want any of them changed.  Every feature stays; nothing is removed. Home answers three things in order: <b>what is happening near me</b>, <b>what do I need done</b>, <b>what needs me now</b>. Everything else is one tap away, in a sheet or a chip, or lives in the tab it belongs to. My tasks cards show status, the one next step, the price, the person and the date at a glance.</p>
+  <p class="words">Style words: warm and trustworthy, calm and clear, local and quick. Hire is always jade, Earn always royal blue (guests too). Gold only for verified, coral = a problem, violet only for the AI writer; "waiting on you" is a ringed pill in the mode's own colour. Copy is taken from the app's source; names, areas and prices are sample data.</p>
   <nav class="toc">
-    <a href="#walk">1. What feels cluttered</a><a href="#hire">2a. Hire Home</a><a href="#earn">2b. Earn Home</a><a href="#heads">2c. Tab headers</a><a href="#cards">2d. My tasks cards</a><a href="#desk">Desktop Home</a><a href="#motion">Alive, gently</a><a href="#features">3. Every feature, where it lives</a><a href="#questions">Open questions</a>
+    <a href="#walk">1. What feels cluttered</a><a href="#hire">2a. Hire Home</a><a href="#earn">2b. Earn Home</a><a href="#heads">2c. Tab headers</a><a href="#cards">2d. My tasks cards</a><a href="#desk">Desktop Home</a><a href="#motion">Alive, gently</a><a href="#features">3. Every feature, where it lives</a><a href="#questions">Decisions taken</a>
   </nav>
 
   <!-- 1. WALK -->
@@ -299,8 +299,8 @@ table.dt{width:100%;border-collapse:collapse;font-size:13.5px}
     <p class="sub">The level card and the search become one hero. Matches your skills, Jobs near you, Remote &amp; online and Needed today showed the same jobs again and again; they become one "Jobs for you" list with four chips. The radius buttons sit inside "Near you".</p>
     <div class="row">
       <div class="before" id="beforeEarn"></div>
-      <div><div class="phone earn"><div class="screen" id="pEarn"></div></div><p class="cap"><b>New worker, one job picked.</b> The hero holds level, jobs on the go and search; "Needs you now" shows the job to start; one jobs list with chips.</p></div>
-      <div><div class="phone earn"><div class="screen" id="pEarnNear"></div></div><p class="cap"><b>Chip "Near you" picked:</b> the radius buttons (3, 10, 25, 50 km) appear; "Today" carries the Urgent count. "See all 142 jobs" opens the Find work list.</p></div>
+      <div><div class="phone earn"><div class="screen" id="pEarn"></div></div><p class="cap"><b>New worker, one job picked.</b> The hero holds level, jobs on the go and search; "Needs you now" shows the job to start; one jobs list with chips, opening on <b>Near you</b> with the radius (3, 10, 25, 50 km).</p></div>
+      <div><div class="phone earn"><div class="screen" id="pEarnNear"></div></div><p class="cap"><b>Once they add skills, it opens on "For you":</b> jobs that match their skills; "Today" carries the Urgent count. "See all 142 jobs" opens the Find work list.</p></div>
     </div>
   </section>
 
@@ -316,7 +316,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13.5px}
     <h2>2d. My tasks and My work cards</h2>
     <p class="sub">One card, read top to bottom in two seconds: <b>status</b> (colour and words), <b>what</b> (title, nearby or remote), <b>who and how much</b> (face, name, rating, price and whether it is held), <b>when</b>, then <b>one button</b>. The button is filled only when the next step is yours; when you are waiting, it is an outline. Everything else (View details, Create similar, Top up, Close task) stays in the ⋯ menu as today.</p>
     <div class="anat">
-      <div><b>1. Status pill</b>Jade = moving; gold = waiting on you; coral = a problem; grey = closed. Words from statusBadge(), never colour alone.</div>
+      <div><b>1. Status pill</b>Soft mode colour = moving; ringed mode colour = waiting on you (jade in Hire, blue in Earn); coral = a problem; grey = closed. Words from statusBadge(), never colour alone.</div>
       <div><b>2. Title + where</b>Two lines max. "Nearby · Kondapur" or "Remote", so remote tasks are never hidden.</div>
       <div><b>3. Person + money</b>Their face (green dot when active now), name, rating. Price big, tabular, with "held safely" or "not paid yet".</div>
       <div><b>4. Track + date</b>The 5-step track (Posted, Offers, Hired, Working, Done) as a thin bar; the next date in words.</div>
@@ -373,7 +373,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13.5px}
   </section>
 
   <section class="block" id="questions">
-    <h2>Open questions for you</h2>
+    <h2>Decisions taken (change any you disagree with)</h2>
     <ol class="qs" id="qlist"></ol>
     <p class="sub" style="margin-top:12px">Build order (small, look-only PRs) is in PLAN.md beside this page.</p>
   </section>
@@ -385,7 +385,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13.5px}
 ["Header (every tab)","Hire / Earn switch","Top left","Same","0","0",""],
 ["Header (every tab)","Notifications, with unread count","Bell","Same","1","1",""],
 ["Header (every tab)","Messages, with unread count","Chat icon","Same","1","1",""],
-["Header (every tab)","Account menu (View profile, Saved tasks, Balance, Bank & UPI, How fees work, My complaints, Account & settings, Help & support, Ideas & feedback, Send feedback, Sign out)","Your face, opens a drawer","Same (question 2)","1","1","Every row also on Profile or Wallet"],
+["Header (every tab)","Account menu (View profile, Saved tasks, Balance, Bank & UPI, How fees work, My complaints, Account & settings, Help & support, Ideas & feedback, Send feedback, Sign out)","Your face, opens a drawer","Phones: your face opens the Profile tab. Desktop: the drawer as today","1","1","Every row also on Profile or Wallet"],
 ["Header (every tab)","Sign in pill (guests)","Top right","Same","0","0",""],
 ["Header (every tab)","Android app banner and Staging line (web)","Above the header","Same","0","0",""],
 ["Hire Home","Your area and the location sheet","Area bar, own row","Area row, with the live count beside it","1","1",""],
@@ -534,7 +534,7 @@ const needs=(m)=>m==='earn'
 const mapCard=(m)=>`<div class="sec px"><div class="card"><div class="map">${mapSvg(m)}</div><div class="mapfoot"><div class="w"><b class="num">${m==='earn'?'23 jobs within 5 km':'18 helpers within 5 km'}</b>${m==='earn'?'plus 96 remote jobs you can do from anywhere':'6 active now · people online can send offers too'}</div><span class="btno" style="padding:7px 12px">${ic('map',15)} Open the map</span></div></div>
 <div class="sc">${m==='earn'?`<span class="pill">${ic('pin',14)} Jobs near you</span><span class="pill">${ic('globe',14)} Remote work</span><span class="pill">${ic('map',14)} Full map</span>`:`<span class="pill">${ic('users',14)} Helpers near you</span><span class="pill">${ic('map',14)} Full map</span>`}</div></div>`;
 const only=`<div class="sec px"><div class="sh"><h4>Only on TaskDrop</h4><span class="idtag">IDEAS</span></div><div class="only">
-<div><span class="new">NEW</span><i style="background:var(--goldSoft);color:var(--goldInk)">${ic('search',24)}</i>Find it<br>for me</div>
+<div><span class="new">NEW</span><i style="background:var(--accSoft);color:var(--accDeep)">${ic('search',24)}</i>Find it<br>for me</div>
 <div><i style="background:var(--acc)">${ic('cal',24)}</i>Plan a<br>big day</div>
 <div><i style="background:#4A90D9">${ic('users',24)}</i>Many<br>hands</div>
 <div><i style="background:var(--signal)">${ic('chat',24)}</i>Get<br>opinions</div>
@@ -576,8 +576,8 @@ ${chip==='near'
 const ways=`<div class="sec px"><div class="sh"><h4>Ways to earn</h4><span class="idtag">IDEAS</span></div><div class="rail">
 ${[['camera','Shoot product photos','₹1,500+'],['wallet','Chase a stuck claim','₹800+'],['heart','Hospital runner','₹1,500 a day']].map(x=>`<div class="idea" style="flex:0 0 150px">${`<span class="ic">${ic(x[0],17)}</span>`}<b>${x[1]}</b><em class="num">${x[2]}</em></div>`).join('')}
 <div class="idea" style="flex:0 0 150px;border-style:dashed"><span class="ic">${ic('star',17)}</span><b>Add a skill</b><small>See jobs that match</small></div></div></div>`;
-$('pEarn').innerHTML=phone('earn',0,header('earn')+area('earn')+heroEarn+needs('earn')+mapCard('earn')+jobsFor('you')+ways,true);
-$('pEarnNear').innerHTML=phone('earn',0,header('earn')+jobsFor('near')+ways,true);
+$('pEarn').innerHTML=phone('earn',0,header('earn')+area('earn')+heroEarn+needs('earn')+mapCard('earn')+jobsFor('near')+ways,true);
+$('pEarnNear').innerHTML=phone('earn',0,header('earn')+jobsFor('you')+ways,true);
 
 /* ---------- before columns ---------- */
 const before=(rows,label,h)=>`<h3>Today (${label})</h3><p>${h}</p>`+rows.map(r=>`<div class="bk ${r[1]}"><span>${r[0]}</span><span>${r[2]||''}</span></div>`).join('')+`<p style="margin-top:8px"><span class="moved">moved</span> = one tap deeper or another tab. Green = merged into a block above.</p>`;
@@ -608,14 +608,14 @@ const tcard=(o)=>`<div class="tc ${o.dim?'dim':''}"><div class="r1"><span class=
 <div class="who">${o.face}<div class="w">${o.who}</div><div class="money"><b class="num">${o.price}</b><small class="${o.held?'held':''}">${o.held?ic('shield',12):''}${o.priceSub}</small></div></div>
 ${o.track!==undefined?track(o.track):''}
 <div class="when">${ic('clock',14)}${o.when}</div>
-${o.hint?`<div class="hint ${o.hintTone||'gold'}">${o.hint}</div>`:''}
+${o.hint?`<div class="hint ${o.hintTone||'acc'}">${o.hint}</div>`:''}
 <div class="act">${o.act}</div></div>`;
 const P_STATES=[
  ['Open, waiting for offers',{tone:'wait',status:'Waiting for offers',meta:'Home Services · Nearby · Kondapur',title:'Watch my plot in Shamshabad, monthly photos',face:`<span class="av s" style="background:var(--surface2);color:var(--muted)">${ic('users',15)}</span>`,who:'<b>No offers yet</b>Helpers nearby and online can see it',price:'₹500',priceSub:'your price · a month',track:1,when:'Posted <b>2 h ago</b> · due <b>Sun 30 Nov</b>',act:`<span class="btno">Open task</span><span class="btnq">Top up</span>`}],
  ['Offers in',{tone:'acc',status:'3 offers in',meta:'Home Services · Nearby · Kondapur',title:'Deep clean my 2BHK before Diwali',face:`<span class="faces">${av('Ravi','xs',true)}${av('Anjali','xs')}${av('Suresh','xs')}</span>`,who:'<b>Ravi, Anjali, Suresh</b>from ₹1,500 · <span class="fresh pop">1 new</span>',price:'₹1,800',priceSub:'your price',track:1,when:'Posted <b>yesterday</b> · due <b>Sat 29 Nov</b>',act:`<span class="btnp">Choose an offer (3)</span>`}],
- ['Hired, pay to start (same card, other words)',{tone:'gold',status:'Pay to start',meta:'Errands & Delivery · Nearby',title:'Queue for me at the RTO, Kondapur',face:av('Farhan','s',true),who:'<b>Farhan · ★ 4.6</b>Active now',price:'₹600',priceSub:'not paid yet',track:2,when:'Hired <b>today 9:10</b> · due <b>tomorrow</b>',hint:'Farhan starts once you pay. TaskDrop holds the money until you approve.',hintTone:'acc',act:`<span class="btnp">Pay to start</span>`}],
+ ['Hired, pay to start (same card, other words)',{tone:'you',status:'Pay to start',meta:'Errands & Delivery · Nearby',title:'Queue for me at the RTO, Kondapur',face:av('Farhan','s',true),who:'<b>Farhan · ★ 4.6</b>Active now',price:'₹600',priceSub:'not paid yet',track:2,when:'Hired <b>today 9:10</b> · due <b>tomorrow</b>',hint:'Farhan starts once you pay. TaskDrop holds the money until you approve.',hintTone:'acc',act:`<span class="btnp">Pay to start</span>`}],
  ['Ongoing',{tone:'acc',status:'Working',meta:'Repairs & Maintenance · Nearby',title:'Fix the leaking kitchen tap',face:av('Ravi','s',true),who:'<b>Ravi Kumar · ★ 4.8</b>Active now',price:'₹650',held:1,priceSub:'held safely',track:3,when:'Started <b>today 10:30</b> · due <b>today 6 pm</b>',act:`<span class="btno">Track work</span>`}],
- ['Waiting for your approval',{tone:'gold',status:'Review the work',meta:'Design & Creative · Remote',title:'Logo for my bakery, Meena’s Oven',face:av('Anjali','s',true),who:'<b>Anjali Rao · ★ 4.9</b>sent the work 3 h ago',price:'₹2,500',held:1,priceSub:'held safely',track:4,when:'Approve or report by <b>Thu 27 Nov</b>',hint:'If you say nothing for 3 days, it completes and Anjali is paid.',act:`<span class="btnp">Review the work</span>`}],
+ ['Waiting for your approval',{tone:'you',status:'Review the work',meta:'Design & Creative · Remote',title:'Logo for my bakery, Meena’s Oven',face:av('Anjali','s',true),who:'<b>Anjali Rao · ★ 4.9</b>sent the work 3 h ago',price:'₹2,500',held:1,priceSub:'held safely',track:4,when:'Approve or report by <b>Thu 27 Nov</b>',hint:'If you say nothing for 3 days, it completes and Anjali is paid.',act:`<span class="btnp">Review the work</span>`}],
  ['Done',{tone:'acc',status:'✓ Done',meta:'Photo & Video · Remote',title:'Edit my raw footage into a 30-second reel',face:av('Suresh','s'),who:'<b>Suresh · ★ 5.0</b>Approved Sat 22 Nov',price:'₹900',priceSub:'paid',track:5,when:'Finished <b>Sat 22 Nov</b>',act:`<span class="btnp">Book again</span><span class="btnq">Leave a review</span>`}],
  ['Cancelled / closed',{dim:1,tone:'mut',status:'Closed',meta:'Shopping & Sourcing · Nearby',title:'Find a cricket kit under ₹3,000',face:`<span class="av s" style="background:var(--surface2);color:var(--muted)">${ic('tag',15)}</span>`,who:'<b>Closed before anyone was hired</b>Nothing was charged',price:'₹350',priceSub:'your price',when:'Closed <b>Fri 21 Nov</b>',act:`<span class="btno">Post again</span>`}]
 ];
@@ -623,7 +623,7 @@ const W_STATES=[
  ['Offer sent',{tone:'wait',status:'Offer sent',meta:'Errands · Nearby · Madhapur',title:'Stand in the queue for me at the passport office',face:`<span class="av s" style="background:var(--surface2);color:var(--muted)">${ic('user',15)}</span>`,who:'<b>Customer shown when the job starts</b>sent 2 h ago',price:'₹1,080',priceSub:'you earn, after 10% fee',when:'Due <b>Fri 28 Nov</b>',hint:'Waiting for the customer',hintTone:'mut',act:`<span class="btno">Edit offer</span>`}],
  ['Picked, start it',{tone:'acc',status:'You’re picked',meta:'Errands & Delivery · Nearby',title:'Deliver documents to Madhapur',face:av('Priya','s',true),who:'<b>Priya S. · ★ 4.9</b>Active now · Kondapur',price:'₹540',held:1,priceSub:'held until approval',when:'Today by <b>5 pm</b>',act:`<span class="swipe"><i>›</i>Swipe to start</span>`}],
  ['Ongoing',{tone:'acc',status:'Working',meta:'Photo & Video · Remote',title:'Edit a 30-second reel for my bakery',face:av('Meena','s'),who:'<b>Meena · ★ 4.8</b>Remote',price:'₹810',held:1,priceSub:'held until approval',when:'Timer running · send by <b>Thu 27 Nov</b>',act:`<span class="btnp">Finish and send proof</span>`}],
- ['Waiting for approval',{tone:'gold',status:'Waiting for approval',meta:'Design & Creative · Remote',title:'Logo for a bakery, Meena’s Oven',face:av('Kavya','s'),who:'<b>Kavya · ★ 4.7</b>proof sent today',price:'₹2,250',held:1,priceSub:'held until approval',when:'Completes by itself <b>Thu 27 Nov</b>',act:`<span class="btno">Open job</span>`}],
+ ['Waiting for approval',{tone:'wait',status:'Waiting for approval',meta:'Design & Creative · Remote',title:'Logo for a bakery, Meena’s Oven',face:av('Kavya','s'),who:'<b>Kavya · ★ 4.7</b>proof sent today',price:'₹2,250',held:1,priceSub:'held until approval',when:'Completes by itself <b>Thu 27 Nov</b>',act:`<span class="btno">Open job</span>`}],
  ['Done',{tone:'acc',status:'✓ Paid',meta:'Home Services · Nearby',title:'Deep clean a 2BHK in Kondapur',face:av('Arjun','s'),who:'<b>Arjun · ★ 4.7</b>approved Sat 22 Nov',price:'₹1,620',priceSub:'earned · clears 28 Nov',when:'Finished <b>Sat 22 Nov</b>',act:`<span class="btno">Open job</span>`}],
  ['Cancelled / not picked',{dim:1,tone:'mut',status:'Not picked',meta:'Tutoring · Remote',title:'Maths tuition for class 8 (3 days a week)',face:`<span class="av s" style="background:var(--surface2);color:var(--muted)">${ic('user',15)}</span>`,who:'<b>The customer picked someone else</b>Closed Fri 21 Nov',price:'₹5,130',priceSub:'your offer, after fee',when:'Closed <b>Fri 21 Nov</b>',act:`<span class="btno">Open job</span>`}]
 ];
@@ -652,7 +652,7 @@ $('dHome').innerHTML=`<div class="dbar"><i></i><i></i><i></i><span>taskdrop.in</
 <div style="width:200px;height:170px;border-radius:24px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;position:relative;z-index:1"><svg viewBox="0 0 24 24" style="width:110px;height:110px;fill:rgba(255,255,255,.9)"><path d="M12 2C9 6.5 5 10.5 5 14.5a7 7 0 0 0 14 0C19 10.5 15 6.5 12 2z"/><path d="M8.8 14.6l2.2 2.2 4.4-4.6" stroke="var(--h2)" stroke-width="2" fill="none" stroke-linecap="round"/></svg></div></div>
 <div class="sec"><div class="sh"><h4>Needs you now</h4><span class="a">All 5 in My tasks ›</span></div><div class="card" style="margin-top:10px;overflow:hidden"><table class="dt">
 <tr><td><span class="st acc"><i></i>3 offers in</span></td><td><b style="color:var(--ink)">Deep clean my 2BHK before Diwali</b><br><small style="color:var(--muted)">Home Services · Nearby · due Sat 29 Nov</small></td><td><span class="faces">${av('Ravi','xs',true)}${av('Anjali','xs')}${av('Suresh','xs')}</span></td><td class="num" style="font-weight:800;color:var(--ink)">₹1,800</td><td style="text-align:right"><span class="btnp">Choose an offer (3)</span></td></tr>
-<tr><td><span class="st gold"><i></i>Review the work</span></td><td><b style="color:var(--ink)">Logo for my bakery, Meena’s Oven</b><br><small style="color:var(--muted)">Design & Creative · Remote · by Thu 27 Nov</small></td><td>${av('Anjali','xs',true)}</td><td class="num" style="font-weight:800;color:var(--ink)">₹2,500</td><td style="text-align:right"><span class="btnp">Review the work</span></td></tr>
+<tr><td><span class="st you"><i></i>Review the work</span></td><td><b style="color:var(--ink)">Logo for my bakery, Meena’s Oven</b><br><small style="color:var(--muted)">Design & Creative · Remote · by Thu 27 Nov</small></td><td>${av('Anjali','xs',true)}</td><td class="num" style="font-weight:800;color:var(--ink)">₹2,500</td><td style="text-align:right"><span class="btnp">Review the work</span></td></tr>
 <tr><td><span class="st acc"><i></i>Working</span></td><td><b style="color:var(--ink)">Fix the leaking kitchen tap</b><br><small style="color:var(--muted)">Repairs · Nearby · due today 6 pm</small></td><td>${av('Ravi','xs',true)}</td><td class="num" style="font-weight:800;color:var(--ink)">₹650</td><td style="text-align:right"><span class="btno">Track work</span></td></tr></table></div></div>
 <div class="sec"><div class="sh"><h4>Only on TaskDrop</h4><span class="idtag">IDEAS</span></div><div class="only" style="max-width:560px">${only.split('<div class="only">')[1].split('</div></div>')[0]}</div></div></div>
 <div class="sec"><div class="sh"><h4>Ideas to post</h4><span class="a">See all ›</span></div><div class="sc" style="margin-top:10px"><span class="pill on">For you</span><span class="pill">Money back</span><span class="pill">Earn from it</span><span class="pill">Be there for me</span><span class="pill">Before I buy</span><span class="pill">Grow my business</span><span class="pill">My career</span><span class="pill">Quick templates</span><span class="pill">Everyday</span></div>
@@ -694,11 +694,12 @@ $('ftable').innerHTML='<tr><th>Feature</th><th>Today</th><th>New design</th><th>
 
 /* ---------- questions ---------- */
 const Q=[
- '<b>The four idea sections become one "Ideas to post" block with chips</b> (For you, Money back, Be there for me, Before I buy, Quick templates, Everyday …), 4 cards showing, the rest one tap away and all of them in Explore\'s list. OK, or keep Quick templates as its own row?',
- '<b>Your face in the header:</b> keep opening the account drawer (today), or open the Profile tab on phones (the drawer\'s rows are all on Profile and Wallet)? Desktop keeps the drawer either way.',
- '<b>"Why it\'s safer" and "Your pay is protected"</b> become one line in the hero that opens the same three points in a sheet. OK to move them off the page?',
- '<b>The "Suggest a feature" card</b> leaves both Homes and lives in Profile, Ideas &amp; feedback (and the account menu). OK?',
- '<b>Earn Home\'s four job lists</b> become one "Jobs for you" list with chips For you, Near you (with the radius), Remote, Today. Which chip should be first for a new worker with no skills yet: For you or Near you?'
+ '<b>Ideas: yes, one "Ideas to post" block with chips</b> (For you, Money back, Be there for me, Before I buy, Quick templates, Everyday …). 4 cards show, the rest are one chip away, and all of them stay in Explore’s list. Quick templates become a chip, not a row of their own.',
+ '<b>Your face: on phones it opens the Profile tab.</b> Every row of today’s drawer is on Profile or Wallet, so nothing is lost, and Profile is already a tab people know. The desktop keeps the drawer.',
+ '<b>Safety text: one line in the hero opens a sheet.</b> "Why hiring here is safer" (Hire) and "Your pay is protected" (Earn) keep the same three points, word for word, in the sheet.',
+ '<b>"Suggest a feature" moves to Profile</b>, under Ideas &amp; feedback (and the desktop account menu). It leaves both Homes.',
+ '<b>A new worker opens on "Near you"</b>, with the radius, because with no skills yet "For you" has nothing to match. Once they add skills, the list opens on "For you".',
+ '<b>Colour: gold is kept only for verified.</b> "Waiting on you" (Review the work, Pay to start) is a ringed pill in the mode’s own colour, jade in Hire and blue in Earn; coral stays for problems.'
 ];
 $('qlist').innerHTML=Q.map(q=>`<li>${q}</li>`).join('');
 
