@@ -1,3 +1,4 @@
+import type { ChatState } from '../lib/chatWindow';
 import { ApiError, friendlyMessage, reportError } from '../lib/errors';
 import { callApi } from '../lib/gateway';
 import { ACCOUNT_WRITES, NeedsAccountError, isGuestOp, needAccount } from '../lib/guest';
@@ -307,6 +308,8 @@ export type Message = {
   body: string;
   created_at: string;
 };
+
+export const chatState = (taskId: string) => act<ChatState>('chatState', { taskId });
 
 export const listMessages = (taskId: string) => act<Message[]>('listMessages', { taskId });
 

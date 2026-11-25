@@ -27,6 +27,7 @@ import {
   CHAT_MEDIA_PREFIX,
   listMessages,
   sendMessage,
+  chatState,
   subscribeToMessages,
   getTaskDetail,
   taskContactPhone,
@@ -42,6 +43,8 @@ import { PhotoViewer } from '../components/PhotoViewer';
 import { fontFamilyFor, type Theme } from '../theme';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
+import { closingLine, type ChatState } from '../lib/chatWindow';
+import { ApiError } from '../lib/errors';
 import { workerEarnsMinor } from '../lib/heldWords';
 import { useFees } from '../lib/useFees';
 import { useLayout } from '../lib/layout';
@@ -147,6 +150,8 @@ export function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  // Whether the chat may still be written to (task 1.19 row B); null until known, then the server decides.
+  const [chat, setChat] = useState<ChatState | null>(null);
   const [other, setOther] = useState<Profile | null>(null);
   // The message being reported (long-press on one from the other person).
   const [reporting, setReporting] = useState<string | null>(null);
@@ -199,14 +204,21 @@ export function ChatScreen() {
 
     // The task alone, to pick up a status change (work started) while the chat stays open.
     refreshDetail.current = async () => {
-      const detail = await getTaskDetail(taskId);
-      if (alive) applyDetail(detail);
+      const [detail, cs] = await Promise.all([getTaskDetail(taskId), chatState(taskId).catch(() => null)]);
+      if (!alive) return;
+      applyDetail(detail);
+      if (cs) setChat(cs);
     };
 
     void (async () => {
       try {
-        const [rows, detail] = await Promise.all([listMessages(taskId), getTaskDetail(taskId)]);
+        const [rows, detail, cs] = await Promise.all([
+          listMessages(taskId),
+          getTaskDetail(taskId),
+          chatState(taskId).catch(() => null), // a nicety here; the server still refuses a late send
+        ]);
         if (!alive) return;
+        if (cs) setChat(cs);
         // Merge, not replace: a message that arrived live while this was loading stays.
         setMessages((prev) => mergeById(prev, rows.map(toBubble), (m) => m.at));
         applyDetail(detail);
@@ -262,6 +274,22 @@ export function ChatScreen() {
     return true;
   };
 
+  /** A send the server refused because the window shut: show its words and swap the box for the closed bar. */
+  const closeFromError = (e: unknown) => {
+    if (!(e instanceof ApiError) || e.code !== 'CHAT_CLOSED') return false;
+    setChat({
+      taskId: taskId ?? '',
+      open: false,
+      state: 'closed',
+      reason: (e.details as ChatState['reason']) ?? null,
+      message: e.message,
+      closesAt: null,
+      deleteAfter: null,
+    });
+    setDraft('');
+    return true;
+  };
+
   const send = async () => {
     const text = draft.trim();
     if (!text || sending) return;
@@ -284,7 +312,7 @@ export function ChatScreen() {
       await post(text);
     } catch (e) {
       setDraft(text); // hand the text back rather than losing it
-      flash(e instanceof Error ? e.message : 'Could not send that');
+      if (!closeFromError(e)) flash(e instanceof Error ? e.message : 'Could not send that');
     } finally {
       setSending(false);
     }
@@ -299,7 +327,7 @@ export function ChatScreen() {
       const uploaded = await uploadMedia(picked, 'chat');
       await post(CHAT_MEDIA_PREFIX + uploaded.path);
     } catch (e) {
-      flash(e instanceof MediaError || e instanceof Error ? e.message : 'Could not send that photo');
+      if (!closeFromError(e)) flash(e instanceof MediaError || e instanceof Error ? e.message : 'Could not send that photo');
     } finally {
       setUploading(false);
     }
@@ -536,7 +564,34 @@ export function ChatScreen() {
           </View>
         ) : null}
 
-        {/* ---- composer ---- */}
+        {chat?.state === 'closing' ? (
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: t.colors.surface2 }}>
+            <Icon name="clock" size={14} color={t.colors.muted} />
+            <RNText style={tx('600', 12, t.colors.muted, { flex: 1, lineHeight: 17 })}>{closingLine(chat.closesAt)}</RNText>
+          </View>
+        ) : null}
+
+        {/* ---- composer (or, once the window has shut, the closed bar) ---- */}
+        {chat?.state === 'closed' ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: 10,
+              alignItems: 'center',
+              backgroundColor: t.colors.surface,
+              paddingHorizontal: 16,
+              paddingTop: 14,
+              paddingBottom: 22,
+              borderTopWidth: 1,
+              borderTopColor: t.colors.line,
+            }}
+          >
+            <Icon name="lock" size={16} color={t.colors.muted} />
+            <RNText style={tx('600', 13, t.colors.muted, { flex: 1, lineHeight: 19 })}>
+              {chat.message ?? 'This chat is closed.'}
+            </RNText>
+          </View>
+        ) : (
         <KeyboardSafe
           style={{
             backgroundColor: t.colors.surface,
@@ -610,6 +665,7 @@ export function ChatScreen() {
             )}
           </Pressable>
         </KeyboardSafe>
+        )}
       </KeyboardAvoidingView>
 
       <BottomSheet visible={attachOpen} onClose={() => setAttachOpen(false)} title="Send a photo" subtitle="Show the job, a part, or the finished work.">

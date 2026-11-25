@@ -12,6 +12,7 @@ import type { Idea, IdeaComment, IdeaKind, IdeaStatus } from '../lib/ideas';
 import type { FeedbackFile } from '../lib/media';
 import { EVERYONE_MAP_NOTICE, PEOPLE_MAP_NOTICE, type MapAudience } from '../lib/mapSpot';
 import { passwordProblem } from '../lib/passwordRules';
+import type { ChatState } from '../lib/chatWindow';
 
 /**
  * The second-wave features: notifications, saved tasks, help & support,
@@ -315,6 +316,8 @@ export type Thread = {
   lastAt: string;
   lastFromMe: boolean;
   status: string;
+  /** Whether the chat may still be written to; null if the check failed. */
+  chat?: ChatState | null;
 };
 
 export const listThreads = () => ask<Thread[]>('listThreads', {}, []);

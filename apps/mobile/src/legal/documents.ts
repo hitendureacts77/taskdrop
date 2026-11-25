@@ -22,9 +22,9 @@ export type LegalBlock = string | { list: string[] };
 export type LegalSection = { heading: string; body: LegalBlock[] };
 export type LegalDoc = { title: string; updated: string; intro: string; sections: LegalSection[] };
 
-const UPDATED = '19 October 2026';
-// The Terms changed on their own (disputes and the not-allowed list); the Privacy Policy did not.
-const TERMS_UPDATED = '3 November 2026';
+const UPDATED = '25 November 2026';
+// Both documents changed together on 25 November 2026 (chat window: chats are deleted 2 days after a job ends).
+const TERMS_UPDATED = '25 November 2026';
 const who = company.entity;
 // "Acme Pvt Ltd runs TaskDrop", or just "TaskDrop" until the entity is set.
 const named = who !== 'TaskDrop';
@@ -103,6 +103,7 @@ export const PRIVACY: LegalDoc = {
       heading: 'How long we keep it',
       body: [
         'We keep your information while your account is open. Payment, refund and payout records are kept for as long as Indian tax and accounting law requires, even after an account closes.',
+        'Chat messages and chat photos for a job are kept only while the job is under way and for 2 days after it is finished, then they are deleted automatically. If there is a dispute or a report about the job, they are kept until it is decided and deleted 2 days after that. The job itself, its proof of work, reviews, payments and any dispute decision are kept.',
         'Some records are short-lived: sign-in codes expire after 10 minutes and expired ones are cleared daily; the count of codes sent to an IP address is cleared after a day; password attempts (the username and IP address) are kept for 30 days; in-app notifications for 90 days; our internal alert log and our team’s live activity feed for 30 days.',
         'When you delete your account (Account & settings → Delete account), we immediately remove your name, username, photo, bio, skills, location, date of birth, saved payout details, saved tasks, notifications, device records, referrals, blocks and every way of signing in, and sign you out on every device. Every chat message you sent is deleted. Requests nobody had paid for are emptied and taken down along with their chats, and quotes that never became a job are removed. Your photos and files are deleted too, except those a kept record still needs.',
         'What stays, because other people or the law depend on it: paid tasks, with their proof of work and reviews, shown under “Deleted user”; payments, refunds, payouts and wallet history; your PAN and legal name if we ever sent you a payout; disputes, help conversations and reports; and private notes our team wrote. Your phone number and Google or Apple account are released, so signing in with them again starts a new, empty account.',
@@ -200,6 +201,7 @@ export const TERMS: LegalDoc = {
             'Earnings. Released earnings, less the commission, become available after the clearing period shown on How fees work.',
             'Your wallet. Money you add, money you earn and refunds all sit in one balance. You can spend it on jobs or withdraw it to a UPI ID or bank account you have saved, above the minimum shown in the app, with no withdrawal fee. Before your first withdrawal we ask for your full name as on your PAN card, and your PAN. Withdrawals are sent through RazorpayX. We may hold, delay or refuse a withdrawal that looks like fraud or that the law requires us to stop, and adding money and withdrawing can be paused for a while.',
             'Cancelling. If a job is cancelled before work starts, the customer gets their money back the way the app shows when cancelling. If the customer cancels after the worker has started, the worker is paid the cancellation fee for the time they put in, and the rest is refunded.',
+            'Chat. The chat for a job opens once the job is locked with a helper and closes 2 days after the job is finished. Its messages and photos are then deleted, unless a dispute or a report is still open, in which case they are kept until it is decided.',
             `Disputes. Either side can report a problem on a job, and the held money stays held until TaskDrop decides. TaskDrop looks at the job, its chat and the proof of work, and decides who receives the held money: either the worker is paid, or the customer is refunded what they paid for the job. The money is not split. We aim to acknowledge a report within ${DISPUTE_ACK_HOURS} hours and decide within ${DISPUTE_DECIDE_WORKING_DAYS} working days. That decides the held money on TaskDrop; it does not take away any other legal right you have. Reporting a job without a real reason, again and again, may lead us to limit your account.`,
             'Promoting a post. A promotion is paid once, up front, and does not renew. You pay only for the reach that is delivered: what is not delivered, including if you stop early, comes back to your TaskDrop wallet when the promotion ends. Reach figures are estimates.',
             'Taxes. You are responsible for any tax on what you earn through TaskDrop.',
