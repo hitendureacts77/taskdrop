@@ -496,6 +496,8 @@ export function ChatScreen() {
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
         >
+          {/* The contacts note only matters while the chat is open. */}
+          {chat?.state === 'closed' ? null : (
           <View
             style={{
               alignSelf: 'center',
@@ -519,6 +521,16 @@ export function ChatScreen() {
                 : 'Your offer was accepted. Phone numbers, emails and addresses unlock when the work starts, so your payment stays protected.'}
             </RNText>
           </View>
+          )}
+
+          {/* A closed chat with nothing in it: not locked yet, or its messages were already deleted. */}
+          {chat?.state === 'closed' && messages.length === 0 ? (
+            <RNText style={tx('500', 13, t.colors.muted, { textAlign: 'center', lineHeight: 19, marginTop: 32, paddingHorizontal: 24 })}>
+              {chat.reason === 'not_locked' || chat.reason === 'not_participant'
+                ? (chat.message ?? 'Chat opens once this task is locked with a helper.')
+                : 'No messages.\nChats are deleted 2 days after a task ends.'}
+            </RNText>
+          ) : null}
 
           {messages.map((m) => {
             const { style, textColor } = bubbleShape(t, m);
