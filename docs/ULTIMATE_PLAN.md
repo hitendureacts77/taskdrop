@@ -266,6 +266,8 @@ Decision 38: these areas: ___
 
 <div id="dash"></div>
 
+**Open this plan on any device:** <https://taskdrop-plan.pages.dev> (private: Cloudflare asks for your email and sends a one-time code; only your email gets in). It updates by itself about a minute after every merge that changes this page (GitHub workflow "Plan site").
+
 **How to read a task**
 
 | Tag | Who does it |

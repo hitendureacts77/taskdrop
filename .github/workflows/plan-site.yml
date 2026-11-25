@@ -1,14 +1,16 @@
 name: Plan site
 
-# Publishes docs/ (the plan page and the files it links to) to the private
-# Cloudflare address in "Start here" of docs/ULTIMATE_PLAN.md (task 1.19 row Q).
-# Cloudflare Access lets only the owner's email in.
+# Publishes the plan page to the private Cloudflare Pages address in
+# "Start here" of docs/ULTIMATE_PLAN.md (task 1.19 row Q). Cloudflare Access
+# lets only the owner's email in (one-time code). Deploy-only token, Pages edit.
 
 on:
   push:
     branches: [redesigned-2.0]
     paths:
-      - 'docs/**'
+      - 'docs/ULTIMATE_PLAN.html'
+      - 'docs/DEBUGGING_PLAN.html'
+      - 'docs/architecture/*.html'
       - 'plan-site/**'
       - '.github/workflows/plan-site.yml'
   workflow_dispatch:
@@ -32,15 +34,18 @@ jobs:
             plan-site
       - name: Build the site folder
         run: |
-          mkdir -p plan-site/public
-          cp -r docs/. plan-site/public/
+          mkdir -p plan-site/public/architecture
           cp docs/ULTIMATE_PLAN.html plan-site/public/index.html
-          cp plan-site/_headers plan-site/public/_headers
-          echo "Files: $(find plan-site/public -type f | wc -l)"
-      - name: Deploy to Cloudflare
-        working-directory: plan-site
+          cp docs/ULTIMATE_PLAN.html docs/DEBUGGING_PLAN.html plan-site/public/
+          cp docs/architecture/*.html plan-site/public/architecture/
+          cp plan-site/_headers plan-site/404.html plan-site/public/
+          find plan-site/public -type f | wc -l
+      - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PLAN_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WRANGLER_SEND_METRICS: 'false'
-        run: npx --yes wrangler@4.166.0 deploy
+        run: >
+          npx --yes wrangler@4.166.0 pages deploy plan-site/public
+          --project-name taskdrop-plan --branch main
+          --commit-hash "$GITHUB_SHA" --commit-dirty=true
