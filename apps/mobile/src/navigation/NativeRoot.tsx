@@ -12,7 +12,6 @@ import { ResumePost } from '../components/ResumePost';
 import { Overlays } from '../components/Overlays';
 import { AccountPrompt } from '../components/AccountPrompt';
 import { StagingWelcome } from '../components/StagingWelcome';
-import { TourHost } from '../components/tour/TourHost';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ScreenBoundary } from '../AppProviders';
 import { fontFamilyFor } from '../theme';
@@ -91,7 +90,6 @@ export function NativeRoot() {
         <Overlays />
         <AccountPrompt />
         <StagingWelcome />
-        <TourHost />
       </ErrorBoundary>
     </KeyboardAvoidingView>
   );

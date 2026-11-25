@@ -5,9 +5,7 @@ import { Screen } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { Field, IconButton, Pill, PrimaryButton } from '../components/kit';
 import { Ripples } from '../components/Ripples';
-import { WelcomeStory } from '../components/WelcomeStory';
 import { loadIntroSeen } from '../lib/intro';
-import { requestTourOffer } from '../components/tour/tourStore';
 import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -226,12 +224,12 @@ export function OnboardingScreen() {
       setMode(intent === 'earn' ? 'worker' : 'poster');
       reset('home');
       celebrate('Welcome to TaskDrop');
-      // Offered once, on Home, after the staging card (see components/tour).
-      requestTourOffer(intent);
       // "Post my request" was pressed as a guest just before this account was made (a new Google
       // account lands here after the reload): back to that post, on Review, with everything put back.
       const kept = await loadWizard();
       if (kept && resumable(kept) && ownerMatches(kept, userId)) go('aiPost', { resume: true });
+      // A device that never showed "How TaskDrop works" (it came straight to sign-in) shows it once now.
+      else if (introSeen === false) go('intro', { replay: true, side: intent === 'earn' ? 'earn' : 'hire' });
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not finish setup');
     } finally {
@@ -280,8 +278,6 @@ export function OnboardingScreen() {
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
           Ask for anything. Someone gets it done for you.
         </RNText>
-        {/* A new install already played the story on the intro; it shows here only for a device that skipped past it. */}
-        {introSeen === false ? <WelcomeStory /> : null}
         <Field
           label="Have a referral code? (optional)"
           value={code}

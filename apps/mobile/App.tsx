@@ -10,7 +10,6 @@ import { Overlays } from './src/components/Overlays';
 import { AccountPrompt } from './src/components/AccountPrompt';
 import { StagingWelcome } from './src/components/StagingWelcome';
 import { AppSheet } from './src/components/AppSheet';
-import { TourHost } from './src/components/tour/TourHost';
 import { WebShell } from './src/components/WebShell';
 import { ConsentBanner } from './src/components/ConsentBanner';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -57,7 +56,6 @@ function Routes() {
             <AccountPrompt />
             <StagingWelcome />
             <AppSheet />
-            <TourHost />
           </ErrorBoundary>
         </KeyboardAvoidingView>
       </WebShell>

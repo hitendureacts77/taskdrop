@@ -4,7 +4,7 @@ import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-nat
 import { Image } from 'expo-image';
 import { Avatar, Screen, cardSurface } from '../components/ui';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
-import { useNav, type ScreenName, useFocusTick } from '../providers/NavProvider';
+import { useNav, type NavParams, type ScreenName, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useSwitchMode } from '../lib/useSwitchMode';
 import { useAuth } from '../providers/AuthProvider';
@@ -20,8 +20,7 @@ import { PayoutDestinationSheet } from '../components/PayoutDestinationSheet';
 import { HeroBackground } from '../components/Hero';
 import { Ripples } from '../components/Ripples';
 import { GuestNote } from '../components/GuestBits';
-import { startTour } from '../components/tour/tourStore';
-import { TOUR_COPY } from '../lib/tour';
+import { WALK_COPY } from '../lib/walkthrough';
 import { needAccount } from '../lib/guest';
 import { useLayout } from '../lib/layout';
 import { TwoPane } from '../components/TwoPane';
@@ -50,7 +49,7 @@ function SlideIn({ delay, children }: { delay: number; children: React.ReactNode
 // The account pages both sides share, grouped as one card. Anything already a
 // tab (wallet, my tasks) or a header icon (messages, notifications) is not
 // repeated here. Terms, Privacy and Sign out sit in a line of links below.
-type MenuRow = { icon: IconName; label: string; go: ScreenName; act?: () => void };
+type MenuRow = { icon: IconName; label: string; go: ScreenName; params?: NavParams; act?: () => void };
 
 const SHARED_ROWS: MenuRow[] = [
   { icon: 'edit' as IconName, label: 'Edit my profile', go: 'profileEdit' },
@@ -141,15 +140,15 @@ export function ProfileScreen() {
   const memberRows: MenuRow[] = worker
     ? [{ icon: 'trending' as IconName, label: 'My earnings and jobs', go: 'analytics' as ScreenName }, ...WORKER_ROWS]
     : POSTER_ROWS;
-  // Rows the account drawer had that no other tab carries: the bank or UPI accounts and the app tour (decision 2, task 1.19).
+  // Rows the account drawer had that no other tab carries: the bank or UPI accounts and How TaskDrop works (decision 2, task 1.19).
   const accountRows: MenuRow[] = [
     { icon: 'card' as IconName, label: 'Bank & UPI accounts', go: 'profile', act: () => setAccounts(true) },
-    { icon: 'sparkle' as IconName, label: TOUR_COPY.menuLabel, go: 'profile', act: () => startTour(worker ? 'earn' : 'hire') },
+    { icon: 'sparkle' as IconName, label: WALK_COPY.menuLabel, go: 'intro', params: { replay: true } },
   ];
   // A guest keeps Help, the tour and feedback; the rest is about an account they do not have yet.
   const guestRows: MenuRow[] = [
     { icon: 'edit', label: 'Edit my profile', go: 'profileEdit', act: () => needAccount('profile') },
-    { icon: 'sparkle', label: TOUR_COPY.menuLabel, go: 'profile', act: () => startTour(worker ? 'earn' : 'hire') },
+    { icon: 'sparkle', label: WALK_COPY.menuLabel, go: 'intro', params: { replay: true } },
     { icon: 'trending', label: 'Ideas & feedback', go: 'ideas' },
     { icon: 'help', label: 'Help & support', go: 'help' },
   ];
@@ -441,7 +440,7 @@ export function ProfileScreen() {
             {rows.map((r, i) => (
               <Pressable
                 key={r.label}
-                onPress={() => (r.act ? r.act() : go(r.go))}
+                onPress={() => (r.act ? r.act() : go(r.go, r.params))}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',

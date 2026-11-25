@@ -1,30 +1,33 @@
 import { useCallback } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen } from '../components/ui';
-import { PrimaryButton } from '../components/kit';
-import { WelcomeStory } from '../components/WelcomeStory';
+import { Walkthrough } from '../components/Walkthrough';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
+import { useMode } from '../providers/ModeProvider';
 import { FROM_GUEST } from '../lib/guest';
 import { saveIntroSeen } from '../lib/intro';
 import { introMode } from '../lib/introRoute';
+import { walkSideFor, type WalkSide } from '../lib/walkthrough';
 
 /**
- * The first thing a new install shows after the splash: how TaskDrop works,
- * played as the five-part story, then a choice. Making an account is the large
- * button; "Skip for now" is a small link under it, and leads into the app as a
- * guest (they can make the account later from any pop-up or the sign-in tab).
+ * "How TaskDrop works" (plan 1.19 row N): the one walkthrough, five real app
+ * screens per side. A new install opens on it after the splash; Skip leads
+ * into the app as a guest, and the last card's button goes straight to posting
+ * (Hire) or finding work (Earn). A guest is also offered the account there.
  *
- * The same screen opens again from "How TaskDrop works" on Home (`replay`): a
- * guest is offered the account again, a signed-in person just closes it.
+ * The same screen opens again from Profile, the account menu and the "How
+ * TaskDrop works" pill on Home (`replay`), on the side the person is on.
  */
 export function IntroScreen() {
   const t = useTheme();
   const { reset, back, go, params } = useNav();
   const { session, continueAsGuest } = useAuth();
+  const { mode: appMode, setMode } = useMode();
   const mode = introMode({ replay: Boolean(params.replay), signedIn: Boolean(session) });
+  const side = walkSideFor(params.side, appMode);
 
   const makeAccount = useCallback(() => {
     void saveIntroSeen();
@@ -42,37 +45,41 @@ export function IntroScreen() {
     }
   }, [mode, continueAsGuest, reset, back]);
 
+  const finish = useCallback(
+    (s: WalkSide) => {
+      void saveIntroSeen();
+      setMode(s === 'earn' ? 'worker' : 'poster');
+      if (mode === 'first') {
+        continueAsGuest();
+        reset('home');
+      } else {
+        back();
+      }
+      go(s === 'earn' ? 'explore' : 'aiPost');
+    },
+    [mode, setMode, continueAsGuest, reset, back, go],
+  );
+
+  const account =
+    mode === 'member-replay' ? null : (
+      <View style={{ alignItems: 'center', marginTop: 6 }}>
+        <Pressable onPress={makeAccount} accessibilityRole="button" accessibilityLabel="Create my account" hitSlop={8} style={{ paddingVertical: 8, paddingHorizontal: 14 }}>
+          <RNText style={tx('700', 14, t.colors.ink, { textDecorationLine: 'underline' })}>Create my account</RNText>
+        </Pressable>
+        <RNText style={tx('400', 12.5, t.colors.muted, { textAlign: 'center', lineHeight: 18 })}>Takes a minute: your number and a code.</RNText>
+      </View>
+    );
+
   return (
     <Screen scroll>
-      <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', paddingTop: 28 }}>
-        <RNText style={tx('800', 30, t.colors.ink, { textAlign: 'center', letterSpacing: -1 })}>
-          taskdrop<RNText style={{ color: t.colors.accent }}>.</RNText>
-        </RNText>
-        <RNText style={tx('400', 15, t.colors.muted, { textAlign: 'center', marginTop: 6, lineHeight: 22 })}>
-          Ask for anything. Someone gets it done for you.
-        </RNText>
-
-        <WelcomeStory side={params.side === 'earn' ? 'earn' : 'hire'} />
-
-        {mode === 'member-replay' ? (
-          <PrimaryButton label="Done" onPress={skip} style={{ marginTop: 26 }} />
-        ) : (
-          <>
-            <PrimaryButton label="Create my account" onPress={makeAccount} style={{ marginTop: 26, minHeight: 60 }} />
-            <RNText style={tx('400', 12.5, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 18 })}>
-              Takes a minute: your number and a code.
-            </RNText>
-            <Pressable
-              onPress={skip}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={mode === 'first' ? 'Skip sign-up for now' : 'Back to the app'}
-              style={{ alignSelf: 'center', marginTop: 18, paddingVertical: 8, paddingHorizontal: 14 }}
-            >
-              <RNText style={tx('600', 12.5, t.colors.muted)}>{mode === 'first' ? 'Skip for now' : 'Back to the app'}</RNText>
-            </Pressable>
-          </>
-        )}
+      <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', paddingTop: 12, paddingBottom: 24 }}>
+        <Walkthrough
+          side={side}
+          onSkip={skip}
+          onFinish={finish}
+          skipLabel={mode === 'first' ? 'Skip' : 'Close'}
+          extra={account}
+        />
       </View>
     </Screen>
   );
