@@ -2129,7 +2129,7 @@ done 1.18
 | E | Make your own skill (and category): if a skill is missing, a worker creates it; it sits under Others and other workers can use it; a popular one becomes a normal skill | Opus · **your OK** on the plan | Worker adds a new skill in onboarding and profile; others can pick it; admin can promote it | Open |
 | F | Home pages and the tabs: simpler and more attractive, less unwanted information, every feature kept | Opus · **your OK** on the design | Design approved, then built | Open |
 | G | My tasks: better cards | Opus (with F) · **your OK** on the design | Design approved, then built | Open |
-| H | Hire Home map: the same "Open the map" card the worker Home has | Sonnet (with F) | Hire Home shows the card; it opens the map | Open |
+| H | Hire Home map: the same "Open the map" card the worker Home has | Sonnet (with F) | Hire Home shows the card; it opens the map | Done 25 Nov: one shared card for Earn and Hire (jade on Hire), opens the helpers map; checked on localhost |
 | I | The app is too complex: a new person must understand and use every feature easily (no feature removed) | Opus (with F) | Covered by the F design and a 5-person check | Open |
 | J | A passed date: ask the poster to update the date so the post stays live | Sonnet | Poster gets a nudge and a one-tap date change; expired posts say so | Open |
 | K | Posting (quote): an "open task" choice with no completion date | Sonnet | Post form has "No fixed date"; lists and offers show it | Open |
