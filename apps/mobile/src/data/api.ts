@@ -647,6 +647,10 @@ export type Promotion = {
   starts_at: string | null;
   ends_at: string | null;
   created_at: string;
+  /** listPromotions only (migration 203). */
+  day_price_minor?: number | null;
+  alerted_count?: number;
+  task?: { title: string; kind: 'request' | 'service'; status: string } | null;
 };
 
 export const startPromotion = (taskId: string, days: number, amountMinor: number) =>
@@ -675,6 +679,88 @@ export async function recordAdImpression(taskId: string): Promise<void> {
 export async function recordAdClick(taskId: string): Promise<void> {
   await quietly('recordAdClick', { taskId }, null);
 }
+
+// -------------------------------------------------- promotions: fair turns (migration 203) ---
+
+export type PromotionLine = {
+  status: 'waiting' | 'offered';
+  days: number;
+  joinedAt: string;
+  offeredUntil: string | null;
+  position: number;
+};
+
+/** Everything the Promote screen needs for one post: the flat day price, spots in its area, the line. */
+export type PromotionQuote = {
+  kind: 'request' | 'service';
+  dayPriceMinor: number;
+  days: number[];
+  remote: boolean;
+  radiusKm: number;
+  taken: number;
+  cap: number;
+  waiting: number;
+  nextFreeAt: string | null;
+  nearbyActive: number;
+  line: PromotionLine | null;
+  promotion: { id: string; status: Promotion['status']; days: number; startsAt: string | null; endsAt: string | null } | null;
+};
+
+export const promotionQuote = (taskId: string) => act<PromotionQuote>('promotionQuote', { taskId });
+export const joinPromotionLine = (taskId: string, days: number) => act<PromotionQuote>('joinPromotionLine', { taskId, days });
+export const leavePromotionLine = (taskId: string) => act<PromotionQuote>('leavePromotionLine', { taskId });
+export const setPromoAlerts = (on: boolean) => act<boolean>('setPromoAlerts', { on });
+
+/** A live promotion near the viewer, with how often it was on top today (everyone / this viewer). */
+export type PromotedLive = {
+  task_id: string;
+  promotion_id: string;
+  /** Who posted it: for a service, the helper to lift in Hire-side lists and the helpers map. */
+  poster_id: string;
+  top_today: number;
+  my_top_today: number;
+  starts_at: string | null;
+  ends_at: string | null;
+};
+
+/** Live promoted tasks (kind 'request', for people earning) or services (for people hiring) near a point. */
+export async function promotedLive(
+  kind: 'request' | 'service',
+  near: { lat: number; lng: number; radiusKm?: number } | null,
+): Promise<PromotedLive[]> {
+  if (!(await myId())) return [];
+  return quietly<PromotedLive[]>('promotedLive', {
+    kind, lat: near?.lat ?? null, lng: near?.lng ?? null, radiusKm: Math.round(near?.radiusKm ?? 10),
+  }, []);
+}
+
+export type PromoSurface = 'list' | 'home' | 'map' | 'search' | 'alert' | 'detail';
+
+/** One showing of a promoted post: where, and whether it was in a top spot. Free; never fails the screen. */
+export async function recordPromoView(taskId: string, surface: PromoSurface, top: boolean): Promise<void> {
+  await quietly('recordPromoView', { taskId, surface, top }, null);
+}
+
+/** What the payer of a promotion sees. */
+export type PromotionResults = {
+  promotionId: string;
+  taskId: string;
+  kind: 'request' | 'service';
+  status: Promotion['status'];
+  days: number;
+  amountMinor: number;
+  startsAt: string | null;
+  endsAt: string | null;
+  saw: number;
+  onTop: number;
+  opened: number;
+  bySurface: Partial<Record<PromoSurface | 'other', number>>;
+  offersSince: number;
+  offersBefore: number;
+  alerted: number;
+};
+
+export const promotionResults = (promotionId: string) => act<PromotionResults>('promotionResults', { promotionId });
 
 // -------------------------------------------------------------- payments ---
 

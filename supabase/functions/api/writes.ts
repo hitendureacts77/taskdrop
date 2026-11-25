@@ -345,6 +345,18 @@ export const WRITE_OPS: Record<string, Op> = {
     await db.rpc("record_ad_click", taskOnly(a));
     return null;
   },
+  /** Free and best-effort (migration 203): one showing of a promoted post, where, and whether it was on top. */
+  recordPromoView: async ({ db }, a) => {
+    await db.rpc("record_promo_view", {
+      ...taskOnly(a),
+      p_surface: oneOf(a, "surface", ["list", "home", "map", "search", "alert", "detail", "other"], "other"),
+      p_top: bool(a, "top"),
+    });
+    return null;
+  },
+  joinPromotionLine: rpcOp("join_promotion_line", (a) => ({ ...taskOnly(a), p_days: int(a, "days", 1, 30) })),
+  leavePromotionLine: rpcOp("leave_promotion_line", (a) => taskOnly(a)),
+  setPromoAlerts: rpcOp("set_promo_alerts", (a) => ({ p_on: bool(a, "on", true) })),
 
   // ---- posts, quotes, proof and chat ----
   createTask: async (ctx, a) => {

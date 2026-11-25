@@ -400,3 +400,51 @@ export function ageOn(birth: Date, today: Date = new Date()): number {
 export function isoDay(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
+
+/**
+ * Promote (migration 203, plan task 1.19 row C): one flat price a day, equal turns on top. The server holds the
+ * real numbers (settings promotion_price_per_day_minor and promotion_spots) and refuses anything else; these are
+ * only what the app shows before the server answers.
+ */
+export const PROMOTE_DEFAULTS = {
+  DAY_PRICE_MINOR: 8000,
+  DAYS: [1, 3, 7] as readonly number[],
+  TOP_SLOTS: 2,
+  VIEWER_TOP_PER_DAY: 3,
+} as const;
+
+export type PromotedCandidate = {
+  taskId: string;
+  /** Times shown on top today, to anyone. */
+  topToday: number;
+  /** Times shown on top today, to this viewer. */
+  myTopToday: number;
+  /** Distance from the viewer in km; null for remote posts (counted as farthest). */
+  km: number | null;
+  /** When the promotion started (ISO). */
+  startsAt: string | null;
+};
+
+/**
+ * Which promoted posts go on top for this viewer right now, in order. The caller passes only the candidates that
+ * match the viewer's filters or search. Equal turns: the fewest shown on top today goes first; a tie goes to the
+ * nearer one, then to the one that started earlier. A post this viewer already saw on top `perViewer` times today
+ * is skipped. Everyone pays the same, so nothing else decides the order.
+ */
+export function pickPromotedTop(
+  candidates: readonly PromotedCandidate[],
+  slots: number = PROMOTE_DEFAULTS.TOP_SLOTS,
+  perViewer: number = PROMOTE_DEFAULTS.VIEWER_TOP_PER_DAY,
+): PromotedCandidate[] {
+  const far = Number.POSITIVE_INFINITY;
+  return candidates
+    .filter((c) => c.myTopToday < perViewer)
+    .slice()
+    .sort((a, b) =>
+      a.topToday - b.topToday ||
+      (a.km ?? far) - (b.km ?? far) ||
+      String(a.startsAt ?? '').localeCompare(String(b.startsAt ?? '')) ||
+      a.taskId.localeCompare(b.taskId),
+    )
+    .slice(0, Math.max(0, slots));
+}

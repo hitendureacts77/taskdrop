@@ -33,6 +33,8 @@ export const NEVER_REUSE: ReadonlySet<string> = new Set([
   // money
   'getWallet', 'getEscrowHeld', 'listWalletActivity', 'getMoneyMode', 'getTaskHold', 'getMoneyLedger', 'listPayouts', 'listPayoutDestinations',
   'feesSince', 'platformFees', 'settleClearedEarnings', 'myStats', 'listPromotions',
+  // promotions (migration 203): spots, the line and live turns change by the minute
+  'promotionQuote', 'promotedLive', 'promotionResults',
   // task status and offers
   'getTask', 'getTaskDetail', 'canQuoteOn', 'getMyBid', 'myBidTaskIds', 'listBidsForTask', 'listMyBids', 'getProof',
   // chat and contacts
