@@ -50,7 +50,7 @@ import { useLayout } from '../lib/layout';
 import { mapLine } from '../lib/tabLines';
 import { browserInfo } from '../lib/appDownload';
 import { inFront, onBackInFront } from '../lib/inFront';
-import { PEOPLE_POLL_MS, isSpotFresh } from '../lib/mapSpot';
+import { PEOPLE_POLL_MS, isPersonLive } from '../lib/mapSpot';
 import { useMapSharing } from '../lib/useMapSpot';
 
 /** The desktop side panel. */
@@ -279,6 +279,8 @@ export function NearMap({
   const [people, setPeople] = useState<NearbyWorker[] | null>(null);
   // My people (layer 'mine'): rounded spots only, kept in memory just while that layer is showing.
   const [peopleMine, setPeopleMine] = useState<MapPerson[] | null>(null);
+  // When that answer came back: the server sends only live spots, so its rows count as live while it is fresh.
+  const [mineAt, setMineAt] = useState<number | null>(null);
   // Goes up when the poll (or a finished "Share my spot") says look again.
   const [beat, setBeat] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
@@ -380,7 +382,7 @@ export function NearMap({
       setBusy(true);
       // Never logs the result: it holds names and rounded spots. The server caps this call at 50 km.
       void mapPeople(searchAt, peopleReach(radius))
-        .then((r) => alive && (setNow(at), setPeopleMine(r.map((p) => ({ ...p, km: from(p.lat, p.lng, p.km) })))))
+        .then((r) => alive && (setNow(at), setMineAt(at), setPeopleMine(r.map((p) => ({ ...p, km: from(p.lat, p.lng, p.km) })))))
         .finally(done)
         .catch(() => {});
     } else if (mode === 'jobs') {
@@ -492,8 +494,8 @@ export function NearMap({
     () => (kind === 'people' ? (people ?? []) : []).filter((w) => (!narrow || presenceOf(w.last_seen_at, now).online) && (!served || Boolean(w.top_service))),
     [kind, people, narrow, served, now],
   );
-  // Spots older than 15 minutes are never drawn, even if the last answer is still on screen.
-  const allMine = useMemo(() => activeFirst((peopleMine ?? []).filter((p) => isSpotFresh(p.spot_at, now)), now), [peopleMine, now]);
+  // The server sends only live spots; nothing from an answer older than 15 minutes is drawn.
+  const allMine = useMemo(() => activeFirst((peopleMine ?? []).filter((p) => isPersonLive(p.spot_at, mineAt, now)), now), [peopleMine, mineAt, now]);
   const shownMine = useMemo(() => allMine.filter((p) => !narrow || presenceOf(p.last_seen_at, now).online), [allMine, narrow, now]);
   // The map shows what the last search found, wherever it was dragged. The list, cards, counts and the ring are
   // always around the place (your area, or the one you picked), never around where the map was dragged to:
@@ -845,7 +847,9 @@ export function NearMap({
         // Nobody shows yet: either you are not sharing (offer to), or nobody around is.
         <View style={{ padding: 16, gap: 12, alignItems: 'flex-start' }}>
           <RNText style={tx('600', 13, t.colors.muted)}>
-            {sharing ? 'Nobody is sharing their spot nearby right now.' : 'People show up here when they share their spot. Share yours?'}
+            {sharing
+              ? `Nobody is sharing their spot within ${radius} km right now. People you’ve finished a task with show here while they share their spot, and so do members who share with everyone nearby.`
+              : 'People you’ve finished a task with show here while they share their spot, and so do members who share with everyone nearby. Share yours so they can see you too.'}
           </RNText>
           {sharing ? null : (
             <Pressy onPress={() => setShareOpen(true)} label="Share my spot" style={{ height: 40, paddingHorizontal: 18, borderRadius: 20, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
