@@ -47,7 +47,7 @@ export const API_GROUPS = {
   promotions: [
     "promotableTasks", "promotionTiers", "listPromotions", "adAuctionRanks", "startPromotion", "activatePromotion",
     "cancelPromotion", "recordAdImpression", "recordAdClick",
-    "promotionQuote", "promotedLive", "promotionResults", "joinPromotionLine", "leavePromotionLine", "recordPromoView",
+    "promotionQuote", "promotedLive", "promotionResults", "recordPromoView",
     "setPromoAlerts",
   ],
   platform: ["platformFees", "platformStats", "platformHighlights", "trendingCategories"],

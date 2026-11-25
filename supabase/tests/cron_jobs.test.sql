@@ -400,7 +400,7 @@ begin
     select * from (values
       ('auto-complete-due',         '*/15 * * * *', interval '45 minutes'),
       ('settle-cleared-often',      '*/5 * * * *',  interval '15 minutes'),
-      ('settle-finished-campaigns', '*/5 * * * *',  interval '20 minutes')  -- every 5 min since 203
+      ('settle-finished-campaigns', '7 * * * *',    interval '2 hours')
     ) as t(job, schedule, max_gap)
   loop
     if not exists (select 1 from cron.job

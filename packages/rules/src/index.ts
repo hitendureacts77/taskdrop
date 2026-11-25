@@ -402,49 +402,39 @@ export function isoDay(date: Date): string {
 }
 
 /**
- * Promote (migration 203, plan task 1.19 row C): one flat price a day, equal turns on top. The server holds the
- * real numbers (settings promotion_price_per_day_minor and promotion_spots) and refuses anything else; these are
- * only what the app shows before the server answers.
+ * Promote with bidding (migration 203, plan task 1.19 row C). The payer picks a daily budget and a length and
+ * pays upfront; an auction on the server decides the top places each time a list opens. The server holds the
+ * real numbers (setting promotion_bidding) and refuses anything else; these are what the app shows before it
+ * answers.
  */
 export const PROMOTE_DEFAULTS = {
-  DAY_PRICE_MINOR: 8000,
+  MIN_DAY_MINOR: 2000,
+  MAX_DAY_MINOR: 100000,
+  /** Budgets are whole rupees. */
+  DAY_STEP_MINOR: 100,
+  /** The least a top show can cost. */
+  FLOOR_MINOR: 20,
+  /** Price of a top show assumed when the area has none yet. */
+  PRICE_GUESS_MINOR: 60,
   DAYS: [1, 3, 7] as readonly number[],
   TOP_SLOTS: 2,
   VIEWER_TOP_PER_DAY: 3,
+  /** With money left at the end, the promotion runs on for at most this many days. */
+  RUN_ON_DAYS: 2,
 } as const;
 
-export type PromotedCandidate = {
-  taskId: string;
-  /** Times shown on top today, to anyone. */
-  topToday: number;
-  /** Times shown on top today, to this viewer. */
-  myTopToday: number;
-  /** Distance from the viewer in km; null for remote posts (counted as farthest). */
-  km: number | null;
-  /** When the promotion started (ISO). */
-  startsAt: string | null;
-};
+/** A daily budget the server accepts: whole rupees within the limits. */
+export function isPromoteBudget(dayMinor: number, min: number = PROMOTE_DEFAULTS.MIN_DAY_MINOR, max: number = PROMOTE_DEFAULTS.MAX_DAY_MINOR): boolean {
+  return Number.isInteger(dayMinor) && dayMinor % PROMOTE_DEFAULTS.DAY_STEP_MINOR === 0 && dayMinor >= min && dayMinor <= max;
+}
 
 /**
- * Which promoted posts go on top for this viewer right now, in order. The caller passes only the candidates that
- * match the viewer's filters or search. Equal turns: the fewest shown on top today goes first; a tie goes to the
- * nearer one, then to the one that started earlier. A post this viewer already saw on top `perViewer` times today
- * is skipped. Everyone pays the same, so nothing else decides the order.
+ * About how many top shows a day a budget buys, as a range rounded to tens: the budget over the area's average
+ * price of a top show (or the guess when there is none yet), from 70% to 105% of that.
  */
-export function pickPromotedTop(
-  candidates: readonly PromotedCandidate[],
-  slots: number = PROMOTE_DEFAULTS.TOP_SLOTS,
-  perViewer: number = PROMOTE_DEFAULTS.VIEWER_TOP_PER_DAY,
-): PromotedCandidate[] {
-  const far = Number.POSITIVE_INFINITY;
-  return candidates
-    .filter((c) => c.myTopToday < perViewer)
-    .slice()
-    .sort((a, b) =>
-      a.topToday - b.topToday ||
-      (a.km ?? far) - (b.km ?? far) ||
-      String(a.startsAt ?? '').localeCompare(String(b.startsAt ?? '')) ||
-      a.taskId.localeCompare(b.taskId),
-    )
-    .slice(0, Math.max(0, slots));
+export function estimateTopShows(dayMinor: number, areaPriceMinor: number | null | undefined): { low: number; high: number } {
+  const price = Math.max(areaPriceMinor && areaPriceMinor > 0 ? areaPriceMinor : PROMOTE_DEFAULTS.PRICE_GUESS_MINOR, PROMOTE_DEFAULTS.FLOOR_MINOR);
+  const mid = Math.max(dayMinor, 0) / price;
+  const ten = (n: number) => Math.max(0, Math.round(n / 10) * 10);
+  return { low: ten(mid * 0.7), high: Math.max(ten(mid * 1.05), ten(mid * 0.7)) };
 }

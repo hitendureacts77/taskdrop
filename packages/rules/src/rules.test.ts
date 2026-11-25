@@ -214,20 +214,14 @@ test('planBSplit: follows the admin-set rates and rounds like Postgres', () => {
   assert.throws(() => planBSplit(Number.NaN));
 });
 
-test('promoted posts take equal turns on top', async () => {
-  const { pickPromotedTop } = await import('./index.ts');
-  const c = (taskId: string, topToday: number, km: number | null, myTopToday = 0, startsAt = '2026-11-25T09:00:00Z') =>
-    ({ taskId, topToday, myTopToday, km, startsAt });
-  const ten = [
-    c('tap', 14, 1), c('sofa', 13, 2), c('paint', 9, 3), c('logo', 14, null), c('fan', 13, 1),
-    c('balcony', 9, 1.5), c('dog', 12, 1), c('wifi', 12, 2), c('boxes', 11, 1), c('shelf', 10, 0.5),
-  ];
-  assert.deepEqual(pickPromotedTop(ten).map((x) => x.taskId), ['balcony', 'paint'], 'fewest first, tie to the nearer');
-  assert.deepEqual(pickPromotedTop([c('a', 0, null), c('b', 0, 4)]).map((x) => x.taskId), ['b', 'a'], 'remote counts as farthest');
-  assert.deepEqual(
-    pickPromotedTop([c('a', 1, 1, 0, '2026-11-25T10:00:00Z'), c('b', 1, 1, 0, '2026-11-25T08:00:00Z')]).map((x) => x.taskId),
-    ['b', 'a'], 'then the earlier start');
-  assert.deepEqual(pickPromotedTop([c('seen', 0, 1, 3), c('new', 5, 9)]).map((x) => x.taskId), ['new'], 'a viewer sees one on top at most 3 times a day');
-  assert.equal(pickPromotedTop(ten, 0).length, 0);
-  assert.equal(pickPromotedTop([]).length, 0);
+test('promote budgets and the top-show estimate', async () => {
+  const { isPromoteBudget, estimateTopShows } = await import('./index.ts');
+  assert.equal(isPromoteBudget(8000), true);
+  assert.equal(isPromoteBudget(1900), false, 'under Rs 20');
+  assert.equal(isPromoteBudget(100100), false, 'over Rs 1,000');
+  assert.equal(isPromoteBudget(8050), false, 'whole rupees only');
+  assert.deepEqual(estimateTopShows(8000, null), { low: 90, high: 140 }, 'Rs 80 at the 60 paise guess');
+  assert.deepEqual(estimateTopShows(8000, 110), { low: 50, high: 80 }, 'a busy area costs more a show');
+  assert.deepEqual(estimateTopShows(8000, 5), estimateTopShows(8000, 20), 'never below the floor price');
+  assert.deepEqual(estimateTopShows(0, 60), { low: 0, high: 0 });
 });
