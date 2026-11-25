@@ -174,6 +174,11 @@ begin
   assert (select count(*) from public.ad_events where promotion_id = pb.id and top and viewer_id = v1) = 1,
     '2: one top show is written for the winner';
 
+  perform pg_temp.become(v2);
+  assert (select count(*) from public.promoted_live('request', c_lat, c_lng, 10, 'map') where top) = 0,
+    '2: the map lists promoted posts without an auction';
+  perform pg_temp.as_operator();
+  assert not exists (select 1 from public.ad_events where viewer_id = v2), '2: and charges nothing';
   perform pg_temp.become(a);
   select count(*) into v_n from public.promoted_live('request', c_lat, c_lng, 10) where task_id = ta;
   assert v_n = 0, '2: nobody is shown their own promotion';

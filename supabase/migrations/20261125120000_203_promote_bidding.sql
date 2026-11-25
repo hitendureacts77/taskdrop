@@ -226,7 +226,8 @@ revoke all on function private.promo_tell_paused(uuid) from public, anon, authen
 
 -- ---- the auction -------------------------------------------------------------------------------------
 -- Called each time a list opens. Returns every live promotion near the viewer that could be shown (for
--- the Promoted label and the bigger map pin) and marks the top places won in this auction. Each new top
+-- the Promoted label and the bigger map pin) and marks the top places won in this auction. Called for the map
+-- (p_surface 'map') it only lists them: no auction and no charge. Each new top
 -- place is charged its second price here, once; the same place shown again within repeat_minutes is free.
 create or replace function public.promoted_live(p_kind text, p_lat double precision, p_lng double precision,
                                                 p_radius_km numeric, p_surface text default 'list',
@@ -270,6 +271,7 @@ begin
   -- One account cannot run up charges without end: past ad_impression_viewer_day charged top shows today,
   -- it still sees the list (and places it already has) but nothing new is charged.
   if coalesce(array_length(v_top, 1), 0) < v_slots
+     and v_surface <> 'map'          -- the map has no top places: every promoted pin is bigger, nothing is charged
      and (select count(*) from public.ad_events e
            where e.viewer_id = v_me and e.top and e.kind = 'impression' and e.cost_minor > 0
              and e.created_at >= v_day) < private.setting_num('ad_impression_viewer_day', 300) then
