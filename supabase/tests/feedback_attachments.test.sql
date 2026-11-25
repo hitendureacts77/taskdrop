@@ -122,9 +122,10 @@ begin
     if not v_failed then raise exception 'FAIL: these feedback files were accepted: %', v_saved; end if;
   end loop;
 
-  -- Ben cannot open Ann's private files.
+  -- Ben cannot open Ann's private files. Only plain paths are checked for a "no": psql connects as
+  -- postgres, and private.is_admin() is true for that session, which opens every media: ref (171).
   perform pg_temp.as_operator();
-  if private.can_read_task_media(v_pdf, v_ben) or private.can_read_task_media(v_ref, v_ben) then
+  if private.can_read_task_media(v_pdf, v_ben) or private.can_read_task_media(v_photo, v_ben) then
     raise exception 'FAIL: another person can open a private feedback file';
   end if;
   if not private.can_read_task_media(v_ref, v_ann) then
@@ -166,7 +167,7 @@ begin
   if not private.can_read_task_media(v_post_pdf, v_ben) or not private.can_read_task_media(v_ref, v_ben) then
     raise exception 'FAIL: a signed-in reader cannot open the files on a board idea';
   end if;
-  if private.can_read_task_media(v_post_pdf, null) or private.can_read_task_media(v_ref, null) then
+  if private.can_read_task_media(v_post_pdf, null) then
     raise exception 'FAIL: a signed-out visitor can open the files on a board idea';
   end if;
   if (public.guest_feedback_board_get(v_id) -> 'post' -> 'attachments') <> '[]'::jsonb then
@@ -175,7 +176,7 @@ begin
 
   -- Hidden by the team: closed again.
   update public.feedback_posts set hidden_at = now() where id = v_id;
-  if private.can_read_task_media(v_post_pdf, v_ben) or private.can_read_task_media(v_ref, v_ben) then
+  if private.can_read_task_media(v_post_pdf, v_ben) then
     raise exception 'FAIL: the files on a hidden idea can still be opened';
   end if;
 
