@@ -85,8 +85,8 @@ as $$
     from public.tasks t
    where t.id = p_task
 $$;
-revoke all on function private.task_chat_ended_at(uuid) from public, anon;
-grant execute on function private.task_chat_ended_at(uuid) to authenticated, service_role;
+revoke all on function private.task_chat_ended_at(uuid) from public, anon, authenticated;
+grant execute on function private.task_chat_ended_at(uuid) to service_role;
 
 -- ---- 3. the chat state of one task for one person -----------------------------------------------
 /**
@@ -144,8 +144,8 @@ begin
   end if;
 end;
 $$;
-revoke all on function private.task_chat_state(uuid, uuid) from public, anon;
-grant execute on function private.task_chat_state(uuid, uuid) to authenticated, service_role;
+revoke all on function private.task_chat_state(uuid, uuid) from public, anon, authenticated;
+grant execute on function private.task_chat_state(uuid, uuid) to service_role;
 
 /** The insert policy's test: may p_user write into p_task's thread now. */
 create or replace function private.can_send_task_message(p_task uuid, p_user uuid)
