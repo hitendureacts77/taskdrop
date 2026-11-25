@@ -6,6 +6,7 @@ import { formatINR } from './ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { keepTaskBody, keepTaskOptions, type KeepTaskOptionId } from '../lib/keepTask';
 import { taskUrl } from '../lib/links';
+import { canTopUp, nextTopUpSteps, raisedPriceMinor } from '../lib/topUp';
 import type { Task } from '../data/api';
 
 type KeepTask = Pick<Task, 'id' | 'title' | 'status' | 'kind' | 'topup_pct' | 'benchmark_minor'>;
@@ -38,7 +39,9 @@ export function KeepTaskSheet({
 }) {
   const t = useTheme();
   const share = useShare(flash);
-  const options = task ? keepTaskOptions(task, hasWorker && Boolean(onMessage), formatINR) : [];
+  const topUpTo =
+    task && canTopUp(task) ? raisedPriceMinor(task.benchmark_minor, task.topup_pct, nextTopUpSteps(task.topup_pct)[0]) : null;
+  const options = task ? keepTaskOptions(task, hasWorker && Boolean(onMessage), formatINR, topUpTo) : [];
 
   const pick = (id: KeepTaskOptionId) => {
     if (!task) return;
