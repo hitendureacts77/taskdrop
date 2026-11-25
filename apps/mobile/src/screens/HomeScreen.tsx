@@ -35,7 +35,7 @@ import type { TaskWithPoster } from '../data/api';
 import { signedMediaUrls } from '../lib/media';
 import { recordPromoView, recordAdClick } from '../data/api';
 import { PromotedPill, promotedBorder } from '../components/PromotedPill';
-import { pickPromotedItems, liftPromoted } from '../lib/promoted';
+import { pickPromotedItems, liftPromoted, auctionIds } from '../lib/promoted';
 import { usePromotedLive } from '../lib/usePromotedLive';
 import { Grid, LoadFailed, Shimmer } from '../components/kit';
 import { reportError } from '../lib/errors';
@@ -493,7 +493,7 @@ export function HomeScreen() {
   }, [worker]);
 
   // Promoted posts (task 1.19 row C): the server says which are live near the viewer; the app puts at most 2 on
-  // top, taking turns (pickPromotedTop), and only ones that match the chip. The rest keep their normal place
+  // top (the server's auction, only for posts that match the chip). The rest keep their normal place
   // and carry the PROMOTED pill. Workers see promoted requests, posters see promoted services.
   const [homeAt, setHomeAt] = useState<{ lat: number; lng: number } | null>(null);
   useEffect(() => {
@@ -510,21 +510,23 @@ export function HomeScreen() {
   }, [userId]);
   const promoNear =
     nearLat !== null && nearLng !== null ? { lat: nearLat, lng: nearLng, radiusKm: radiusKm ?? undefined } : homeAt;
-  const promoLive = usePromotedLive(worker ? 'request' : 'service', promoNear);
-
   // Chip index -> card tag. No selection shows every pillar.
   const FILTER_TAGS: FeedRow['tag'][] = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
   const baseRows = useMemo(() => (liveTasks ?? []).map((task) => liveToFeedRow(task, worker)), [liveTasks, worker]);
-  const promo = useMemo(
-    () =>
-      pickPromotedItems({
-        items: baseRows,
-        live: promoLive,
-        keyOf: (r) => r.id,
-        matches: (r) => filter === null || r.tag === FILTER_TAGS[filter],
-      }),
+  // Only the posts the chip leaves in the feed can win a top place (and be charged).
+  const promoIds = useMemo(
+    () => auctionIds(baseRows.filter((r) => filter === null || r.tag === FILTER_TAGS[filter]).map((r) => r.id)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [baseRows, promoLive, filter],
+    [baseRows, filter],
+  );
+  const promoLive = usePromotedLive(worker ? 'request' : 'service', promoNear, {
+    surface: 'home',
+    taskIds: promoIds,
+    enabled: liveTasks !== null,
+  });
+  const promo = useMemo(
+    () => pickPromotedItems({ items: baseRows, live: promoLive, keyOf: (r) => r.id }),
+    [baseRows, promoLive],
   );
   const allRows: FeedRow[] = useMemo(
     () =>
@@ -547,11 +549,12 @@ export function HomeScreen() {
   const billed = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const row of feed) {
-      if (!row.sponsored) continue;
-      const k = row.id + (row.adRank > 0 ? ':top' : '');
+      // The auction counts the top places itself; only showings below the top are recorded here.
+      if (!row.sponsored || row.adRank > 0) continue;
+      const k = row.id;
       if (billed.current.has(k)) continue;
       billed.current.add(k);
-      void recordPromoView(row.id, searching ? 'search' : 'home', row.adRank > 0).catch(() => {});
+      void recordPromoView(row.id, searching ? 'search' : 'home', false).catch(() => {});
     }
   }, [feed, searching]);
 

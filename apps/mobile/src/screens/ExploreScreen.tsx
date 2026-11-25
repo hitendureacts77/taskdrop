@@ -12,9 +12,8 @@ import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { FairRulesNote } from '../components/PromotedPill';
-import { FAIR_RULES_TASKS, liftPromoted, pickPromotedItems } from '../lib/promoted';
+import { FAIR_RULES_TASKS, auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
 import { usePromotedLive } from '../lib/usePromotedLive';
-import { distanceKm } from '../lib/mapReach';
 import { HowItWorks } from '../components/HowItWorks';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { useTheme, ring } from '../providers/ThemeProvider';
@@ -799,37 +798,30 @@ function FindWork({
     () => (rows ? filterList(rows, atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters) : null),
     [rows, atLat, atLng, filters],
   );
-  // Promoted tasks (task 1.19 row C): of the promoted ones already in this filtered list, at most 2 go on top,
-  // taking turns; the others keep their normal place and show the pill. Nothing promoted = the list as it was.
-  const promoLive = usePromotedLive('request', atLat != null && atLng != null ? { lat: atLat, lng: atLng, radiusKm: filters.km } : null);
+  // Promoted tasks (task 1.19 row C): the server runs the auction for the posts in this filtered list and says
+  // which 2 won the top places; the app lifts exactly those and badges every live promoted post.
+  const promoIds = useMemo(() => auctionIds((shown ?? []).map((r) => r.id)), [shown]);
+  const promoLive = usePromotedLive(
+    'request',
+    atLat != null && atLng != null ? { lat: atLat, lng: atLng, radiusKm: filters.km } : null,
+    { surface: 'list', taskIds: promoIds, enabled: shown !== null },
+  );
   const promo = useMemo(
-    () =>
-      shown
-        ? pickPromotedItems({
-            items: shown,
-            live: promoLive,
-            keyOf: (r) => r.id,
-            kmOf: (r) =>
-              atLat != null && atLng != null && r.loc_lat != null && r.loc_lng != null
-                ? distanceKm({ lat: atLat, lng: atLng }, { lat: r.loc_lat, lng: r.loc_lng })
-                : null,
-          })
-        : null,
-    [shown, promoLive, atLat, atLng],
+    () => (shown ? pickPromotedItems({ items: shown, live: promoLive, keyOf: (r) => r.id }) : null),
+    [shown, promoLive],
   );
   const ordered = useMemo(() => (shown && promo ? liftPromoted(shown, promo.top) : shown), [shown, promo]);
   const topIds = useMemo(() => new Set((promo?.top ?? []).map((r) => r.id)), [promo]);
   const promoState = (id: string): 'top' | 'badge' | undefined =>
     topIds.has(id) ? 'top' : promo?.badged.has(id) ? 'badge' : undefined;
-  // One view per promoted task per load; the server de-duplicates within 10 minutes as well.
+  // Showings below the top: one view per promoted task per screen open (the auction already counts the top ones).
   const viewed = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!promo) return;
     for (const id of promo.badged) {
-      const k = id + (topIds.has(id) ? ':top' : '');
-      if (viewed.current.has(k)) continue;
-      viewed.current.add(k);
-      void recordPromoView(id, 'list', topIds.has(id)).catch(() => {});
+      if (topIds.has(id) || viewed.current.has(id)) continue;
+      viewed.current.add(id);
+      void recordPromoView(id, 'list', false).catch(() => {});
     }
   }, [promo, topIds]);
   const fairRules = promo && promo.badged.size > 0 ? <FairRulesNote side="earn" text={FAIR_RULES_TASKS} /> : null;

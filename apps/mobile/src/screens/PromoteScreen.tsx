@@ -1,18 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text as RNText,
-  Pressable,
-  ActivityIndicator,
-  Modal,
-  TextInput,
-  type TextStyle,
-} from 'react-native';
+import { View, Text as RNText, Pressable, ActivityIndicator, Modal, TextInput, Linking, Platform, type TextStyle } from 'react-native';
 import { PROMOTE_DEFAULTS } from '@taskdrop/rules';
-import { Screen } from '../components/ui';
-import { BackButton, LoadFailed, PrimaryButton, TopBar, systemHeader } from '../components/kit';
+import { Screen, Chip, formatINR } from '../components/ui';
+import { ConfirmDialog, LoadFailed, PrimaryButton, Shimmer, TopBar } from '../components/kit';
 import { reportError, messageOf } from '../lib/errors';
-import { Icon, type IconName } from '../components/Icon';
+import { Icon } from '../components/Icon';
 import { useTheme, ring, PersonTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -22,27 +14,44 @@ import {
   createPaymentLink,
   syncPayment,
   activatePromotion,
+  cancelPromotion,
+  listPromotions,
   promotableTasks,
   promotionQuote,
-  joinPromotionLine,
-  leavePromotionLine,
   type PromotableTask,
   type PromotionQuote,
 } from '../data/api';
-import { formatINR } from '../components/ui';
-import { Linking, Platform } from 'react-native';
 import { PaymentSheet } from '../components/PaymentSheet';
 import { PromotionResultsCard } from '../components/PromotionResultsCard';
 import { paymentReturnUrl } from '../lib/links';
-import { clockText, daysLabel, promotionPriceMinor, whenText } from '../lib/promoteText';
+import {
+  BUDGET_PRESETS_RUPEES,
+  DEFAULT_BUDGET_RUPEES,
+  PAYMENT_FAILED,
+  busyNote,
+  campaignEndIso,
+  campaignTotalMinor,
+  clampBudget,
+  confirmCopy,
+  daysLabel,
+  estimateNote,
+  estimateText,
+  limitsFrom,
+  moneyText,
+  parseBudget,
+  payNote,
+  raisedBudget,
+  refusalProblem,
+  type PromoteProblem,
+} from '../lib/promoteText';
 import { tx } from '../components/primitives';
 import { KeyboardSafe } from '../components/KeyboardSafe';
-import { ActionBar, FormPage, FormSection } from '../components/FormPage';
-import { useLayout } from '../lib/layout';
+import { KeyboardScrollView } from '../components/KeyboardScrollView';
 
 /**
- * Promote a post. A task's poster is always in the Hire (jade) palette and a service owner in the Earn
- * (blue) one, whatever mode the app is in (PersonTheme swaps the accent tokens).
+ * Promote a post with a daily budget. A task's poster is always in the Hire (jade) palette and a service
+ * owner in the Earn (blue) one, whatever mode the app is in (PersonTheme swaps the accent tokens).
+ * The whole budget is paid upfront and the promotion always runs to the end: no stop, no refund.
  */
 export function PromoteScreen() {
   const { mode } = useMode();
@@ -55,26 +64,22 @@ export function PromoteScreen() {
 
 function PromoteBody() {
   const t = useTheme();
-  const { go, back, params } = useNav();
+  const { back, params } = useNav();
   const { mode } = useMode();
-  const { desktop } = useLayout();
   const { celebrate, flash } = useActions();
   const [busy, setBusy] = useState(false);
   // Native: the checkout opens in a sheet here rather than in Chrome.
   const [payUrl, setPayUrl] = useState<string | null>(null);
   const [pending, setPending] = useState<{ promotionId: string; paymentId: string } | null>(null);
   const [explaining, setExplaining] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [problem, setProblem] = useState<PromoteProblem | null>(null);
 
-  // Which listing is being promoted. Arrives pre-chosen when you come from a
-  // task, otherwise you pick from your own open ones.
+  // Which listing is being promoted. Arrives pre-chosen when you come from a task, otherwise you pick from your own open ones.
   const [mine, setMine] = useState<PromotableTask[]>([]);
   const [loadingMine, setLoadingMine] = useState(true);
-  const [pickedId, setPickedId] = useState<string | null>(
-    typeof params.taskId === 'string' ? params.taskId : null,
-  );
-
-  // A list that failed to load is not an empty list: "Nothing open to promote" would tell
-  // someone with open posts that they have none.
+  const [pickedId, setPickedId] = useState<string | null>(typeof params.taskId === 'string' ? params.taskId : null);
+  // A list that failed to load is not an empty list: "Nothing open to promote" would tell someone with open posts that they have none.
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -85,8 +90,7 @@ function PromoteBody() {
       .then((rows) => {
         if (!alive) return;
         setMine(rows);
-        // Nothing pre-chosen and exactly one candidate: choosing it for them
-        // is obvious rather than presumptuous.
+        // Nothing pre-chosen and exactly one candidate: choosing it for them is obvious rather than presumptuous.
         setPickedId((cur) => cur ?? (rows.length === 1 ? rows[0]!.id : null));
       })
       .catch((e) => {
@@ -101,15 +105,10 @@ function PromoteBody() {
 
   const taskId = pickedId;
   const picked = mine.find((m) => m.id === pickedId) ?? null;
-  // The list is collapsed once something is chosen. Five full-width cards
-  // pushed the days and the button -- the things this screen is actually for --
-  // off the bottom of the screen.
+  // The list is collapsed once something is chosen, so the budget and the button stay on screen.
   const [choosing, setChoosing] = useState(false);
-  // Nothing is listed until something is typed: this screen exists to promote
-  // one post, not to show everything the person has ever posted. A word from
-  // the title finds the post.
+  // Nothing is listed until something is typed: a word from the title finds the post.
   const [listingQuery, setListingQuery] = useState('');
-
   const matches = (() => {
     const q = listingQuery.trim().toLowerCase();
     if (!q) return [];
@@ -118,7 +117,7 @@ function PromoteBody() {
 
   const worker = mode === 'worker';
 
-  // The server's view of this post: flat day price, spots taken in its area, the line.
+  // The server's view of this post: budget limits, lengths, how busy the area is, its campaign.
   const [quote, setQuote] = useState<PromotionQuote | null>(null);
   const [quoteFailed, setQuoteFailed] = useState(false);
   const loadQuote = useCallback(async (id: string) => {
@@ -135,73 +134,84 @@ function PromoteBody() {
     if (taskId) void loadQuote(taskId);
   }, [taskId, loadQuote]);
 
+  // Opened from a notification or the list: show how an ended promotion did, until "Promote again".
+  const [showResults, setShowResults] = useState(params.results === true);
+  const [pastId, setPastId] = useState<string | null>(null);
+  useEffect(() => {
+    setPastId(null);
+    if (!showResults || !taskId) return;
+    let alive = true;
+    void listPromotions()
+      .then((rows) => {
+        const latest = rows
+          .filter((p) => p.task_id === taskId && p.status !== 'pending' && (p.status !== 'cancelled' || p.starts_at))
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        if (alive) setPastId(latest?.id ?? null);
+      })
+      .catch((e) => reportError(e, 'promote-past'));
+    return () => {
+      alive = false;
+    };
+  }, [showResults, taskId]);
+
+  const limits = limitsFrom(quote?.minDayMinor, quote?.maxDayMinor);
   const dayList = quote?.days?.length ? quote.days : [...PROMOTE_DEFAULTS.DAYS];
-  const dayPrice = quote?.dayPriceMinor ?? PROMOTE_DEFAULTS.DAY_PRICE_MINOR;
-  const line = quote?.line ?? null;
   const [chosenDays, setChosenDays] = useState<number | null>(null);
-  // A held spot keeps the length the person queued for; otherwise the middle one.
-  const days =
-    line?.status === 'offered' && dayList.includes(line.days)
-      ? line.days
-      : chosenDays && dayList.includes(chosenDays)
-        ? chosenDays
-        : (dayList[1] ?? dayList[0]!);
-  const totalMinor = promotionPriceMinor(days, dayPrice);
+  const days = chosenDays && dayList.includes(chosenDays) ? chosenDays : (dayList[1] ?? dayList[0]!);
+
+  // The daily budget: a quick amount, or "Other" with a typed one.
+  const [chosen, setChosen] = useState<number | null>(null);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customText, setCustomText] = useState('');
+  const custom = parseBudget(customText, limits);
+  const budget = customOpen ? custom.rupees : (chosen ?? clampBudget(DEFAULT_BUDGET_RUPEES, limits));
+  const dayMinor = budget === null ? null : budget * 100;
+  const totalMinor = dayMinor === null ? null : campaignTotalMinor(dayMinor, days);
 
   const live = quote?.promotion?.status === 'active' ? quote.promotion : null;
-  const full = Boolean(quote && quote.taken >= quote.cap && !line);
-  const inLine = line?.status === 'waiting';
-  const held = line?.status === 'offered';
+  const waitingPromo = quote?.promotion?.status === 'pending' && !pending ? quote.promotion : null;
   const service = worker || quote?.kind === 'service';
-  const noAlert = service || Boolean(quote?.remote);
-  const radius = quote?.radiusKm ?? 10;
+  const post = service ? 'service' : 'task';
+  const resultsId = live?.id ?? (showResults && !quote?.promotion ? pastId : null);
+  const raised = budget === null ? null : raisedBudget(budget, limits);
+  const busyBox = quote && !quote.remote ? busyNote(quote.others, quote.areaKm, quote.areaPriceMinor) : null;
 
   const label = (s: string, extra?: TextStyle, color?: string) => (
-    <RNText style={tx('400', 11, color ?? t.colors.muted, { letterSpacing: 1.54, ...extra })}>{s}</RNText>
+    <RNText style={tx('800', 10, color ?? t.colors.muted, { letterSpacing: 1.2, ...extra })}>{s}</RNText>
   );
 
-  /** A refusal that means "the area filled up while you looked": show the Full state instead of an error. */
-  const handleRefusal = async (e: unknown, fallback: string) => {
-    const msg = messageOf(e, fallback);
-    if (/join the line/i.test(msg) && taskId) {
-      await loadQuote(taskId);
-      flash('That area just filled up. You can join the line.');
-    } else {
-      flash(msg);
-    }
-  };
-
   /**
-   * Buy the placement.
-   *
-   * A promotion is a real row that stays pending until its payment settles: the server will not
-   * switch it on without a paid payment, so abandoning the payment page gets you nothing rather
-   * than free advertising. The price is flat: days x the day price.
+   * Buy the promotion. It stays pending until its payment settles: the server will not switch it on without
+   * a paid payment, so abandoning the payment page gets you nothing rather than free advertising.
    */
   const start = async () => {
-    if (busy) return;
-    if (!taskId) {
-      flash(
-        mine.length === 0
-          ? 'You have no open posts to promote yet'
-          : 'Pick which post to promote first',
-      );
-      return;
-    }
+    if (busy || !taskId || totalMinor === null) return;
+    setConfirming(false);
+    setProblem(null);
     setBusy(true);
     try {
-      const promo = await startPromotion(taskId, days, totalMinor);
-      const { paymentId, url } = await createPaymentLink({
-        purpose: 'promotion',
-        promotionId: promo.id,
-        returnUrl: paymentReturnUrl(),
-      });
-      setPending({ promotionId: promo.id, paymentId });
-      if (Platform.OS === 'web') await Linking.openURL(url);
-      else setPayUrl(url);
-      flash('Finish the payment, then come back and tap Activate');
-    } catch (e) {
-      await handleRefusal(e, 'Could not start that promotion');
+      let promoId: string;
+      try {
+        promoId = (await startPromotion(taskId, days, totalMinor)).id;
+      } catch (e) {
+        const msg = messageOf(e, 'Could not start that promotion');
+        const known = refusalProblem(msg, limits, service);
+        setProblem(known ?? { title: "Couldn't start the promotion.", body: msg });
+        // Already running (or the post changed): the screen should show what the server has.
+        await loadQuote(taskId);
+        return;
+      }
+      try {
+        const { paymentId, url } = await createPaymentLink({ purpose: 'promotion', promotionId: promoId, returnUrl: paymentReturnUrl() });
+        setPending({ promotionId: promoId, paymentId });
+        if (Platform.OS === 'web') await Linking.openURL(url);
+        else setPayUrl(url);
+        flash('Finish the payment, then come back and tap Activate');
+      } catch (e) {
+        reportError(e, 'promote-payment');
+        setProblem(PAYMENT_FAILED);
+        await loadQuote(taskId);
+      }
     } finally {
       setBusy(false);
     }
@@ -209,7 +219,7 @@ function PromoteBody() {
 
   /** Switch it on, once the money is actually in. */
   const activate = async () => {
-    if (!pending || busy) return;
+    if (!pending || busy || !taskId) return;
     setBusy(true);
     try {
       const { status } = await syncPayment(pending.paymentId);
@@ -218,8 +228,10 @@ function PromoteBody() {
         return;
       }
       await activatePromotion(pending.promotionId, pending.paymentId);
-      celebrate(`Promoted · ${formatINR(totalMinor)} for ${daysLabel(days)}`);
-      go(worker ? 'home' : 'orders');
+      celebrate(`Promoted · ${moneyText(totalMinor ?? 0)} for ${daysLabel(days)}`);
+      setPending(null);
+      setShowResults(false);
+      await loadQuote(taskId);
     } catch (e) {
       flash(messageOf(e, 'Could not activate that promotion'));
     } finally {
@@ -227,574 +239,320 @@ function PromoteBody() {
     }
   };
 
-  const join = async () => {
-    if (busy || !taskId) return;
+  /** A promotion that was started but never paid can be dropped. A paid one never can. */
+  const dropUnpaid = async () => {
+    if (!waitingPromo || busy || !taskId) return;
     setBusy(true);
     try {
-      setQuote(await joinPromotionLine(taskId, days));
-      flash('You are in line. Nothing has been charged.');
+      await cancelPromotion(waitingPromo.id);
+      setProblem(null);
+      await loadQuote(taskId);
     } catch (e) {
-      await handleRefusal(e, 'Could not join the line');
+      flash(messageOf(e, 'Could not cancel that'));
     } finally {
       setBusy(false);
     }
   };
 
-  const leave = async () => {
-    if (busy || !taskId) return;
-    setBusy(true);
-    try {
-      setQuote(await leavePromotionLine(taskId));
-      flash('You left the line');
-    } catch (e) {
-      flash(messageOf(e, 'Could not leave the line'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  /**
-   * What promoting does, in plain words. Everything in here has to stay true of what the code does.
-   */
-  const explainer = (
-    <Modal
-      visible={explaining}
-      transparent
-      animationType="slide"
-      onRequestClose={() => setExplaining(false)}
-    >
+  const sheet = (
+    <Modal visible={explaining} transparent animationType="slide" onRequestClose={() => setExplaining(false)}>
       <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' }}>
-        <Pressable
-          style={{ flex: 1 }}
-          onPress={() => setExplaining(false)}
-          accessibilityLabel="Close"
-        />
-        <View
-          style={{
-            backgroundColor: t.colors.bg,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            padding: 22,
-            paddingBottom: 30,
-          }}
-        >
-          <RNText style={tx('800', 20, t.colors.ink, { letterSpacing: -0.4 })}>
-            What promoting does
-          </RNText>
-
-          <RNText style={tx('400', 14, t.colors.text, { marginTop: 12, lineHeight: 21 })}>
-            A promoted post is shown above the others and is always labelled “Promoted”. It buys
-            position, nothing else.
-          </RNText>
-
-          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>Why there is a limit</RNText>
-          <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
-            Only {quote?.cap ?? 3} posts can be promoted in one area at a time, and they share the top 2
-            spots in turns, so each promoted post really gets seen. When it is full you can join the
-            line. It is first come, first served.
-          </RNText>
-
-          <RNText style={tx('700', 14, t.colors.ink, { marginTop: 18 })}>What it does not do</RNText>
-          <RNText style={tx('400', 14, t.colors.text, { marginTop: 6, lineHeight: 21 })}>
-            It does not make anyone send an offer, and it does not change your price. If a post has been
-            up a while with no offers, the price is usually the reason, not the position.
-          </RNText>
-
-          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 18, lineHeight: 18 })}>
-            You pay once, up front, for the days you choose. It does not renew. Stop any time: unused
-            full days come back to you.
-          </RNText>
-
-          <Pressable
-            onPress={() => setExplaining(false)}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            style={({ pressed }) => ({
-              marginTop: 20,
-              backgroundColor: t.colors.btn,
-              borderRadius: 999,
-              paddingVertical: 14,
-              alignItems: 'center',
-              transform: [{ scale: pressed ? 0.97 : 1 }],
-            })}
-          >
-            <RNText style={tx('700', 15, t.colors.onBtn)}>Got it</RNText>
-          </Pressable>
+        <Pressable style={{ flex: 1 }} onPress={() => setExplaining(false)} accessibilityLabel="Close" />
+        <View style={{ backgroundColor: t.colors.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 28, gap: 11 }}>
+          <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.3 })}>How bidding works</RNText>
+          {[
+            service
+              ? 'When a customer nearby opens the helpers list or searches, every promoted service that suits them enters a quick auction.'
+              : 'When a worker nearby opens Find work, every promoted task that suits them enters a quick auction.',
+            `Bigger budget and a nearer ${post} give a higher score. The ${PROMOTE_DEFAULTS.TOP_SLOTS} best go on top.`,
+            `You pay just enough to beat the next ${post}, never more than your bid, and at least ${moneyText(PROMOTE_DEFAULTS.FLOOR_MINOR)} a show.`,
+            `Each ${service ? 'customer' : 'worker'} counts at most ${PROMOTE_DEFAULTS.VIEWER_TOP_PER_DAY} times a day. A quiet day's leftover moves to the next day, and if money is still left at the end it runs on up to ${PROMOTE_DEFAULTS.RUN_ON_DAYS} more days.`,
+          ].map((s, i) => (
+            <View key={s} style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <RNText style={tx('800', 12, t.colors.accentDeep)}>{i + 1}</RNText>
+              </View>
+              <RNText style={tx('400', 13, t.colors.text, { flex: 1, lineHeight: 19 })}>{s}</RNText>
+            </View>
+          ))}
+          <View style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: t.colors.line, borderRadius: 12, padding: 10 }}>
+            <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 17 })}>
+              This is how Meta and Google sell ad space too. There is no fixed price: busy areas cost more, quiet areas cost less.
+            </RNText>
+          </View>
+          <PrimaryButton label="Got it" onPress={() => setExplaining(false)} />
         </View>
       </View>
     </Modal>
   );
 
-  // ---- what the main button does, per state ----
-  const startLabel = busy
-    ? 'Working…'
-    : pending
-      ? 'Activate promotion'
-      : `Promote for ${daysLabel(days)} · ${formatINR(totalMinor)}`;
-  const mainAction: { label: string; outline: boolean; onPress: () => void } | null = !taskId || live
-    ? null
-    : inLine
-      ? { label: busy ? 'Working…' : 'Leave the line', outline: true, onPress: () => void leave() }
-      : full && !pending
-        ? {
-            label: busy ? 'Working…' : `Join the line · you would be #${(quote?.waiting ?? 0) + 1}`,
-            outline: true,
-            onPress: () => void join(),
-          }
-        : { label: startLabel, outline: false, onPress: () => void (pending ? activate() : start()) };
-
-  const footNote = inLine
-    ? 'Nothing has been charged.'
-    : full && !pending
-      ? 'Free to join. When your turn comes we hold the spot for you for 30 minutes and send one alert. You pay only then, or skip and the next person gets it.'
-      : 'Always labelled “Promoted”. It doesn’t change your price or make anyone send an offer. Stop any time: unused full days come back to you.';
-
-  // ---- pieces of the page ----
-  const rows: { icon: IconName; title: string; body: string; show: boolean }[] = [
-    {
-      icon: 'trending',
-      title: service ? 'Top of the helpers list' : 'Top of Find work',
-      body: service
-        ? 'Shown above other helpers to people whose filters match you, in the list and on their Home.'
-        : 'Shown above other tasks to workers whose filters match it, in the list and on their Home.',
-      show: true,
-    },
-    {
-      icon: 'map',
-      title: 'Stands out on the map',
-      body: 'A bigger pin with a ring, drawn above the others.',
-      show: true,
-    },
-    {
-      icon: 'bell',
-      title: 'One alert to nearby workers',
-      body: 'Sent once, to up to 30 workers near the task who were active this week.',
-      show: !noAlert,
-    },
-    {
-      icon: 'eye',
-      title: 'Live results for you',
-      body: 'How many saw it, opened it and sent an offer.',
-      show: true,
-    },
-  ];
-
-  const benefitRows = (
-    <View style={{ marginTop: 14 }}>
-      {rows
-        .filter((r) => r.show)
-        .map((r) => (
-          <View key={r.title} style={{ flexDirection: 'row', gap: 12, paddingVertical: 9 }}>
-            <View
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 10,
-                backgroundColor: t.colors.accentSoft,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon name={r.icon} size={17} color={t.colors.accentDeep} strokeWidth={1.8} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <RNText style={tx('700', 14, t.colors.ink)}>{r.title}</RNText>
-              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2, lineHeight: 17 })}>{r.body}</RNText>
-            </View>
-          </View>
-        ))}
+  const problemBox = (p: PromoteProblem) => (
+    <View style={{ marginTop: 12, borderRadius: 12, borderWidth: 1, borderColor: t.colors.signal, backgroundColor: t.colors.signalSoft, paddingVertical: 10, paddingHorizontal: 12 }}>
+      <RNText style={tx('400', 12, t.colors.ink, { lineHeight: 17 })}>
+        <RNText style={tx('800', 12, t.colors.signalDeep)}>{p.title} </RNText>
+        {p.body}
+      </RNText>
     </View>
   );
 
-  const nearbyBox =
-    quote && !quote.remote ? (
-      <View
-        style={{
-          marginTop: 12,
-          backgroundColor: t.colors.accentSoft,
-          borderWidth: 1,
-          borderColor: t.colors.accentBorder,
-          borderRadius: 12,
-          paddingVertical: 13,
-          paddingHorizontal: 16,
-        }}
-      >
-        {label(service ? 'NEAR THIS SERVICE NOW' : 'NEAR THIS TASK NOW', {}, t.colors.accentDeep)}
-        <RNText style={tx('700', 15, t.colors.ink, { marginTop: 4 })}>
-          {quote.nearbyActive} {service ? 'people' : 'workers'} active this week within 10 km
-        </RNText>
-        {quote.taken > 0 && quote.taken < quote.cap ? (
-          <>
-            <View style={{ height: 1, backgroundColor: t.colors.accentBorder, marginVertical: 10 }} />
-            {label(`BUSY HERE · ${quote.taken} other ${quote.taken === 1 ? 'task' : 'tasks'} promoted within ${radius} km`, {}, t.colors.accentDeep)}
-            <RNText style={tx('400', 12, t.colors.text, { marginTop: 4, lineHeight: 17 })}>
-              You share the top 2 spots with them in turns.
-            </RNText>
-          </>
-        ) : null}
-      </View>
-    ) : null;
-
-  const fullBox =
-    quote && full ? (
-      <View
-        style={{
-          marginTop: 12,
-          backgroundColor: t.colors.signalSoft,
-          borderWidth: 1,
-          borderColor: t.colors.signal,
-          borderRadius: 12,
-          paddingVertical: 13,
-          paddingHorizontal: 16,
-        }}
-      >
-        {label(
-          `FULL HERE RIGHT NOW · ${quote.cap} of ${quote.cap} promotion spots within ${radius} km are taken`,
-          {},
-          t.colors.signalDeep,
-        )}
-        <RNText style={tx('400', 13, t.colors.text, { marginTop: 6, lineHeight: 19 })}>
-          {quote.nextFreeAt ? `The next one opens ${whenText(quote.nextFreeAt)}. ` : ''}
-          {quote.waiting} {quote.waiting === 1 ? 'person is' : 'people are'} already in line. We keep it to {quote.cap} so
-          each promoted post really gets seen. The line is first come, first served.
-        </RNText>
-      </View>
-    ) : null;
-
-  const lineCard =
-    quote && line && inLine ? (
-      <View
-        style={{
-          marginTop: 12,
-          backgroundColor: t.colors.accentSoft,
-          borderWidth: 1,
-          borderColor: t.colors.accentBorder,
-          borderRadius: 12,
-          padding: 16,
-        }}
-      >
-        {label('YOU ARE IN LINE', {}, t.colors.accentDeep)}
-        <RNText style={tx('800', 20, t.colors.ink, { marginTop: 4 })}>
-          #{line.position} of {quote.waiting + 1} waiting near here
-        </RNText>
-        <RNText style={tx('400', 13, t.colors.text, { marginTop: 6, lineHeight: 19 })}>
-          All {quote.cap} spots within {radius} km are taken.
-          {quote.nextFreeAt ? ` The next one should open ${whenText(quote.nextFreeAt)}.` : ''} You joined at{' '}
-          {clockText(line.joinedAt)}.
-        </RNText>
-        {[
-          'When a spot is yours, you get one alert and we hold it for 30 minutes.',
-          'You pay then, at the same price as everyone, and it goes live at once.',
-          'Miss it and the spot goes to the next person. You can join again.',
-        ].map((s, i) => (
-          <View key={s} style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                backgroundColor: t.colors.btn,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <RNText style={tx('700', 12, t.colors.onBtn)}>{i + 1}</RNText>
-            </View>
-            <RNText style={tx('400', 13, t.colors.text, { flex: 1, lineHeight: 19 })}>{s}</RNText>
-          </View>
-        ))}
-      </View>
-    ) : null;
-
-  const heldCard =
-    held && line ? (
-      <View
-        style={{
-          marginTop: 12,
-          backgroundColor: t.colors.accentSoft,
-          borderWidth: 2,
-          borderColor: t.colors.accent,
-          borderRadius: 12,
-          padding: 16,
-        }}
-      >
-        {label(`YOUR SPOT IS FREE · held for you until ${clockText(line.offeredUntil)}`, {}, t.colors.accentDeep)}
-        <RNText style={tx('400', 13, t.colors.text, { marginTop: 6, lineHeight: 19 })}>
-          Promote now to take it. If you skip, the next person in line gets it.
-        </RNText>
-      </View>
-    ) : null;
-
-  const daysPicker = (
-    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10, ...(desktop ? { maxWidth: 440 } : null) }}>
-      {dayList.map((d) => {
-        const on = d === days;
-        const locked = held && line?.days !== d;
-        return (
-          <Pressable
-            key={d}
-            disabled={locked}
-            onPress={() => setChosenDays(d)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            style={({ pressed }) => ({
-              flex: 1,
-              borderRadius: 10,
-              paddingVertical: 10,
-              alignItems: 'center',
-              backgroundColor: on ? t.colors.accentSoft : 'transparent',
-              borderWidth: 1,
-              borderColor: on ? t.colors.accent : t.colors.line,
-              opacity: locked ? 0.4 : 1,
-              transform: [{ scale: pressed ? 0.96 : 1 }],
-            })}
-          >
-            <RNText style={tx('700', 13, on ? t.colors.ink : t.colors.muted)}>{daysLabel(d)}</RNText>
-            <RNText style={tx('400', 12, on ? t.colors.accentDeep : t.colors.muted, { marginTop: 2 })}>
-              {formatINR(promotionPriceMinor(d, dayPrice))}
-            </RNText>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-
-  const mainButtonPhone = mainAction ? (
+  const postCard = picked ? (
     <Pressable
-      onPress={mainAction.onPress}
-      disabled={busy}
+      onPress={() => mine.length > 1 && setChoosing(true)}
+      disabled={mine.length < 2}
+      accessibilityRole="button"
+      accessibilityLabel={`Change post, currently ${picked.title}`}
       style={({ pressed }) => ({
-        backgroundColor: mainAction.outline ? 'transparent' : t.colors.btn,
-        borderWidth: mainAction.outline ? 1.5 : 0,
-        borderColor: t.colors.accent,
-        borderRadius: 999,
-        paddingVertical: 16,
+        marginTop: 8,
+        flexDirection: 'row',
         alignItems: 'center',
-        ...(mainAction.outline
-          ? null
-          : {
-              shadowColor: t.colors.accent,
-              shadowOpacity: 0.35,
-              shadowRadius: 22,
-              shadowOffset: { width: 0, height: 8 },
-              elevation: 6,
-            }),
-        transform: [{ scale: pressed ? 0.96 : 1 }],
+        gap: 12,
+        borderWidth: 1,
+        borderColor: t.colors.line,
+        borderRadius: 12,
+        paddingVertical: 9,
+        paddingHorizontal: 11,
+        opacity: pressed ? 0.7 : 1,
       })}
     >
-      <RNText style={tx('700', 16, mainAction.outline ? t.colors.accentDeep : t.colors.onBtn)}>{mainAction.label}</RNText>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>
+          {picked.title}
+        </RNText>
+        <RNText style={tx('400', 11, t.colors.muted, { marginTop: 1 })}>
+          {formatINR(picked.benchmark_minor)} · {picked.quotes === 1 ? '1 offer' : `${picked.quotes} offers`}
+        </RNText>
+      </View>
+      {mine.length > 1 ? <RNText style={tx('700', 12, t.colors.accentDeep)}>Change</RNText> : null}
     </Pressable>
   ) : null;
 
+  const picker = (
+    <View style={{ marginTop: 8 }}>
+      {loadingMine ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 }}>
+          <ActivityIndicator size="small" color={t.colors.muted} />
+          <RNText style={tx('400', 13, t.colors.muted)}>Finding your posts…</RNText>
+        </View>
+      ) : loadFailed && !picked ? (
+        <LoadFailed title="Couldn’t load your posts" onRetry={() => setAttempt((n) => n + 1)} />
+      ) : mine.length === 0 ? (
+        <View style={{ borderWidth: 1, borderColor: t.colors.line, borderStyle: 'dashed', borderRadius: 14, padding: 16 }}>
+          <RNText style={tx('700', 14, t.colors.ink)}>Nothing open to promote</RNText>
+          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 5, lineHeight: 18 })}>
+            Only your own open posts can be promoted. Post one, or reopen a closed one, and it will show up here.
+          </RNText>
+        </View>
+      ) : picked && !choosing ? (
+        postCard
+      ) : (
+        <>
+          <View
+            {...ring}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: t.colors.surface2, borderRadius: 11, paddingHorizontal: 13, paddingVertical: 10 }}
+          >
+            <Icon name="search" size={16} color={t.colors.muted} strokeWidth={1.8} />
+            <TextInput
+              value={listingQuery}
+              onChangeText={setListingQuery}
+              placeholder="Search your posts"
+              placeholderTextColor={t.colors.muted}
+              autoCorrect={false}
+              style={tx('400', 14, t.colors.ink, { flex: 1, padding: 0 })}
+            />
+            {listingQuery.length > 0 ? (
+              <Pressable onPress={() => setListingQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear the search">
+                <RNText style={tx('600', 15, t.colors.muted)}>×</RNText>
+              </Pressable>
+            ) : null}
+          </View>
+          {matches.length === 0 ? (
+            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 19 })}>
+              {listingQuery.trim()
+                ? `Nothing matches “${listingQuery.trim()}”. Only your own open posts can be promoted.`
+                : `Type a word from the title to find the post you want to promote (${mine.length} open).`}
+            </RNText>
+          ) : null}
+          {matches.map((m) => {
+            const on = m.id === pickedId;
+            return (
+              <Pressable
+                key={m.id}
+                onPress={() => {
+                  setPickedId(m.id);
+                  setChoosing(false);
+                  setListingQuery('');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Promote ${m.title}`}
+                accessibilityState={{ selected: on }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingVertical: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: t.colors.line,
+                  opacity: pressed ? 0.7 : 1,
+                })}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <RNText style={tx(on ? '700' : '500', 15, on ? t.colors.ink : t.colors.text)} numberOfLines={1}>
+                    {m.title}
+                  </RNText>
+                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
+                    {formatINR(m.benchmark_minor)} · {m.quotes === 1 ? '1 offer' : `${m.quotes} offers`}
+                  </RNText>
+                </View>
+                {on ? <RNText style={tx('700', 14, t.colors.accentDeep)}>✓</RNText> : null}
+              </Pressable>
+            );
+          })}
+        </>
+      )}
+    </View>
+  );
+
+  const budgetBlock = (
+    <View style={{ marginTop: 16 }}>
+      {label('SPEND UP TO, PER DAY')}
+      <RNText style={tx('800', 26, t.colors.accentDeep, { letterSpacing: -0.5, marginTop: 2 })}>{budget === null ? '—' : moneyText(budget * 100)}</RNText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+        {BUDGET_PRESETS_RUPEES.filter((p) => p >= limits.minRupees && p <= limits.maxRupees).map((p) => (
+          <Chip
+            key={p}
+            label={moneyText(p * 100)}
+            active={!customOpen && budget === p}
+            onPress={() => {
+              setCustomOpen(false);
+              setChosen(p);
+              setProblem(null);
+            }}
+          />
+        ))}
+        <Chip
+          label="Other"
+          active={customOpen}
+          onPress={() => {
+            setCustomOpen(true);
+            setCustomText(budget !== null ? String(budget) : '');
+          }}
+        />
+      </View>
+      {customOpen ? (
+        <View style={{ marginTop: 10 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              borderWidth: 1.5,
+              borderColor: custom.error ? t.colors.signal : t.colors.line,
+              borderRadius: 12,
+              paddingHorizontal: 11,
+              paddingVertical: 9,
+            }}
+          >
+            <RNText style={tx('700', 15, t.colors.muted)}>₹</RNText>
+            <TextInput
+              value={customText}
+              onChangeText={setCustomText}
+              keyboardType="number-pad"
+              placeholder={`${limits.minRupees} to ${limits.maxRupees}`}
+              placeholderTextColor={t.colors.muted}
+              accessibilityLabel="Daily budget in rupees"
+              style={tx('700', 15, t.colors.ink, { flex: 1, padding: 0 })}
+            />
+          </View>
+          {custom.error ? <RNText style={tx('600', 11, t.colors.signalDeep, { marginTop: 4 })}>{custom.error}</RNText> : null}
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+          <RNText style={tx('400', 10, t.colors.muted)}>{moneyText(limits.minRupees * 100)}</RNText>
+          <RNText style={tx('400', 10, t.colors.muted)}>{moneyText(limits.maxRupees * 100)}</RNText>
+        </View>
+      )}
+
+      <View style={{ marginTop: 14 }}>
+        {label('FOR')}
+        <View style={{ flexDirection: 'row', gap: 6, marginTop: 5 }}>
+          {dayList.map((d) => (
+            <Chip key={d} label={daysLabel(d)} active={d === days} onPress={() => setChosenDays(d)} />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+
+  const estimateBlock =
+    !quote ? (
+      <View style={{ marginTop: 14 }}>
+        <Shimmer height={86} />
+      </View>
+    ) : (
+      <>
+        {busyBox ? (
+          <View style={{ marginTop: 14, borderRadius: 12, borderWidth: 1, borderColor: t.colors.gold, backgroundColor: t.colors.goldSoft, paddingVertical: 10, paddingHorizontal: 12 }}>
+            <RNText style={tx('400', 12, t.colors.ink, { lineHeight: 17 })}>
+              <RNText style={tx('800', 12, t.colors.goldInk)}>{busyBox.title} </RNText>
+              {busyBox.body}
+            </RNText>
+          </View>
+        ) : null}
+        {dayMinor !== null ? (
+          <View style={{ marginTop: 12, borderRadius: 14, borderWidth: 1, borderColor: t.colors.accentBorder, backgroundColor: t.colors.accentSoft, paddingVertical: 11, paddingHorizontal: 12 }}>
+            {label(`ESTIMATE FOR ${moneyText(dayMinor).toUpperCase()} A DAY`, {}, t.colors.accentDeep)}
+            <RNText style={tx('800', 20, t.colors.ink, { marginTop: 2 })}>{estimateText(dayMinor, quote.areaPriceMinor)}</RNText>
+            {(() => {
+              const note = estimateNote({ others: quote.others, areaKm: quote.areaKm, areaPriceMinor: quote.areaPriceMinor, remote: quote.remote, service, raisedRupees: raised });
+              return note ? <RNText style={tx('400', 11, t.colors.muted, { marginTop: 3, lineHeight: 15 })}>{note}</RNText> : null;
+            })()}
+          </View>
+        ) : null}
+        {busyBox && raised !== null && budget !== null ? (
+          <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
+            <Chip label={`Keep ${moneyText(budget * 100)}`} active={budget !== raised} onPress={() => undefined} />
+            <Chip
+              label={`Use ${moneyText(raised * 100)}`}
+              onPress={() => {
+                setCustomOpen(false);
+                setChosen(raised);
+              }}
+            />
+          </View>
+        ) : null}
+      </>
+    );
+
+  const howLink = (
+    <Pressable onPress={() => setExplaining(true)} hitSlop={8} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 14 }}>
+      <RNText style={tx('700', 12, t.colors.accentDeep, { textDecorationLine: 'underline' })}>How bidding works</RNText>
+    </Pressable>
+  );
+
+  const waitingBox = waitingPromo ? (
+    <View style={{ marginTop: 14, borderRadius: 12, borderWidth: 1, borderColor: t.colors.accentBorder, backgroundColor: t.colors.accentSoft, padding: 12 }}>
+      <RNText style={tx('700', 13, t.colors.ink)}>A promotion is waiting for payment.</RNText>
+      <RNText style={tx('400', 12, t.colors.text, { marginTop: 4, lineHeight: 17 })}>
+        It starts only after it is paid. If you left the payment page, cancel this one and start again. Nothing was charged.
+      </RNText>
+      <View style={{ marginTop: 10 }}>
+        <PrimaryButton label="Cancel it and start again" tone="quiet" busy={busy} onPress={() => void dropUnpaid()} />
+      </View>
+    </View>
+  ) : null;
+
+  const formReady = Boolean(taskId && quote && !quote.promotion && dayMinor !== null && totalMinor !== null) || Boolean(pending);
+  const canPay = Boolean(taskId && quote && !waitingPromo && dayMinor !== null && totalMinor !== null) || Boolean(pending);
+  const showForm = taskId && !resultsId && !(showResults && !quote && !pastId);
+  const confirm = confirmCopy(totalMinor ?? 0, days, campaignEndIso(days));
+  const title = resultsId ? 'Promotion' : service ? 'Promote my service' : 'Promote this task';
+
   return (
     <Screen padded={false}>
-      {desktop ? <TopBar title={service ? 'Promote this service' : 'Promote this task'} onBack={back} /> : null}
-      <FormPage
-        phoneActions="pinned"
-        scrollProps={{
-          hugContent: true,
-          style: { flex: 1 },
-          contentContainerStyle: { paddingHorizontal: 20, paddingTop: 8 },
-          showsVerticalScrollIndicator: false,
-        }}
-        aside={
-          <>
-            <Pressable
-              onPress={() => setExplaining(true)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="How promotion works"
-              style={{ alignSelf: 'flex-start' }}
-            >
-              <RNText style={tx('700', 12, t.colors.accentDeep, { textDecorationLine: 'underline' })}>How this works</RNText>
-            </Pressable>
-            <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 17 })}>{footNote}</RNText>
-          </>
-        }
-        actions={
-          mainAction ? (
-            desktop ? (
-              <ActionBar>
-                <PrimaryButton
-                  label={mainAction.label}
-                  tone={mainAction.outline ? 'quiet' : 'accent'}
-                  busy={busy}
-                  onPress={mainAction.onPress}
-                />
-              </ActionBar>
-            ) : (
-              <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
-                {mainButtonPhone}
-                <RNText style={tx('400', 12, t.colors.muted, { textAlign: 'center', marginTop: 10, lineHeight: 17 })}>
-                  {footNote}
-                </RNText>
-              </KeyboardSafe>
-            )
-          ) : undefined
-        }
-      >
-        {desktop ? null : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-            <BackButton onBack={back} title={service ? 'Promote this service' : 'Promote this task'} />
-            {systemHeader ? null : (
-              <RNText style={tx('700', 17, t.colors.ink)}>
-                {service ? 'Promote this service' : 'Promote this task'}
-              </RNText>
-            )}
-          </View>
-        )}
-
-        <FormSection first title="Which post">
-        <View style={{ marginTop: desktop ? 0 : 14 }}>
-          {loadingMine ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 }}>
-              <ActivityIndicator size="small" color={t.colors.muted} />
-              <RNText style={tx('400', 13, t.colors.muted)}>Finding your posts…</RNText>
-            </View>
-          ) : loadFailed && !picked ? (
-            <LoadFailed title="Couldn’t load your posts" onRetry={() => setAttempt((n) => n + 1)} />
-          ) : mine.length === 0 ? (
-            <View
-              style={{
-                borderWidth: 1,
-                borderColor: t.colors.line,
-                borderStyle: 'dashed',
-                borderRadius: 14,
-                padding: 16,
-              }}
-            >
-              <RNText style={tx('700', 14, t.colors.ink)}>Nothing open to promote</RNText>
-              <RNText style={tx('400', 12, t.colors.muted, { marginTop: 5, lineHeight: 18 })}>
-                Only your own open posts can be promoted. Post one, or reopen a closed one,
-                and it will show up here.
-              </RNText>
-            </View>
-          ) : (
-            <>
-              {desktop ? null : (
-                <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54 })}>
-                  WHICH POST
-                </RNText>
-              )}
-
-              {/* One line when settled; the full list only while choosing. */}
-              {picked && !choosing ? (
-                <Pressable
-                  onPress={() => setChoosing(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Change post, currently ${picked.title}`}
-                  style={({ pressed }) => ({
-                    marginTop: desktop ? 0 : 9,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 12,
-                    paddingVertical: 12,
-                    borderBottomWidth: 1,
-                    borderBottomColor: t.colors.line,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <RNText style={tx('700', 15, t.colors.ink)} numberOfLines={1}>
-                      {picked.title}
-                    </RNText>
-                    <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
-                      {formatINR(picked.benchmark_minor)} ·{' '}
-                      {picked.quotes === 1 ? '1 offer' : `${picked.quotes} offers`}
-                    </RNText>
-                  </View>
-                  {mine.length > 1 && (
-                    <RNText style={tx('700', 12, t.colors.accentDeep)}>Change</RNText>
-                  )}
-                </Pressable>
-              ) : (
-                <>
-                  <View {...ring}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 9,
-                      marginTop: desktop ? 0 : 9,
-                      backgroundColor: t.colors.surface2,
-                      borderRadius: 11,
-                      paddingHorizontal: 13,
-                      paddingVertical: 10,
-                    }}
-                  >
-                    <Icon name="search" size={16} color={t.colors.muted} strokeWidth={1.8} />
-                    <TextInput
-                      value={listingQuery}
-                      onChangeText={setListingQuery}
-                      placeholder="Search your posts"
-                      placeholderTextColor={t.colors.muted}
-                      autoCorrect={false}
-                      style={tx('400', 14, t.colors.ink, { flex: 1, padding: 0 })}
-                    />
-                    {listingQuery.length > 0 && (
-                      <Pressable
-                        onPress={() => setListingQuery('')}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Clear the search"
-                      >
-                        <RNText style={tx('600', 15, t.colors.muted)}>×</RNText>
-                      </Pressable>
-                    )}
-                  </View>
-
-                  {matches.length === 0 && (
-                    <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 19 })}>
-                      {listingQuery.trim()
-                        ? `Nothing matches “${listingQuery.trim()}”. Only your own open posts can be promoted.`
-                        : `Type a word from the title to find the post you want to promote (${mine.length} open).`}
-                    </RNText>
-                  )}
-
-                  {matches.map((m) => {
-                  const on = m.id === pickedId;
-                  return (
-                    <Pressable
-                      key={m.id}
-                      onPress={() => {
-                        setPickedId(m.id);
-                        setChoosing(false);
-                        setListingQuery('');
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Promote ${m.title}`}
-                      accessibilityState={{ selected: on }}
-                      style={({ pressed }) => ({
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 12,
-                        paddingVertical: 12,
-                        borderBottomWidth: 1,
-                        borderBottomColor: t.colors.line,
-                        opacity: pressed ? 0.7 : 1,
-                      })}
-                    >
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <RNText
-                          style={tx(on ? '700' : '500', 15, on ? t.colors.ink : t.colors.text)}
-                          numberOfLines={1}
-                        >
-                          {m.title}
-                        </RNText>
-                        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
-                          {formatINR(m.benchmark_minor)} ·{' '}
-                          {m.quotes === 1 ? '1 offer' : `${m.quotes} offers`}
-                        </RNText>
-                      </View>
-                      {on && <RNText style={tx('700', 14, t.colors.accentDeep)}>✓</RNText>}
-                    </Pressable>
-                  );
-                  })}
-                </>
-              )}
-            </>
-          )}
-        </View>
-        </FormSection>
+      <TopBar title={title} onBack={back} />
+      <KeyboardScrollView hugContent style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+        {resultsId ? null : picker}
+        {resultsId && picked ? postCard : null}
 
         {taskId && quoteFailed && !quote ? (
           <View style={{ marginTop: 16 }}>
@@ -802,28 +560,62 @@ function PromoteBody() {
           </View>
         ) : null}
 
-        {live ? (
-          <View style={{ marginTop: 16 }}>
-            <PromotionResultsCard promotionId={live.id} service={service} onChanged={() => taskId && void loadQuote(taskId)} />
+        {problem ? problemBox(problem) : null}
+
+        {resultsId ? (
+          <View style={{ marginTop: 14 }}>
+            <PromotionResultsCard promotionId={resultsId} service={service} onPromoteAgain={() => setShowResults(false)} />
           </View>
-        ) : taskId ? (
+        ) : showForm ? (
           <>
-            <RNText style={tx('800', 20, t.colors.ink, { marginTop: 20, letterSpacing: -0.4 })}>
-              {service ? 'Get more customers to see it' : 'Get more workers to see it'}
-            </RNText>
-            {benefitRows}
-            {inLine ? lineCard : full ? fullBox : nearbyBox}
-            {held ? heldCard : null}
-            {inLine ? null : (
-              <FormSection title="How long">
-                {desktop ? null : label('HOW LONG', { marginTop: 18 })}
-                {daysPicker}
-              </FormSection>
+            {waitingBox}
+            {waitingPromo ? null : (
+              <>
+                {budgetBlock}
+                {estimateBlock}
+                {howLink}
+              </>
             )}
           </>
         ) : null}
-      </FormPage>
-      {explainer}
+      </KeyboardScrollView>
+
+      {showForm && !waitingPromo && quote ? (
+        <KeyboardSafe style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24, borderTopWidth: 1, borderTopColor: t.colors.line, backgroundColor: t.colors.bg }}>
+          <PrimaryButton
+            label={
+              busy
+                ? 'Working…'
+                : pending
+                  ? 'Activate promotion'
+                  : totalMinor === null
+                    ? 'Promote'
+                    : `Promote · ${moneyText(totalMinor)} for ${daysLabel(days)}`
+            }
+            busy={busy}
+            disabled={!canPay || !formReady}
+            onPress={() => (pending ? void activate() : setConfirming(true))}
+          />
+          {totalMinor !== null ? (
+            <RNText style={tx('400', 11, t.colors.muted, { textAlign: 'center', marginTop: 8, lineHeight: 15 })}>
+              {pending ? 'Finish the payment, then tap Activate. The promotion starts when it is paid.' : payNote(totalMinor, days)}
+            </RNText>
+          ) : null}
+        </KeyboardSafe>
+      ) : null}
+
+      <ConfirmDialog
+        visible={confirming}
+        icon="wallet"
+        title={confirm.title}
+        message={confirm.message}
+        confirmLabel={confirm.confirm}
+        cancelLabel="Go back"
+        busy={busy}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => void start()}
+      />
+      {sheet}
       <PaymentSheet url={payUrl} visible={payUrl !== null} onClose={() => setPayUrl(null)} />
     </Screen>
   );

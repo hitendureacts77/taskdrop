@@ -414,6 +414,9 @@ export const PROMOTE_DEFAULTS = {
   DAY_STEP_MINOR: 100,
   /** The least a top show can cost. */
   FLOOR_MINOR: 20,
+  /** Quick daily budgets offered on the Promote screen, and the one picked first. */
+  BUDGET_PRESETS_MINOR: [3000, 8000, 15000] as readonly number[],
+  DEFAULT_DAY_MINOR: 8000,
   /** Price of a top show assumed when the area has none yet. */
   PRICE_GUESS_MINOR: 60,
   DAYS: [1, 3, 7] as readonly number[],

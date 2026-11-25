@@ -203,7 +203,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
     it.kind === 'one' && it.area ? { x: it.area.x + (it.x - it.area.x) * fan, y: it.area.y + (it.y - it.area.y) * fan } : { x: it.x + nudge(it), y: it.y };
 
   // Where the picked pin is drawn, when it stands alone (a group zooms in first), and how tall it is.
-  const pickedItem = callout && selectedId ? items.find((it) => it.kind === 'one' && it.id === selectedId) : undefined;
+  const pickedItem = callout && selectedId ? items.find((it): it is Extract<MapItem, { kind: 'one' }> => it.kind === 'one' && it.id === selectedId) : undefined;
   const pickedAt = pickedItem
     ? { ...at(pickedItem), lift: (byId.get(pickedItem.id)?.promoted ? PROMO_PIN.anchor : pickedItem.kind === 'one' && pickedItem.area ? TASK_PIN.anchor : PRICE_PIN.anchor) + 10 }
     : null;

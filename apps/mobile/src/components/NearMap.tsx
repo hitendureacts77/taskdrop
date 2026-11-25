@@ -34,6 +34,9 @@ import {
 } from './NearMapParts';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, PlaceRow, QuickChip, WorkSwitch } from './MapFilterParts';
 import { distanceKm, peopleReach, postedToday, withinReach } from '../lib/mapReach';
+import { FAIR_RULES_HELPERS, auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
+import { usePromotedLive } from '../lib/usePromotedLive';
+import { FairRulesNote } from './PromotedPill';
 import { REMOTE_LIMIT, capped, matchesQuery } from '../lib/findWorkRead';
 import { DEFAULT_FILTERS, KM_STEPS, changedFilters, clearJobFilters, filterJobs, jobsSummary, mapPillText, matchesJob, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
@@ -509,10 +512,29 @@ export function NearMap({
   // A read that came back full: its count is "at least", said as "200+" (B170).
   const mapCaps = { near: capped(jobs?.length ?? 0, ITEMS), home: capped(remoteJobs?.length ?? 0, REMOTE_ITEMS) };
   // Nearest first, so the list agrees with the "nearest person" card above it (the server's order is active-first).
-  const listPeople = useMemo(
+  const sortedPeople = useMemo(
     () => (reachAt ? [...withinReach(shownPeople, reachAt, radius)].sort((a, b) => a.km - b.km) : []),
     [shownPeople, reachAt, radius],
   );
+  // Promoted (task 1.19 row C). Hire side: a helper whose newest service is promoted is lifted by the server's
+  // auction (service ids of the helpers in this list after the search and reach filters). Earn side: promoted
+  // jobs get the bigger pin on the map; the auction is asked only for the jobs the map shows.
+  const promoNear = reachAt ? { lat: reachAt.lat, lng: reachAt.lng, radiusKm: radius } : null;
+  const peopleServiceIds = useMemo(() => auctionIds(sortedPeople.map((w) => w.top_service?.id)), [sortedPeople]);
+  const jobIds = useMemo(() => auctionIds(shownJobs.map((j) => j.id)), [shownJobs]);
+  const promoPeopleLive = usePromotedLive('service', promoNear, {
+    surface: 'list',
+    taskIds: peopleServiceIds,
+    enabled: mode === 'people' && !mine,
+  });
+  const promoJobsLive = usePromotedLive('request', promoNear, { surface: 'map', taskIds: jobIds, enabled: mode === 'jobs' });
+  const peoplePromo = useMemo(
+    () => pickPromotedItems({ items: sortedPeople, live: promoPeopleLive, keyOf: (w) => w.top_service?.id ?? w.id }),
+    [sortedPeople, promoPeopleLive],
+  );
+  const promotedJobIds = useMemo(() => new Set(promoJobsLive.map((r) => r.task_id)), [promoJobsLive]);
+  const listPeople = useMemo(() => liftPromoted(sortedPeople, peoplePromo.top), [sortedPeople, peoplePromo]);
+  const promotedPeople = peoplePromo.badged;
   const listMine = useMemo(
     () => (reachAt ? [...withinReach(shownMine, reachAt, radius, (p) => p)].sort((a, b) => a.km - b.km) : []),
     [shownMine, reachAt, radius],
@@ -528,11 +550,19 @@ export function NearMap({
   const pins = useMemo<JobPin[]>(
     () =>
       mode === 'jobs'
-        ? shownJobs.map((j) => jobPin(j, now)).filter((p): p is JobPin => p !== null)
+        ? shownJobs
+            .map((j) => jobPin(j, now))
+            .filter((p): p is JobPin => p !== null)
+            .map((p) => (promotedJobIds.has(p.id) ? { ...p, promoted: true } : p))
         : mine
           ? shownMine.map((p) => minePin(p, now))
-          : shownPeople.map((w) => personPin(w, now)).filter((p): p is JobPin => p !== null),
-    [mode, mine, shownJobs, shownMine, shownPeople, now],
+          : shownPeople
+              .map((w) => {
+                const p = personPin(w, now);
+                return p && w.top_service && promotedPeople.has(w.top_service.id) ? { ...p, promoted: true } : p;
+              })
+              .filter((p): p is JobPin => p !== null),
+    [mode, mine, shownJobs, shownMine, shownPeople, now, promotedJobIds, promotedPeople],
   );
   const loading = mode === 'jobs' ? jobs === null && remoteJobs === null : mine ? peopleMine === null : people === null;
   const count = ids.length;
@@ -894,7 +924,12 @@ export function NearMap({
     (mine ? (
       listMine.map((p) => <PersonRow key={p.id} person={p} now={now} on={picked === p.id} onPress={() => pick(p.id)} />)
     ) : mode === 'people' ? (
-      listPeople.map((w) => <HelperRow key={w.id} worker={w} now={now} on={picked === w.id} onPress={() => pick(w.id)} />)
+      <>
+        {listPeople.map((w) => (
+          <HelperRow key={w.id} worker={w} now={now} on={picked === w.id} promoted={Boolean(w.top_service && promotedPeople.has(w.top_service.id))} onPress={() => pick(w.id)} />
+        ))}
+        {promotedPeople.size > 0 ? <FairRulesNote side="hire" text={FAIR_RULES_HELPERS} /> : null}
+      </>
     ) : tab === 'areas' ? (
       areas.map((a, i) => <AreaRow key={a.name} area={a} best={areas[0]!.top.benchmark_minor} first={i === 0} onPress={() => pick(a.top.id)} />)
     ) : (
