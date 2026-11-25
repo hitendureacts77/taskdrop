@@ -205,7 +205,7 @@ export function DetailSheetScreen() {
             </View>
             <View style={{ flex: 1, paddingVertical: 14 }}>
               {label('RATING')}
-              <RNText style={tx('700', 20, t.colors.gold, { marginTop: 4 })}>★ {rating}</RNText>
+              <RNText style={tx('700', 20, t.colors.goldInk, { marginTop: 4 })}>★ {rating}</RNText>
             </View>
           </View>
 

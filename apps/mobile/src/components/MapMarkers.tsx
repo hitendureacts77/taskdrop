@@ -29,7 +29,6 @@ export const PRICE_PIN = { w: 168, h: 76, anchor: 46 } as const;
 export const TASK_PIN = { w: 176, h: 98, anchor: 48 } as const;
 
 const RIM = '#FFFFFF';
-const LIVE = '#22C55E';
 /** Muted face colours for people with no photo, picked from the id so a face keeps its colour. */
 const TONES = ['#3B4A6B', '#6B4A3B', '#2F5E55', '#5B3B6B', '#3B5B6B', '#6B5B2F', '#4A3B6B', '#5E2F45', '#45525E', '#5E4A2F'];
 
@@ -113,7 +112,7 @@ export function FaceDisc({
         ) : null}
       </View>
       {face.live ? (
-        <View style={{ position: 'absolute', right: -1, bottom: -1, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: LIVE, borderWidth: 2, borderColor: rim }} />
+        <View style={{ position: 'absolute', right: -1, bottom: -1, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: t.colors.online, borderWidth: 2, borderColor: rim }} />
       ) : null}
     </View>
   );
@@ -121,6 +120,7 @@ export function FaceDisc({
 
 /** A soft green glow that breathes behind someone active now (tile map only; markers are snapshots). */
 function LiveGlow({ size, top }: { size: number; top: number }) {
+  const t = useTheme();
   const reduced = useReducedMotion();
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -139,7 +139,7 @@ function LiveGlow({ size, top }: { size: number; top: number }) {
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: LIVE,
+        backgroundColor: t.colors.online,
         opacity: v.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.5, 0, 0] }),
         transform: [{ scale: v.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1.7, 1.7] }) }],
       }}

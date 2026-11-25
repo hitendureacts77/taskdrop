@@ -25,7 +25,7 @@ export function PresenceDot({
         width: size,
         height: size,
         borderRadius: 999,
-        backgroundColor: p.online ? '#22C55E' : 'transparent',
+        backgroundColor: p.online ? t.colors.online : 'transparent',
         borderWidth: p.online ? 0 : 1.5,
         borderColor: t.colors.muted,
       }}
@@ -35,7 +35,7 @@ export function PresenceDot({
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
       {dot}
-      <RNText style={tx('600', 11, p.online ? '#16A34A' : t.colors.muted)} numberOfLines={1}>
+      <RNText style={tx('600', 11, p.online ? t.colors.online : t.colors.muted)} numberOfLines={1}>
         {p.label}
       </RNText>
     </View>
@@ -44,6 +44,7 @@ export function PresenceDot({
 
 /** A dot pinned to the corner of an avatar. */
 export function AvatarPresence({ lastSeen, ring }: { lastSeen: string | null | undefined; ring: string }) {
+  const t = useTheme();
   const p = presenceOf(lastSeen);
   return (
     <View
@@ -55,7 +56,7 @@ export function AvatarPresence({ lastSeen, ring }: { lastSeen: string | null | u
         width: 13,
         height: 13,
         borderRadius: 999,
-        backgroundColor: p.online ? '#22C55E' : '#9CA3AF',
+        backgroundColor: p.online ? t.colors.online : t.colors.muted,
         borderWidth: 2,
         borderColor: ring,
       }}
@@ -68,7 +69,7 @@ export function PresenceLabel({ lastSeen }: { lastSeen: string | null | undefine
   const t = useTheme();
   const p = presenceOf(lastSeen);
   return (
-    <RNText style={tx('600', 11, p.online ? '#16A34A' : t.colors.muted)} numberOfLines={1}>
+    <RNText style={tx('600', 11, p.online ? t.colors.online : t.colors.muted)} numberOfLines={1}>
       {p.label}
     </RNText>
   );

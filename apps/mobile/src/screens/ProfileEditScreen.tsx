@@ -174,7 +174,7 @@ export function ProfileEditScreen() {
           {avatar ? (
             <Image source={imageSource(avatar)} style={{ width: 84, height: 84 }} contentFit="cover" />
           ) : (
-            <RNText style={tx('800', 32, '#FFFFFF')}>{(p?.display_name ?? '?').charAt(0).toUpperCase()}</RNText>
+            <RNText style={tx('800', 32, t.colors.onAccent)}>{(p?.display_name ?? '?').charAt(0).toUpperCase()}</RNText>
           )}
           {photoBusy ? (
             <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }}>

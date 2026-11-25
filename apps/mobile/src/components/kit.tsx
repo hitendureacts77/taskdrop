@@ -748,7 +748,7 @@ export function toneColors(t: ReturnType<typeof useTheme>, tone: Tone) {
     case 'blue':
       return { fg: t.isDark ? t.colors.blue : '#2A6CB8', bg: t.colors.purpleSoft };
     case 'purple':
-      return { fg: t.isDark ? '#9DB4FF' : t.colors.purple, bg: t.colors.purpleSoft };
+      return { fg: t.isDark ? t.colors.purpleDeep : t.colors.purple, bg: t.colors.purpleSoft };
     case 'neutral':
       return { fg: t.colors.text, bg: t.colors.surface2 };
     default:

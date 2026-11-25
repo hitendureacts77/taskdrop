@@ -107,7 +107,7 @@ function OrderCard({
             accessibilityLabel={`Cancel ${row.title}`}
             style={{ alignSelf: 'flex-start', marginTop: 11 }}
           >
-            <RNText style={tx('600', 12, t.colors.signal)}>Cancel</RNText>
+            <RNText style={tx('600', 12, t.colors.signalDeep)}>Cancel</RNText>
           </Pressable>
         )}
       </Pressy>
