@@ -68,8 +68,7 @@ grant insert (attachments) on public.feedback to authenticated;
 
 -- can_read_task_media asks "is this file named on a visible board post?"
 create index if not exists feedback_posts_attachments_idx
-  on public.feedback_posts using gin (attachments jsonb_path_ops)
-  where attachments <> '[]'::jsonb;
+  on public.feedback_posts using gin (attachments jsonb_path_ops);
 
 -- ------------------------------------------------------------ checking ------
 
