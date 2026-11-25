@@ -96,6 +96,8 @@ alter table public.ad_events drop constraint if exists ad_events_surface_check;
 alter table public.ad_events add constraint ad_events_surface_check
   check (surface in ('list', 'home', 'map', 'search', 'alert', 'detail', 'other'));
 alter table public.ad_events add column if not exists top boolean not null default false;
+-- Which top place (1 or 2) a top show won, so a repeat within a few minutes keeps the same order.
+alter table public.ad_events add column if not exists place smallint;
 create index if not exists ad_events_promo_top_idx on public.ad_events (promotion_id, created_at desc) where top;
 create index if not exists ad_events_viewer_promo_idx on public.ad_events (viewer_id, promotion_id, created_at desc);
 
@@ -255,10 +257,11 @@ begin
   for r in
     select c.promotion_id
       from private.promo_candidates(v_me, p_kind, p_lat, p_lng, p_radius_km, v_ids) c
-      join lateral (select max(e.created_at) as at from public.ad_events e
+      join lateral (select e.created_at as at, e.place from public.ad_events e
                      where e.promotion_id = c.promotion_id and e.viewer_id = v_me and e.top
-                       and e.kind = 'impression' and e.created_at > now() - v_repeat) h on h.at is not null
-     order by h.at desc
+                       and e.kind = 'impression' and e.created_at > now() - v_repeat
+                     order by e.created_at desc limit 1) h on true
+     order by h.place nulls last, h.at desc
      limit v_slots
   loop
     v_top := v_top || r.promotion_id;
@@ -314,8 +317,9 @@ begin
          set spent_minor = spent_minor + r.price, updated_at = now()
        where id = r.promotion_id and spent_minor + r.price <= amount_minor;
       if found then
-        insert into public.ad_events (promotion_id, task_id, viewer_id, kind, cost_minor, surface, top)
-        select r.promotion_id, p.task_id, v_me, 'impression', r.price, v_surface, true
+        insert into public.ad_events (promotion_id, task_id, viewer_id, kind, cost_minor, surface, top, place)
+        select r.promotion_id, p.task_id, v_me, 'impression', r.price, v_surface, true,
+               coalesce(array_length(v_top, 1), 0) + 1
           from public.task_promotions p where p.id = r.promotion_id;
         v_top := v_top || r.promotion_id;
         perform private.promo_tell_paused(r.promotion_id);
