@@ -1,0 +1,16 @@
+// Private plan page (task 1.19 row Q). Static files only, no Worker script.
+// The GitHub workflow .github/workflows/plan-site.yml copies docs/ into ./public
+// and deploys on every push to redesigned-2.0 that touches docs/.
+// Who can open it is set by Cloudflare Access on the workers.dev address
+// (owner's email only), not here.
+{
+  "name": "taskdrop-plan",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}
