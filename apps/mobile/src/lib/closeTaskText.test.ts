@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { closeTaskText, hireFineNote } from './closeTaskText.ts';
 
 const money = (m: number) => `₹${(m / 100).toFixed(m % 100 ? 2 : 0)}`;
-const base = { title: 'GST invoice', funded: true, fineMinor: 4750, finePct: 5, money };
+const base = { title: 'GST invoice', funded: true, fineMinor: 4750, finePct: 5, money, refundTo: 'wallet' as const };
 
 test('W2-3: once work has started the dialog names the 5% fine', () => {
   for (const status of ['TASK_STARTED', 'OVERDUE']) {
@@ -37,4 +37,14 @@ test('W3-6: the hire note names the fine in rupees and says it applies only once
 test('W3-6: with no fine to name the note is only the free-cancel line', () => {
   const n = hireFineNote({ fineMinor: 0, finePct: 5, money });
   assert.doesNotMatch(n, /fine/);
+});
+
+test('refund destination: wallet keeps the old words, source names the card or UPI', () => {
+  for (const status of ['TASK_STARTED', 'LOCKED']) {
+    const w = closeTaskText({ ...base, status });
+    assert.match(w.message, /back to your wallet/);
+    const s = closeTaskText({ ...base, status, refundTo: 'source' });
+    assert.match(s.message, /back to the card or UPI you paid with/);
+    assert.doesNotMatch(s.message, /wallet/);
+  }
 });

@@ -51,6 +51,8 @@ import { reportError } from '../lib/errors';
 import { countOf } from '../lib/plural';
 import { FEES, posterEscrowCharge } from '@taskdrop/rules';
 import { closeTaskText, hireFineNote } from '../lib/closeTaskText';
+import { KeepTaskSheet } from '../components/KeepTaskSheet';
+import { TopUpSheet } from '../components/TopUpSheet';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { useMoneyMode } from '../lib/useMoneyMode';
 import { hireRefusal } from '../lib/moneyText';
@@ -100,6 +102,8 @@ export function TaskManageScreen() {
   const [tab, setTab] = useState(0);
   const [menu, setMenu] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [keepIt, setKeepIt] = useState(false);
+  const [topUp, setTopUp] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   // The first load failed (not the same as a task that does not exist).
@@ -220,6 +224,7 @@ export function TaskManageScreen() {
     fineMinor: fineOf(task.locked_minor ?? 0),
     finePct: Math.round(cancelPct * 100),
     money: formatINR,
+    refundTo: planB || (task.funded_via ?? 'wallet') !== 'wallet' ? 'source' : 'wallet',
   });
 
   const primary: { label: string; onPress: () => void } | null =
@@ -288,13 +293,13 @@ export function TaskManageScreen() {
     try {
       await cancelTask(task.id);
       setConfirmClose(false);
-      flash('Task closed');
+      flash(planB && task.funded_at ? 'Your refund has started. It goes back to the card or UPI you paid with.' : 'Task closed');
       // Show it closed now: the refund below can take several seconds (round 7, P1-19).
       setDetail((d) => (d ? { ...d, task: { ...d.task, status: 'CANCELLED' } } : d));
       void load().catch((e) => reportError(e, 'task-manage'));
       try {
         const out = await refundEscrow(task.id);
-        if (out.refundedMinor > 0) flash(formatINR(out.refundedMinor) + ' is on its way back to you');
+        if (!planB && out.refundedMinor > 0) flash(formatINR(out.refundedMinor) + ' is on its way back to you');
       } catch {
         flash('Closed. Your refund is being processed — it can take a few days.');
       }
@@ -683,24 +688,41 @@ export function TaskManageScreen() {
         {row.cancellable ? (
           <MenuRow
             icon="close"
-            label="Close task"
+            label="Delete task"
             sub={closeWords.sub}
             danger
             onPress={() => {
               setMenu(false);
-              setConfirmClose(true);
+              setKeepIt(true);
             }}
           />
         ) : null}
       </BottomSheet>
 
+      <KeepTaskSheet
+        task={keepIt ? task : null}
+        hasWorker={Boolean(assignment)}
+        flash={flash}
+        onKeep={() => setKeepIt(false)}
+        onDelete={() => { setKeepIt(false); setConfirmClose(true); }}
+        onTopUp={() => setTopUp(true)}
+        onSimilar={(k) => go('aiPost', { similar: k })}
+        onMessage={(k) => go('chat', { taskId: k.id, title: k.title })}
+      />
+      <TopUpSheet
+        task={topUp ? task : null}
+        onClose={() => setTopUp(false)}
+        flash={flash}
+        onRaised={() => void load().catch((e) => reportError(e, 'task-manage'))}
+      />
+
       <ConfirmDialog
         visible={confirmClose}
         danger
         icon="close"
-        title="Close this task?"
+        title="Delete this task?"
         message={closeWords.message}
-        confirmLabel="Yes, close task"
+        confirmLabel="Yes, delete"
         cancelLabel="Keep it"
         busy={closing}
         onCancel={() => setConfirmClose(false)}
