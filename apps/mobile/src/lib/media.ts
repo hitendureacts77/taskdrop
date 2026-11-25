@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { MEDIA } from '@taskdrop/rules';
 import { readBytes } from './readBytes';
+import { feedbackTooBig } from './feedbackLimits';
 import { currentUserId } from './supabase';
 import { callApi } from './gateway';
 import { makeLinkMemory } from './signedLinks';
@@ -173,6 +174,9 @@ export type PickedMedia = {
   mimeType: string;
   seconds?: number;
   bytes: number;
+  /** Pixel size, when the picker reports it. */
+  width?: number;
+  height?: number;
 };
 
 export class MediaError extends Error {}
@@ -203,6 +207,7 @@ function extensionFor(mimeType: string, fallback: string): string {
 export async function pickMedia(
   wanted: 'image' | 'video' | 'any',
   source: 'library' | 'camera' = 'library',
+  quality = 0.8,
 ): Promise<PickedMedia | null> {
   // The web picker is a plain <input type=file>, which needs no permission and
   // has none to ask for.
@@ -222,7 +227,7 @@ export async function pickMedia(
 
   const options: ImagePicker.ImagePickerOptions = {
     mediaTypes: wanted === 'any' ? ['images', 'videos'] : wanted === 'video' ? ['videos'] : ['images'],
-    quality: 0.8,
+    quality,
     allowsMultipleSelection: false,
     // The camera stops recording at the cap, so a clip can never be too long.
     videoMaxDuration: MEDIA.MAX_VIDEO_SECONDS,
@@ -259,7 +264,7 @@ export async function pickMedia(
     if (seconds == null) seconds = MEDIA.MAX_VIDEO_SECONDS;
   }
 
-  return { kind, uri: asset.uri, mimeType, seconds, bytes };
+  return { kind, uri: asset.uri, mimeType, seconds, bytes, width: asset.width || undefined, height: asset.height || undefined };
 }
 
 /**
@@ -456,16 +461,20 @@ export async function uploadProofFile(
 
 /**
  * A photo or a PDF attached to feedback (migration 206): "Send feedback" and
- * ideas on the board. Up to three, 5 MB each. The server checks all of this
- * again when the feedback is saved; these checks only spare a wasted upload.
+ * ideas on the board. Up to three. Photos are made smaller before they go up
+ * (lib/photoShrink.ts) and may be 1 MB at most; a PDF may be 2 MB (owner,
+ * 25 Nov: only small files are stored). The server checks all of this again
+ * when the feedback is saved; these checks only spare a wasted upload.
  */
 export type FeedbackFile = { path: string; kind: 'image' | 'file'; name: string };
 
-export const FEEDBACK_FILES_MAX = 3;
-export const FEEDBACK_FILE_MAX_BYTES = 5 * 1024 * 1024;
-
-const tooBigForFeedback = (bytes: number) =>
-  new MediaError(`That file is ${(bytes / 1024 / 1024).toFixed(1)} MB. Each file can be up to 5 MB.`);
+export {
+  FEEDBACK_FILES_MAX,
+  FEEDBACK_PHOTO_MAX_BYTES,
+  FEEDBACK_PDF_MAX_BYTES,
+  FEEDBACK_PICK_QUALITY,
+  feedbackTooBig,
+} from './feedbackLimits';
 
 /** Pick a PDF for feedback. Straight off a press. */
 export async function pickFeedbackPdf(): Promise<PickedDocument | null> {
@@ -474,7 +483,8 @@ export async function pickFeedbackPdf(): Promise<PickedDocument | null> {
   if (picked.mimeType !== 'application/pdf' && !picked.name.toLowerCase().endsWith('.pdf')) {
     throw new MediaError('Only photos and PDF files can be attached.');
   }
-  if (picked.bytes > FEEDBACK_FILE_MAX_BYTES) throw tooBigForFeedback(picked.bytes);
+  const tooBig = feedbackTooBig('file', picked.bytes, picked.name);
+  if (tooBig) throw new MediaError(tooBig);
   return { ...picked, mimeType: 'application/pdf' };
 }
 
@@ -485,7 +495,8 @@ export async function uploadFeedbackFile(
 ): Promise<FeedbackFile> {
   const userId = await currentUserId();
   if (!userId) throw new MediaError('Sign in before attaching a file.');
-  if (picked.bytes > FEEDBACK_FILE_MAX_BYTES) throw tooBigForFeedback(picked.bytes);
+  const tooBig = feedbackTooBig(kind, picked.bytes, picked.name);
+  if (tooBig) throw new MediaError(tooBig);
   if (kind === 'image' && !imageMimeFor(picked.mimeType)) {
     throw new MediaError('Only photos (JPEG, PNG, WebP, HEIC) and PDF files can be attached.');
   }

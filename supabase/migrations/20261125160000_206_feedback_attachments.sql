@@ -1,7 +1,8 @@
 -- 206 -- Photos and PDFs on feedback (plan 1.19 row L, owner 25 Nov: "add an image or file option within feedback").
 --
--- Both feedback doors take up to three attachments, each a photo (JPEG, PNG, WebP, HEIC) or a PDF of
--- at most 5 MB:
+-- Both feedback doors take up to three attachments, each a photo (JPEG, PNG, WebP, HEIC) of at most
+-- 1 MB or a PDF of at most 2 MB (owner, 25 Nov: only small, compressed files are stored; the app makes
+-- every photo smaller before it uploads it, so a normal photo lands far under 1 MB):
 --   * "Send feedback" (public.feedback, 048): private. Only the person who sent it and the team see
 --     the files. The sender already reads their own files (their folder / their media row) and staff
 --     read them in the admin site with the service key, so no new read rule is needed for these.
@@ -81,7 +82,8 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_max   constant bigint := 5 * 1048576;
+  v_max_photo constant bigint := 1048576;      -- 1 MB, after the app has made the photo smaller
+  v_max_pdf   constant bigint := 2 * 1048576;  -- 2 MB
   v_out   jsonb := '[]'::jsonb;
   v_item  jsonb;
   v_path  text;
@@ -129,8 +131,8 @@ begin
       if not found then
         raise exception 'One of the files is still uploading or was removed. Please attach it again' using errcode = 'P0001';
       end if;
-      if coalesce(v_bytes, 0) > v_max then
-        raise exception 'Each file can be up to 5 MB' using errcode = 'P0001';
+      if coalesce(v_bytes, 0) > v_max_photo then
+        raise exception 'Each photo can be up to 1 MB' using errcode = 'P0001';
       end if;
     else
       -- A file in the bucket: in the caller's own folder, really there, and small enough.
@@ -144,8 +146,14 @@ begin
       if not found then
         raise exception 'One of the files is still uploading or was removed. Please attach it again' using errcode = 'P0001';
       end if;
-      if v_bytes is null or v_bytes > v_max then
-        raise exception 'Each file can be up to 5 MB' using errcode = 'P0001';
+      if v_bytes is null then
+        raise exception 'One of the files is still uploading or was removed. Please attach it again' using errcode = 'P0001';
+      end if;
+      if v_kind = 'image' and v_bytes > v_max_photo then
+        raise exception 'Each photo can be up to 1 MB' using errcode = 'P0001';
+      end if;
+      if v_kind = 'file' and v_bytes > v_max_pdf then
+        raise exception 'Each PDF can be up to 2 MB' using errcode = 'P0001';
       end if;
       if (v_kind = 'file' and v_mime is distinct from 'application/pdf')
          or (v_kind = 'image' and (v_mime is null or v_mime not in ('image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'))) then

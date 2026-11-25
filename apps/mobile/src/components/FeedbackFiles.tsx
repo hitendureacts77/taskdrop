@@ -8,8 +8,9 @@ import { PhotoViewer } from './PhotoViewer';
 import { tx } from './primitives';
 import {
   FEEDBACK_FILES_MAX,
-  FEEDBACK_FILE_MAX_BYTES,
+  FEEDBACK_PICK_QUALITY,
   MediaError,
+  feedbackTooBig,
   imageSource,
   pickFeedbackPdf,
   pickMedia,
@@ -19,6 +20,7 @@ import {
   uploadFeedbackFile,
   type FeedbackFile,
 } from '../lib/media';
+import { shrinkPhoto } from '../lib/photoShrink';
 
 /**
  * Photos and PDFs on feedback (plan 1.19 row L, migration 206).
@@ -170,19 +172,21 @@ export function FeedbackAttach({
   note?: string;
 }) {
   const t = useTheme();
-  const { flash } = useActions();
   const [uploading, setUploading] = useState(false);
+  // Shown in the sheet itself, under the buttons: a toast would sit behind the sheet.
+  const [error, setError] = useState<string | null>(null);
   const thumbs = useThumbs(files);
   const full = files.length >= FEEDBACK_FILES_MAX;
 
   const run = async (pick: () => Promise<FeedbackFile | null>) => {
     if (full || uploading) return;
+    setError(null);
     try {
       // The picker opens first (it must follow the press straight away); the upload starts once something is chosen.
       const added = await pick();
       if (added) onChange([...files, added]);
     } catch (e) {
-      flash(e instanceof MediaError || e instanceof Error ? e.message : 'Could not attach that file');
+      setError(e instanceof MediaError || e instanceof Error ? e.message : 'Could not attach that file');
     } finally {
       setUploading(false);
       onBusy?.(false);
@@ -196,13 +200,15 @@ export function FeedbackAttach({
 
   const addPhoto = () =>
     void run(async () => {
-      const picked = await pickMedia('image');
+      const picked = await pickMedia('image', 'library', FEEDBACK_PICK_QUALITY);
       if (!picked) return null;
-      if (picked.bytes > FEEDBACK_FILE_MAX_BYTES) {
-        throw new MediaError(`That photo is ${(picked.bytes / 1024 / 1024).toFixed(1)} MB. Each file can be up to 5 MB.`);
-      }
       started();
-      return uploadFeedbackFile({ uri: picked.uri, mimeType: picked.mimeType, bytes: picked.bytes, name: 'Photo' }, 'image');
+      // Made smaller first (1600 px, JPEG): only small photos are stored. When that cannot be done here
+      // (an older installed app), the photo goes up as picked and the 1 MB limit still holds.
+      const photo = (await shrinkPhoto(picked.uri, picked)) ?? { uri: picked.uri, mimeType: picked.mimeType, bytes: picked.bytes };
+      const tooBig = feedbackTooBig('image', photo.bytes);
+      if (tooBig) throw new MediaError(tooBig);
+      return uploadFeedbackFile({ ...photo, name: 'Photo' }, 'image');
     });
 
   const addPdf = () =>
@@ -214,6 +220,7 @@ export function FeedbackAttach({
     });
 
   const remove = (f: FeedbackFile) => {
+    setError(null);
     onChange(files.filter((x) => x.path !== f.path));
     void removeMedia(f.path);
   };
@@ -232,8 +239,15 @@ export function FeedbackAttach({
         <AddButton icon="paperclip" label="Add PDF" onPress={addPdf} disabled={full || uploading} />
         {uploading ? <ActivityIndicator size="small" color={t.colors.muted} /> : null}
       </View>
+      {error ? (
+        <RNText accessibilityRole="alert" accessibilityLiveRegion="polite" style={tx('600', 13, t.colors.signalDeep, { marginTop: 8, lineHeight: 18 })}>
+          {error}
+        </RNText>
+      ) : null}
       <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8 })}>
-        {full ? 'That is the most you can attach: 3 files.' : `Optional. Up to ${FEEDBACK_FILES_MAX} photos or PDFs, 5 MB each.`}
+        {full
+          ? 'That is the most you can attach: 3 files.'
+          : `Optional. Up to ${FEEDBACK_FILES_MAX} photos or PDFs. Photos are made smaller before they are sent. PDFs up to 2 MB.`}
         {note ? ` ${note}` : ''}
       </RNText>
     </View>

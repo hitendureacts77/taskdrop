@@ -34,6 +34,9 @@ declare
   v_post_pdf text;
   v_ref     text;
   v_chat    text;
+  v_bigref  text;
+  v_photo_big text;
+  v_pdf_mid text;
   v_post    jsonb;
   v_id      uuid;
   v_saved   jsonb;
@@ -55,13 +58,18 @@ begin
   v_txt      := v_ann::text || '/fb-4.txt';
   v_post_pdf := v_ann::text || '/fb-5.pdf';
   v_ben_pdf  := v_ben::text || '/fb-1.pdf';
+  v_photo_big := v_ann::text || '/fb-6.jpg';
+  v_pdf_mid  := v_ann::text || '/fb-7.pdf';
   insert into storage.objects (bucket_id, name, metadata) values
     ('task-media', v_pdf,      jsonb_build_object('size', 120000, 'mimetype', 'application/pdf')),
     ('task-media', v_photo,    jsonb_build_object('size', 800000, 'mimetype', 'image/jpeg')),
     ('task-media', v_big,      jsonb_build_object('size', 6 * 1048576, 'mimetype', 'application/pdf')),
     ('task-media', v_txt,      jsonb_build_object('size', 100, 'mimetype', 'text/plain')),
     ('task-media', v_post_pdf, jsonb_build_object('size', 50000, 'mimetype', 'application/pdf')),
-    ('task-media', v_ben_pdf,  jsonb_build_object('size', 50000, 'mimetype', 'application/pdf'));
+    ('task-media', v_ben_pdf,  jsonb_build_object('size', 50000, 'mimetype', 'application/pdf')),
+    -- Owner, 25 Nov: photos up to 1 MB (the app shrinks them first), PDFs up to 2 MB.
+    ('task-media', v_photo_big, jsonb_build_object('size', 1500000, 'mimetype', 'image/jpeg')),
+    ('task-media', v_pdf_mid,  jsonb_build_object('size', 1500000, 'mimetype', 'application/pdf'));
 
   v_id := gen_random_uuid();
   v_ref := 'media:' || v_id::text;
@@ -71,6 +79,11 @@ begin
   v_chat := 'media:' || v_id::text;
   insert into public.media (id, owner, provider, provider_file_id, path, purpose, kind, bytes, status, attached_at)
   values (v_id, v_ann, 'imagekit', 'fid2', '/td/u/' || v_ann::text || '/' || v_id::text || '.jpg', 'chat', 'image', 900000, 'attached', now());
+
+  v_id := gen_random_uuid();
+  v_bigref := 'media:' || v_id::text;
+  insert into public.media (id, owner, provider, provider_file_id, path, purpose, kind, bytes, status, attached_at)
+  values (v_id, v_ann, 'imagekit', 'fid3', '/td/u/' || v_ann::text || '/' || v_id::text || '.jpg', 'feedback', 'image', 1500000, 'attached', now());
 
   -- ---- the media registry takes the new purpose ------------------------------
   begin
@@ -112,6 +125,8 @@ begin
     jsonb_build_array(jsonb_build_object('path', v_chat, 'kind', 'image')),
     jsonb_build_array(jsonb_build_object('path', v_ann::text || '/nothing.pdf', 'kind', 'file')),
     jsonb_build_array(jsonb_build_object('path', v_pdf, 'kind', 'file'), jsonb_build_object('path', v_pdf, 'kind', 'file')),
+    jsonb_build_array(jsonb_build_object('path', v_photo_big, 'kind', 'image')),
+    jsonb_build_array(jsonb_build_object('path', v_bigref, 'kind', 'image')),
     '{"path": "x"}'::jsonb
   ] loop
     v_failed := false;
@@ -121,6 +136,10 @@ begin
     end;
     if not v_failed then raise exception 'FAIL: these feedback files were accepted: %', v_saved; end if;
   end loop;
+
+  -- A PDF between 1 and 2 MB is fine (photos are held to 1 MB, PDFs to 2 MB).
+  insert into public.feedback (user_id, kind, body, attachments)
+  values (v_ann, 'idea', 'With a longer PDF', jsonb_build_array(jsonb_build_object('path', v_pdf_mid, 'kind', 'file')));
 
   -- Ben cannot open Ann's private files. Only plain paths are checked for a "no": psql connects as
   -- postgres, and private.is_admin() is true for that session, which opens every media: ref (171).
