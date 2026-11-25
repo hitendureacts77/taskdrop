@@ -323,7 +323,13 @@ begin
   if v_me is null then
     raise exception 'Not signed in';
   end if;
-  if p_days is null or not (p_days = any (private.promo_lengths())) then
+  if p_days is null or p_days < 1 or p_days > 30 then
+    raise exception 'Choose between 1 and 30 days';
+  end if;
+  if p_amount_minor is null or p_amount_minor <= 0 then
+    raise exception 'Choose a budget';
+  end if;
+  if not (p_days = any (private.promo_lengths())) then
     raise exception 'That campaign length is not offered';
   end if;
 
