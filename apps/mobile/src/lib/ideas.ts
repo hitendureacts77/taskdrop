@@ -5,6 +5,8 @@
  * screen before the server has answered.
  */
 
+import type { FeedbackFile } from './media';
+
 export type IdeaStatus = 'open' | 'under_review' | 'planned' | 'in_progress' | 'done' | 'declined';
 export type IdeaKind = 'feature' | 'improvement' | 'bug' | 'other';
 export type IdeaTone = 'accent' | 'gold' | 'blue' | 'purple' | 'neutral';
@@ -23,6 +25,8 @@ export type Idea = {
   author: string;
   createdAt: string;
   statusChangedAt: string;
+  /** Photos and PDFs on the idea (migration 206). Missing from an older server, and empty for guests. */
+  attachments?: FeedbackFile[];
 };
 
 export type IdeaComment = {

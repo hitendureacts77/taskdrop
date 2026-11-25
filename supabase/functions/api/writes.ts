@@ -255,6 +255,28 @@ function spotOf(v: unknown): { lat: number; lng: number } {
   return { lat: num(o, "lat", -90, 90), lng: num(o, "lng", -180, 180) };
 }
 
+/**
+ * Files attached to feedback (migration 206): up to three, each { path, kind, name }, a photo or a
+ * PDF the caller uploaded. Only the shape is checked here; the database checks the files themselves
+ * (owner, finished upload, type, 5 MB) in private.feedback_clean_attachments.
+ */
+const FEEDBACK_FILES_MAX = 3;
+function feedbackFiles(a: Args): { path: string; kind: "image" | "file"; name: string }[] {
+  const raw = a.attachments;
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) throw bad("attachments");
+  if (raw.length > FEEDBACK_FILES_MAX) throw new OpError(`You can attach up to ${FEEDBACK_FILES_MAX} files`, "BAD_ARGS");
+  return raw.map((f) => {
+    if (!f || typeof f !== "object" || Array.isArray(f)) throw bad("attachments");
+    const item = f as Args;
+    return {
+      path: str(item, "path", 300),
+      kind: oneOf(item, "kind", ["image", "file"] as const),
+      name: item.name == null ? "" : str(item, "name", 80, 0),
+    };
+  });
+}
+
 export const WRITE_OPS: Record<string, Op> = {
   // ---- the task lifecycle, where money moves (all decided in SQL) ----
   // The price the poster saw (B53, migration 167): the database refuses when the offer no longer
@@ -849,21 +871,29 @@ export const WRITE_OPS: Record<string, Op> = {
   sendFeedback: async ({ db, userId }, a) => {
     const body = str(a, "body", 5000, 0);
     if (body.length < 3) throw new OpError("Write a little more first", "BAD_ARGS");
+    const attachments = feedbackFiles(a);
     take(await db.from("feedback").insert({
       user_id: userId,
       kind: oneOf(a, "kind", ["broken", "idea", "confusing", "praise"]),
       body,
       page: strOrNull(a, "page", 200),
+      // Left out when there are none, so the insert is exactly what it was before migration 206.
+      ...(attachments.length ? { attachments } : {}),
     }));
     return null;
   },
 
   // ---- the public feedback board (migration 136) ----
-  postFeedbackIdea: rpcOp("feedback_board_post", (a) => ({
-    p_title: str(a, "title", 120, 3),
-    p_body: str(a, "body", 2000, 0),
-    p_category: oneOf(a, "category", ["feature", "improvement", "bug", "other"], "feature"),
-  })),
+  postFeedbackIdea: rpcOp("feedback_board_post", (a) => {
+    const attachments = feedbackFiles(a);
+    return {
+      p_title: str(a, "title", 120, 3),
+      p_body: str(a, "body", 2000, 0),
+      p_category: oneOf(a, "category", ["feature", "improvement", "bug", "other"], "feature"),
+      // The four-argument form (migration 206) only when there are files; the older one otherwise.
+      ...(attachments.length ? { p_attachments: attachments } : {}),
+    };
+  }),
   voteFeedbackIdea: rpcOp("feedback_board_vote", (a) => ({ p_post: uuid(a, "postId"), p_on: bool(a, "on", true) })),
   commentFeedbackIdea: rpcOp("feedback_board_comment", (a) => ({ p_post: uuid(a, "postId"), p_body: str(a, "body", 1000) })),
 

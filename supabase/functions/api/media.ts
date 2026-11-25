@@ -29,7 +29,7 @@ const SIGNED_URL_SECONDS = 60 * 60;
 
 const random = () => crypto.randomUUID().replace(/-/g, "").slice(0, 10);
 
-const PURPOSES = ["task", "proof", "avatar", "chat"] as const;
+const PURPOSES = ["task", "proof", "avatar", "chat", "feedback"] as const;
 const SIZES = Object.keys(IMAGE_SIZES) as ImageSize[];
 
 /** The path's first folder must be the caller's own id. */

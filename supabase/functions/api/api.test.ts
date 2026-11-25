@@ -1536,6 +1536,13 @@ await t("the feedback board passes clean arguments to its SQL functions and refu
   assert.deepEqual(f.calls[4].args, { p_post: TASK, p_on: false });
   assert.ok((await runOp("commentFeedbackIdea", { postId: TASK, body: " yes " }, ctx(f))).ok);
   assert.deepEqual(f.calls[5].args, { p_post: TASK, p_body: "yes" });
+  // Files (migration 206) go to the four-argument form, trimmed to { path, kind, name }.
+  const files = [{ path: " u/1.pdf ", kind: "file", name: " receipt.pdf ", extra: true }, { path: "media:abc", kind: "image" }];
+  assert.ok((await runOp("postFeedbackIdea", { title: "Receipts", body: "", attachments: files }, ctx(f))).ok);
+  assert.deepEqual(f.calls[6].args, {
+    p_title: "Receipts", p_body: "", p_category: "feature",
+    p_attachments: [{ path: "u/1.pdf", kind: "file", name: "receipt.pdf" }, { path: "media:abc", kind: "image", name: "" }],
+  });
 
   const cases: [string, Record<string, unknown>][] = [
     ["listFeedbackBoard", { sort: "sideways" }],
@@ -1547,6 +1554,10 @@ await t("the feedback board passes clean arguments to its SQL functions and refu
     ["postFeedbackIdea", { title: "x".repeat(121), body: "" }],
     ["postFeedbackIdea", { title: "A fine title", body: "x".repeat(2001) }],
     ["postFeedbackIdea", { title: "A fine title", body: "", category: "gossip" }],
+    ["postFeedbackIdea", { title: "A fine title", body: "", attachments: "file.pdf" }],
+    ["postFeedbackIdea", { title: "A fine title", body: "", attachments: [{ path: "a", kind: "video", name: "x" }] }],
+    ["postFeedbackIdea", { title: "A fine title", body: "", attachments: [1, 2, 3, 4].map((i) => ({ path: `p${i}`, kind: "file", name: "x" })) }],
+    ["sendFeedback", { kind: "idea", body: "Hello there", attachments: [{ kind: "file", name: "x" }] }],
     ["voteFeedbackIdea", { postId: "nope" }],
     ["commentFeedbackIdea", { postId: TASK, body: "" }],
     ["commentFeedbackIdea", { postId: TASK, body: "x".repeat(1001) }],
