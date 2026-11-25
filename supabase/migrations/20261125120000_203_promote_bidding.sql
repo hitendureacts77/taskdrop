@@ -267,7 +267,12 @@ begin
     v_top := v_top || r.promotion_id;
   end loop;
 
-  if coalesce(array_length(v_top, 1), 0) < v_slots then
+  -- One account cannot run up charges without end: past ad_impression_viewer_day charged top shows today,
+  -- it still sees the list (and places it already has) but nothing new is charged.
+  if coalesce(array_length(v_top, 1), 0) < v_slots
+     and (select count(*) from public.ad_events e
+           where e.viewer_id = v_me and e.top and e.kind = 'impression' and e.cost_minor > 0
+             and e.created_at >= v_day) < private.setting_num('ad_impression_viewer_day', 300) then
     for r in
       with c as (
         select c.promotion_id, c.km, p,
