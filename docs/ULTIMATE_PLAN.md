@@ -2115,6 +2115,36 @@ done 1.18
 **Done when:** a new phone sign-up, a new Google account and a guest who makes an account each end with a username; an account with no username cannot reach Home, Post, Offer or chat until it picks one; the server refuses those calls with "Pick a username first"; 1.13's C3 text and decision 21 say so; the tests above pass; `npm run check` is green; and it is checked on the website, as a guest and signed in, and on the Android phone.
 </details>
 
+<details id="t1-19" data-short="Your 25 Nov notes">
+<summary>[CLAUDE] <b>1.19</b> Your 25 Nov list and voice notes: 17 changes, run as parallel sessions <small>· added 25 Nov, from your message and 10 voice notes · you asked for these past the freeze, so they go in · design rows wait for your OK before building</small></summary>
+
+**What you said (25 Nov):** the message and 10 voice notes below, written out. Claude runs each row as its own session (Opus for money, data, search and design; Sonnet for the rest). Each session ticks its own row here when its "done" is true. Rows marked **your OK** stop at a design or a question for you.
+
+| # | What you asked | Who | Done when | Status |
+|---|---|---|---|---|
+| A | Delete a task: a pop-up that encourages the poster to keep it open (boost, edit date or price) before deleting; an escrow-funded task refunds the money when deleted | Opus | Pop-up on web and app; delete of a funded task starts a Razorpay refund and the wallet/ledger shows it; tests green | Open |
+| B | Chat only while a task is locked or ongoing, and for 2 days after it is completed and settled; then a scheduled job deletes those messages | Opus · **your OK** (deletes data, migration) | Chat refuses outside the window; nightly job deletes messages 2 days after settle; Terms/Privacy words match | Open |
+| C | Promote my task or service: explain it clearly and make promoted tasks really get seen more (top of lists and map, a badge, "seen by" counts for the poster) | Opus · **your OK** on the design | A poster can see where the promotion shows and how many saw it; promoted tasks rank first for workers | Open |
+| D | Smart search: find tasks by meaning, not just matching words (for workers searching tasks and customers searching helpers) | Opus · **your OK** on the plan | Searching "fix my tap" finds plumbing posts with no shared word; plan + build | Open |
+| E | Make your own skill (and category): if a skill is missing, a worker creates it; it sits under Others and other workers can use it; a popular one becomes a normal skill | Opus · **your OK** on the plan | Worker adds a new skill in onboarding and profile; others can pick it; admin can promote it | Open |
+| F | Home pages and the tabs: simpler and more attractive, less unwanted information, every feature kept | Opus · **your OK** on the design | Design approved, then built | Open |
+| G | My tasks: better cards | Opus (with F) · **your OK** on the design | Design approved, then built | Open |
+| H | Hire Home map: the same "Open the map" card the worker Home has | Sonnet (with F) | Hire Home shows the card; it opens the map | Open |
+| I | The app is too complex: a new person must understand and use every feature easily (no feature removed) | Opus (with F) | Covered by the F design and a 5-person check | Open |
+| J | A passed date: ask the poster to update the date so the post stays live | Sonnet | Poster gets a nudge and a one-tap date change; expired posts say so | Open |
+| K | Posting (quote): an "open task" choice with no completion date | Sonnet | Post form has "No fixed date"; lists and offers show it | Open |
+| L | Feedback: attach an image or a file | Sonnet | Feedback board and in-app feedback accept a photo or file (size and type limits) | Open |
+| M | Explore: the My people layer shows nothing | Sonnet | Found and fixed, or explained (empty because no contacts) with a clear empty state | Open |
+| N | Walkthrough: fewer tours, real app screenshots, and your explainer video on YouTube linked in it | Sonnet · **your upload** to YouTube | One clear tour with real screens; the YouTube link shows in it | Open |
+| O | Theme kept correctly everywhere (Earn blue, Hire green) | Sonnet | A list of screens that break it, fixed with F | Open |
+| P | Staging: fill more test data in every field, including the account 8074413313 | Sonnet | Every screen of that account has data (tasks, offers, chats, reviews, wallet, people) | Open |
+| Q | Open this plan from any device | Sonnet | A private link that works on your phone and updates by itself | Open |
+
+**Your question, answered:** the website is on Vercel (moving to Cloudflare, task 5.12). The backend is **Supabase**: the database, sign-in, file storage and the server functions (`api`, `money`, `razorpay-webhook` and others). Background jobs run on **Inngest**, images on **ImageKit**.
+
+**Done when:** every row is Done, or has your written "drop".
+</details>
+
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
 
 - [-] Every decision has an answer (1.1). **Future scope (your decision, 1 Nov 2026):** no gate waits on it; each open decision is answered when the task that needs it comes up.
