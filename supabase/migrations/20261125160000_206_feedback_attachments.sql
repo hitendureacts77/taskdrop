@@ -215,6 +215,23 @@ as $$
 $$;
 revoke all on function private.feedback_post_json(public.feedback_posts, uuid) from public, anon, authenticated;
 
+-- The older three-argument form, for apps that do not send files: the four-argument form below with
+-- no files. Written first (and in plpgsql, so it may name a function made a few lines later) so the
+-- newest definition of feedback_board_post in the migrations is the one that holds every refusal
+-- (scripts/check-lost-refusals.mjs).
+create or replace function public.feedback_board_post(p_title text, p_body text, p_category text default 'feature')
+returns jsonb
+language plpgsql
+security definer
+set search_path = 'public', 'pg_temp'
+as $fn$
+begin
+  return public.feedback_board_post(p_title, p_body, p_category, '[]'::jsonb);
+end;
+$fn$;
+revoke all on function public.feedback_board_post(text, text, text) from public, anon;
+grant execute on function public.feedback_board_post(text, text, text) to authenticated;
+
 -- Posting with files. The same checks as 137, plus the files.
 create or replace function public.feedback_board_post(p_title text, p_body text, p_category text, p_attachments jsonb)
 returns jsonb
@@ -259,18 +276,6 @@ end;
 $fn$;
 revoke all on function public.feedback_board_post(text, text, text, jsonb) from public, anon;
 grant execute on function public.feedback_board_post(text, text, text, jsonb) to authenticated;
-
--- The older three-argument form, for apps that do not send files.
-create or replace function public.feedback_board_post(p_title text, p_body text, p_category text default 'feature')
-returns jsonb
-language sql
-security definer
-set search_path = 'public', 'pg_temp'
-as $$
-  select public.feedback_board_post(p_title, p_body, p_category, '[]'::jsonb);
-$$;
-revoke all on function public.feedback_board_post(text, text, text) from public, anon;
-grant execute on function public.feedback_board_post(text, text, text) to authenticated;
 
 -- ------------------------------------------------------- who may open a file --
 
