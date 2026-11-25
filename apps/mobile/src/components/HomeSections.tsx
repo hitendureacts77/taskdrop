@@ -43,7 +43,7 @@ import { BottomSheet, Grid, SectionTitle, Shimmer, rupees, timeAgo, timeLeft } f
 import { WorkCard, categoryIcon } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { Rail, useRailItemWidth } from './Rail';
-import { NearYou } from './NearYou';
+import { HelpersNearHero } from './HelpersNearHero';
 import { JobsNearHero } from './JobsNearHero';
 import { MapShortcuts } from './MapShortcuts';
 import { SafeOnTaskDrop } from './SafeOnTaskDrop';
@@ -386,7 +386,10 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
             <>
               <PulseLine pulse={pulse} first />
               {hero}
-              <MapShortcuts worker={false} />
+              <View testID="home-hire-map" style={{ marginTop: 20 }}>
+                <HelpersNearHero />
+                <MapShortcuts worker={false} />
+              </View>
               <OnlyOnTaskDrop
                 onHunt={() => go('aiPost', { prompt: 'Find me ', hunt: true })}
                 onBigDay={() => go('bigDay')}
@@ -395,7 +398,6 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
               {published}
               <SafeOnTaskDrop worker={false} />
               <HomeTemplates onPick={(x) => go('aiPost', { prompt: x.prompt, when: x.when })} />
-              <NearYou />
               <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
               {manage}
               <HomeFeedbackCard />
@@ -435,8 +437,11 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         <JustPosted tasks={posted} onOpen={(prompt) => go('aiPost', { prompt })} />
         {hero}
 
-        {/* Shortcuts straight to the map's features (helpers near you, the full map). */}
-        <MapShortcuts worker={false} />
+        {/* 1.19 H: the same short live map card as Earn, in jade, then shortcuts to the map. */}
+        <View testID="home-hire-map" style={{ marginTop: 20 }}>
+          <HelpersNearHero />
+          <MapShortcuts worker={false} />
+        </View>
 
         {/* D22 H1: what only TaskDrop does, as big icons right under the ask box. */}
         <OnlyOnTaskDrop
@@ -451,8 +456,6 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         <SafeOnTaskDrop worker={false} />
 
         <HomeTemplates onPick={(x) => go('aiPost', { prompt: x.prompt, when: x.when })} />
-
-        <NearYou />
 
         <PosterIdeas onPrompt={(prompt) => go('aiPost', { prompt })} />
 

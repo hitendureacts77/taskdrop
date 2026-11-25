@@ -17,9 +17,7 @@ import { jobPin } from './mapPins';
 import { LocationSheet } from './LocationSheet';
 import { cardSurface } from './ui';
 import { Pressy, tx } from './primitives';
-
-/** The strip is short on purpose: a taste of the map, the full one is a tap away. */
-const STRIP_HEIGHT = 150;
+import { MapStrip, STRIP_HEIGHT } from './MapStrip';
 
 /**
  * The top of Find work: a short live map strip of open jobs round the area they
@@ -95,60 +93,29 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
     const nearest = rows.reduce((m, r) => Math.min(m, r.km), Infinity);
     const nearestText = Number.isFinite(nearest) ? (nearest < 1 ? '< 1 km' : `${nearest.toFixed(nearest < 10 ? 1 : 0)} km`) : '';
     body = (
-      <View style={{ height: STRIP_HEIGHT, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface2 }}>
-        <JobsMap
-          me={area}
-          pins={pins}
-          selectedId={null}
-          onSelect={(id) => {
-            const hit = rows.find((r) => r.id === id);
-            if (hit) go('taskDetail', { row: taskToFeedRow(hit) });
-          }}
-          height={STRIP_HEIGHT}
-          ringKm={radius}
-          bare
-        />
-        <View
-          pointerEvents="box-none"
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            maxWidth: '78%',
-            paddingVertical: 14,
-            paddingHorizontal: 16,
-            gap: 3,
-            justifyContent: 'center',
-            backgroundColor: t.colors.surface,
-            borderTopRightRadius: 20,
-            borderBottomRightRadius: 20,
-          }}
-        >
-          <RNText style={tx('800', 10.5, t.colors.accentDeep, { letterSpacing: 0.6 })} numberOfLines={1}>
-            {'NEAR ' + (name ?? 'YOU').toUpperCase()}
-          </RNText>
-          <Pressy onPress={nextRadius} label={`Change the distance, now ${radius} km`} style={{ alignSelf: 'flex-start' }}>
-            <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.3 })} numberOfLines={1}>
-              {rows.length === 0 ? `No jobs within ${radius} km` : jobsSummary(rows.length, 0, radius, 'local', { near: full })}
-            </RNText>
-          </Pressy>
-          {rows.length > 0 ? (
-            <RNText style={tx('600', 12, t.colors.text)} numberOfLines={1}>
-              {`Best offer ${rupees(best / 100)}${nearestText ? ` · nearest ${nearestText} away` : ''}`}
-            </RNText>
-          ) : (
-            <RNText style={tx('500', 12, t.colors.muted)} numberOfLines={1}>Tap the distance to widen it, or try remote work</RNText>
-          )}
-          <Pressy
-            onPress={openMap}
-            label="Open the map"
-            style={{ marginTop: 6, alignSelf: 'flex-start', height: 32, paddingHorizontal: 14, borderRadius: 16, backgroundColor: t.colors.btn, justifyContent: 'center' }}
-          >
-            <RNText style={tx('800', 12.5, t.colors.onBtn)}>Open the map</RNText>
-          </Pressy>
-        </View>
-      </View>
+      <MapStrip
+        map={
+          <JobsMap
+            me={area}
+            pins={pins}
+            selectedId={null}
+            onSelect={(id) => {
+              const hit = rows.find((r) => r.id === id);
+              if (hit) go('taskDetail', { row: taskToFeedRow(hit) });
+            }}
+            height={STRIP_HEIGHT}
+            ringKm={radius}
+            bare
+          />
+        }
+        kicker={'NEAR ' + (name ?? 'YOU').toUpperCase()}
+        title={rows.length === 0 ? `No jobs within ${radius} km` : jobsSummary(rows.length, 0, radius, 'local', { near: full })}
+        titleLabel={`Change the distance, now ${radius} km`}
+        onTitle={nextRadius}
+        sub={rows.length > 0 ? `Best offer ${rupees(best / 100)}${nearestText ? ` · nearest ${nearestText} away` : ''}` : 'Tap the distance to widen it, or try remote work'}
+        subMuted={rows.length === 0}
+        onOpenMap={openMap}
+      />
     );
   }
 
