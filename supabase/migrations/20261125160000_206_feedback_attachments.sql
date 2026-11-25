@@ -217,11 +217,12 @@ revoke all on function private.feedback_post_json(public.feedback_posts, uuid) f
 -- The older three-argument form, for apps that do not send files: the four-argument form below with
 -- no files. Written first (and in plpgsql, so it may name a function made a few lines later) so the
 -- newest definition of feedback_board_post in the migrations is the one that holds every refusal
--- (scripts/check-lost-refusals.mjs).
+-- (scripts/check-lost-refusals.mjs). It runs as the caller (security invoker), so the checks are all in
+-- the four-argument form.
 create or replace function public.feedback_board_post(p_title text, p_body text, p_category text default 'feature')
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = 'public', 'pg_temp'
 as $fn$
 begin
