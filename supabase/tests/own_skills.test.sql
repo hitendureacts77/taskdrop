@@ -57,7 +57,7 @@ begin
     from unnest(array[v_a, v_b, v_staff]) u;
   insert into public.profiles (id, display_name)
   values (v_a, 'Worker A'), (v_b, 'Worker B'), (v_staff, 'Staff')
-  on conflict (id) do nothing;
+  on conflict (id) do update set display_name = excluded.display_name;
   insert into public.user_roles (user_id, role) values (v_staff, 'admin') on conflict do nothing;
 
   -- Keys: capitals, "&", "and" and plurals are one key.
@@ -141,7 +141,7 @@ begin
   insert into public.profiles (id, display_name, skills)
   select u.id, 'Fan', array['Aquarium cleaning']
     from auth.users u where u.email like 'skills+%@taskdrop.test' and u.id not in (v_a, v_b, v_staff)
-  on conflict (id) do update set skills = excluded.skills;
+  on conflict (id) do update set skills = excluded.skills, display_name = excluded.display_name;
   perform pg_temp.become(v_a);
   r := public.catalog_list('skill');
   select o into v_errands_rank from jsonb_array_elements(r) with ordinality as x (e, o) where e ->> 'label' = 'Errands';
