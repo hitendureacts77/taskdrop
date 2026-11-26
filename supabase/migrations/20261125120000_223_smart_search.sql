@@ -39,6 +39,12 @@ as $$
   select md5(coalesce(p_title, '') || '|' || coalesce(p_category, '') || '|' || coalesce(p_description, ''))
 $$;
 
+-- Helpers only: the index and the search functions below (run as their owner) use them; nobody calls them directly.
+revoke all on function public.task_search_doc(text, text, text) from public, anon, authenticated;
+revoke all on function public.task_search_hash(text, text, text) from public, anon, authenticated;
+grant execute on function public.task_search_doc(text, text, text) to service_role;
+grant execute on function public.task_search_hash(text, text, text) to service_role;
+
 create index if not exists tasks_search_fts_idx on public.tasks
   using gin (public.task_search_doc(title, category, description));
 create index if not exists tasks_title_trgm_idx on public.tasks
