@@ -93,6 +93,8 @@ export const lockBidSchema = z.object({
   payoutMode: payoutModeEnum.default('one_time'),
   /** The offer price the poster saw; the server refuses if the offer changed since (B53). */
   expectedPriceMinor: minorAmount.optional(),
+  /** The offer's finish date the poster saw (null: it had none); the server refuses if it changed since (227). */
+  expectedDueAt: z.iso.datetime({ offset: true }).nullable().optional(),
 });
 export type LockBid = z.infer<typeof lockBidSchema>;
 
