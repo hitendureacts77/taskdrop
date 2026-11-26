@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { ASHA, expectSignedIn } from "./helpers";
+import { ASHA, expectSignedIn, openFeedTab } from "./helpers";
 
 // Plan D24 (owner video, 10 Nov): on a phone the Explore map fills the screen and a slim bar at the
 // bottom pulls up the list, by a tap, a drag or the mouse wheel. Runs at the size of the owner's
@@ -14,7 +14,7 @@ const shot = (page: Page, name: string) => (process.env.PEEK_SHOTS ? page.screen
 async function openMap(page: Page): Promise<boolean> {
   await page.goto("/");
   await expectSignedIn(page);
-  await page.getByText("Explore", { exact: true }).first().click();
+  await openFeedTab(page);
   // With no area yet the map asks for one instead; there is no bar then.
   await expect(seeAll(page).or(page.getByRole("button", { name: "Choose your area" })).first()).toBeVisible({ timeout: 15_000 });
   return seeAll(page).isVisible();

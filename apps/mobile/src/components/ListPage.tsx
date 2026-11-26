@@ -6,7 +6,7 @@ import { Pill } from './kit';
 import { tx } from './primitives';
 
 /** The widest the desktop list page gets (docs/design/desktop-web/PLAN.md, 4.2 c). */
-export const LIST_MAX = 1280;
+export const LIST_MAX = 1760; // the same as FEED_MAX in lib/layout.ts
 /** The desktop filter column, left of the grid. */
 export const FILTER_WIDTH = 240;
 
@@ -38,7 +38,7 @@ export type ListToolbar = {
 /**
  * The desktop "CardGrid page" (docs/design/desktop-web/PLAN.md, 4.2 c): Find work,
  * My Tasks / My Work, Saved, Orders, Notifications and the like. On a desktop
- * (`useLayout().desktop`) the content is centred up to 1280 wide, an optional
+ * (`useLayout().desktop`) the content is centred up to 1760 wide, an optional
  * 240-wide `filters` column sits on a card on the left and stays in view while the
  * page scrolls, and the `toolbar` row (tabs left, sort / count right) sits above the
  * grid (`children`).

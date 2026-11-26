@@ -55,7 +55,7 @@ async function headerButton(page: Page, label: string) {
   await page.getByRole("button", { name: name(label) }).first().click();
 }
 async function openFeedList(page: Page) {
-  await tab(page, "Explore");
+  await tab(page, "(Explore|Find work)");
   const list = page.getByRole("button", { name: "Show the list" });
   if (await list.isVisible({ timeout: 4000 }).catch(() => false)) await list.click();
 }
@@ -66,7 +66,7 @@ const SCREENS: Screen[] = [
   { id: "explore-list-hire", mode: "poster", open: (p) => openFeedList(p) },
   { id: "explore-list-earn", mode: "worker", open: (p) => openFeedList(p) },
   // The map itself (Explore opens on it): full-bleed, with its own floating tools.
-  { id: "explore-map-earn", mode: "worker", fullBleed: true, open: (p) => tab(p, "Explore") },
+  { id: "explore-map-earn", mode: "worker", fullBleed: true, open: (p) => tab(p, "(Explore|Find work)") },
   { id: "myTasks-hire", mode: "poster", open: (p) => tab(p, "My (Tasks|Work)") },
   { id: "myTasks-earn", mode: "worker", open: (p) => tab(p, "My (Tasks|Work)") },
   {
