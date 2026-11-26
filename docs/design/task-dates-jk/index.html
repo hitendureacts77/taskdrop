@@ -147,6 +147,14 @@ figcaption b { color: var(--page-ink); display: block; font-size: 14px; margin-b
 .state-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--page-muted); }
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 @media (max-width: 420px) { figure.screen { flex-basis: 86vw; } .phone { width: 100%; } }
+.seg { display: flex; background: var(--surface2); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg span { flex: 1; text-align: center; padding: 7px 4px; border-radius: 9px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.seg span.on { background: var(--surface); color: var(--blue-deep); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.stepper { display: flex; align-items: center; justify-content: space-between; border: 1.5px solid var(--blue); border-radius: 14px; padding: 8px 10px; }
+.stepper b { font-size: 18px; color: var(--ink); }
+.stepper i { font-style: normal; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; color: var(--ink); font-weight: 800; }
+.ask { border-left: 3px solid var(--blue); padding-left: 10px; }
+.finish.more { color: var(--blue-deep); }
 </style>
 
 <div class="wrap">
@@ -473,6 +481,123 @@ figcaption b { color: var(--page-ink); display: block; font-size: 14px; margin-b
     </div>
   </section>
 
+  <!-- ================= J counteroffer (26 Nov) ================= -->
+  <section class="row" aria-labelledby="jc">
+    <div class="row-head">
+      <h2 id="jc">J · Counteroffer: a finish date, a number of hours, or more time <span class="pill earn">Earn</span> <span class="pill hire">Hire</span> <span class="pill new">New, 26 Nov</span></h2>
+      <p>Your note of 26 Nov. When a worker sends a counteroffer, they can also say when they will finish. <b>Task with no fixed date:</b> "By a date" (a date and time) or "In hours" ("I can finish in 3 hours"). <b>Task with a date:</b> the customer's date shows. The worker can keep it, or tap "Ask for more time" and pick a later date, with a short message saying why. The customer sees it on the offer, and accepting it moves the task's date. Prices and fees do not change.</p>
+    </div>
+    <div class="strip">
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="body">
+            <div class="sub" style="font-weight:700;letter-spacing:.08em">YOUR OFFER · COUNTEROFFER</div>
+            <div class="field"><span class="l">Your price</span><span class="v">₹ 800</span></div>
+            <div style="font-weight:800;color:var(--ink)">When can you finish it?</div>
+            <div class="sub">This task has no fixed date.</div>
+            <div class="seg"><span class="on">By a date</span><span>In hours</span></div>
+            <div class="field set"><span class="l">Finish by</span><span class="v">◷ Fri 27 Nov, 6 PM ×</span></div>
+            <div style="flex:1"></div>
+            <div class="btn earn">Send counteroffer · ₹800</div>
+          </div>
+        </div>
+        <figcaption><b>No fixed date · "By a date"</b>The worker picks the day and time they can finish by. It is optional: the offer can go without it.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="body">
+            <div class="sub" style="font-weight:700;letter-spacing:.08em">YOUR OFFER · COUNTEROFFER</div>
+            <div class="field"><span class="l">Your price</span><span class="v">₹ 800</span></div>
+            <div style="font-weight:800;color:var(--ink)">When can you finish it?</div>
+            <div class="sub">This task has no fixed date.</div>
+            <div class="seg"><span>By a date</span><span class="on">In hours</span></div>
+            <div class="stepper"><i>−</i><b>3 hours</b><i>+</i></div>
+            <div class="sub">Counted from when you start the work.</div>
+            <div style="flex:1"></div>
+            <div class="btn earn">Send counteroffer · ₹800</div>
+          </div>
+        </div>
+        <figcaption><b>No fixed date · "In hours"</b>"I can finish in 3 hours", from 1 hour up to 7 days. The clock starts when the work starts, as the timer does today.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="body">
+            <div class="sub" style="font-weight:700;letter-spacing:.08em">YOUR OFFER · COUNTEROFFER</div>
+            <div class="field"><span class="l">Your price</span><span class="v">₹ 800</span></div>
+            <div style="font-weight:800;color:var(--ink)">When can you finish it?</div>
+            <div class="row2"><span>Customer’s date</span><span>Thu 26 Nov, 6 PM</span></div>
+            <div class="seg"><span class="on">That works</span><span>Ask for more time</span></div>
+            <div style="flex:1"></div>
+            <div class="btn earn">Send counteroffer · ₹800</div>
+          </div>
+        </div>
+        <figcaption><b>Task with a date · keeps it</b>The customer's date is shown. "That works" is picked by default, so nothing changes for most offers.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="body">
+            <div class="sub" style="font-weight:700;letter-spacing:.08em">YOUR OFFER · COUNTEROFFER</div>
+            <div class="field"><span class="l">Your price</span><span class="v">₹ 800</span></div>
+            <div style="font-weight:800;color:var(--ink)">When can you finish it?</div>
+            <div class="row2"><span>Customer’s date</span><span>Thu 26 Nov, 6 PM</span></div>
+            <div class="seg"><span>That works</span><span class="on">Ask for more time</span></div>
+            <div class="field set"><span class="l">I can finish by</span><span class="v">◷ Sat 28 Nov, 12 PM</span></div>
+            <div class="field"><span class="l">Why (optional)</span><span class="v" style="font-weight:500">The paint needs a day to dry between coats.</span></div>
+            <div style="flex:1"></div>
+            <div class="btn earn">Send counteroffer · ₹800</div>
+          </div>
+        </div>
+        <figcaption><b>Task with a date · asks for more time</b>A later date, and a short reason. Phone numbers and links are removed from the reason, as in every offer message.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">‹</div><div class="t">Offers</div></div>
+          <div class="body">
+            <div class="offer">
+              <div class="who"><div class="av">RK</div><div><div class="nm">Ravi K.</div><div class="rt">★ 4.9 · 31 jobs</div></div><div class="pr">₹800</div></div>
+              <div class="finish">Can finish by Fri 27 Nov, 6 PM</div>
+              <div class="btn hire">Accept · ₹800</div>
+            </div>
+            <div class="offer">
+              <div class="who"><div class="av">SM</div><div><div class="nm">Sana M.</div><div class="rt">★ 4.7 · 12 jobs</div></div><div class="pr">₹750</div></div>
+              <div class="finish">Can finish in 3 hours</div>
+              <div class="btn quiet">Accept · ₹750</div>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>Offers on a no-date task (customer)</b>Each offer says "Can finish by …" or "Can finish in … hours", in jade.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">‹</div><div class="t">Offers</div></div>
+          <div class="body">
+            <div class="offer">
+              <div class="who"><div class="av">AJ</div><div><div class="nm">Arjun J.</div><div class="rt">★ 4.8 · 22 jobs</div></div><div class="pr">₹800</div></div>
+              <div class="ask">
+                <div class="finish more">Asks for more time: Sat 28 Nov, 12 PM</div>
+                <div class="sub">Your date: Thu 26 Nov, 6 PM</div>
+                <div class="msg">“The paint needs a day to dry between coats.”</div>
+              </div>
+              <div class="btn hire">Accept with the new date · ₹800</div>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>Offer asking for more time (customer)</b>The new date, the customer's own date under it, and the reason. The button says the date changes if they accept.</figcaption>
+      </figure>
+    </div>
+  </section>
+
   <!-- ================= Built ================= -->
   <section class="row" aria-labelledby="built">
     <div class="row-head">
@@ -498,11 +623,12 @@ figcaption b { color: var(--page-ink); display: block; font-size: 14px; margin-b
   </section>
 
   <section class="questions" aria-labelledby="q">
-    <h2 id="q">Decisions used</h2>
+    <h2 id="q">Decisions used, and one question</h2>
     <ol>
       <li>Accepting an offer with a finish date changes the task's date to it automatically.<span>As designed.</span></li>
       <li>A task with offers still switches to "No fixed date" when its date passes.<span>As designed, so it never looks expired.</span></li>
     </ol>
-    <p class="lede" style="font-size:13.5px">Built on PR 511. It waits for your OK to merge, because merging applies migration 216 to the database.</p>
+    <p class="lede" style="font-size:13.5px"><b>Question:</b> for "In hours", is 1 hour to 7 days the right range? The design uses that.</p>
+    <p class="lede" style="font-size:13.5px">Rows J and K are built on PR 511 (not merged: merging applies migration 216). The counteroffer above (26 Nov) is not built yet: say "build the counteroffer" once you are happy with it.</p>
   </section>
 </div>
