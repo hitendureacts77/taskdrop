@@ -16,6 +16,12 @@ const pickDistance = async (page: Page, km: number) => {
   await page.getByRole("button", { name: `${km} km`, exact: true }).last().click();
   await page.getByRole("button", { name: /^Show [0-9]+ |^No .* yet · Show anyway/ }).click();
 };
+// A guest enters the way the app offers it now (walkthrough row N, plan 1.19): sign-in comes first, and
+// "Continue as guest" under the sign-in buttons opens Home with no account.
+const enterAsGuest = async (page: Page) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Continue as guest", exact: true }).click();
+};
 // A guest (no area, location not allowed yet) is asked for location over the map when Explore opens
 // (components/LocationPrompt.tsx); "Not now" puts it away, and the map takes the mouse again.
 const notNow = async (page: Page) => {
@@ -128,8 +134,7 @@ test.describe("as a guest", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test("a guest sees the map but no People chip", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+    await enterAsGuest(page);
     await openFeedTab(page);
     await notNow(page);
     await expect(showList(page)).toBeVisible();
@@ -143,8 +148,7 @@ test.describe("as a guest", () => {
 
     test("a guest can change the reach and still sees the layer chips", async ({ page }) => {
       await page.setViewportSize({ width: 1400, height: 900 });
-      await page.goto("/");
-      await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+      await enterAsGuest(page);
       await openFeedTab(page);
       await expect(showList(page)).toBeVisible();
       await pickDistance(page, 50);
@@ -166,8 +170,7 @@ test.describe("D21: the map zooms like Google Maps (guest)", () => {
   const zoomOf = async (page: Page) => Number(await glMap(page).getAttribute("data-zoom"));
   const openMap = async (page: Page) => {
     await page.setViewportSize({ width: 1400, height: 900 });
-    await page.goto("/");
-    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+    await enterAsGuest(page);
     await openFeedTab(page);
     await notNow(page);
     await expect(glMap(page)).toHaveAttribute("data-zoom", /\d/);
@@ -232,8 +235,7 @@ test.describe("D21: the map zooms like Google Maps (guest)", () => {
 
   test("the List view never shows an empty box at the top", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
-    await page.goto("/");
-    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+    await enterAsGuest(page);
     await openFeedTab(page);
     await notNow(page);
     await showList(page).click();
