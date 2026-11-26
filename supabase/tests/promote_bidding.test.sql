@@ -194,10 +194,12 @@ begin
   assert v_n = 0, '2: nobody is shown their own promotion';
 
   -- ---- 3. repeats and the per-viewer cap --------------------------------------------------------------
+  -- (a opened the list above as a viewer, so b has paid for that top show too: compare before and after.)
+  select spent_minor into v_spent from public.task_promotions where id = pb.id;
   perform pg_temp.become(v1);
   perform public.promoted_live('request', c_lat, c_lng, 10);   -- (the second call above was free too)
   perform pg_temp.as_operator();
-  assert (select spent_minor from public.task_promotions where id = pb.id) = v_price_b,
+  assert (select spent_minor from public.task_promotions where id = pb.id) = v_spent,
     '3: the same top place within a few minutes is not charged again';
 
   update public.settings set value = jsonb_set(value, '{repeat_minutes}', '0') where key = 'promotion_bidding';
