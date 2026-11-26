@@ -202,6 +202,14 @@ export function must<T>(r: ApiResult<T>, what: string): T {
   return r.data;
 }
 
+/** The feed's tab or side-menu item: "Explore" in Hire, "Find work" in Earn (a seed account's mode can be either). */
+export const FEED_TAB = /^(Explore|Find work)$/;
+
+/** Opens the feed (it opens on the map) from the bottom tabs (phone) or the side menu (desktop). */
+export async function openFeedTab(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: FEED_TAB }).or(page.getByRole("link", { name: FEED_TAB })).filter({ visible: true }).first().click();
+}
+
 export async function expectSignedIn(page: Page) {
   await expect(page.getByText("Wallet").first()).toBeVisible();
   await closeStagingCard(page);
@@ -223,15 +231,6 @@ export async function closeStagingCard(page: Page): Promise<void> {
   const walk = page.getByRole("button", { name: "Close", exact: true });
   const opened = await page.getByRole("heading", { name: "How TaskDrop works", exact: true }).waitFor({ timeout: 5_000 }).then(() => true, () => false);
   if (opened) await walk.click();
-}
-
-/**
- * Opens the Explore tab: the side menu's "Explore" link on a wide screen, or the bottom tab bar's tab on a phone,
- * which reads "Find work" in Earn mode and "Explore" in Hire mode (BottomTabBar.tsx).
- */
-export async function openExplore(page: Page): Promise<void> {
-  const tab = page.getByRole("link", { name: "Explore", exact: true }).or(page.getByRole("tab", { name: /^(Explore|Find work)(,|$)/ }));
-  await tab.filter({ visible: true }).first().click();
 }
 
 /**

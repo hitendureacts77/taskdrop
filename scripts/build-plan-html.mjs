@@ -60,9 +60,9 @@ function guide(lines) {
     const line = raw.trim();
     if (!line) continue;
     if (line.startsWith('# ')) {
-      if (open) html += '</ol></section>';
+      if (open) html += '\n</ol></section>';
       const [title, sub = ''] = line.slice(2).split(' | ');
-      html += `<section class="g-part"><div class="g-head"><div class="g-title">${inline(title)}</div>${sub ? `<div class="g-sub">${inline(sub)}</div>` : ''}</div><ol class="g-steps">`;
+      html += `\n<section class="g-part"><div class="g-head"><div class="g-title">${inline(title)}</div>${sub ? `<div class="g-sub">${inline(sub)}</div>` : ''}</div><ol class="g-steps">`;
       open = true;
       continue;
     }
@@ -70,10 +70,10 @@ function guide(lines) {
     n++;
     const id = task && task !== '-' ? taskId(task) : '';
     const num = id ? `<a class="g-task" href="#${id}">${esc(task)}</a>` : '';
-    html += `<li class="g-step"${id ? ` data-task="${id}"` : ''}><span class="g-num">${n}</span><div class="g-main"><div class="g-line">${num}<span class="g-name">${inline(title)}</span><span class="g-meta"></span></div><div class="g-detail">${inline(detail)}</div></div></li>`;
+    html += `\n<li class="g-step"${id ? ` data-task="${id}"` : ''}><span class="g-num">${n}</span><div class="g-main"><div class="g-line">${num}<span class="g-name">${inline(title)}</span><span class="g-meta"></span></div><div class="g-detail">${inline(detail)}</div></div></li>`;
   }
-  if (open) html += '</ol></section>';
-  return `${html}</div>`;
+  if (open) html += '\n</ol></section>';
+  return `${html}\n</div>`;
 }
 
 function convert(md) {
@@ -104,7 +104,7 @@ function convert(md) {
       if (m[1] === 'html') out.push(buf.join('\n'));
       else if (m[1] === 'say') out.push(`<div class="say"><pre>${body}</pre><button type="button" class="copy">Copy</button></div>`);
       // ```map: the page draws a clickable roadmap here; the text map stays as the fallback.
-      else if (m[1] === 'map') out.push(`<div id="roadmap" class="roadmap"></div><pre class="block map-text"><code>${body}</code></pre>`);
+      else if (m[1] === 'map') out.push(`<div id="roadmap" class="roadmap"></div>\n<pre class="block map-text"><code>${body}</code></pre>`);
       else if (m[1] === 'steps') out.push(guide(buf));
       // ```mermaid: drawn as a diagram by mermaid.js (GitHub and VS Code draw the same block).
       else if (m[1] === 'mermaid') out.push(`<div class="diagram"><pre class="mermaid">${body}</pre></div>`);
@@ -145,18 +145,18 @@ function convert(md) {
           const prd = Object.assign([...prdCols], { vals: v });
           const name = v[sharedCols[0]] || '';
           const extra = sharedCols.slice(1).map((n) => (v[n] ? `<span class="cmp-x"><i>${inline(headCells[n])}</i> ${inline(v[n])}</span>` : '')).join('');
-          return `<div class="cmp-row"><div class="cmp-tool"><span class="cmp-name">${inline(name)}</span>${extra}</div>${side(stg, 'stg')}${side(prd, 'prd')}</div>`;
+          return `\n<div class="cmp-row"><div class="cmp-tool"><span class="cmp-name">${inline(name)}</span>${extra}</div>${side(stg, 'stg')}${side(prd, 'prd')}</div>`;
         }).join('');
-        out.push(`<div class="cmp"><div class="cmp-head"><div class="cmp-h stg"><b>STAGING</b> the test copy: fake money, fake data, testers only</div><div class="cmp-h prd"><b>PRODUCTION</b> the real copy: real money, real customers</div></div>${cardsHtml}</div>`);
+        out.push(`<div class="cmp"><div class="cmp-head"><div class="cmp-h stg"><b>STAGING</b> the test copy: fake money, fake data, testers only</div><div class="cmp-h prd"><b>PRODUCTION</b> the real copy: real money, real customers</div></div>${cardsHtml}\n</div>`);
         continue;
       }
       const head = headCells.map((c) => `<th>${inline(c)}</th>`).join('');
-      const body = rows.slice(2).map((r) => `<tr>${cells(r).map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('');
+      const body = rows.slice(2).map((r) => `\n<tr>${cells(r).map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`).join('');
       // Tables with 6+ columns keep a minimum width and scroll sideways only on narrow screens.
       const wide = headCells.length >= 6;
       // Two-sided tables ("Staging ... | Production ...") get colour-coded columns.
       const sp = headCells.length >= 3 && /staging/i.test(headCells[1]) && /production/i.test(headCells[2]);
-      out.push(`<div class="tablewrap${wide ? ' wide' : ''}${sp ? ' sp' : ''}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`);
+      out.push(`<div class="tablewrap${wide ? ' wide' : ''}${sp ? ' sp' : ''}"><table>\n<thead><tr>${head}</tr></thead>\n<tbody>${body}\n</tbody>\n</table></div>`);
       continue;
     }
 
@@ -192,10 +192,12 @@ function convert(md) {
         i++;
       }
       const html = items.map((it) => {
-        const sub = it.subs.length ? `<ul>${it.subs.map(listItem).join('')}</ul>` : '';
-        return listItem(it.text).replace(/<\/li>$/, `${sub}</li>`);
+        // One item per line (and one closing tag per line), so two edits to different items
+        // of the same list never touch the same line of the built page.
+        const sub = it.subs.length ? `<ul>${it.subs.map((t) => `\n${listItem(t)}`).join('')}\n</ul>` : '';
+        return `\n${listItem(it.text).replace(/<\/li>$/, `${sub}</li>`)}`;
       }).join('');
-      out.push(ordered ? `<ol start="${parseInt(m[2], 10)}">${html}</ol>` : `<ul>${html}</ul>`);
+      out.push(ordered ? `<ol start="${parseInt(m[2], 10)}">${html}\n</ol>` : `<ul>${html}\n</ul>`);
       continue;
     }
 

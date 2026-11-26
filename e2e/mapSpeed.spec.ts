@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { answerConsent, continueAsGuest, openExplore } from "./helpers";
+import { answerConsent, continueAsGuest, openFeedTab } from "./helpers";
 
 // Plan D33 step E: how smooth is the map with 2,000 pins? Needs a web build made with EXPO_PUBLIC_E2E_FAKE_PINS=1
 // (npm run web:export with that set, plus E2E_FAKE_PINS_BUILD=1, which the export guard asks for); the pins come from `?fakepins=2000` (lib/fakePins.ts). Without that build the
@@ -27,7 +27,7 @@ test("the map stays smooth with 2,000 pins while the camera flies round", async 
   await page.goto(`/?fakepins=${PINS}`);
   await answerConsent(page);
   await continueAsGuest(page);
-  await openExplore(page);
+  await openFeedTab(page);
   // A guest is asked for location over the map; location is allowed here, so the prompt may or may not show.
   const notNow = page.getByRole("button", { name: "Not now", exact: true });
   await notNow.click({ timeout: 4000 }).catch(() => undefined);

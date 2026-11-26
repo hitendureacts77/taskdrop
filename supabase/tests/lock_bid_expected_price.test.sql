@@ -48,7 +48,7 @@ begin
   -- Both overloads exist and a one- or two-argument call is not ambiguous.
   select count(*) into v_n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname = 'lock_bid';
-  assert v_n = 2, format('lock_bid should have the old and the checked shape, found %s', v_n);
+  assert v_n = 3, format('lock_bid should have the old, the price-checked and the date-checked shape (227), found %s', v_n);
   assert not has_function_privilege('anon', 'public.lock_bid(uuid, payout_mode, bigint)', 'EXECUTE'),
     'signed out cannot hire';
   assert has_function_privilege('authenticated', 'public.lock_bid(uuid, payout_mode, bigint)', 'EXECUTE'),

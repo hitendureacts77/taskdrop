@@ -12,7 +12,7 @@ import { Screen, formatINR } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
-import { listBidsForTask, lockBid, getTask, isOfferChanged, WalletShortError, type Task } from '../data/api';
+import { listBidsForTask, lockBid, getTask, isOfferChanged, offerChangedMessage, WalletShortError, type Task } from '../data/api';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { useMoneyMode } from '../lib/useMoneyMode';
 import { hireRefusal } from '../lib/moneyText';
@@ -176,8 +176,8 @@ export function CompareScreen() {
     if (pickRow.bidId) {
       setBusy(true);
       try {
-        // The price shown is the price charged: a changed offer is refused, not charged (B53).
-        await lockBid(pickRow.bidId, 'one_time', pickRow.priceMinor);
+        // The price and finish date shown are the ones hired on: a changed offer is refused (B53, 227).
+        await lockBid(pickRow.bidId, 'one_time', pickRow.priceMinor, pickRow.canFinishBy ?? null);
         setLockedBidId(pickRow.bidId);
         setTask((prev) => (prev ? { ...prev, status: 'LOCKED' } : prev));
         if (planB && taskId) {
@@ -191,7 +191,7 @@ export function CompareScreen() {
       } catch (e) {
         if (e instanceof WalletShortError && !planB) setShortBy(e.shortMinor);
         else if (isOfferChanged(e)) {
-          flash('The offer changed. Please review the new price.');
+          flash(offerChangedMessage(e));
           setReloadTick((n) => n + 1);
         } else flash(e instanceof Error ? hireRefusal(e.message) : 'Could not choose that offer');
       } finally {
