@@ -1271,6 +1271,10 @@ function OnlyOnTaskDrop({
 }) {
   const t = useTheme();
   const { desktop } = useLayout();
+  // Desktop cards need ~170 px each; when five do not fit in one row (beside the right rail at laptop widths), use the
+  // phone's icon-over-title tiles instead, which always fit five across, so the row never wraps 4+1 (task 1.19 S).
+  const [rowW, setRowW] = useState(0);
+  const cards = desktop && rowW >= 5 * 170 + 4 * 10;
   const opinions = TEMPLATES.find((x) => x.key === 'ask-people');
   const prices = TEMPLATES.find((x) => x.key === 'find-quotes');
   const items: { icon: IconName; title: string; bg: string; ink: string; isNew?: boolean; onPress: () => void }[] = [
@@ -1288,26 +1292,29 @@ function OnlyOnTaskDrop({
         {/* These are kinds of posts, so they carry the Ideas tag. */}
         <IdeaTag plural />
       </View>
-      <View style={{ flexDirection: 'row', flexWrap: desktop ? 'wrap' : 'nowrap', marginTop: 14, gap: desktop ? 10 : 0 }}>
+      <View
+        onLayout={desktop ? (e) => setRowW(Math.round(e.nativeEvent.layout.width)) : undefined}
+        style={{ flexDirection: 'row', flexWrap: 'nowrap', marginTop: 14, gap: cards ? 10 : 0 }}
+      >
         {items.map((x) => (
           <Pressy
             key={x.title}
             onPress={x.onPress}
             scaleTo={0.94}
             label={x.isNew ? `${x.title.replace('\n', ' ')}. New` : x.title.replace('\n', ' ')}
-            // Desktop (D10): each one is a card, the icon beside a one-line title; five across when they fit, else they
-            // wrap (beside the right rail the column is too narrow for five whole titles).
+            // Desktop (D10): each one is a card, the icon beside a one-line title, five across; when the column is too
+            // narrow for five cards, the phone tiles below (never a 4+1 wrap).
             style={
-              desktop
-                ? [cardSurface(t, 16), { flexGrow: 1, flexBasis: 170, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, minWidth: 0 }]
+              cards
+                ? [cardSurface(t, 16), { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, minWidth: 0 }]
                 : { flex: 1, alignItems: 'center' }
             }
           >
             <View
               style={{
-                width: desktop ? 44 : 54,
-                height: desktop ? 44 : 54,
-                borderRadius: desktop ? 15 : 18,
+                width: cards ? 44 : 54,
+                height: cards ? 44 : 54,
+                borderRadius: cards ? 15 : 18,
                 backgroundColor: x.bg,
                 borderWidth: x.isNew ? 1.5 : 0,
                 borderColor: t.colors.accentBorder,
@@ -1315,14 +1322,14 @@ function OnlyOnTaskDrop({
                 justifyContent: 'center',
               }}
             >
-              <Icon name={x.icon} size={desktop ? 21 : 24} color={x.ink} strokeWidth={2.2} />
+              <Icon name={x.icon} size={cards ? 21 : 24} color={x.ink} strokeWidth={2.2} />
               {x.isNew ? (
                 <View style={{ position: 'absolute', top: -6, right: -8, borderRadius: 999, paddingHorizontal: 5, paddingVertical: 1, backgroundColor: t.colors.signalFill }}>
                   <RNText style={tx('800', 9, onHero.text)}>NEW</RNText>
                 </View>
               ) : null}
             </View>
-            {desktop ? (
+            {cards ? (
               <RNText style={tx('700', 13, t.colors.ink, { flex: 1, flexShrink: 1, lineHeight: 17 })} numberOfLines={1}>
                 {x.title.replace('\n', ' ')}
               </RNText>

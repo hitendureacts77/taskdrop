@@ -335,6 +335,7 @@ const FeedCard = memo(function FeedCard({
         <View
           style={{
             flexDirection: 'row',
+            flexWrap: 'wrap',
             alignItems: 'center',
             gap: 10,
             marginTop: 14,
@@ -343,10 +344,14 @@ const FeedCard = memo(function FeedCard({
             borderTopColor: t.colors.line,
           }}
         >
-          <View style={{ flex: 1 }}>
+          {/* The price never breaks inside the number (₹1,55 / 0 on narrow desktop cards, task 1.19 D check); when the
+              card is too narrow the buttons move to their own line instead (the row wraps). */}
+          {/* ~11.5 px a character at 19 px bold: the column never gets narrower than its price. */}
+          <View style={{ flex: 1, minWidth: Math.ceil(formatINR(row.amountMinor).length * 11.5) }}>
             <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>{priceLabel}</RNText>
-            <RNText style={tx('800', 19, t.colors.accentDeep, { marginTop: 3 })}>{formatINR(row.amountMinor)}</RNText>
+            <RNText style={tx('800', 19, t.colors.accentDeep, { marginTop: 3 })} numberOfLines={1}>{formatINR(row.amountMinor)}</RNText>
           </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
           {single ? null : (
           <Pressy
             onPress={onCounter}
@@ -378,6 +383,7 @@ const FeedCard = memo(function FeedCard({
           >
             <RNText style={tx('700', 13, t.colors.onAccent)}>{hunt ? 'I’m looking' : quoted ? 'Edit your offer' : 'Accept'}</RNText>
           </Pressy>
+          </View>
         </View>
       </Pressy>
     </FadeIn>
