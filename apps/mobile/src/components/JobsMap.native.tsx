@@ -28,8 +28,11 @@ import { SPREAD_ZOOM, layoutPins } from '../lib/mapLayout';
 import { youRect } from '../lib/mapLabels';
 import { SRC, buildingLayer, glToTile, sceneShapes, shapeLayers, tileToGl, tiltAfterZoom } from '../lib/mapLayers';
 import { glStyleUrl } from '../lib/mapStyle';
-import { controlsRect, itemKey, pinLabels } from './MapPinLayer';
-import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PricePin, PromotedPin, TASK_PIN, TaskPin } from './MapMarkers';
+import { SPREAD_MS, controlsRect, itemKey, pinLabels } from './MapPinLayer';
+import { MAX_FRESH, TAG_MS, introDelays, introEnd } from '../lib/mapMotion';
+import { RIPPLE_ROOM } from '../lib/pinMotion';
+import { usePinEpoch } from './usePinEpoch';
+import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMotion, PricePin, PromotedPin, TASK_PIN, TaskPin, type PinEnter } from './MapMarkers';
 
 export type { JobPin, MapTone, JobsMapProps } from './JobsMap.tiles';
 export { mapWords } from './JobsMap.tiles';
@@ -93,6 +96,9 @@ function PinMarker({
   label,
   onPress,
   faded = false,
+  enter = null,
+  ripple = null,
+  hue,
   children,
 }: {
   at: { lat: number; lng: number };
@@ -101,12 +107,21 @@ function PinMarker({
   label: string;
   onPress: () => void;
   faded?: boolean;
+  /** Intro or burst, played once inside the pin (PinMotion). */
+  enter?: PinEnter | null;
+  /** Turn of a just-posted task's ripple; its marker box gets room so the ring is never clipped. */
+  ripple?: number | null;
+  hue?: string;
   children: React.ReactNode;
 }) {
+  // The offset stays the same when the box grows evenly on every side, so the pin's point still sits on the place.
+  const room = ripple !== null ? RIPPLE_ROOM : 0;
   return (
     <Marker lngLat={[at.lng, at.lat]} anchor="center" offset={[0, box.h / 2 - box.anchor]} style={{ zIndex: z }} onPress={onPress} accessibilityLabel={label}>
-      <View style={{ width: box.w, height: box.h, opacity: faded ? 0.45 : 1 }} collapsable={false}>
-        {children}
+      <View style={{ width: box.w + room * 2, height: box.h + room * 2, padding: room, opacity: faded ? 0.45 : 1 }} collapsable={false}>
+        <PinMotion box={box} enter={enter} ripple={ripple} hue={hue}>
+          {children}
+        </PinMotion>
       </View>
     </Marker>
   );
@@ -217,6 +232,12 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
   }, [pins, view, size, tone]);
   const offers = people ? null : offersOf(items, byId);
 
+  // Motion inside the pins plays for a new set of things (not on map moves) and when the zoom crosses the spread level.
+  const introKey = useMemo(() => pins.map((p) => p.id).sort().join('|'), [pins]);
+  const introLive = usePinEpoch(introKey, introEnd(pins.length) + TAG_MS);
+  const spreadLive = usePinEpoch(zoom >= SPREAD_ZOOM ? 'spread' : 'stacked', SPREAD_MS + 100);
+  const freshIds = useMemo(() => [...pins.filter((p) => p.fresh).slice(0, MAX_FRESH).map((p) => p.id)], [pins]);
+
   const youAt = me ? project(me.lat, me.lng, zoom) : null;
   const youOnScreen = youAt ? { x: youAt.x - left, y: youAt.y - top } : null;
   // Names that would overlap step back, and pins under the buttons step aside (P1-14, lib/mapLabels.ts).
@@ -225,6 +246,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
     controls: controlsRect(size, { right: 8, top: 8 + padTop, button: 36, gap: 6, count: bare ? 0 : (onExpand ? 1 : 0) + 2 + (me ? 1 : 0) }),
   });
 
+  const delays = useMemo(() => introDelays(items, youOnScreen), [items, youOnScreen?.x, youOnScreen?.y]); // eslint-disable-line react-hooks/exhaustive-deps
   const here = { lat: view.lat, lng: view.lng };
   const blue = t.colors.purple;
   const hue = people ? blue : t.colors.btn;
@@ -324,6 +346,13 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
           const plan = labels.get(itemKey(it));
           const place = toPlace(it.x + (plan?.dx ?? 0), it.y);
           const hidePlace = plan ? !plan.showTag : false;
+          // Intro first; later, a pin that just joined a spread (or a group that appeared after a fold) fades and scales in from its centre.
+          // Phone: no sliding child, because a native marker view may clip it (not checked on a device).
+          const enter: PinEnter | null = introLive
+            ? { delay: delays[i] ?? 0, ms: TAG_MS, from: 0.8 }
+            : spreadLive
+              ? { delay: 0, ms: SPREAD_MS, from: it.kind === 'one' && it.area ? 0.5 : 0.6 }
+              : null;
           // While a pin is picked, the others step back.
           const back = dim && selectedId !== null && !(it.kind === 'one' && it.id === selectedId);
           if (it.kind === 'group') {
@@ -332,7 +361,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             if (people) {
               const shown = it.ids.slice(0, 3).map((id) => ({ seed: id, face: byId.get(id)!.face ?? { initials: '?', live: false } }));
               return (
-                <PinMarker key={'g-' + it.ids[0]} faded={back} at={place} box={FACE_STACK} z={2} label={`${it.ids.length} ${words.many} in ${name} area. Spread them out`} onPress={into}>
+                <PinMarker enter={enter} key={'g-' + it.ids[0]} faded={back} at={place} box={FACE_STACK} z={2} label={`${it.ids.length} ${words.many} in ${name} area. Spread them out`} onPress={into}>
                   <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${name} · ${it.ids.length}`} />
                 </PinMarker>
               );
@@ -341,6 +370,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
             return (
               <PinMarker
+                enter={enter}
                 key={'g-' + it.ids[0]}
                 faded={back}
                 at={place}
@@ -361,6 +391,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             // A promoted post: bigger, side-coloured and above the other pins (task 1.19 row C).
             return (
               <PinMarker
+                enter={enter}
                 key={'pr-' + it.id}
                 faded={back}
                 at={place}
@@ -376,7 +407,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
           if (people) {
             const face = pin.face ?? { initials: '?', live: false };
             return (
-              <PinMarker key={'p-' + it.id} faded={back} at={place} box={FACE_PIN} z={on ? 4 : 2} label={helperSays(pin)} onPress={pick}>
+              <PinMarker enter={enter} key={'p-' + it.id} faded={back} at={place} box={FACE_PIN} z={on ? 4 : 2} label={helperSays(pin)} onPress={pick}>
                 <FacePin face={face} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} />
               </PinMarker>
             );
@@ -385,7 +416,10 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
           const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
           return (
             <PinMarker
+              enter={enter}
               key={'j-' + it.id}
+              ripple={freshIds.indexOf(it.id) >= 0 ? freshIds.indexOf(it.id) : null}
+              hue={hue}
               faded={back}
               at={place}
               box={spread ? TASK_PIN : PRICE_PIN}

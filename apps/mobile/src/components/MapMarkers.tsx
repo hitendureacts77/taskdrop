@@ -1,9 +1,11 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { View, Image, Text as RNText, Animated, Platform, type ViewStyle } from 'react-native';
+import { View, Image, Text as RNText, Animated, Easing, Platform, type ViewStyle } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useReducedMotion } from '../lib/motion';
 import { Icon, type IconName } from './Icon';
 import { tx } from './primitives';
+import { RIPPLE_EVERY_MS, RIPPLE_MS } from '../lib/mapMotion';
+import { PULSE_MS, RING_OPACITY, RING_R1, RING_SCALE0, rippleDelay } from '../lib/pinMotion';
 
 /**
  * The pins of the redesigned map (plan D12), drawn the same on the tile map and
@@ -52,6 +54,124 @@ function Tag({ children, max, top = 3 }: { children: React.ReactNode; max: numbe
   );
 }
 
+const ND = Platform.OS !== 'web';
+
+/** A soft ring that breathes round the active-now dot (about 1.6 s). Off under reduced motion. */
+function DotPulse({ size }: { size: number }) {
+  const t = useTheme();
+  const reduced = useReducedMotion();
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduced) return;
+    const loop = Animated.loop(Animated.timing(v, { toValue: 1, duration: PULSE_MS, useNativeDriver: ND }));
+    loop.start();
+    return () => loop.stop();
+  }, [reduced, v]);
+  if (reduced) return null;
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        right: -1,
+        bottom: -1,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: t.colors.online,
+        opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }),
+        transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 2.2] }) }],
+      }}
+    />
+  );
+}
+
+/** How a pin comes in: after `delay` ms it fades and scales up from `from` over `ms`. */
+export type PinEnter = { delay: number; ms: number; from: number };
+
+/**
+ * Motion inside a pin, with RN Animated on the native driver so the map never re-renders per frame:
+ * `enter` (intro, burst out of a spread, group pin after a fold) plays once when the pin mounts;
+ * `ripple` (the turn, 0-based, of a just-posted task) loops a ring round the area's point.
+ * Under reduced motion neither runs: the pin just appears. The box is the pin's own fixed box.
+ */
+export function PinMotion({
+  box,
+  enter = null,
+  ripple = null,
+  hue,
+  children,
+}: {
+  box: { w: number; h: number; anchor: number };
+  enter?: PinEnter | null;
+  ripple?: number | null;
+  hue?: string;
+  children: React.ReactNode;
+}) {
+  const reduced = useReducedMotion();
+  const play = enter !== null && !reduced;
+  // Read once, when the pin mounts: a pin that is already on the map never replays.
+  const shown = useRef(new Animated.Value(play ? 0 : 1)).current;
+  const from = enter?.from ?? 1;
+  useEffect(() => {
+    if (!play || !enter) return;
+    const run = Animated.timing(shown, { toValue: 1, delay: enter.delay, duration: enter.ms, easing: Easing.out(Easing.cubic), useNativeDriver: ND });
+    run.start();
+    return () => run.stop();
+    // Mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <Animated.View
+      collapsable={false}
+      style={{
+        width: box.w,
+        height: box.h,
+        opacity: shown,
+        transform: [{ scale: shown.interpolate({ inputRange: [0, 1], outputRange: [from, 1] }) }],
+      }}
+    >
+      {children}
+      {ripple !== null && !reduced && hue ? <Ripple box={box} turn={ripple} hue={hue} /> : null}
+    </Animated.View>
+  );
+}
+
+/** The just-posted ring: 20 to 50 px round the area's point, fading, one every 3.6 s. */
+function Ripple({ box, turn, hue }: { box: { w: number; anchor: number }; turn: number; hue: string }) {
+  const v = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const first = Animated.delay(rippleDelay(turn));
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 0, duration: 0, useNativeDriver: ND }),
+        Animated.timing(v, { toValue: 1, duration: RIPPLE_MS, easing: Easing.out(Easing.quad), useNativeDriver: ND }),
+        Animated.delay(RIPPLE_EVERY_MS - RIPPLE_MS),
+      ]),
+    );
+    const run = Animated.sequence([first, loop]);
+    run.start();
+    return () => run.stop();
+  }, [turn, v]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        left: box.w / 2 - RING_R1,
+        top: box.anchor - RING_R1,
+        width: RING_R1 * 2,
+        height: RING_R1 * 2,
+        borderRadius: RING_R1,
+        borderWidth: 2,
+        borderColor: hue,
+        opacity: v.interpolate({ inputRange: [0, 1], outputRange: [RING_OPACITY, 0] }),
+        transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [RING_SCALE0, 1] }) }],
+      }}
+    />
+  );
+}
+
 /** A round face: the photo, or initials on a muted colour, or a service icon; a green dot when active now. */
 export function FaceDisc({
   face,
@@ -60,6 +180,7 @@ export function FaceDisc({
   rim = RIM,
   rimWidth = 3,
   onImage,
+  pulse = false,
 }: {
   face: Face;
   seed: string;
@@ -67,6 +188,8 @@ export function FaceDisc({
   rim?: string;
   rimWidth?: number;
   onImage?: () => void;
+  /** The active-now dot breathes (map pins only). */
+  pulse?: boolean;
 }) {
   const t = useTheme();
   const dot = Math.max(9, Math.round(size * 0.26));
@@ -113,6 +236,7 @@ export function FaceDisc({
           </Animated.View>
         ) : null}
       </View>
+      {face.live && pulse ? <DotPulse size={dot} /> : null}
       {face.live ? (
         <View style={{ position: 'absolute', right: -1, bottom: -1, width: dot, height: dot, borderRadius: dot / 2, backgroundColor: t.colors.online, borderWidth: 2, borderColor: rim }} />
       ) : null}
@@ -181,7 +305,7 @@ function FacePinImpl({
     <View style={{ width: FACE_PIN.w, height: FACE_PIN.h, alignItems: 'center' }} collapsable={false}>
       {glow && face.live && !on ? <LiveGlow size={size} top={top} /> : null}
       <View style={[{ marginTop: top, borderRadius: size / 2 }, lift]}>
-        <FaceDisc face={face} seed={seed} size={size} rim={on ? t.colors.purple : RIM} rimWidth={on ? 4 : 3} onImage={onImage} />
+        <FaceDisc face={face} seed={seed} size={size} rim={on ? t.colors.purple : RIM} rimWidth={on ? 4 : 3} onImage={onImage} pulse />
         {more > 0 ? (
           <View style={{ position: 'absolute', right: -8, top: -4, height: 18, minWidth: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: RIM, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
             <RNText style={tx('800', 9.5, '#FFFFFF')}>+{more}</RNText>
@@ -232,7 +356,7 @@ export function FaceStack({
       <View style={[{ marginTop: FACE_STACK.anchor - 21, flexDirection: 'row', alignItems: 'center', padding: 3, borderRadius: 999, backgroundColor: RIM }, lift]}>
         {faces.map((f, i) => (
           <View key={f.seed} style={{ marginLeft: i === 0 ? 0 : -11 }}>
-            <FaceDisc face={f.face} seed={f.seed} size={36} rimWidth={i === 0 ? 0 : 2} onImage={onImage} />
+            <FaceDisc face={f.face} seed={f.seed} size={36} rimWidth={i === 0 ? 0 : 2} onImage={onImage} pulse />
           </View>
         ))}
         {extra > 0 ? (

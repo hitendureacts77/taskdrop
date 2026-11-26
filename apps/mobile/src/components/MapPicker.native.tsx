@@ -9,6 +9,7 @@ import { ML, type MapLibre } from '../lib/mapLibreNative';
 import { glStyleUrl } from '../lib/mapStyle';
 import { tileToGl } from '../lib/mapLayers';
 import { useReducedMotion } from '../lib/motion';
+import { locationPermission } from '../lib/location';
 
 /**
  * Plan 1.20 (design D33): the picker is MapLibre Native, the same engine and
@@ -16,7 +17,7 @@ import { useReducedMotion } from '../lib/motion';
  * module use the tile map the web build uses (lib/mapLibreNative.ts).
  */
 // Only read inside components that render when ML is not null.
-const { Map: MLMap, Camera } = (ML ?? {}) as MapLibre;
+const { Map: MLMap, Camera, UserLocation } =(ML ?? {}) as MapLibre;
 
 /**
  * The drag-the-map location picker, native build, on a real map engine.
@@ -78,6 +79,18 @@ function NativeMapPicker({
   const reduced = useReducedMotion();
   const camera = useRef<CameraRef>(null);
   const [hintVisible, setHintVisible] = useState(interactive);
+  // The live-location dot (the old showsUserLocation) shows only when permission is already granted:
+  // the picker only checks, it never asks.
+  const [located, setLocated] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void locationPermission().then((p) => {
+      if (live) setLocated(p.granted);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   // Where we last sent the camera. A region-change that lands there is our own
   // animation finishing, not the user choosing a spot, so it is not reported.
@@ -151,6 +164,7 @@ function NativeMapPicker({
         attributionPosition={{ bottom: 8, right: 8 }}
       >
         <Camera ref={camera} initialViewState={{ center: [lng, lat], zoom: tileToGl(zoom) }} />
+        {located ? <UserLocation /> : null}
       </MLMap>
 
       {/* The pin never moves. That is the whole idea — the map moves under it. */}

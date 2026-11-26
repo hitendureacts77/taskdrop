@@ -3,10 +3,12 @@ import { View, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { groupPins } from '../lib/mapCluster';
 import { SPREAD_ZOOM, layoutPins, topAmount, type MapItem } from '../lib/mapLayout';
-import { MAX_FRESH, areaAt, easeOut, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
+import { MAX_FRESH, TAG_MS, areaAt, easeOut, introDelays, introEnd } from '../lib/mapMotion';
+import type { PinEnter } from './MapMarkers';
 import { planLabels, youRect, type LabelItem, type LabelPlan, type Rect } from '../lib/mapLabels';
 import { useMapClock } from './useMapClock';
-import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PricePin, PromotedPin, TASK_PIN, TaskPin, type Face } from './MapMarkers';
+import { usePinEpoch } from './usePinEpoch';
+import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMotion, PricePin, PromotedPin, TASK_PIN, TaskPin, type Face } from './MapMarkers';
 
 /**
  * One thing on the map. Jobs carry their price as `label` and in rupees as
@@ -240,12 +242,14 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
   // The intro replays for a new set of things, not when the map is moved.
   const introKey = useMemo(() => pins.map((p) => p.id).sort().join('|'), [pins]);
   const freshIds = useMemo(() => new Set(pins.filter((p) => p.fresh).slice(0, MAX_FRESH).map((p) => p.id)), [pins]);
-  const clock = useMapClock(introKey, introEnd(pins.length), freshIds.size > 0);
+  // The intro and the fold play inside each pin (PinMotion); this only says whether a pin that mounts now should.
+  const introLive = usePinEpoch(introKey, introEnd(pins.length) + TAG_MS);
   // Groups that have just spread fly out from their centre.
   // The fly-out plays when the zoom crosses the spread level, not each time a pin enters or leaves the view
   // (a pan used to make every spread pin snap back and fly out again).
   const spreadKey = zoom >= SPREAD_ZOOM ? 'spread' : 'stacked';
   const spreadClock = useMapClock(spreadKey, SPREAD_MS, false);
+  const foldLive = usePinEpoch(spreadKey, SPREAD_MS + 100);
   const fan = easeOut(spreadClock.elapsed / SPREAD_MS);
   // Where an item is drawn now: the layout's own pixels, or (frozen layout) its place seen through the live map.
   const at = (it: MapItem, i: number) => {
@@ -264,14 +268,14 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
 
   return (
     <>
-      {engine ? null : <AreaShapes items={items} offers={offers} hue={hue} delays={delays} elapsed={clock.elapsed} />}
+      {engine ? null : <AreaShapes items={items} offers={offers} hue={hue} delays={delays} introKey={introKey} count={pins.length} />}
 
       {items.map((it, i) => {
-        const pop = tagAt(clock.elapsed, delays[i]!);
-        if (pop === 0) return null;
+        // Intro for a new set of things; a group that appears after a fold scales in too.
+        const enter: PinEnter | null = introLive ? { delay: delays[i]!, ms: TAG_MS, from: 0.8 } : foldLive && it.kind === 'group' ? { delay: 0, ms: TAG_MS, from: 0.6 } : null;
         const p = at(it, i);
         const back = dim && selectedId !== null && !(it.kind === 'one' && it.id === selectedId);
-        const drop = { opacity: pop * (back ? 0.45 : 1), transform: [{ translateY: -10 * (1 - pop) }] };
+        const drop = { opacity: back ? 0.45 : 1 };
         if (it.kind === 'group') {
           const key = 'g-' + it.ids.join('|');
           const into = () => onGroup(it.x, it.y);
@@ -285,7 +289,9 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
                 accessibilityLabel={`${it.ids.length} ${words.many} in ${placeOf(it.ids, byId)} area. Spread them out`}
                 style={[{ position: 'absolute', left: p.x - FACE_STACK.w / 2, top: p.y - FACE_STACK.anchor, zIndex: 1 }, drop]}
               >
-                <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${placeOf(it.ids, byId)} · ${it.ids.length}`} />
+                <PinMotion box={FACE_STACK} enter={enter}>
+                  <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${placeOf(it.ids, byId)} · ${it.ids.length}`} />
+                </PinMotion>
               </Pressable>
             );
           }
@@ -299,7 +305,9 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
               accessibilityLabel={`${it.ids.length} ${words.many} in ${placeOf(it.ids, byId)} area, biggest offer ${topPin.label}. Zoom in`}
               style={[{ position: 'absolute', left: p.x - PRICE_PIN.w / 2, top: p.y - PRICE_PIN.anchor, zIndex: best ? 2 : 1 }, drop]}
             >
-              <PricePin price={topPin.label} best={best} on={false} place={placeOf(it.ids, byId)} count={`${it.ids.length} ${words.many}`} hidePlace={!tagShown(it)} />
+              <PinMotion box={PRICE_PIN} enter={enter}>
+                <PricePin price={topPin.label} best={best} on={false} place={placeOf(it.ids, byId)} count={`${it.ids.length} ${words.many}`} hidePlace={!tagShown(it)} />
+              </PinMotion>
             </Pressable>
           );
         }
@@ -318,7 +326,9 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
               accessibilityState={{ selected: on }}
               style={[{ position: 'absolute', left: p.x - PROMO_PIN.w / 2, top: p.y - PROMO_PIN.anchor, zIndex: on ? 5 : 4 }, drop]}
             >
-              <PromotedPin side="hire" price={pin.price ?? null} on={on} />
+              <PinMotion box={PROMO_PIN} enter={enter}>
+                <PromotedPin side="hire" price={pin.price ?? null} on={on} />
+              </PinMotion>
             </Pressable>
           );
         }
@@ -332,7 +342,9 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
               accessibilityState={{ selected: on }}
               style={[{ position: 'absolute', left: p.x - FACE_PIN.w / 2, top: p.y - FACE_PIN.anchor, zIndex: on ? 3 : 1 }, drop]}
             >
-              <FacePin face={pin.face ?? { initials: '?', live: false }} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} glow />
+              <PinMotion box={FACE_PIN} enter={enter}>
+                <FacePin face={pin.face ?? { initials: '?', live: false }} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} glow />
+              </PinMotion>
             </Pressable>
           );
         }
@@ -346,21 +358,17 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
                 accessibilityState={{ selected: on }}
                 style={[{ position: 'absolute', left: p.x - PROMO_PIN.w / 2, top: p.y - PROMO_PIN.anchor }, drop]}
               >
-                <PromotedPin side="earn" price={pin.label} on={on} />
+                <PinMotion box={PROMO_PIN} enter={enter}>
+                  <PromotedPin side="earn" price={pin.label} on={on} />
+                </PinMotion>
               </Pressable>
             </View>
           );
         }
         const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
-        const ripple = freshIds.has(it.id) && !clock.still ? rippleAt(clock.now, i * 1200) : null;
+        const turn = [...freshIds].indexOf(it.id);
         return (
           <View key={'j-' + it.id} pointerEvents="box-none" style={{ position: 'absolute', left: 0, top: 0, zIndex: on ? 3 : best ? 2 : 1 }}>
-            {ripple !== null ? (
-              <View
-                pointerEvents="none"
-                style={{ position: 'absolute', left: p.x - 20 - 30 * ripple, top: p.y - 20 - 30 * ripple, width: 40 + 60 * ripple, height: 40 + 60 * ripple, borderRadius: 999, borderWidth: 2, borderColor: hue, opacity: 0.8 * (1 - ripple) }}
-              />
-            ) : null}
             <Pressable
               onPress={pick}
               accessibilityRole="button"
@@ -368,11 +376,13 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
               accessibilityState={{ selected: on }}
               style={[{ position: 'absolute', left: p.x - (spread ? TASK_PIN.w : PRICE_PIN.w) / 2, top: p.y - (spread ? TASK_PIN.anchor : PRICE_PIN.anchor) }, drop]}
             >
-              {spread ? (
-                <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} />
-              ) : (
-                <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={!tagShown(it)} />
-              )}
+              <PinMotion box={spread ? TASK_PIN : PRICE_PIN} enter={enter} ripple={turn >= 0 ? turn : null} hue={hue}>
+                {spread ? (
+                  <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} />
+                ) : (
+                  <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={!tagShown(it)} />
+                )}
+              </PinMotion>
             </Pressable>
           </View>
         );
@@ -392,7 +402,9 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
 }
 
 /** The tile map's own soft circles and heat glow, as views (the GL map draws these with the map engine instead). */
-function AreaShapes({ items, offers, hue, delays, elapsed }: { items: MapItem[]; offers: { top: (number | null)[]; best: number | null } | null; hue: string; delays: number[]; elapsed: number }) {
+function AreaShapes({ items, offers, hue, delays, introKey, count }: { items: MapItem[]; offers: { top: (number | null)[]; best: number | null } | null; hue: string; delays: number[]; introKey: string; count: number }) {
+  // Only this fallback draws its circles as views, so only it needs the frame clock (the GL map and the phone use engine layers).
+  const { elapsed } = useMapClock(introKey, introEnd(count), false);
   const areas = new Map<string, { x: number; y: number; r: number }>();
   for (const it of items) if (it.kind === 'one' && it.area) areas.set(`${it.area.x},${it.area.y}`, { x: it.area.x, y: it.area.y, r: Math.max(it.area.rx, it.area.ry) });
   return (
