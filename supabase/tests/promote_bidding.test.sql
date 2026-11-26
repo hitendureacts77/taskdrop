@@ -252,11 +252,11 @@ begin
   perform pg_temp.become(b);
   v_q := public.promotion_results(pb.id);
   select spent_minor into v_spent from public.task_promotions where id = pb.id;
-  assert (v_q->>'spentMinor')::bigint = v_spent and (v_q->>'topShows')::int = 4,
+  assert (v_q->>'spentMinor')::bigint = v_spent and (v_q->>'topShows')::int = 5,   -- v1 x3, a, v2 (section 4)
     '6: spend and top shows: ' || v_q::text;
-  assert (v_q->>'onTop')::int = 2 and (v_q->>'opened')::int = 1 and (v_q->>'dayBudgetMinor')::bigint = 30000,
+  assert (v_q->>'onTop')::int = 3 and (v_q->>'opened')::int = 1 and (v_q->>'dayBudgetMinor')::bigint = 30000,
     '6: on top / opened / daily budget: ' || v_q::text;
-  assert (v_q->>'avgPriceMinor')::bigint = round(v_spent / 4.0), '6: average price per top show';
+  assert (v_q->>'avgPriceMinor')::bigint = round(v_spent / 5.0), '6: average price per top show';
   perform pg_temp.become(v1);
   v_failed := false;
   begin perform public.promotion_results(pb.id);
