@@ -31,7 +31,7 @@ function listFiles(dir, out = []) {
   return out;
 }
 
-/** Findings in one buffer: [{ rule, position }] where position is the start of the slice that holds it. Never includes the secret. */
+/** Findings in one buffer: [{ rule, position }] where position is the start of the slice that holds it. Never includes the secret (shape masks every letter and digit). */
 export function scanBuffer(buf) {
   const seen = new Set();
   const out = [];
@@ -49,7 +49,10 @@ export function scanBuffer(buf) {
         const key = `${rule.id}:${abs}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({ rule: rule.id, position: Math.floor(abs / SLICE) * SLICE });
+        // shape: the match with every letter and digit masked (a, A, 9) and its length, so a person can tell a real
+        // key from bytecode that only looks like one without the value ever being printed.
+        const shape = `${hit.length} chars, ${hit.replace(/[a-z]/g, 'a').replace(/[A-Z]/g, 'A').replace(/[0-9]/g, '9').slice(0, 64)}`;
+        out.push({ rule: rule.id, position: Math.floor(abs / SLICE) * SLICE, shape });
       }
     }
   }
@@ -75,7 +78,7 @@ export function scanFolders(folders, cwd = process.cwd()) {
     for (const f of list) {
       files++;
       const rel = relative(cwd, f).replace(/\\/g, '/');
-      for (const h of scanBuffer(readFileSync(f))) problems.push(`${rel}: ${h.rule} (slice at byte ${h.position})`);
+      for (const h of scanBuffer(readFileSync(f))) problems.push(`${rel}: ${h.rule} (slice at byte ${h.position}; masked shape: ${h.shape})`);
     }
   }
   return { problems, files };
