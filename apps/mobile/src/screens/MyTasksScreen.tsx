@@ -13,13 +13,16 @@ import { listDrafts, removeDraft, type PostDraft } from '../lib/drafts';
 import { useTheme, ring } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { closeTaskText } from '../lib/closeTaskText';
+import { KeepTaskSheet } from '../components/KeepTaskSheet';
+import { TopUpSheet } from '../components/TopUpSheet';
+import { useMoneyMode } from '../lib/useMoneyMode';
 import { useFees } from '../lib/useFees';
 import { FEES, posterEscrowCharge } from '@taskdrop/rules';
 import { useMode } from '../providers/ModeProvider';
 import { useApp, useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { newOffers } from '../lib/seenOffers';
-import { canTopUp, nextTopUpSteps, raisedPriceMinor } from '../lib/topUp';
+import { canTopUp } from '../lib/topUp';
 import { loadSeenOffers, saveSeenOffers } from '../lib/seenOffersStore';
 import { GUEST_DRAFTS_OWNER } from '../lib/guest';
 import { listGuestSaves, loadGuestSavedTasks, setGuestSaved } from '../lib/guestSaves';
@@ -34,7 +37,6 @@ import {
   listMyBids,
   listMyTasks,
   myStats,
-  raiseTopUp,
   refundEscrow,
   type MyStats,
   type Profile,
@@ -110,10 +112,11 @@ function MyPosted() {
   const [needs, setNeeds] = useState(false);
   const [menu, setMenu] = useState<Task | null>(null);
   const [closing, setClosing] = useState(false);
+  const [keepIt, setKeepIt] = useState<Task | null>(null);
   const [confirmClose, setConfirmClose] = useState<Task | null>(null);
+  const { planB } = useMoneyMode();
   // The open post whose Top up picker is showing (D31; the server prices the change, migration 194).
   const [topUp, setTopUp] = useState<Task | null>(null);
-  const [toppingUp, setToppingUp] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   // True when the last load failed (offline, server hiccup): an empty list is then
   // "could not load", not "you have no tasks".
@@ -226,6 +229,7 @@ function MyPosted() {
       fineMinor: Math.round((task.locked_minor ?? 0) * cancelPct),
       finePct: Math.round(cancelPct * 100),
       money: formatINR,
+      refundTo: planB || (task.funded_via ?? 'wallet') !== 'wallet' ? 'source' : 'wallet',
     });
 
   // Money previews from packages/rules with the live fee rate; the server prices the real charge.
@@ -240,13 +244,13 @@ function MyPosted() {
     try {
       await cancelTask(task.id);
       setConfirmClose(null);
-      flash('Task closed');
+      flash(planB && task.funded_at ? 'Your refund has started. It goes back to the card or UPI you paid with.' : 'Task closed');
       // Show it closed now: the refund below can take several seconds, and the list sat unchanged until a pull-down (round 7, P1-15).
       setTasks((prev) => (prev ? prev.map((x) => (x.id === task.id ? { ...x, status: 'CANCELLED' } : x)) : prev));
       void load().catch(() => {});
       try {
         const out = await refundEscrow(task.id);
-        if (out.refundedMinor > 0) flash(formatINR(out.refundedMinor) + ' is on its way back to you');
+        if (!planB && out.refundedMinor > 0) flash(formatINR(out.refundedMinor) + ' is on its way back to you');
       } catch {
         flash('Closed. Your refund is being processed — it can take a few days.');
       }
@@ -256,21 +260,6 @@ function MyPosted() {
       flash(e instanceof Error ? e.message : 'Could not close that task');
     } finally {
       setClosing(false);
-    }
-  };
-
-  const raise = async (task: Task, pct: number) => {
-    setToppingUp(true);
-    try {
-      const out = await raiseTopUp(task.id, pct);
-      setTopUp(null);
-      flash(`Topped up ${pct}%: workers now see ${formatINR(out?.benchmark_minor ?? raisedPriceMinor(task.benchmark_minor, task.topup_pct, pct))}`);
-      if (out) setTasks((prev) => (prev ? prev.map((x) => (x.id === task.id ? { ...x, topup_pct: out.topup_pct, benchmark_minor: out.benchmark_minor } : x)) : prev));
-      void load().catch(() => {});
-    } catch (e) {
-      flash(e instanceof Error ? e.message : 'Could not top up that task');
-    } finally {
-      setToppingUp(false);
     }
   };
 
@@ -465,7 +454,7 @@ function MyPosted() {
               payText={payTextOf(task)}
               heldText={heldTextOf(task)}
               closedText={closedTextOf(task)}
-              onClose={() => setConfirmClose(task)}
+              onClose={() => setKeepIt(task)}
               onChat={() => go('chat', { taskId: task.id, title: task.title })}
             />
           ))}
@@ -550,13 +539,13 @@ function MyPosted() {
             {['OPEN', 'LOCKED', 'TASK_STARTED', 'OVERDUE'].includes(menu.status) ? (
               <MenuRow
                 icon="close"
-                label="Close task"
+                label="Delete task"
                 sub={closeWordsFor(menu).sub}
                 danger
                 onPress={() => {
                   const m = menu;
                   setMenu(null);
-                  setConfirmClose(m);
+                  setKeepIt(m);
                 }}
               />
             ) : null}
@@ -564,32 +553,32 @@ function MyPosted() {
         ) : null}
       </BottomSheet>
 
-      <BottomSheet visible={topUp !== null} onClose={() => (toppingUp ? undefined : setTopUp(null))} title="Top up this task">
-        {topUp ? (
-          <>
-            <RNText style={tx('500', 13, t.colors.muted, { lineHeight: 19, marginBottom: 6 })}>
-              {`Now ${formatINR(topUp.benchmark_minor)}${topUp.topup_pct ? ` with a ${topUp.topup_pct}% top-up` : ''}. A top-up raises what workers see; you pay only when you accept an offer.`}
-            </RNText>
-            {nextTopUpSteps(topUp.topup_pct).map((pct) => (
-              <MenuRow
-                key={pct}
-                icon="plus"
-                label={`Top up ${pct}%`}
-                sub={`Workers see ${formatINR(raisedPriceMinor(topUp.benchmark_minor, topUp.topup_pct, pct))}`}
-                onPress={() => (toppingUp ? undefined : void raise(topUp, pct))}
-              />
-            ))}
-          </>
-        ) : null}
-      </BottomSheet>
+      <KeepTaskSheet
+        task={keepIt}
+        hasWorker={false}
+        flash={flash}
+        onKeep={() => setKeepIt(null)}
+        onDelete={() => { const k = keepIt; setKeepIt(null); setConfirmClose(k); }}
+        onTopUp={(k) => setTopUp(k as Task)}
+        onSimilar={(k) => go('aiPost', { similar: k })}
+      />
+      <TopUpSheet
+        task={topUp}
+        onClose={() => setTopUp(null)}
+        flash={flash}
+        onRaised={(id, out) => {
+          if (out) setTasks((prev) => (prev ? prev.map((x) => (x.id === id ? { ...x, topup_pct: out.topup_pct, benchmark_minor: out.benchmark_minor } : x)) : prev));
+          void load().catch(() => {});
+        }}
+      />
 
       <ConfirmDialog
         visible={confirmClose !== null}
         danger
         icon="close"
-        title="Close this task?"
+        title="Delete this task?"
         message={confirmClose ? closeWordsFor(confirmClose).message : ''}
-        confirmLabel="Yes, close task"
+        confirmLabel="Yes, delete"
         cancelLabel="Keep it"
         busy={closing}
         onCancel={() => setConfirmClose(null)}
