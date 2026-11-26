@@ -92,7 +92,7 @@ declare
   v_failed boolean;
   v_q jsonb;
   v_n integer;
-  v_price_a bigint; v_price_b bigint;
+  v_price_a bigint; v_price_b bigint; v_score_a numeric; v_match_b numeric;
   v_spent bigint;
   v_bal bigint;
   v_allow bigint;
@@ -169,9 +169,17 @@ begin
   select spent_minor into v_price_a from public.task_promotions where id = pa.id;
   assert (select spent_minor from public.task_promotions where id = pc.id) = 0, '2: the loser pays nothing';
   assert v_price_a = 20, '2: the last winner pays the floor, got ' || v_price_a;
-  -- Second price: a's score (bid 80 x match 1.0) over b's own match (nearness only; no clicks yet).
-  assert v_price_b = ceil(80 / (1 / (1 + round(private.hunt_km(c_lat, c_lng, c_lat + 0.01, c_lng)::numeric, 1) / 3))),
-    '2: the winner pays just enough to beat the next, got ' || v_price_b;
+  -- Second price: a's score (a's bid x a's match) over b's own match, from the stored pins and today's
+  -- real budgets (no clicks yet, so the click part of the match is 1 for both).
+  select greatest(20::numeric, (t.o_allow / 100.0)) * (1 / (1 + round(private.hunt_km(c_lat, c_lng, k.loc_lat, k.loc_lng)::numeric, 1) / 3))
+    into v_score_a
+    from public.task_promotions p cross join lateral private.promo_today(p) t join public.tasks k on k.id = p.task_id
+   where p.id = pa.id;
+  select 1 / (1 + round(private.hunt_km(c_lat, c_lng, k.loc_lat, k.loc_lng)::numeric, 1) / 3)
+    into v_match_b from public.tasks k where k.id = tb;
+  assert v_price_b = greatest(20, ceil(v_score_a / v_match_b)::bigint),
+    '2: the winner pays just enough to beat the next, got ' || v_price_b || ', expected ' || greatest(20, ceil(v_score_a / v_match_b)::bigint);
+  assert v_price_b <= 300, '2: and never more than its own bid';
   assert v_price_b < 300, '2: and less than its own bid (300)';
   assert (select count(*) from public.ad_events where promotion_id = pb.id and top and viewer_id = v1) = 1,
     '2: one top show is written for the winner';
