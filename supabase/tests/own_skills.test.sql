@@ -27,6 +27,41 @@ begin
 end;
 $$;
 
+-- Since migration 228 the check and the add are service-role only (the api calls them for the signed-in caller).
+-- These call them the way the api does: as the server, for whoever the test has become, then put that back.
+create or replace function pg_temp.chk(p_kind text, p_text text) returns jsonb
+language plpgsql as $$
+declare
+  v_claims text := coalesce(current_setting('request.jwt.claims', true), '');
+  v_role text := current_setting('role');
+  r jsonb;
+begin
+  perform set_config('request.jwt.claims', '', true);
+  perform set_config('role', 'postgres', true);
+  r := public.catalog_check_for((nullif(v_claims, '')::jsonb ->> 'sub')::uuid, p_kind, p_text);
+  perform set_config('request.jwt.claims', v_claims, true);
+  perform set_config('role', v_role, true);
+  return r;
+end;
+$$;
+
+create or replace function pg_temp.add(p_kind text, p_text text, p_embedding text default null, p_force boolean default false)
+returns jsonb
+language plpgsql as $$
+declare
+  v_claims text := coalesce(current_setting('request.jwt.claims', true), '');
+  v_role text := current_setting('role');
+  r jsonb;
+begin
+  perform set_config('request.jwt.claims', '', true);
+  perform set_config('role', 'postgres', true);
+  r := public.catalog_add_for((nullif(v_claims, '')::jsonb ->> 'sub')::uuid, p_kind, p_text, p_embedding, p_force);
+  perform set_config('request.jwt.claims', v_claims, true);
+  perform set_config('role', v_role, true);
+  return r;
+end;
+$$;
+
 create or replace function pg_temp.try(p_sql text) returns text
 language plpgsql as $$
 begin
@@ -89,32 +124,32 @@ begin
   end if;
 
   -- Same name in other capitals: exact.
-  r := public.catalog_check('skill', 'tutoring');
+  r := pg_temp.chk('skill', 'tutoring');
   if r ->> 'result' <> 'exact' or r -> 'term' ->> 'label' <> 'Tutoring' then raise exception 'FAIL: exact match: %', r; end if;
 
   -- A phrase: covered, and no way round it.
-  r := public.catalog_check('skill', 'Teaching maths');
+  r := pg_temp.chk('skill', 'Teaching maths');
   if r ->> 'result' <> 'covered' or r ->> 'via' <> 'phrase' or r -> 'term' ->> 'label' <> 'Tutoring' then
     raise exception 'FAIL: teaching maths not covered by Tutoring: %', r;
   end if;
-  r := public.catalog_add('skill', 'Teaching maths', null, true);
+  r := pg_temp.add('skill', 'Teaching maths', null, true);
   if r ->> 'result' <> 'covered' then raise exception 'FAIL: force got round a phrase: %', r; end if;
 
   -- Refusals.
-  if public.catalog_check('skill', 'Call 9876543210') ->> 'reason' <> 'contact' then raise exception 'FAIL: phone not refused'; end if;
-  if public.catalog_check('skill', 'me@x.com work') ->> 'reason' <> 'contact' then raise exception 'FAIL: email not refused'; end if;
-  if public.catalog_check('skill', 'chutiya work') ->> 'reason' <> 'rude' then raise exception 'FAIL: rude word not refused'; end if;
-  if public.catalog_check('skill', 'x') ->> 'reason' <> 'length' then raise exception 'FAIL: too short not refused'; end if;
-  if public.catalog_check('skill', 'Ethical hacking') ->> 'result' = 'refused' then raise exception 'FAIL: a real skill was refused'; end if;
+  if pg_temp.chk('skill', 'Call 9876543210') ->> 'reason' <> 'contact' then raise exception 'FAIL: phone not refused'; end if;
+  if pg_temp.chk('skill', 'me@x.com work') ->> 'reason' <> 'contact' then raise exception 'FAIL: email not refused'; end if;
+  if pg_temp.chk('skill', 'chutiya work') ->> 'reason' <> 'rude' then raise exception 'FAIL: rude word not refused'; end if;
+  if pg_temp.chk('skill', 'x') ->> 'reason' <> 'length' then raise exception 'FAIL: too short not refused'; end if;
+  if pg_temp.chk('skill', 'Ethical hacking') ->> 'result' = 'refused' then raise exception 'FAIL: a real skill was refused'; end if;
 
   -- A spelling slip is caught, a longer different skill is not.
-  r := public.catalog_check('skill', 'Tutorng');
+  r := pg_temp.chk('skill', 'Tutorng');
   if r ->> 'via' <> 'spelling' then raise exception 'FAIL: spelling slip not caught: %', r; end if;
-  r := public.catalog_check('skill', 'Aquarium cleaning');
+  r := pg_temp.chk('skill', 'Aquarium cleaning');
   if r ->> 'result' <> 'new' then raise exception 'FAIL: aquarium cleaning should be new: %', r; end if;
 
   -- Worker A adds it.
-  r := public.catalog_add('skill', 'aquarium cleaning');
+  r := pg_temp.add('skill', 'aquarium cleaning');
   if r ->> 'result' <> 'added' or r -> 'term' ->> 'label' <> 'Aquarium cleaning' then raise exception 'FAIL: add: %', r; end if;
   v_new := (r -> 'term' ->> 'id')::uuid;
   perform pg_temp.as_owner();
@@ -122,7 +157,7 @@ begin
 
   -- Worker B sees it and picks it; the same name typed again is the same skill.
   perform pg_temp.become(v_b);
-  r := public.catalog_check('skill', 'Aquarium Cleanings');
+  r := pg_temp.chk('skill', 'Aquarium Cleanings');
   if r ->> 'result' <> 'exact' or (r -> 'term' ->> 'id')::uuid <> v_new then raise exception 'FAIL: B did not find it: %', r; end if;
   perform pg_temp.as_owner();
   update public.profiles set skills = array['Aquarium cleaning'] where id = v_b;
@@ -156,13 +191,17 @@ begin
   if not exists (select 1 from public.catalog_terms where kind = 'skill' and norm_key = private.catalog_norm('Saree draping') and source = 'user') then
     raise exception 'FAIL: free text from an old build was not registered';
   end if;
+  -- ...but hidden, for staff to review (migration 228): it skipped the api's checks.
+  if (select status from public.catalog_terms where kind = 'skill' and norm_key = private.catalog_norm('Saree draping')) <> 'hidden' then
+    raise exception 'FAIL: free text from an old build went live without checks';
+  end if;
 
   -- 10 adds a day.
   perform pg_temp.become(v_a);
   for i in 1..9 loop
-    r := public.catalog_add('skill', 'Zqx skill ' || chr(96 + i) || chr(96 + i) || chr(100 + i), null, true);
+    r := pg_temp.add('skill', 'Zqx skill ' || chr(96 + i) || chr(96 + i) || chr(100 + i), null, true);
   end loop;
-  v_err := pg_temp.try('select public.catalog_add(''skill'', ''Twelfth odd skill'')');
+  v_err := pg_temp.try('select pg_temp.add(''skill'', ''Twelfth odd skill'')');
   if coalesce(v_err, '') not like '%catalog_daily_limit%' then raise exception 'FAIL: daily cap not enforced: %', v_err; end if;
 
   -- Only staff can tidy up.
@@ -177,7 +216,7 @@ begin
 
   -- Merge a duplicate into Tutoring: profiles move over and the old name now points at Tutoring.
   perform pg_temp.become(v_b);
-  r := public.catalog_add('skill', 'Maths classes zz', null, true);
+  r := pg_temp.add('skill', 'Maths classes zz', null, true);
   v_dup := (r -> 'term' ->> 'id')::uuid;
   perform pg_temp.as_owner();
   v_dup := coalesce(v_dup, (select id from public.catalog_terms where norm_key = private.catalog_norm('Maths classes zz')));
@@ -190,14 +229,14 @@ begin
     raise exception 'FAIL: merge did not rewrite and de-duplicate skills: %', (select skills from public.profiles where id = v_a);
   end if;
   perform pg_temp.become(v_b);
-  r := public.catalog_check('skill', 'maths classes zz');
+  r := pg_temp.chk('skill', 'maths classes zz');
   if r ->> 'result' <> 'covered' or (r -> 'term' ->> 'id')::uuid <> v_tutor then raise exception 'FAIL: merged name does not point at Tutoring: %', r; end if;
 
   -- Hide, rename, phrase.
   perform pg_temp.become(v_staff);
   perform public.admin_catalog_add_phrase(v_new, 'fish tank cleaning');
   perform pg_temp.become(v_b);
-  if public.catalog_check('skill', 'Fish tank cleaning') ->> 'via' <> 'phrase' then raise exception 'FAIL: admin phrase not used'; end if;
+  if pg_temp.chk('skill', 'Fish tank cleaning') ->> 'via' <> 'phrase' then raise exception 'FAIL: admin phrase not used'; end if;
   perform pg_temp.become(v_staff);
   perform public.admin_catalog_rename(v_new, 'Aquarium care');
   perform pg_temp.as_owner();
@@ -210,12 +249,12 @@ begin
   if exists (select 1 from jsonb_array_elements(public.catalog_list('skill')) e where e ->> 'id' = v_new::text) then
     raise exception 'FAIL: a hidden skill is still listed';
   end if;
-  if public.catalog_check('skill', 'Aquarium care') ->> 'reason' <> 'hidden' then raise exception 'FAIL: hidden name can be picked'; end if;
+  if pg_temp.chk('skill', 'Aquarium care') ->> 'reason' <> 'hidden' then raise exception 'FAIL: hidden name can be picked'; end if;
 
   -- Categories: a new one is shared and counted by tasks.
-  r := public.catalog_check('category', 'Fan not working');
+  r := pg_temp.chk('category', 'Fan not working');
   if r -> 'term' ->> 'label' <> 'Repairs & Maintenance' then raise exception 'FAIL: category phrase: %', r; end if;
-  r := public.catalog_add('category', 'Pet care');
+  r := pg_temp.add('category', 'Pet care');
   if r ->> 'result' not in ('added', 'exact') then raise exception 'FAIL: category add: %', r; end if;
 
   perform pg_temp.as_owner();
