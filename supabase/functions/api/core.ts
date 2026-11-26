@@ -57,6 +57,11 @@ export type Ctx = {
    * `controls.public_cache_memo` is on; absent, null or off, every op runs as before.
    */
   memo?: PublicMemo | null;
+  /**
+   * Make missing search fingerprints in the background (smart search, ./search.ts), with the service role. Absent in
+   * tests; never awaited, never fails a call.
+   */
+  searchFill?: () => void;
   now?: () => Date;
 };
 

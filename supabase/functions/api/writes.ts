@@ -459,6 +459,8 @@ export const WRITE_OPS: Record<string, Op> = {
     if (place.address) {
       for (const m of madeRows) await keepAddress(ctx, (m as { id?: unknown }).id, place.address);
     }
+    // Its search fingerprint is made in the background (smart search).
+    ctx.searchFill?.();
     // The first slot stands for the whole crew; the rest share its crew_id.
     return [...madeRows].sort((x, y) => Number(x.crew_slot ?? 0) - Number(y.crew_slot ?? 0))[0] ?? null;
   },
@@ -487,6 +489,7 @@ export const WRITE_OPS: Record<string, Op> = {
     )[0];
     if (!row) throw new OpError("This service can no longer be edited", "NOT_FOUND");
     await keepAddress(ctx, (row as { id?: unknown }).id, place.address);
+    ctx.searchFill?.();
     return row;
   },
 

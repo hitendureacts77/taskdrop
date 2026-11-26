@@ -359,8 +359,8 @@ await t("chat window: the migration closes writing outside the window and schedu
 await t("the feed never offers the caller their own posts, and keeps posts whose date passed (plan 1.19 J)", async () => {
   const f = fake(() => ({ data: [], error: null }));
   await runOp("listOpenTasks", { kind: "request" }, ctx(f));
-  assert.deepEqual(steps(f.calls[0], "neq")[0], ["poster_id", UID]);
-  assert.ok(!steps(f.calls[0], "or").some((args) => String(args[0]).includes("due_at")));
+  assert.deepEqual(steps(f.calls.find((c) => c.table === "tasks")!, "neq")[0], ["poster_id", UID]);
+  assert.ok(!steps(f.calls.find((c) => c.table === "tasks")!, "or").some((args) => String(args[0]).includes("due_at")));
 });
 
 await t("an offer can carry the worker's own finish date (plan 1.19 J); a past one is refused", async () => {
@@ -394,10 +394,41 @@ await t("bad ids and out-of-range values never reach the database", async () => 
   assert.equal(f.calls.length, 0);
 });
 
-await t("search text cannot break out of the filter grammar", async () => {
-  const f = fake(() => ({ data: [], error: null }));
+await t("smart search: the words go to search_posts as values, and the rows are read back best first with why", async () => {
+  const SINK = "55555555-5555-4555-8555-555555555555";
+  const f = fake((c) => {
+    if (c.rpc === "search_posts") return { data: [{ id: SINK, score: 0.9 }, { id: TASK, score: 0.4 }], error: null };
+    if (c.table === "tasks") {
+      return {
+        data: [
+          { id: TASK, poster_id: OTHER, status: "OPEN", loc_lat: null, loc_lng: null, title: "Fix a leaking bathroom tap" },
+          { id: SINK, poster_id: OTHER, status: "OPEN", loc_lat: null, loc_lng: null, title: "Kitchen sink is leaking, need a plumber today" },
+        ],
+        error: null,
+      };
+    }
+    return { data: null, error: null };
+  });
+  const reply = (await runOp("searchTasks", { q: "fix my tap),status.eq.CANCELLED,(title" }, ctx(f))) as { ok: boolean; data: { id: string; match_why: string | null }[] };
+  assert.ok(reply.ok, JSON.stringify(reply));
+  const out = reply.data;
+  const call = f.calls.find((c) => c.rpc === "search_posts")!;
+  const args = call.args as { p_words: string[]; p_expanded: string[]; p_viewer: string; p_kind: string };
+  assert.equal(args.p_kind, "request");
+  assert.equal(args.p_viewer, UID);
+  assert.ok(args.p_words.includes("tap") && !args.p_words.includes("fix"), String(args.p_words));
+  assert.ok(args.p_expanded.includes("plumber"));
+  // Nothing typed reaches PostgREST's filter grammar on the smart path.
+  const read = f.calls.find((c) => c.table === "tasks")!;
+  assert.equal(steps(read, "or").some(([x]) => String(x).includes("ilike")), false);
+  assert.deepEqual(out.map((r) => r.id), [SINK, TASK]);
+  assert.equal(out[0].match_why, "Same need: plumber, leak");
+});
+
+await t("search text cannot break out of the filter grammar (old word match, before migration 223)", async () => {
+  const f = fake((c) => (c.rpc === "search_posts" ? { data: null, error: { code: "PGRST202", message: "missing" } } : { data: [], error: null }));
   await runOp("searchTasks", { q: "tap),status.eq.CANCELLED,(title" }, ctx(f));
-  const ors = steps(f.calls[0], "or").map(([x]) => String(x));
+  const ors = steps(f.calls.find((c) => c.table === "tasks")!, "or").map(([x]) => String(x));
   const search = ors.find((x) => x.startsWith("title.ilike.%"))!;
   assert.ok(search && !/[(),]/.test(search.replace(/^title\.ilike\.%|,description\.ilike\.%|%$/g, "").replace(/%,description\.ilike\.%/, "")), search);
 });
@@ -413,7 +444,7 @@ await t("searchTasksWithPosters answers what searchTasks then attachPosters woul
   const out = r.data as Array<{ id: string; poster: { id: string } | null }>;
   assert.deepEqual(out.map((x) => [x.id, x.poster?.id]), [[TASK, OTHER], [TASK2, OTHER]]);
   // Same filters as searchTasks (never the caller's own posts), and one profiles read for both tasks.
-  assert.deepEqual(steps(f.calls[0], "neq")[0], ["poster_id", UID]);
+  assert.deepEqual(steps(f.calls.find((c) => c.table === "tasks")!, "neq")[0], ["poster_id", UID]);
   assert.equal(f.calls.filter((c) => c.table === "profiles").length, 1);
   assert.equal(rateBucket("searchTasksWithPosters"), "read");
   // Bad arguments are refused the same way, before the database is asked.
@@ -2214,6 +2245,8 @@ const guestPosts = () => [
 
 const SHARED_RPCS = new Set([
   "trending_categories", "platform_highlights", "top_earners", "public_profile_stats", "ad_auction",
+  // Smart search (migration 223): ids and scores of open posts only; the rows still come from guest_open_posts.
+  "search_posts",
 ]);
 
 /** A fake whose guest SQL functions answer sensibly; `media` is what guest_public_media lets through. */
@@ -2246,6 +2279,7 @@ const GUEST_ARGS: Record<string, Record<string, unknown>> = {
   platformFees: {}, publicProfileStats: { userId: HELPER1 },
   adAuctionRanks: {},
   listOpenTasks: {}, searchTasks: { q: "clean", near: { ...HERE, radiusKm: 10 } }, searchTasksWithPosters: { q: "clean" },
+  searchSuggest: { q: "fix my tap", near: { ...HERE, radiusKm: 10 } }, searchFallbacks: { q: "wedding mehndi", near: { ...HERE, radiusKm: 5 } },
   attachPosters: { taskIds: [G1, G2] }, getTask: { taskId: G1 }, getTaskDetail: { taskId: G1 },
   countBidsByTask: { taskIds: [G1] }, getPosterStats: { posterId: HELPER1 }, recommendedTasks: { skills: ["clean"] },
   remoteTasks: {}, tasksNear: { ...HERE, radiusKm: 10 }, urgentTasks: {}, workerServices: { userId: HELPER1 },
@@ -2741,7 +2775,8 @@ await t("a person's own profile adds only the referral code and the weekly goal"
 });
 
 await t("the open feed and every list of other people's tasks ask for no funding or hiring column", async () => {
-  const f = fake(() => ({ data: [], error: null }));
+  // search_posts finds one post, so the smart search reads its row back too.
+  const f = fake((c) => (c.rpc === "search_posts" ? { data: [{ id: TASK, score: 1 }], error: null } : { data: [], error: null }));
   await runOp("listOpenTasks", {}, ctx(f));
   await runOp("searchTasks", { q: "tap" }, ctx(f));
   await runOp("recommendedTasks", { skills: ["tap"] }, ctx(f));

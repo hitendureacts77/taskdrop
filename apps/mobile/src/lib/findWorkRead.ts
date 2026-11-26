@@ -40,6 +40,9 @@ export type FindWorkSearch = {
   limit: number;
   kind: 'request';
   near?: { lat: number; lng: number; radiusKm: number };
+  /** Smart search: chip ids the person removed, and "keep my spelling". Left out when not set. */
+  drop?: string[];
+  exact?: boolean;
 };
 
 /**
@@ -50,8 +53,11 @@ export function findWorkSearches(
   at: { lat: number; lng: number } | null,
   km: number,
   query: string,
+  smart: { drop?: readonly string[]; exact?: boolean } = {},
 ): { near: FindWorkSearch | null; wide: FindWorkSearch } {
-  const base = { q: query || undefined, limit: FIND_WORK_LIMIT, kind: 'request' as const };
+  const base: FindWorkSearch = { q: query || undefined, limit: FIND_WORK_LIMIT, kind: 'request' as const };
+  if (query && smart.drop && smart.drop.length > 0) base.drop = [...smart.drop];
+  if (query && smart.exact) base.exact = true;
   return { near: at ? { ...base, near: { lat: at.lat, lng: at.lng, radiusKm: km } } : null, wide: base };
 }
 
@@ -74,4 +80,15 @@ export function joinFindWork<T extends Pinned>(near: readonly T[] | null, wide: 
     out.push(row);
   }
   return out;
+}
+
+/**
+ * The search box's match on rows that were NOT themselves read by that search (the map's own reads): when the
+ * smart search's result ids are known, a row matches if it is one of them (a match by meaning has no words in
+ * common with the box, so a substring test would drop it); until they are, the plain words test stands in.
+ * Rows that did come from the server search are never re-filtered by words.
+ */
+export function matchesSearch(row: { id: string; title: string; description?: string | null }, query: string, ids: ReadonlySet<string> | null | undefined): boolean {
+  if (!query.trim()) return true;
+  return ids ? ids.has(row.id) : matchesQuery(row, query);
 }

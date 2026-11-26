@@ -32,6 +32,7 @@ export function FindWorkSearch({
   placeholder,
   voice,
   inputRef,
+  onFocusChange,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -39,6 +40,7 @@ export function FindWorkSearch({
   placeholder: string;
   voice?: { supported: boolean; listening: boolean; toggle: () => void };
   inputRef?: React.RefObject<TextInputInstance | null>;
+  onFocusChange?: (focused: boolean) => void;
 }) {
   const t = useTheme();
   return (
@@ -62,6 +64,8 @@ export function FindWorkSearch({
         value={value}
         onChangeText={onChange}
         onSubmitEditing={onSubmit}
+        onFocus={onFocusChange ? () => onFocusChange(true) : undefined}
+        onBlur={onFocusChange ? () => onFocusChange(false) : undefined}
         returnKeyType="search"
         placeholder={placeholder}
         placeholderTextColor={t.colors.muted}

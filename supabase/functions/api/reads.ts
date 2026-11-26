@@ -8,6 +8,7 @@ import {
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
 import { chatStateFrom, readChatStates } from "./chat.ts";
+import { type Understanding, nearConcepts, rankedSearch, suggestConcepts, understand, whyLine } from "./search.ts";
 import {
   ASSIGNMENT_SELECT, BID_SELECT, CREW_MESSAGE_SELECT, MESSAGE_SELECT, PROFILE_OWNER_SELECT, PROFILE_PUBLIC_SELECT, PROOF_SELECT,
   NOTIFICATION_SELECT, PAYMENT_SELECT, PAYOUT_DESTINATION_SELECT, PAYOUT_SELECT, PROMOTION_SELECT, REVIEW_SELECT,
@@ -193,6 +194,98 @@ const rupeesText = (minor: number) => (minor % 100 === 0 ? String(minor / 100) :
 const workerShareOfEscrow = (escrowMinor: number, fees: LiveFees) =>
   Math.round(Math.round(escrowMinor / (1 + fees.posterFee)) * (1 - fees.commission));
 
+/** `drop`: the chip ids the searcher took off (smart search). */
+const dropArg = (a: Args): string[] =>
+  Array.isArray(a.drop) ? a.drop.filter((x): x is string => typeof x === "string" && /^[a-z]{2,20}$/.test(x)).slice(0, 10) : [];
+
+/**
+ * Ranked rows, best first. With a point: only those within the exact radius, and a small nudge for being closer
+ * (up to half the weight of the freshness part), so two equally good matches show the nearer one first.
+ */
+export function orderRanked<T extends { id: string; loc_lat: unknown; loc_lng: unknown; title?: unknown; description?: unknown; category?: unknown }>(
+  found: T[],
+  ranked: { ids: { id: string; score: number }[]; u: Understanding },
+  near: Near | null,
+): (T & { match_why: string | null })[] {
+  const score = new Map(ranked.ids.map((r) => [r.id, r.score]));
+  return found
+    .map((t) => {
+      let s = score.get(t.id) ?? 0;
+      if (near) {
+        const km = distanceKm(near, { lat: t.loc_lat as number | null, lng: t.loc_lng as number | null });
+        if (km === null || km > near.radius) return null;
+        s += 0.05 * (1 - km / Math.max(near.radius, 0.1));
+      }
+      return { t: { ...t, match_why: whyLine(t, ranked.u) }, s };
+    })
+    .filter((x): x is { t: T & { match_why: string | null }; s: number } => x !== null)
+    .sort((x, y) => y.s - x.s)
+    .map((x) => x.t);
+}
+
+/** The rows for ranked ids, read the way the caller may see them (members: row level security; guests: guest_open_posts). */
+export type RowsFor = (ctx: Ctx, kind: "request" | "service", ids: string[]) => Promise<Task[]>;
+const memberRows: RowsFor = async (ctx, kind, ids) => rows<Task>(await openTasksQuery(ctx, kind).in("id", ids));
+
+/**
+ * The two smart search hint reads, for members and guests alike: `rowsFor` decides what the caller may see, `viewer`
+ * leaves the caller's own posts out. Every count uses the same ranked search as the list.
+ */
+export function searchHintOps(rowsFor: RowsFor, viewer: (ctx: Ctx) => string | null): Record<"searchSuggest" | "searchFallbacks", Op> {
+  /** How many open posts a search finds (within the radius when `near` is given). */
+  const countFor = async (ctx: Ctx, kind: "request" | "service", text: string, near: Near | null): Promise<number> => {
+    const ranked = await rankedSearch(ctx.db as never, { kind, text, viewer: viewer(ctx), box: near ? nearBox(near, near.radius) : null, limit: 200 });
+    if (!ranked || ranked.ids.length === 0) return 0;
+    const list = await rowsFor(ctx, kind, ranked.ids.map((r) => r.id));
+    return near ? orderRanked(list, ranked, near).length : list.length;
+  };
+  /** How many remote posts (no pin) a search finds anywhere. */
+  const remoteCount = async (ctx: Ctx, kind: "request" | "service", text: string): Promise<number> => {
+    const ranked = await rankedSearch(ctx.db as never, { kind, text, viewer: viewer(ctx), limit: 200 });
+    if (!ranked || ranked.ids.length === 0) return 0;
+    return (await rowsFor(ctx, kind, ranked.ids.map((r) => r.id))).filter((t) => t.loc_lat == null).length;
+  };
+  return {
+    /**
+     * "Looks like you mean" while typing, and the chips once searched: the kinds of work a search points to, each
+     * with how many open posts match it (within the area when `near` is given), plus the spelling fix if one was made.
+     * `counts: false` skips the counts, for every keystroke.
+     */
+    searchSuggest: async (ctx, a) => {
+      const near = nearArgOf(a);
+      const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
+      const kind = kindArg(a);
+      const u = understand(text, { drop: dropArg(a), exact: a.exact === true });
+      const found = suggestConcepts(text);
+      const suggestions = a.counts === false
+        ? found.map((c) => ({ id: c.id, label: c.label, count: null }))
+        : await Promise.all(found.map(async (c) => ({ id: c.id, label: c.label, count: await countFor(ctx, kind, c.says[0], near) })));
+      return { corrected: u.corrected, chips: u.chips, suggestions };
+    },
+    /** Next steps when a search finds nothing: how many within 25 km, how many remote, close kinds of work. */
+    searchFallbacks: async (ctx, a) => {
+      const near = nearArgOf(a);
+      const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
+      if (!text) return { wider: null, remote: 0, related: null };
+      const kind = kindArg(a);
+      const u = understand(text, { drop: dropArg(a) });
+      const wideKm = 25;
+      const close = nearConcepts(u.chips);
+      const [wider, remote, relatedCounts] = await Promise.all([
+        near && near.radius < wideKm
+          ? countFor(ctx, kind, text, { ...near, radius: wideKm }).then((count) => ({ km: wideKm, count }))
+          : Promise.resolve(null),
+        remoteCount(ctx, kind, text),
+        Promise.all(close.map((c) => countFor(ctx, kind, c.says[0], near))),
+      ]);
+      const related = close.length
+        ? { labels: close.map((c) => c.label), q: close.map((c) => c.says[0]).join(" "), count: relatedCounts.reduce((x, y) => x + y, 0) }
+        : null;
+      return { wider, remote, related };
+    },
+  };
+}
+
 export const READ_OPS: Record<string, Op> = {
   // ------------------------------------------------------------- tasks ----
   listOpenTasks: async (ctx, a) =>
@@ -247,22 +340,44 @@ export const READ_OPS: Record<string, Op> = {
       .map((r) => r.task_id);
   },
 
-  /** Open tasks matching the search screen's filters. Every filter is optional. */
+  /**
+   * Open tasks matching the search screen's filters. Every filter is optional. With words (`q`), the posts are the
+   * ones that match what was meant, best first (smart search, migration 223, ./search.ts); each carries `match_why`,
+   * the short line saying why it came up. `drop` takes chips off, `exact: true` keeps the spelling as typed.
+   */
   searchTasks: async (ctx, a) => {
     // Checked before anything is asked of the database.
     const near = nearArgOf(a);
+    const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
+    const n = limit(a);
+    const pillar = a.pillar != null ? str(a, "pillar", 40) : null;
+    const minMinor = typeof a.minMinor === "number" ? int(a, "minMinor", 0, MONEY_MAX) : null;
+    const maxMinor = typeof a.maxMinor === "number" ? int(a, "maxMinor", 0, MONEY_MAX) : null;
+
+    if (text) {
+      const ranked = await rankedSearch(ctx.db as never, {
+        kind: kindArg(a), text, drop: dropArg(a), exact: a.exact === true, viewer: ctx.userId, pillar, minMinor, maxMinor,
+        box: near ? nearBox(near, near.radius) : null, limit: near ? nearFetch(n) : Math.max(n, 60),
+      });
+      if (ranked) {
+        ctx.searchFill?.();
+        if (ranked.ids.length === 0) return [];
+        // Read through row level security, so hidden and blocked posts stay out exactly as before.
+        const found = rows<Task>(await openTasksQuery(ctx, kindArg(a)).in("id", ranked.ids.map((r) => r.id)));
+        return orderRanked(found, ranked, near).slice(0, n);
+      }
+      // search_posts is not in the database yet: the old word match below.
+    }
 
     let q = openTasksQuery(ctx, kindArg(a));
-    const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
     if (text) {
       // Commas and parens would break out of PostgREST's or() filter grammar.
       const safe = text.replace(/[,()*%\\]/g, " ").trim();
       if (safe) q = q.or(`title.ilike.%${safe}%,description.ilike.%${safe}%`);
     }
-    if (a.pillar != null) q = q.eq("pillar", str(a, "pillar", 40));
-    if (typeof a.minMinor === "number") q = q.gte("benchmark_minor", int(a, "minMinor", 0, MONEY_MAX));
-    if (typeof a.maxMinor === "number") q = q.lte("benchmark_minor", int(a, "maxMinor", 0, MONEY_MAX));
-    const n = limit(a);
+    if (pillar != null) q = q.eq("pillar", pillar);
+    if (minMinor != null) q = q.gte("benchmark_minor", minMinor);
+    if (maxMinor != null) q = q.lte("benchmark_minor", maxMinor);
     if (!near) return rows<Task>(await q.order("created_at", { ascending: false }).limit(n));
 
     // With a point, SQL first narrows to a box around it and reads more than a page (B34: capping first and
@@ -275,6 +390,8 @@ export const READ_OPS: Record<string, Op> = {
       return km !== null && km <= near.radius;
     }).slice(0, n);
   },
+
+  ...searchHintOps(memberRows, (ctx) => ctx.userId),
 
   /** Attach each task's poster profile, for feed rows that show identity. */
   attachPosters: async (ctx, a) => {

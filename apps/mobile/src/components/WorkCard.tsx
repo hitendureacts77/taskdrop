@@ -15,6 +15,7 @@ import { huntLook } from '../data/api';
 import { huntPhase, isHunt } from '../lib/hunt';
 import { useLayout } from '../lib/layout';
 import { PromotedPill, promotedBorder } from './PromotedPill';
+import { WhyLine } from './SmartSearch';
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
@@ -168,6 +169,7 @@ export const WorkCard = memo(function WorkCard({
           <RNText style={tx('500', 12, t.colors.muted)} numberOfLines={1}>
             {meta}
           </RNText>
+          <WhyLine role="earn" why={task.match_why} />
         </View>
         <View style={{ alignItems: 'flex-end', gap: 6 }}>
           <RNText style={tx('800', 20, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>
@@ -241,6 +243,7 @@ export const WorkCard = memo(function WorkCard({
         <RNText style={tx('600', 12, t.colors.muted)} numberOfLines={1}>
           {meta}
         </RNText>
+        <WhyLine role="earn" why={task.match_why} />
         <View style={{ flex: 1 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <RNText style={tx('800', 20, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>

@@ -24,6 +24,8 @@ import { useAuth } from '../providers/AuthProvider';
 import {
   attachPosters,
   searchTasksWithPosters,
+  searchFallbacks,
+  type SearchFallbacks,
   listMyTasks,
   recordAdClick,
   recordPromoView,
@@ -40,9 +42,12 @@ import { NearYou } from '../components/NearYou';
 import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, QuickChip, WorkSwitch } from '../components/MapFilterParts';
-import { FIND_WORK_LIMIT, REMOTE_LIMIT, capped, findWorkSearches, joinFindWork, matchesQuery } from '../lib/findWorkRead';
+import { FIND_WORK_LIMIT, REMOTE_LIMIT, capped, findWorkSearches, joinFindWork } from '../lib/findWorkRead';
 import { changedFilters, clearJobFilters, filterList, jobsSummary, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
+import { LooksLikeYouMean, SearchEmpty, SearchLoading, SearchUnderstood, TypoNote } from '../components/SmartSearch';
+import { useRecentSearches, useSearchUnderstood, useTypingSuggestions } from '../lib/useSmartSearch';
+import { WIDER_KM } from '../lib/smartSearch';
 import { LocationSheet } from '../components/LocationSheet';
 import { LocationPrompt } from '../components/LocationPrompt';
 import { useMyArea } from '../lib/useMyArea';
@@ -106,7 +111,7 @@ export function ExploreScreen() {
   const [pickFor, setPickFor] = useState<'mine' | 'look' | null>(null);
   const [lookAt, setLookAt] = useState<{ lat: number; lng: number; label: string } | null>(null);
   // What the list is filtered by, so the map opens with the same jobs.
-  const [listFilter, setListFilter] = useState<{ query: string }>({ query: '' });
+  const [listFilter, setListFilter] = useState<{ query: string; ids?: ReadonlySet<string> | null }>({ query: '' });
 
   // The tab stays mounted while another tab or a job is in front (R4), so the view is steered by where
   // the person came from. The focus tick is no help: it does not move when the tab was seen under 30 s ago.
@@ -604,6 +609,7 @@ export function SearchBox({
   tone = 'accent',
   right,
   inputRef,
+  onFocusChange,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -614,6 +620,8 @@ export function SearchBox({
   tone?: 'accent' | 'purple';
   right?: React.ReactNode;
   inputRef?: React.RefObject<TextInputInstance | null>;
+  /** True while the box has the cursor (smart search shows "looks like you mean" then). */
+  onFocusChange?: (focused: boolean) => void;
 }) {
   const t = useTheme();
   const color = tone === 'purple' ? t.colors.purpleDeep : t.colors.accent;
@@ -637,6 +645,8 @@ export function SearchBox({
           value={value}
           onChangeText={onChange}
           onSubmitEditing={onSubmit}
+          onFocus={onFocusChange ? () => onFocusChange(true) : undefined}
+          onBlur={onFocusChange ? () => onFocusChange(false) : undefined}
           returnKeyType="search"
           placeholder={placeholder}
           placeholderTextColor={t.colors.muted}
@@ -674,7 +684,7 @@ function FindWork({
   place,
 }: {
   onMap: () => void;
-  onFilter: (f: { query: string }) => void;
+  onFilter: (f: { query: string; ids?: ReadonlySet<string> | null }) => void;
   /** The place the map is around (your area, or one you picked); null = none yet. */
   at: { lat: number; lng: number } | null;
   place: { label: string; mine: boolean; onChange: () => void; onUseMine: () => void };
@@ -686,7 +696,25 @@ function FindWork({
   const { desktop } = useLayout();
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState(typeof params.q === 'string' ? params.q : '');
-  const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
+  const [query, setQueryRaw] = useState(typeof params.q === 'string' ? params.q : '');
+  // Smart search: what was dropped from "Searching for", and "keep my spelling". New words start both over.
+  const [drop, setDrop] = useState<string[]>([]);
+  const [exact, setExact] = useState(false);
+  const setQuery = (v: string) => {
+    setQueryRaw(v);
+    setDrop([]);
+    setExact(false);
+  };
+  const [focused, setFocused] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A tap on a suggestion blurs the box first: hide the list a moment later so the tap still lands.
+  const onFocusChange = (f: boolean) => {
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    if (f) setFocused(true);
+    else blurTimer.current = setTimeout(() => setFocused(false), 200);
+  };
+  const [fallbacks, setFallbacks] = useState<SearchFallbacks | null>(null);
+  const { recent, remember } = useRecentSearches('earn');
   const filters = useJobFilters();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
@@ -696,9 +724,18 @@ function FindWork({
   // "could not load", not "no tasks match".
   const [failed, setFailed] = useState(false);
   const focusTick = useFocusTick();
-  // Tell the screen what is searched, so the map view shows the same jobs.
-  useEffect(() => onFilter({ query }), [query]); // eslint-disable-line react-hooks/exhaustive-deps
   const searchRef = useRef<TextInputInstance>(null);
+  const runSearch = (word: string) => {
+    const w = word.trim();
+    setQ(word);
+    setQuery(w);
+    setFocused(false);
+    searchRef.current?.blur();
+    if (w) {
+      noteFirstAction();
+      remember(w);
+    }
+  };
   const applyFilters = (f: MapFilters) => {
     setJobFilters(f);
     setFiltersOpen(false);
@@ -750,16 +787,18 @@ function FindWork({
     // "Nearest" / "Best pay" only sorted that slice), and remote jobs, which a radius search leaves out, come
     // from a second read.
     // B170: the remote ones come from the map's own read (remoteTasks), so both say the same number.
-    const { near, wide } = findWorkSearches(atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters.km, query);
+    // Smart search: with words typed, the remote jobs come from the same meaning search (no pin filter), so they
+    // are found by meaning too; the rows are never filtered by exact words here (they would lose their matches).
+    const { near, wide } = findWorkSearches(atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters.km, query, { drop, exact });
     const [nearRows, wideRows] = await Promise.all([
       near ? searchTasksWithPosters(near) : null,
-      near ? remoteTasks(REMOTE_LIMIT).then(attachPosters) : searchTasksWithPosters(wide),
+      near && !query ? remoteTasks(REMOTE_LIMIT).then(attachPosters) : searchTasksWithPosters(wide),
     ]);
     // A read that came back full means "at least" that many; the count then says "200+".
     const wideFull = capped(wideRows.length, near ? REMOTE_LIMIT : FIND_WORK_LIMIT);
     setCaps({ near: nearRows ? capped(nearRows.length, FIND_WORK_LIMIT) : wideFull, home: wideFull });
-    return joinFindWork(nearRows, near ? wideRows.filter((r) => matchesQuery(r, query)) : wideRows);
-  }, [query, focusTick, atLat, atLng, filters.km]);
+    return joinFindWork(nearRows, wideRows);
+  }, [query, drop, exact, focusTick, atLat, atLng, filters.km]);
 
   useEffect(() => {
     let alive = true;
@@ -794,6 +833,26 @@ function FindWork({
     }
   };
 
+  // Tell the screen what is searched (and which jobs the search found), so the map view shows the same jobs.
+  useEffect(() => {
+    onFilter({ query, ids: query && rows ? new Set(rows.map((r) => r.id)) : null });
+  }, [query, rows]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nearArg = atLat != null && atLng != null ? { lat: atLat, lng: atLng, radiusKm: filters.km } : null;
+  const understood = useSearchUnderstood({ q: query, role: 'earn', near: nearArg, drop, exact });
+  const typing = useTypingSuggestions(q, focused && q.trim().length >= 2, 'earn', nearArg);
+  // Nothing found: ask what to try instead (wider area, remote jobs, close matches).
+  const nothing = query !== '' && rows !== null && rows.length === 0 && !failed;
+  useEffect(() => {
+    setFallbacks(null);
+    if (!nothing) return;
+    let alive = true;
+    searchFallbacks({ q: query, kind: 'request', near: nearArg, drop })
+      .then((r) => alive && setFallbacks(r))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [nothing, query, drop, filters.km, atLat, atLng]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = useMemo(
     () => (rows ? filterList(rows, atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters) : null),
     [rows, atLat, atLng, filters],
@@ -878,10 +937,8 @@ function FindWork({
     <SearchBox
       value={q}
       onChange={setQ}
-      onSubmit={() => {
-        setQuery(q.trim());
-        if (q.trim()) noteFirstAction();
-      }}
+      onSubmit={() => runSearch(q)}
+      onFocusChange={onFocusChange}
       inputRef={searchRef}
       placeholder="E.g. data entry, logo design, home tutoring…"
       voice={voice}
@@ -907,10 +964,37 @@ function FindWork({
         Set your area on the map to see jobs within {filters.km} km.
       </RNText>
     ) : null;
-  const loadingCards = [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />);
+  const plainLoading = [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />);
+  const loadingCards = query ? <SearchLoading role="earn" /> : plainLoading;
+  // Under the search box: the spelling note and "Searching for" pills once a search ran; "looks like you mean" while typing.
+  // Only while still typing something new, and only with something to show: once the words are searched (the box
+  // keeps focus after Enter) the spelling note and pills take this place.
+  const stillTyping = focused && q.trim().length >= 2 && q.trim() !== query.trim();
+  const looksLike =
+    stillTyping && (typing.length > 0 || recent.length > 0) ? (
+      <LooksLikeYouMean role="earn" suggestions={typing} hasArea={at != null} recent={recent} onPick={runSearch} />
+    ) : null;
+  const understoodRows =
+    query && !looksLike ? (
+      <View>
+        <TypoNote role="earn" typed={query} corrected={understood.corrected} onExact={() => setExact(true)} />
+        <SearchUnderstood role="earn" chips={understood.chips} onDrop={(id) => setDrop((d) => [...d, id])} />
+      </View>
+    ) : null;
   const noResults =
     shown === null || shown.length > 0 ? null : failed ? (
       <LoadFailed onRetry={() => void refresh()} />
+    ) : nothing ? (
+      <SearchEmpty
+        role="earn"
+        query={query}
+        chipLabel={understood.chips[0]?.label}
+        km={at && filters.work !== 'remote' ? filters.km : null}
+        fallbacks={fallbacks}
+        onWider={(km) => setJobFilters({ ...filters, km: km || WIDER_KM })}
+        onRemote={filters.work === 'local' ? () => setJobFilters({ ...filters, work: 'all' }) : undefined}
+        onRelated={runSearch}
+      />
     ) : (
       <View style={{ gap: 12 }}>
         <EmptyState
@@ -949,10 +1033,7 @@ function FindWork({
     </>
   );
 
-  const submitSearch = () => {
-    setQuery(q.trim());
-    if (q.trim()) noteFirstAction();
-  };
+  const submitSearch = () => runSearch(q);
 
   // Desktop (D31 board WebFindWork): the title, search and List / Map switch live in the page header, the filters
   // are a column on the left, the jobs are rows of one list card. Same data, filters and actions as the phone list.
@@ -962,7 +1043,7 @@ function FindWork({
         <DesktopPageScope active>
           <FindWorkHeader
             search={
-              <FindWorkSearch value={q} onChange={setQ} onSubmit={submitSearch} inputRef={searchRef} placeholder="E.g. data entry, logo design, home tutoring…" voice={voice} />
+              <FindWorkSearch value={q} onChange={setQ} onSubmit={submitSearch} onFocusChange={onFocusChange} inputRef={searchRef} placeholder="E.g. data entry, logo design, home tutoring…" voice={voice} />
             }
             onMap={onMap}
           />
@@ -982,6 +1063,7 @@ function FindWork({
             <View style={{ marginBottom: 20 }}>
               <JobsNearHero onOpenMap={onMap} />
             </View>
+            {tab === 0 && (looksLike || understoodRows) ? <View style={{ marginBottom: 16 }}>{looksLike ?? understoodRows}</View> : null}
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
               <View style={{ flex: 1, minWidth: 280 }}>
                 <UnderTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
@@ -1054,6 +1136,7 @@ function FindWork({
           <JobsNearHero onOpenMap={onMap} />
         </View>
         {searchBox}
+        {looksLike || understoodRows ? <View style={{ paddingHorizontal: 20 }}>{looksLike ?? understoodRows}</View> : null}
         <View style={{ marginTop: 16 }}>
           <UnderlineTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
         </View>
