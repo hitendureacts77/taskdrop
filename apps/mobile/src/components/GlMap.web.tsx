@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import type * as Gl from 'maplibre-gl';
 import { useLayout } from '../lib/layout';
 import { pageZoom } from '../lib/desktopScale';
+import { glStyleUrl } from '../lib/mapStyle';
+import { BASE_VECTOR_SOURCE, SRC, buildingLayer, shapeLayers, type LayerColours, type LayerSpec, type Shapes } from '../lib/mapLayers';
 
 /**
  * The web map engine (plan D21): MapLibre GL drawing OpenFreeMap's free vector
@@ -17,10 +19,8 @@ import { pageZoom } from '../lib/desktopScale';
 
 export type MapLib = typeof Gl;
 
-/** OpenFreeMap styles: Positron is light and quiet, Dark is its night version. */
-export function glStyleUrl(isDark: boolean): string {
-  return isDark ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron';
-}
+/** OpenFreeMap styles, shared with the phone map (lib/mapStyle.ts). */
+export { glStyleUrl };
 
 /** India with a margin. [west, south], [east, north]. The map no longer stops here (owner video, 9 Nov). */
 export const INDIA_BOUNDS: [[number, number], [number, number]] = [
@@ -137,4 +137,63 @@ export function useSharpMap(map: Gl.Map | null): void {
     overridden.current = true;
     // width and height: the browser's own zoom changes devicePixelRatio and the window size together.
   }, [map, scale, width, height]);
+}
+
+/**
+ * Lets Ctrl + drag lean the map back (pitch) with the mouse, while rotation stays off: MapLibre's own
+ * right/Ctrl-drag also turns the map, which this app never does (plan 1.20 step C). Touch pitch (two
+ * fingers) is MapLibre's, switched on in the map's options.
+ */
+export function ctrlDragPitch(map: Gl.Map): () => void {
+  const el = map.getCanvasContainer();
+  let from: { y: number; pitch: number } | null = null;
+  const move = (e: MouseEvent) => {
+    if (!from) return;
+    map.setPitch(Math.max(0, Math.min(MAX_PITCH, from.pitch + (from.y - e.clientY) * 0.4)));
+  };
+  const up = () => {
+    from = null;
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+  };
+  const down = (e: MouseEvent) => {
+    if (e.button !== 0 || !e.ctrlKey) return;
+    from = { y: e.clientY, pitch: map.getPitch() };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+  el.addEventListener('mousedown', down);
+  return () => {
+    el.removeEventListener('mousedown', down);
+    up();
+  };
+}
+
+export const MAX_PITCH = 60;
+
+/**
+ * Puts the non-pin layers (lib/mapLayers.ts) and the 3D buildings into the map's style, under the base style's
+ * first label layer so names stay readable. Safe to call again after a style swap (it replaces what it made).
+ */
+export function installLayers(map: Gl.Map, colours: LayerColours): void {
+  const style = map.getStyle();
+  if (!style) return;
+  const before = style.layers.find((l) => l.type === 'symbol')?.id;
+  const add = (spec: LayerSpec) => {
+    if (map.getLayer(spec.id)) map.removeLayer(spec.id);
+    map.addLayer(spec as unknown as Gl.LayerSpecification, before);
+  };
+  for (const id of Object.values(SRC)) if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  if (map.getSource(BASE_VECTOR_SOURCE)) add(buildingLayer(colours.isDark));
+  for (const spec of shapeLayers(colours)) add(spec);
+}
+
+/** Feeds the shape sources (call when the map stops moving). */
+export function setShapes(map: Gl.Map, shapes: Shapes): void {
+  const put = (id: string, data: unknown) => (map.getSource(id) as Gl.GeoJSONSource | undefined)?.setData(data as GeoJSON.FeatureCollection);
+  put(SRC.ring, shapes.ring);
+  put(SRC.areas, shapes.areas);
+  put(SRC.glow, shapes.glow);
+  put(SRC.approx, shapes.approx);
+  put(SRC.approxLabel, shapes.approxLabel);
 }

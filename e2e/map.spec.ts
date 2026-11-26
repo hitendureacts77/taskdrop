@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { ASHA, FEED_TAB, expectSignedIn, openFeedTab } from "./helpers";
+import { ASHA, FEED_TAB, continueAsGuest, expectSignedIn, openFeedTab } from "./helpers";
 
 // The Explore tab opens on the full-screen map (plan D20, docs/design/map-tab/PLAN.md). This file runs in the
 // desktop project only (see playwright.config.ts: the phone project runs ui.spec.ts alone).
@@ -129,7 +129,7 @@ test.describe("as a guest", () => {
 
   test("a guest sees the map but no People chip", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+    await continueAsGuest(page);
     await openFeedTab(page);
     await notNow(page);
     await expect(showList(page)).toBeVisible();
@@ -144,7 +144,7 @@ test.describe("as a guest", () => {
     test("a guest can change the reach and still sees the layer chips", async ({ page }) => {
       await page.setViewportSize({ width: 1400, height: 900 });
       await page.goto("/");
-      await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+      await continueAsGuest(page);
       await openFeedTab(page);
       await expect(showList(page)).toBeVisible();
       await pickDistance(page, 50);
@@ -167,7 +167,7 @@ test.describe("D21: the map zooms like Google Maps (guest)", () => {
   const openMap = async (page: Page) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+    await continueAsGuest(page);
     await openFeedTab(page);
     await notNow(page);
     await expect(glMap(page)).toHaveAttribute("data-zoom", /\d/);
@@ -233,7 +233,7 @@ test.describe("D21: the map zooms like Google Maps (guest)", () => {
   test("the List view never shows an empty box at the top", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Skip sign-up for now" }).click();
+    await continueAsGuest(page);
     await openFeedTab(page);
     await notNow(page);
     await showList(page).click();

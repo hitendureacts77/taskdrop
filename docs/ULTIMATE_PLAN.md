@@ -2150,7 +2150,7 @@ done 1.18
 </details>
 
 <details id="t1-20" data-short="Snap-style fast map">
-<summary>[CLAUDE] <b>1.20</b> Snap-style fast map (design D33) <small>· added 26 Nov, from your message · an upgrade to an existing feature, not a new one · waiting for your OK on design D33 (version 2: every current map feature kept)</small></summary>
+<summary>[CLAUDE] <b>1.20</b> Snap-style fast map (design D33) <small>· added 26 Nov, from your message · an upgrade to an existing feature, not a new one · built 26 Nov (PR 551), checked on web and your phone · waiting for your OK to put the new Android app on the site (it cannot go out as an over-the-air update)</small></summary>
 
 **In plain words:** Maps are the hero feature. The phone map moves to the same engine as the web map (MapLibre, free), and every pin is drawn in one GPU layer, so it scrolls like Snap Map even with thousands of people and tasks on it.
 
@@ -2158,27 +2158,27 @@ done 1.18
 
 **Steps:**
 
-- [ ] [opus] Design D33 shown 26 Nov: waiting for your OK ("build D33") and answers Q1-Q2 (map engine, 3D buildings at street zoom). Helper photos and the online-dot question are dropped: helpers stay service icons until tapped (D13) and the active dot already exists.
-- [ ] [sonnet] Swap the phone map: add `@maplibre/maplibre-react-native` v11 with its Expo plugin; remove `react-native-maps` from `JobsMap.native.tsx` and `MapPicker.native.tsx`. This also means the Android app no longer needs a Google Maps key.
-- [ ] [opus] One shared map-layer module for web and phone: same OpenFreeMap style, one GeoJSON source per layer (tasks, helpers, My people), built-in clustering, faces drawn as images.
-- [ ] [sonnet] Pin images: round helper faces with a jade ring (Hire), blue price chips (Earn), initials when there is no photo.
-- [ ] [sonnet] Motion: fly to on tap, cluster burst on zoom, pulsing online dot, reduced-motion fallback.
-- [ ] [sonnet] Speed test: 2,000 fake pins on the staging fake city; smooth scroll on your phone (CPH2585); web e2e on port 8123.
-- [ ] [sonnet] New local Android build and a new site APK. This cannot go out as an over-the-air update.
-- [ ] [sonnet] Feature check: walk all 37 kept features on web and on the phone (CPH2585); none may be missing.
-- [ ] [opus] Final check before merge.
+- [x] [opus] Design D33 shown 26 Nov: you said "Build D33" (MapLibre, 3D buildings at street zoom). Answers Q1-Q2 (map engine, 3D buildings at street zoom). Helper photos and the online-dot question are dropped: helpers stay service icons until tapped (D13) and the active dot already exists.
+- [x] [sonnet] Swap the phone map: add `@maplibre/maplibre-react-native` v11 with its Expo plugin; remove `react-native-maps` from `JobsMap.native.tsx` and `MapPicker.native.tsx`. This also means the Android app no longer needs a Google Maps key. **Done 26 Nov:** the key is gone from the app config, `.env.example`, the build scripts and the docs.
+- [x] [opus] One shared map-layer module for web and phone (`lib/mapLayers.ts`): same OpenFreeMap style; reach ring, spread areas, heat glow, "Approximate area" circle and 3D buildings drawn by the map engine. **Changed in the build:** the pins keep the app's own grouping rules (so every zoom feature stays) and are drawn as real native views, not clustered images.
+- [x] [sonnet] Pin images (kept the existing pins, now native views): round helper faces with a jade ring (Hire), blue price chips (Earn), initials when there is no photo.
+- [x] [sonnet] Motion: fly to on tap, cluster burst on zoom, pulsing online dot, reduced-motion fallback.
+- [x] [sonnet] Speed test: 2,000 fake pins on the staging fake city; smooth scroll on your phone (CPH2585); web e2e on port 8123. **26 Nov:** web 59.9 fps median with 2,000 pins, worst 1% of frames 67-83 ms (was 133 ms); phone pans 3.4% slow frames, median 9 ms a frame.
+- [ ] [sonnet] New local Android build and a new site APK. This cannot go out as an over-the-air update. **26 Nov:** built locally and installed on your phone; waiting for your OK to put it on the site for testers.
+- [x] [sonnet] Feature check: walk all 37 kept features on web and on the phone (CPH2585); none may be missing. **26 Nov:** web walk done (labels, Hire jade and photo fixes made from it); phone checked: map engine, helper icons only, stacks and "+N", group tap flies in and spreads, helper sheet with approximate circle, Earn price pins with faces and glow, 3D tilt, pins clipped to the map box (fixed on the phone).
+- [x] [opus] Final check before merge: diff review, security review (no findings), checks green.
 
 **Keep every map feature (owner, 26 Nov):** 37 current features stay; none may be lost in the swap.
 
-- [ ] Privacy: task and helper spots stay rounded (~1.1 km), My people ~550 m with 15 min expiry, helpers anonymous (service icon only) until tapped; no exact coordinates in map data. Helper photos dropped (D13 privacy rule).
-- [ ] Zoom: zoomed out shows the best offer per area with a count; zoom 14+ spreads every task on rings; tap a group flies in; grouping 80 px tasks / 96 px people.
-- [ ] Layers + colours: Earn = tasks only, royal blue; Hire = helpers only, jade; My people layer (60 s refresh) and the Share my spot card stay.
-- [ ] Pins: helper pin = service icon, white rim, green active dot, stacks of 3 + "+N"; task pin = face + name + price; best offer takes the mode colour; City Hunt label stays; labels never overlap.
-- [ ] Taps + panels: helper sheet, job card (bottom card on phone, callout on desktop), person sheet; pull-up bar; desktop side panel with minimise and zoom tip.
-- [ ] Location + reach: You marker, location sheet (search, live spot, settings; guests keep area on device), reach 5/10/25 km + custom 1-100 km with dashed ring, people capped 50 km.
-- [ ] Filters + data: shared with the list (price, Nearby/Remote/All, how they hire, due soon, sort); Explore search filters pins; remote jobs have no pin; 200 newest tasks, refresh 600 ms after the map stops, 5 min cache.
-- [ ] Motion: heat glow, "just posted" ripple, staggered fade-in, reduced motion respected.
-- [ ] Other: topped-up badge, guest mode (helpers only, no map_people_around), dark mode, map picker, Home map previews + shortcut chips, Expo Go / web fallback tile map.
+- [x] Privacy: task and helper spots stay rounded (~1.1 km), My people ~550 m with 15 min expiry, helpers anonymous (service icon only) until tapped; no exact coordinates in map data. Helper photos dropped (D13 privacy rule).
+- [x] Zoom: zoomed out shows the best offer per area with a count; zoom 14+ spreads every task on rings; tap a group flies in; grouping 80 px tasks / 96 px people.
+- [x] Layers + colours: Earn = tasks only, royal blue; Hire = helpers only, jade; My people layer (60 s refresh) and the Share my spot card stay.
+- [x] Pins: helper pin = service icon, white rim, green active dot, stacks of 3 + "+N"; task pin = face + name + price; best offer takes the mode colour; City Hunt label stays; labels never overlap. (Names step back instead of overlapping; price bubbles of two neighbouring spread areas can still touch: follow-up below.)
+- [x] Taps + panels: helper sheet, job card (bottom card on phone, callout on desktop), person sheet; pull-up bar; desktop side panel with minimise and zoom tip.
+- [x] Location + reach: You marker, location sheet (search, live spot, settings; guests keep area on device), reach 5/10/25 km + custom 1-100 km with dashed ring, people capped 50 km.
+- [x] Filters + data: shared with the list (price, Nearby/Remote/All, how they hire, due soon, sort); Explore search filters pins; remote jobs have no pin; 200 newest tasks, refresh 600 ms after the map stops, 5 min cache.
+- [x] Motion: heat glow, "just posted" ripple, staggered fade-in, reduced motion respected.
+- [x] Other: topped-up badge, guest mode (helpers only, no map_people_around), dark mode, map picker, Home map previews + shortcut chips, Expo Go / web fallback tile map.
 
 **Build gotchas:**
 
@@ -2190,6 +2190,8 @@ done 1.18
 - Native change = new local Android build (C:	db, lb.mjs), not OTA.
 
 **Done when:** the phone map scrolls as smoothly as the web map with 2,000 pins, looks the same on both, and every D20-D24 map feature still works.
+
+**Follow-ups (26 Nov, small):** price bubbles from two neighbouring spread areas can overlap (layout rule); helper stacks do not shorten their label near the You pill; the helper sheet's service card ring is still blue in Hire.
 
 **Notes:** Mapbox (`@rnmapbox/maps`) is the paid upgrade path if ever wanted (free up to 25,000 phone users a month, then about $4 per 1,000); the code shape is close to MapLibre. You asked for this on 26 Nov as an upgrade to an existing feature, so it is not a new feature under the feature freeze (decision 37).
 </details>
@@ -6764,6 +6766,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 - **2026-11-26 (plan page diff-friendly):** Plan page: each list item and table row on its own line, so the page only conflicts where the .md does (CI rebuild blocked by branch protection).
 - **2026-11-26 (fewer merge conflicts: test lists found automatically):** `npm test` and `npm run test:db` no longer keep long hand-written file lists in package.json (almost every PR clashed on them). `scripts/run-unit-tests.mjs` and `scripts/run-db-tests.mjs` find the test files themselves; the set run is the same as before (145 unit files, 94 SQL files). Two passing tests that were never added to the old list (`chatWindow.test.ts`, `offerTiming.test.ts`) stay off in a commented exclude list until you or the lead switch them on. Rebuilding the plan page in CI after merge was **not** added: branch protection on `redesigned-2.0` (PR required, required checks, admins included) blocks a bot push, so PRs still commit `docs/ULTIMATE_PLAN.html`.
+- **2026-11-26 (1.20 / D33 built, PR 551):** phone map on MapLibre (no Google Maps key), shared engine layers, 3D buildings at street zoom, motion inside the pins, web speed fix, label/jade/photo fixes, pins clipped to the map on the phone. Checked on web and your phone (local build). Waiting for your OK to put the new APK on the site.
 - **2026-11-26 (1.20 / D33):** owner asked to keep every current map feature; 37-feature list and feature check added; helper photos dropped (D13 privacy rule).
 - **2026-11-26 (task 1.20, Snap-style fast map, design D33):** You asked for the phone map to scroll like Snap Map. Added task **1.20** under Step 1: move the phone map from react-native-maps to MapLibre (the web map's engine, free), draw every pin in one GPU layer, one shared map-layer module for web and phone. It is an upgrade to an existing feature, so it is allowed under the freeze (decision 37). Waiting for your OK on design D33 and answers Q1-Q4. Docs only: nothing built.
 - **2026-11-23 (T13 first pass on staging):** You asked for the remaining plan work one by one. Most of what is left is yours (accounts, payments, sign-ins, lawyer) or waits on a gate. The first Claude item that needs nothing from you was T13 (3.6): a first pass on taskdrop.in found a wrong address shows the sign-in screen instead of a 404 page, and every address has the same raw title and description, so 4.3 is the real fix. Details under T13 in 3.6. Nothing built.
