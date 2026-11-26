@@ -2148,6 +2148,29 @@ done 1.18
 **Done when:** every row is Done, or has your written "drop".
 </details>
 
+<details id="t1-20" data-short="Snap-style fast map">
+<summary>[CLAUDE] <b>1.20</b> Snap-style fast map (design D33) <small>· added 26 Nov, from your message · an upgrade to an existing feature, not a new one · waiting for your OK on design D33</small></summary>
+
+**In plain words:** Maps are the hero feature. The phone map moves to the same engine as the web map (MapLibre, free), and every pin is drawn in one GPU layer, so it scrolls like Snap Map even with thousands of people and tasks on it.
+
+**Why:** today the phone map (react-native-maps) draws each pin as its own view, so it lags past about 50 pins. The web map already uses MapLibre and OpenFreeMap tiles (free, no key).
+
+**Steps:**
+
+- [ ] [opus] Design D33 shown 26 Nov: waiting for your OK ("build D33") and answers Q1-Q4 (engine, helper photos, online dot, 3D buildings).
+- [ ] [sonnet] Swap the phone map: add `@maplibre/maplibre-react-native` v11 with its Expo plugin; remove `react-native-maps` from `JobsMap.native.tsx` and `MapPicker.native.tsx`. This also means the Android app no longer needs a Google Maps key.
+- [ ] [opus] One shared map-layer module for web and phone: same OpenFreeMap style, one GeoJSON source per layer (tasks, helpers, My people), built-in clustering, faces drawn as images.
+- [ ] [sonnet] Pin images: round helper faces with a jade ring (Hire), blue price chips (Earn), initials when there is no photo.
+- [ ] [sonnet] Motion: fly to on tap, cluster burst on zoom, pulsing online dot, reduced-motion fallback.
+- [ ] [sonnet] Speed test: 2,000 fake pins on the staging fake city; smooth scroll on your phone (CPH2585); web e2e on port 8123.
+- [ ] [sonnet] New local Android build and a new site APK. This cannot go out as an over-the-air update.
+- [ ] [opus] Final check before merge.
+
+**Done when:** the phone map scrolls as smoothly as the web map with 2,000 pins, looks the same on both, and every D20-D24 map feature still works.
+
+**Notes:** Mapbox (`@rnmapbox/maps`) is the paid upgrade path if ever wanted (free up to 25,000 phone users a month, then about $4 per 1,000); the code shape is close to MapLibre. You asked for this on 26 Nov as an upgrade to an existing feature, so it is not a new feature under the feature freeze (decision 37).
+</details>
+
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
 
 - [-] Every decision has an answer (1.1). **Future scope (your decision, 1 Nov 2026):** no gate waits on it; each open decision is answered when the task that needs it comes up.
@@ -6717,6 +6740,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 ## Changelog
 
 - **2026-11-26 (fewer merge conflicts: test lists found automatically):** `npm test` and `npm run test:db` no longer keep long hand-written file lists in package.json (almost every PR clashed on them). `scripts/run-unit-tests.mjs` and `scripts/run-db-tests.mjs` find the test files themselves; the set run is the same as before (145 unit files, 94 SQL files). Two passing tests that were never added to the old list (`chatWindow.test.ts`, `offerTiming.test.ts`) stay off in a commented exclude list until you or the lead switch them on. Rebuilding the plan page in CI after merge was **not** added: branch protection on `redesigned-2.0` (PR required, required checks, admins included) blocks a bot push, so PRs still commit `docs/ULTIMATE_PLAN.html`.
+- **2026-11-26 (task 1.20, Snap-style fast map, design D33):** You asked for the phone map to scroll like Snap Map. Added task **1.20** under Step 1: move the phone map from react-native-maps to MapLibre (the web map's engine, free), draw every pin in one GPU layer, one shared map-layer module for web and phone. It is an upgrade to an existing feature, so it is allowed under the freeze (decision 37). Waiting for your OK on design D33 and answers Q1-Q4. Docs only: nothing built.
 - **2026-11-23 (T13 first pass on staging):** You asked for the remaining plan work one by one. Most of what is left is yours (accounts, payments, sign-ins, lawyer) or waits on a gate. The first Claude item that needs nothing from you was T13 (3.6): a first pass on taskdrop.in found a wrong address shows the sign-in screen instead of a 404 page, and every address has the same raw title and description, so 4.3 is the real fix. Details under T13 in 3.6. Nothing built.
 - **2026-11-23 (5.6b PostHog checked in Chrome, low-severity bugs checked):** The production PostHog project `taskdrop-production` already exists (EU, project 351004, no events yet), so the "make the project" part of 5.6b is done. Not done: PostHog asked to re-authenticate before showing the organisation page, which is a sign-in only you can do, so the organisation name was not confirmed and the `phc_` key was not copied. The app has no PostHog code or variable yet (it comes with 3.3c), so the production Expo project needs no PostHog value today. The still-open Low bugs in the debug ledger: B30 and B32 were already fixed and verified (migration 166); B18 (accept recommended), B21 (end status, refund rule and lock timeout are yours to decide) and B63 (after launch) stay open for your word. Nothing built.
 - **2026-11-23 (20-point website finish list added):** From an Instagram reel ("20 things to tell Claude to fix on your vibecoded website") you asked whether those checks are in the plan. Eight were already covered in part (favicon, page titles, meta descriptions in 4.3; sideways scrolling, mobile overflow and every-page-mobile in 1.14, T10 and F1; compressed pictures for videos only; error messages in T12). Twelve were not: broken links, a mobile menu, working footer links, a custom 404 page, a worked-out copyright year, broken buttons, success messages, no placeholder text, no unused navigation, a clickable logo, clickable phone, clickable email. Added them all as test **T13 "Website finish (20 points)"** with a 20-row table under task 3.6, a line in 4.3's search and share checklist, a "Done when" condition, and a row in the coverage table. Nothing built or run; it runs with round 3.
