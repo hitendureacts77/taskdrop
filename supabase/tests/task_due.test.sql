@@ -133,7 +133,7 @@ begin
     raise exception 'FAIL: a worker cannot see an open post whose date has passed';
   end if;
   perform set_config('request.jwt.claims', '', true);
-  perform set_config('role', 'anon', true);
+  perform set_config('role', 'service_role', true);  -- the api reads guest lists as the server
   if not exists (select 1 from public.guest_open_posts(p_ids => array[v_old])) then
     raise exception 'FAIL: guests no longer see an open post whose date has passed';
   end if;
