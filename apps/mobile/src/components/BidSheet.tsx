@@ -117,7 +117,9 @@ export function BidSheet({
           const parsed = parseMessage(mine.message);
           setPitch(parsed.pitch);
           setHours(parsed.hours);
-          setSavedDateLabel(parsed.dateLabel);
+          // The finish date the offer carries (migration 216); older offers only have it in the message.
+          if (mine.proposed_due_at) setDeliverBy(new Date(mine.proposed_due_at));
+          else setSavedDateLabel(parsed.dateLabel);
           setPrice(String(Math.round(mine.price_minor / 100)));
           return;
         }
@@ -145,6 +147,9 @@ export function BidSheet({
       : asked > MAX_PRICE_INR
         ? `Enter at most ₹${MAX_PRICE_INR.toLocaleString('en-IN')}`
         : null;
+  // No fixed date (posted that way, or its date passed, plan 1.19 J and K): ask when the worker can finish.
+  // Optional; on acceptance the task takes this date (migration 216).
+  const noDate = task.status === 'OPEN' && (!task.due_at || Date.parse(task.due_at) <= Date.now());
   const ready = !blocked && pitch.trim().length >= 10 && price.trim() !== '' && !priceError;
   const auto = !existing && task.assignment_mode === 'auto' && asked > 0 && asked <= budget;
   // A price other than the customer's budget is a counteroffer, and says so.
@@ -168,6 +173,7 @@ export function BidSheet({
     if (!userId) return flash('Sign in to send an offer');
     if (!price.trim()) return flash('Enter your price');
     if (pitch.trim().length < 10) return flash('Tell the customer a little about why you');
+    if (deliverBy && deliverBy.getTime() < Date.now() - 5 * 60_000) return flash('Pick a finish time from now on');
     // A job with a place is in person; one without is remote.
     if (!existing && task.loc_lat !== null && !safetySeen) {
       let needsCard: boolean;
@@ -193,6 +199,7 @@ export function BidSheet({
         priceMinor: Math.round(asked * 100),
         timeLimitMinutes: Number.isFinite(h) && h > 0 ? Math.round(h * 60) : (existing?.time_limit_minutes ?? 240),
         message: lines.join('\n'),
+        proposedDueAt: deliverBy ? deliverBy.toISOString() : null,
       };
       if (existing) {
         await updateBid(existing.id, fields);
@@ -305,7 +312,15 @@ export function BidSheet({
               </View>
             ) : null}
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, alignItems: 'stretch' }}>
+            {noDate ? (
+              <View style={{ marginTop: 16 }}>
+                <RNText style={tx('700', 14, t.colors.ink)}>When can you finish it?</RNText>
+                <RNText style={tx('500', 12, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>
+                  This task has no fixed date. Tell the customer when you can finish: it becomes the task’s date if they choose you.
+                </RNText>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: noDate ? 10 : 14, alignItems: 'stretch' }}>
               <Field
                 label="Hours (optional)"
                 style={{ flex: 1 }}
@@ -318,7 +333,7 @@ export function BidSheet({
               <Pressable
                 onPress={() => !blocked && setShowDate(true)}
                 accessibilityRole="button"
-                accessibilityLabel="Delivery date"
+                accessibilityLabel={noDate ? 'When can you finish it?' : 'Delivery date'}
                 style={{
                   flex: 1,
                   flexDirection: 'row',
@@ -334,7 +349,7 @@ export function BidSheet({
               >
                 <Icon name="clock" size={16} color={dateText ? t.colors.accentDeep : t.colors.muted} />
                 <RNText style={tx('600', 13, dateText ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={1}>
-                  {dateText ?? 'Delivery date'}
+                  {dateText ?? (noDate ? 'Finish by (optional)' : 'Delivery date')}
                 </RNText>
                 {dateText ? (
                   <Pressable
@@ -375,6 +390,9 @@ export function BidSheet({
       <DateTimeSheet
         visible={visible && showDate}
         initial={deliverBy ?? undefined}
+        title="When can you finish it?"
+        subtitle="The customer sees this on your offer."
+        confirmLabel="Set finish date"
         onCancel={() => setShowDate(false)}
         onConfirm={(d) => {
           setDeliverBy(d);

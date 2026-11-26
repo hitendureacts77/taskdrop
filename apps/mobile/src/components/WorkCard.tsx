@@ -75,7 +75,10 @@ export const WorkCard = memo(function WorkCard({
 }) {
   const t = useTheme();
   const { desktop } = useLayout();
-  const left = timeLeft(task.due_at);
+  // An open task (plan 1.19 K) has no date: say so instead of showing nothing.
+  // A passed date on an open task switches to no fixed date on the server within 15 minutes (plan 1.19 J).
+  const noDate = task.status === 'OPEN' && (!task.due_at || new Date(task.due_at).getTime() <= Date.now());
+  const left = noDate ? 'No fixed date' : timeLeft(task.due_at);
   const rating =
     task.poster && task.poster.poster_rating_count > 0 ? Number(task.poster.poster_rating_avg).toFixed(1) : null;
   const live = task.flag === 'urgent';
@@ -169,7 +172,7 @@ export const WorkCard = memo(function WorkCard({
         <View style={{ alignItems: 'flex-end', gap: 6 }}>
           <RNText style={tx('800', 20, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>
           {left && !hunt ? (
-            <RNText style={tx('700', 12, left === 'overdue' ? t.colors.signalDeep : t.colors.goldInk)} numberOfLines={1}>
+            <RNText style={tx('700', 12, noDate ? t.colors.muted : left === 'overdue' ? t.colors.signalDeep : t.colors.goldInk)} numberOfLines={1}>
               {left}
             </RNText>
           ) : null}
@@ -243,8 +246,8 @@ export const WorkCard = memo(function WorkCard({
           <RNText style={tx('800', 20, t.colors.accentDeep, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{rupees(task.benchmark_minor / 100)}</RNText>
           {left && !hunt ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flexShrink: 1 }}>
-              <Icon name="clock" size={12} color={left === 'overdue' ? t.colors.signal : t.colors.gold} strokeWidth={2} />
-              <RNText style={tx('700', 11.5, left === 'overdue' ? t.colors.signal : t.colors.goldInk)} numberOfLines={1}>{left}</RNText>
+              <Icon name="clock" size={12} color={noDate ? t.colors.muted : left === 'overdue' ? t.colors.signal : t.colors.gold} strokeWidth={2} />
+              <RNText style={tx('700', 11.5, noDate ? t.colors.muted : left === 'overdue' ? t.colors.signal : t.colors.goldInk)} numberOfLines={1}>{left}</RNText>
             </View>
           ) : null}
           <View style={{ flex: 1 }} />

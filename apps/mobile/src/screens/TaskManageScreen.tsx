@@ -41,12 +41,15 @@ import {
   WalletShortError,
   type Bid,
   type Profile,
+  setTaskDue,
   type TaskDetail,
 } from '../data/api';
 import { openRow, posterRow } from '../lib/taskRows';
 import { statusBadge } from './MyTasksScreen';
 import { useLayout } from '../lib/layout';
-import { formatDeadline } from '../components/DateTimeSheet';
+import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
+import { dueFor } from '../lib/taskBrief';
+import { openDatePassed } from '../lib/myTasksBoard';
 import { useFees } from '../lib/useFees';
 import { reportError } from '../lib/errors';
 import { countOf } from '../lib/plural';
@@ -106,6 +109,8 @@ export function TaskManageScreen() {
   const [keepIt, setKeepIt] = useState(false);
   const [topUp, setTopUp] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  // The date picker for an open post (plan 1.19 J): a new date, or no fixed date.
+  const [dateOpen, setDateOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   // The first load failed (not the same as a task that does not exist).
   const [loadFailed, setLoadFailed] = useState(false);
@@ -313,6 +318,20 @@ export function TaskManageScreen() {
     }
   };
 
+  // A new date on an open post, or none (open-ended): the date is just a plan, the task stays open (plan 1.19 J).
+  const changeDate = async (at: Date | null) => {
+    setDateOpen(false);
+    try {
+      const out = await setTaskDue(task.id, at ? at.toISOString() : null);
+      const dueAt = out?.due_at ?? (at ? at.toISOString() : null);
+      setDetail((d) => (d ? { ...d, task: { ...d.task, due_at: dueAt, due_lapsed_at: null } } : d));
+      flash(at ? `New date set: ${formatDeadline(at)}.` : 'No fixed date now. It stays open until you pick someone.');
+      void load().catch((e) => reportError(e, 'task-manage'));
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not change the date');
+    }
+  };
+
   const card = { ...cardSurface(t, 18), padding: 15, marginTop: 12 } as const;
   const detailRow = (label: string, value: string) => (
     <View key={label} style={{ flexDirection: 'row', paddingVertical: 6 }}>
@@ -326,10 +345,27 @@ export function TaskManageScreen() {
   // (lib/layout.ts). Narrower screens keep the tabs.
   const sideBySide = twoPane;
   const offersLabel = task.status === 'OPEN' ? `Worker offers${bids.length ? ` (${bids.length})` : ''}` : 'Worker';
+  // An open post whose date passed with nobody picked: it is open with no fixed date now (plan 1.19 J).
+  const datePassed = openDatePassed(task, Date.now());
+  const lapsedAt = task.due_lapsed_at ?? (datePassed ? task.due_at : null);
   const overview = (
     <>
       <HoldLine taskId={task.id} />
       <TaskPromotionResults taskId={task.id} />
+      {datePassed ? (
+        <View style={{ ...card, backgroundColor: t.colors.goldSoft, borderColor: t.colors.goldSoft }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="clock" size={16} color={t.colors.goldInk} />
+            <RNText style={tx('800', 15, t.colors.goldInk, { flex: 1 })}>Your date passed: still open</RNText>
+          </View>
+          <RNText style={tx('500', 13, t.colors.goldInk, { marginTop: 6, lineHeight: 19 })}>
+            {`Nobody was picked${lapsedAt ? ` by ${formatDeadline(new Date(lapsedAt))}` : ''}, so the task now has no fixed date. Helpers can still offer and say when they can finish.`}
+          </RNText>
+          <View style={{ flexDirection: 'row', marginTop: 12 }}>
+            <PrimaryButton label="Set a new date" tone="quiet" onPress={() => setDateOpen(true)} />
+          </View>
+        </View>
+      ) : null}
       <View style={card}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Icon name="list" size={16} color={t.colors.accentDeep} />
@@ -404,7 +440,9 @@ export function TaskManageScreen() {
           'Your payment',
           paymentLine(task, !!assignment, formatINR(escrow)),
         )}
-        {task.due_at ? detailRow('Target date', formatDeadline(new Date(task.due_at)) + (left ? ` · ${left}` : '')) : null}
+        {task.due_at
+          ? detailRow('Closes by', formatDeadline(new Date(task.due_at)) + (left ? ` · ${left}` : ''))
+          : detailRow('Closes by', 'No fixed date · open task')}
         {detailRow('Category', categoryLabel(task))}
         {task.difficulty ? detailRow('Difficulty', task.difficulty.charAt(0).toUpperCase() + task.difficulty.slice(1)) : null}
         {detailRow('Assignment', task.assignment_mode === 'auto' ? 'Auto-hire' : 'See offers')}
@@ -546,6 +584,11 @@ export function TaskManageScreen() {
                         </RNText>
                       </View>
                     </Pressable>
+                    {(b as { proposed_due_at?: string | null }).proposed_due_at ? (
+                      <RNText style={tx('700', 12.5, t.colors.accentDeep, { marginTop: 10 })}>
+                        Can finish by {formatDeadline(new Date((b as { proposed_due_at?: string | null }).proposed_due_at as string))}
+                      </RNText>
+                    ) : null}
                     {b.message ? (
                       <View style={{ marginTop: 11, backgroundColor: t.colors.surface2, borderRadius: 10, padding: 11 }}>
                         <RNText style={tx('400', 13, t.colors.text, { lineHeight: 19 })} numberOfLines={4}>“{b.message}”</RNText>
@@ -682,8 +725,22 @@ export function TaskManageScreen() {
         </View>
       ) : null}
 
+      <DateTimeSheet
+        visible={dateOpen}
+        title="Close this task by"
+        subtitle="Workers see this date on your post."
+        confirmLabel="Set closing time"
+        initial={task.due_at && new Date(task.due_at).getTime() > Date.now() ? new Date(task.due_at) : dueFor('2days')}
+        onCancel={() => setDateOpen(false)}
+        onConfirm={(d) => void changeDate(d)}
+        onOpenEnded={() => void changeDate(null)}
+        openEndedLabel={datePassed ? 'Keep no fixed date' : undefined}
+      />
       <BottomSheet visible={menu} onClose={() => setMenu(false)} title="Task options">
         <MenuRow icon="copy" label="Create similar" sub="Start a new post from this one" onPress={() => { setMenu(false); go('aiPost', { similar: task }); }} />
+        {task.status === 'OPEN' ? (
+          <MenuRow icon="calendar" label="Change the date" sub="A new date, or no fixed date" onPress={() => { setMenu(false); setDateOpen(true); }} />
+        ) : null}
         {assignment ? (
           <MenuRow icon="chat" label="Message the worker" onPress={() => { setMenu(false); go('chat', { taskId: task.id, title: task.title }); }} />
         ) : null}

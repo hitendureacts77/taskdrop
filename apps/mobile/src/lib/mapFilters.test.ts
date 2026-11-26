@@ -142,3 +142,11 @@ test('map pill names both counts when the map shows more than the reach (W2-17)'
   assert.equal(mapPillText(62, 62, 10, w), '62 jobs on the map');
   assert.equal(mapPillText(110, 62, 10, w), '110 jobs on the map · 62 within 10 km');
 });
+
+test('a job whose date has passed stays listed in the usual order, and is not "due soon" (plan 1.19 J)', () => {
+  const late = job('late', 17.45, 78.36, 5000, '2026-11-10T08:00:00Z', { due_at: '2026-11-10T20:00:00Z' });
+  // Highest pay: first by pay, as any open job would be.
+  assert.equal(ids(filterJobs([late, ...pinned], remote, KONDAPUR, { ...DEFAULT_FILTERS, km: 10 }, NOW))[0], 'late');
+  assert.equal(ids(filterList([late], null, DEFAULT_FILTERS, NOW))[0], 'late');
+  assert.equal(matchesJob(late, { ...DEFAULT_FILTERS, dueSoon: true }, NOW), false);
+});

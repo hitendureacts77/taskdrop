@@ -38,6 +38,7 @@ import { TaskDescription } from '../components/TaskDescription';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { PersonSheet } from '../components/PersonSheet';
 import { BidSheet } from '../components/BidSheet';
+import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { roughPlace } from '../lib/place';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { HuntFinderPanel } from '../components/Hunt';
@@ -243,6 +244,8 @@ function TaskDetailBody() {
     dueAt: string | null;
     createdAt: string | null;
     auto: boolean;
+    /** Still OPEN (plan 1.19 J): a passed date never hides it. */
+    open: boolean;
   } | null>(null);
   const [huntTask, setHuntTask] = useState<Task | null>(null);
 
@@ -278,6 +281,7 @@ function TaskDetailBody() {
             dueAt: td.task.due_at ?? null,
             createdAt: td.task.created_at ?? null,
             auto: td.task.assignment_mode === 'auto',
+            open: td.task.status === 'OPEN',
           });
         }
         if (verdictNow) {
@@ -330,6 +334,10 @@ function TaskDetailBody() {
   const mediaPath = live ? live.mediaPath : detail.mediaPath;
   const mediaKind = live ? live.mediaKind : detail.mediaKind;
   const mediaSeconds = live ? live.mediaSeconds : detail.mediaSeconds;
+  // An open task with no date, or whose date passed: the server switches it to no fixed date within
+  // 15 minutes (plan 1.19 J and K), so it reads the same either way.
+  const noDate = !!live && live.open && (!live.dueAt || new Date(live.dueAt).getTime() <= Date.now());
+  const shownBy = noDate ? 'No fixed date' : detail.by;
 
   // A request carries the poster's budget; a service listing carries the worker's rate.
   // Drawn by the task's kind: in Hire mode someone's request still shows its budget, not a rate.
@@ -396,6 +404,10 @@ function TaskDetailBody() {
   const [withProposal, setWithProposal] = useState(false);
   const [proposal, setProposal] = useState('');
   const proposalShort = withProposal && proposal.trim().length < 10;
+  // No fixed date (plan 1.19 J and K): the worker may say when they can finish. Optional; if the customer
+  // accepts, the task takes this date (migration 216).
+  const [finishBy, setFinishBy] = useState<Date | null>(null);
+  const [finishPicker, setFinishPicker] = useState(false);
   // W2-2: a phone number or email in the proposal is refused as it is typed, as in a post or the bio (the
   // server refuses it too).
   const proposalIssue = withProposal ? findContactIssue(proposal) : null;
@@ -421,6 +433,7 @@ function TaskDetailBody() {
       if (quoteNote) return flash(quoteNote);
       if (proposalShort) return flash('Tell the customer a little about how you will do it');
       if (proposalIssue) return flash(offerIssueMessage(proposalIssue));
+      if (noDate && finishBy && finishBy.getTime() < Date.now() - 5 * 60_000) return flash('Pick a finish time from now on');
       setBusy(true);
       try {
         await placeBid({
@@ -429,6 +442,7 @@ function TaskDetailBody() {
           priceMinor: quote,
           timeLimitMinutes: 240,
           ...(withProposal ? { message: maskContacts(proposal.trim()).text } : null),
+          ...(noDate && finishBy ? { proposedDueAt: finishBy.toISOString() } : null),
         });
         noteMyOffer(userId, realId);
         celebrate((countering ? 'Counteroffer sent · ' : 'Offer sent · ') + formatINR(quote));
@@ -632,15 +646,19 @@ function TaskDetailBody() {
           {/* Only shown when there is a real deadline. A worker's service listing
               has none — the poster sets it when engaging — so the column is
               omitted rather than showing a placeholder. */}
-          {detail.by ? (
+          {shownBy ? (
             <View style={{ flex: 1, paddingVertical: 14 }}>
               <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>COMPLETE BY</RNText>
-              <RNText style={tx('700', 20, t.colors.ink, { marginTop: 4, letterSpacing: -0.3 })}>{detail.by}</RNText>
+              <RNText style={tx('700', 20, t.colors.ink, { marginTop: 4, letterSpacing: -0.3 })}>{shownBy}</RNText>
             </View>
           ) : null}
         </View>
   );
 
+  // A worker on a task with no fixed date gives their own finish date in the offer (plan 1.19 J).
+  const finishNote = worker && noDate ? (
+    <RNText style={tx('500', 13, t.colors.muted, { marginTop: 10, lineHeight: 18 })}>Say in your offer when you can finish it.</RNText>
+  ) : null;
   const optionsRow = detail.options?.length ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
             {detail.options.map((o) => (
@@ -928,6 +946,31 @@ function TaskDetailBody() {
             ) : null
           )}
 
+          {worker && realId && noDate ? (
+            <View style={{ marginTop: t.spacing.lg }}>
+              <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>WHEN CAN YOU FINISH IT?</RNText>
+              <RNText style={tx('500', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>
+                This task has no fixed date. Tell the customer when you can finish: it becomes the task’s date if they choose you.
+              </RNText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                <Pressable
+                  onPress={() => setFinishPicker(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={finishBy ? `Finish by ${formatDeadline(finishBy)}. Change it` : 'When can you finish it?'}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: finishBy ? t.colors.accent : t.colors.line, backgroundColor: finishBy ? t.colors.accentSoft : t.colors.surface, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12 }}
+                >
+                  <Icon name="clock" size={15} color={finishBy ? t.colors.accentDeep : t.colors.muted} strokeWidth={1.9} />
+                  <RNText style={tx(finishBy ? '700' : '500', 13.5, finishBy ? t.colors.accentDeep : t.colors.muted, { flex: 1 })} numberOfLines={1}>
+                    {finishBy ? `Finish by ${formatDeadline(finishBy)}` : 'Finish by (optional)'}
+                  </RNText>
+                </Pressable>
+                {finishBy ? (
+                  <IconButton icon="close" label="Clear the finish date" onPress={() => setFinishBy(null)} />
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
           <Button
             label={busy ? 'Sending…' : cta}
             disabled={busy || proposalShort || proposalIssue !== null || (worker && underMin)}
@@ -953,6 +996,15 @@ function TaskDetailBody() {
           if (realId && userId) void getMyBid(realId, userId).then((b) => b && setMyOffer(b)).catch(() => {});
           go('myTasks');
         }}
+      />
+      <DateTimeSheet
+        visible={finishPicker}
+        title="When can you finish it?"
+        subtitle="The customer sees this on your offer."
+        confirmLabel="Set finish date"
+        initial={finishBy ?? undefined}
+        onCancel={() => setFinishPicker(false)}
+        onConfirm={(d) => { setFinishPicker(false); setFinishBy(d); }}
       />
       <ReportSheet
         visible={reporting}
@@ -984,6 +1036,7 @@ function TaskDetailBody() {
       <View style={deskCard}>
         {titleBlock}
         {optionsRow}
+        {finishNote}
       </View>
       <View style={{ ...deskCard, paddingVertical: 8 }}>{detailRowsBlock}</View>
       {questionsBlock}
@@ -998,7 +1051,8 @@ function TaskDetailBody() {
   );
 
   if (split) {
-    const timeLeftText = timeLeft(live?.dueAt);
+    // An open task with no date (plan 1.19 K), or whose date passed (J): say so instead of a countdown.
+    const timeLeftText = noDate ? 'No fixed date' : timeLeft(live?.dueAt);
     const remote = live ? live.lat === null : false;
     const posted = timeAgo(live?.createdAt);
     const chip = (key: string, icon: 'globe' | 'clock', label: string, tone: 'accent' | 'gold' | 'plain') => (
@@ -1020,7 +1074,7 @@ function TaskDetailBody() {
     );
     const stats: { label: string; value: string; money?: boolean }[] = [
       { label: priceLabel, value: formatINR(detail.amountMinor), money: true },
-      ...(detail.by ? [{ label: 'COMPLETE BY', value: detail.by }] : []),
+      ...(shownBy ? [{ label: 'COMPLETE BY', value: shownBy }] : []),
       { label: 'DISTANCE', value: distanceValue },
       ...(live && view.asRequest && !huntTask ? [{ label: 'HIRING', value: live.auto ? 'Auto-hire' : 'Open to offers' }] : []),
     ];
@@ -1041,7 +1095,7 @@ function TaskDetailBody() {
                 <RNText accessibilityRole="header" style={tx('800', 30, t.colors.ink, { letterSpacing: -0.8, marginTop: 6, lineHeight: 36 })}>{detail.title}</RNText>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
                   {remote ? chip('remote', 'globe', 'Remote / online', 'accent') : null}
-                  {timeLeftText && !huntTask ? chip('left', 'clock', timeLeftText === 'overdue' ? 'Overdue' : timeLeftText, timeLeftText === 'overdue' ? 'plain' : 'gold') : null}
+                  {timeLeftText && !huntTask ? chip('left', 'clock', timeLeftText === 'overdue' ? 'Overdue' : timeLeftText, noDate || timeLeftText === 'overdue' ? 'plain' : 'gold') : null}
                   {posted ? chip('posted', 'clock', `Posted ${posted}`, 'plain') : null}
                 </View>
                 <View style={{ flexDirection: 'row', marginTop: 20, borderWidth: 1, borderColor: t.colors.line, borderRadius: 12, overflow: 'hidden' }}>
@@ -1058,6 +1112,7 @@ function TaskDetailBody() {
                   ))}
                 </View>
                 {optionsRow}
+                {finishNote}
                 {body ? (
                   <View style={{ marginTop: 22 }}>
                     <RNText style={tx('800', 15, t.colors.ink, { marginBottom: 8 })}>What they need</RNText>
@@ -1120,6 +1175,7 @@ function TaskDetailBody() {
         {titleBlock}
         {priceRow}
         {optionsRow}
+        {finishNote}
         {detailBlock}
         {offerPanel}
       </FadeIn>

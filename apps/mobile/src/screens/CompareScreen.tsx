@@ -33,6 +33,8 @@ type Quote = {
   meta: string;
   priceMinor: number;
   eta: string;
+  /** The date the worker says they can finish by (nullable). */
+  canFinishBy?: string | null;
   lastSeen?: string | null;
   /** True for the offer the poster chose. */
   chosen?: boolean;
@@ -126,6 +128,7 @@ export function CompareScreen() {
             meta: jobsLabel(b.profiles?.worker_rating_count ?? 0),
             priceMinor: b.price_minor,
             eta: hoursLabel(b.time_limit_minutes),
+            canFinishBy: (b as { proposed_due_at?: string | null }).proposed_due_at ?? null,
             lastSeen: b.profiles?.last_seen_at ?? null,
             chosen: b.is_locked,
           })),
@@ -323,6 +326,9 @@ export function CompareScreen() {
                       )}
                     </View>
                     <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{row.meta}</RNText>
+                    {row.canFinishBy ? (
+                      <RNText style={tx('700', 12, t.colors.accentDeep, { marginTop: 3 })}>Can finish by {formatDeadline(new Date(row.canFinishBy))}</RNText>
+                    ) : null}
                     {row.bidId ? (
                       <View style={{ marginTop: 4 }}>
                         <PresenceLabel lastSeen={row.lastSeen} />

@@ -9,6 +9,8 @@ import { Icon } from '../components/Icon';
 import { BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, timeAgo } from '../components/kit';
 import { WorkCard } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
+import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
+import { dueFor } from '../lib/taskBrief';
 import { tx } from '../components/primitives';
 import { listDrafts, removeDraft, type PostDraft } from '../lib/drafts';
 import { useTheme, ring } from '../providers/ThemeProvider';
@@ -39,6 +41,7 @@ import {
   listMyTasks,
   myStats,
   refundEscrow,
+  setTaskDue,
   type MyStats,
   type Profile,
   type Task,
@@ -121,6 +124,8 @@ function MyPosted() {
   const { planB } = useMoneyMode();
   // The open post whose Top up picker is showing (D31; the server prices the change, migration 194).
   const [topUp, setTopUp] = useState<Task | null>(null);
+  // The open post whose date picker is showing (plan 1.19 J: a passed date, or "No fixed date").
+  const [dateFor, setDateFor] = useState<Task | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   // True when the last load failed (offline, server hiccup): an empty list is then
   // "could not load", not "you have no tasks".
@@ -267,6 +272,20 @@ function MyPosted() {
     }
   };
 
+  // A new date on an open post, or none (open-ended): the date is just a plan, the task stays open.
+  const changeDate = async (task: Task, at: Date | null) => {
+    setDateFor(null);
+    try {
+      const out = await setTaskDue(task.id, at ? at.toISOString() : null);
+      const dueAt = out?.due_at ?? (at ? at.toISOString() : null);
+      setTasks((prev) => (prev ? prev.map((x) => (x.id === task.id || (task.crew_id && x.crew_id === task.crew_id && x.status === 'OPEN') ? { ...x, due_at: dueAt, due_lapsed_at: null } : x)) : prev));
+      flash(at ? `New date set: ${formatDeadline(at)}.` : 'No fixed date now. It stays open until you pick someone.');
+      void load().catch(() => {});
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Could not change the date');
+    }
+  };
+
   const reviewCount = (tasks ?? []).filter((x) => x.status === 'WORK_DONE').length;
 
   // What needs the poster now, from the live states only (lib/myTasksBoard).
@@ -287,7 +306,7 @@ function MyPosted() {
   const onNeed = (n: Need) => {
     const task = (tasks ?? []).find((x) => x.id === n.taskId);
     if (!task) return;
-    if (n.kind === 'repost') return go('aiPost', { similar: task });
+    if (n.kind === 'repost') return setDateFor(task);
     openPostedTask(task, go);
   };
 
@@ -466,6 +485,7 @@ function MyPosted() {
     onOpen: () => openPostedTask(task, go),
     onMenu: () => setMenu(task),
     onTopUp: () => setTopUp(task),
+    onNewDate: () => setDateFor(task),
     onAgain: () => go('aiPost', { similar: task }),
     onReview: () => review(task),
   });
@@ -617,6 +637,17 @@ function MyPosted() {
         }}
       />
 
+      <DateTimeSheet
+        visible={dateFor !== null}
+        title="Close this task by"
+        subtitle="Workers see this date on your post."
+        confirmLabel="Set closing time"
+        initial={dateFor ? dueFor('2days') : undefined}
+        onCancel={() => setDateFor(null)}
+        onConfirm={(d) => dateFor && void changeDate(dateFor, d)}
+        onOpenEnded={() => dateFor && void changeDate(dateFor, null)}
+        openEndedLabel="Keep no fixed date"
+      />
       <ConfirmDialog
         visible={confirmClose !== null}
         danger

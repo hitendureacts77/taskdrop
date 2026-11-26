@@ -27,7 +27,8 @@ declare
   v_never text[] := array[
     'funding_payment_id', 'funded_at', 'funded_via', 'funded_minor', 'funded_credits_minor', 'wallet_refunded_at',
     'locked_bid_id', 'locked_minor', 'payout_mode', 'preferred_worker_id', 'preferred_until', 'repeated_from',
-    'started_at', 'work_done_at', 'auto_complete_at', 'completed_at', 'clear_at', 'cleared_at'];
+    'started_at', 'work_done_at', 'auto_complete_at', 'completed_at', 'clear_at', 'cleared_at',
+    'due_lapsed_at'];
   v_cols   text[];
   v_poster uuid := gen_random_uuid();
   v_task   uuid;

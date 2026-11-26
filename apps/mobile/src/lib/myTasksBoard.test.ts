@@ -8,6 +8,8 @@ import {
   firstName,
   posterDateBits,
   posterHint,
+  lapsedDay,
+  openDatePassed,
   posterNeeds,
   posterNextStep,
   posterPill,
@@ -46,7 +48,7 @@ test('poster needs: review first, then pay, then offers, then a passed date with
   assert.equal(needs[0]!.hint, 'Auto-releases Wed 25 Nov, 5:25 pm');
   assert.equal(needs[1]!.lead, 'Pay ₹463.50 so the worker can start');
   assert.equal(needs[2]!.lead, '3 offers to choose from');
-  assert.equal(needs[3]!.action, 'Post again');
+  assert.equal(needs[3]!.action, 'Set a new date');
 });
 
 test('a funded locked task, a started one and a quiet open post need nothing', () => {
@@ -149,7 +151,8 @@ test('poster pill: an open post says how its offers stand', () => {
   assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 3, NOW), { label: '3 offers in', tone: 'you' });
   assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 1, NOW), { label: '1 offer in', tone: 'you' });
   assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 0, NOW), { label: 'Waiting for offers', tone: 'wait' });
-  assert.deepEqual(posterPill({ status: 'OPEN', due_at: past }, 0, NOW), { label: 'Date passed', tone: 'wait' });
+  assert.deepEqual(posterPill({ status: 'OPEN', due_at: past }, 0, NOW), { label: 'No fixed date', tone: 'wait' });
+  assert.deepEqual(posterPill({ status: 'OPEN', due_at: null, due_lapsed_at: past }, 0, NOW), { label: 'No fixed date', tone: 'wait' });
   assert.deepEqual(posterPill({ status: 'LOCKED', funded_at: null }, 0, NOW), { label: 'Waiting for payment', tone: 'you' });
   assert.deepEqual(posterPill({ status: 'WORK_DONE' }, 0, NOW), { label: 'Review work', tone: 'you' });
   assert.equal(posterPill({ status: 'DISPUTED' }, 0, NOW).tone, 'problem');
@@ -198,4 +201,14 @@ test('worker pill words and tones', () => {
   assert.deepEqual(workerPill('WORK DONE · WAITING FOR CUSTOMER', 'REVISION_REQUESTED'), { label: 'Changes asked', tone: 'you' });
   assert.deepEqual(workerPill('DONE · PAID'), { label: '✓ Paid', tone: 'moving' });
   assert.deepEqual(workerPill('NOT SELECTED'), { label: 'Not picked', tone: 'closed' });
+});
+
+test('a post that switched to no fixed date still reads as a passed date (plan 1.19 J)', () => {
+  const now = Date.parse('2026-11-25T10:00:00Z');
+  assert.equal(openDatePassed({ status: 'OPEN', due_at: null, due_lapsed_at: '2026-11-22T12:30:00Z' }, now), true);
+  assert.equal(openDatePassed({ status: 'OPEN', due_at: '2026-11-25T09:00:00Z' }, now), true);
+  assert.equal(openDatePassed({ status: 'OPEN', due_at: null }, now), false);
+  assert.equal(openDatePassed({ status: 'OPEN', due_at: '2026-11-26T09:00:00Z', due_lapsed_at: null }, now), false);
+  assert.equal(openDatePassed({ status: 'LOCKED', due_at: null, due_lapsed_at: '2026-11-22T12:30:00Z' }, now), false);
+  assert.equal(lapsedDay({ due_at: null, due_lapsed_at: '2026-11-22T12:30:00Z' }), '22 Nov');
 });

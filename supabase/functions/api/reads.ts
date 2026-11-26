@@ -3,7 +3,7 @@ import { FEES, TIMING, distanceKm } from "../_shared/rules.ts";
 /** Most rows one "my" list returns. Said here so a long list is cut on purpose, not by the database's own row cap (S1-21). */
 const MY_LIST_MAX = 500;
 import {
-  type Args, type Ctx, type DbResult, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, nowIso, num, coordOrNull, oneOf, rows,
+  type Args, type Ctx, type DbResult, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, nowIso, num, coordOrNull, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
@@ -52,13 +52,14 @@ async function profilesById(ctx: Ctx, ids: (string | null | undefined)[]): Promi
 /**
  * Open posts of one kind that the caller could take on (never their own). A City Hunt that has stopped taking finds
  * (hunt_until passed) stays OPEN while its poster reviews, but nobody can act on it any more, so it is left out (B86).
+ * A task whose date has passed stays: it is open until someone is picked, and the server switches it to no fixed
+ * date within 15 minutes (plan 1.19 J, migration 216).
  */
 function openTasksQuery(ctx: Ctx, kind: "request" | "service") {
   return ctx.db
     .from("tasks")
     .select(TASK_PUBLIC_SELECT)
     .eq("status", "OPEN")
-    .or(notExpired(ctx))
     .or(`hunt_until.is.null,hunt_until.gt.${nowIso(ctx)}`)
     .eq("kind", kind)
     .neq("poster_id", ctx.userId);
@@ -571,7 +572,7 @@ export const READ_OPS: Record<string, Op> = {
     // how far away they are, still comes from the helper's public area below.
     const listingQuery = () =>
       ctx.db.from("tasks").select("id, poster_id, title, benchmark_minor, category, created_at")
-        .eq("status", "OPEN").or(notExpired(ctx)).eq("kind", "service").neq("poster_id", ctx.userId);
+        .eq("status", "OPEN").eq("kind", "service").neq("poster_id", ctx.userId);
     const [res, pinned, unpinned] = await Promise.all([
       // PostgREST wants the empty array literally: skills=neq.{}
       people().filter("skills", "neq", "{}").order("last_seen_at", { ascending: false, nullsFirst: false }).limit(300),

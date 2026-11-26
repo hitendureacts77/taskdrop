@@ -286,9 +286,6 @@ export function rpcOp(fn: string, build: (a: Args, ctx: Ctx) => Record<string, u
 
 export const nowIso = (ctx: Ctx) => (ctx.now?.() ?? new Date()).toISOString();
 
-/** PostgREST filter for tasks still takeable: no deadline, or a deadline still ahead. */
-export const notExpired = (ctx: Ctx) => `due_at.is.null,due_at.gt.${nowIso(ctx)}`;
-
 /**
  * Names that would pass for the team or the product. Found 2026-10-24: "admin", "support" and "taskdrop" were all
  * free to take. Saving one is refused (writes.ts) and usernameAvailable says it is taken (reads.ts, B69).

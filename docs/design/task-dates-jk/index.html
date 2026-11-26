@@ -1,0 +1,508 @@
+<title>1.19 J+K: passed dates and open tasks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: a design board. Each row (K, J worker, J poster, J offer date) is a strip of phone screens in
+   TaskDrop's own look, each with a plain-words caption underneath. The page frame is quiet; the phones carry colour. */
+:root {
+  --page: #EEF0EC; --page-ink: #121417; --page-muted: #5F6368; --page-line: #D9DDD6; --page-card: #FFFFFF;
+  /* the app's own tokens (apps/mobile/src/theme.ts), light */
+  --bg: #F3F4F1; --surface: #FFFFFF; --surface2: #ECEEE9; --line: #E2E5DF; --ink: #121417; --text: #3F444A; --muted: #5F6368;
+  --jade: #0E8F72; --jade-deep: #0A6F58; --jade-soft: #E7F5EF;
+  --blue: #2F5BEA; --blue-deep: #1E40AF; --blue-soft: #EAF0FE;
+  --gold: #E0A85A; --gold-soft: #FBF1E0; --gold-ink: #8A5A12;
+  --coral: #E0724A; --on-deep: #FFFFFF;
+  --sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --page: #08090A; --page-ink: #F2F3F1; --page-muted: #9AA0A6; --page-line: #24282C; --page-card: #121417;
+  --bg: #0E1012; --surface: #16191C; --surface2: #1E2226; --line: #2A2F34; --ink: #F2F3F1; --text: #C9CDD2; --muted: #9AA0A6;
+  --jade: #2FBF96; --jade-deep: #57D1AE; --jade-soft: #12271F;
+  --blue: #6B8CFF; --blue-deep: #9DB4FF; --blue-soft: #172036;
+  --gold-soft: #2A2216; --gold-ink: #E8BE80; --on-deep: #08090A;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --page: #08090A; --page-ink: #F2F3F1; --page-muted: #9AA0A6; --page-line: #24282C; --page-card: #121417;
+  --bg: #0E1012; --surface: #16191C; --surface2: #1E2226; --line: #2A2F34; --ink: #F2F3F1; --text: #C9CDD2; --muted: #9AA0A6;
+  --jade: #2FBF96; --jade-deep: #57D1AE; --jade-soft: #12271F;
+  --blue: #6B8CFF; --blue-deep: #9DB4FF; --blue-soft: #172036;
+  --gold-soft: #2A2216; --gold-ink: #E8BE80; --on-deep: #08090A;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--page); color: var(--page-ink); font-family: var(--sans); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 44px; }
+header.top { display: grid; gap: 10px; max-width: 760px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--page-muted); }
+h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.15; margin: 0; font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+h1 .dot { color: var(--jade); }
+.lede { margin: 0; color: var(--page-muted); max-width: 66ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; }
+.pill.hire { background: var(--jade-soft); color: var(--jade-deep); }
+.pill.earn { background: var(--blue-soft); color: var(--blue-deep); }
+.pill.built { background: var(--surface2); color: var(--text); }
+.pill.new { background: var(--gold-soft); color: var(--gold-ink); }
+
+section.row { display: grid; gap: 18px; }
+.row-head { display: grid; gap: 6px; max-width: 820px; }
+.row-head h2 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -.01em; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.row-head p { margin: 0; color: var(--page-muted); max-width: 70ch; }
+.strip { display: flex; gap: 22px; overflow-x: auto; padding: 4px 2px 14px; scroll-snap-type: x proximity; }
+figure.screen { margin: 0; flex: 0 0 300px; display: grid; gap: 10px; align-content: start; scroll-snap-align: start; }
+figure.wide { flex-basis: min(640px, 88vw); }
+figcaption { font-size: 13.5px; color: var(--page-muted); line-height: 1.5; }
+figcaption b { color: var(--page-ink); display: block; font-size: 14px; margin-bottom: 2px; }
+.tag-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* the phone */
+.phone { width: 300px; max-width: 100%; border-radius: 34px; background: var(--bg); border: 8px solid #0B0C0D; box-shadow: 0 1px 0 var(--page-line);
+  overflow: hidden; font-size: 13px; color: var(--text); position: relative; min-height: 560px; display: flex; flex-direction: column; }
+.status { display: flex; justify-content: space-between; padding: 8px 18px 4px; font-size: 11px; font-weight: 700; color: var(--ink); }
+.appbar { display: flex; align-items: center; gap: 10px; padding: 6px 14px 10px; }
+.appbar .t { font-weight: 800; color: var(--ink); font-size: 16px; }
+.appbar .back { width: 28px; height: 28px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; color: var(--ink); font-weight: 800; }
+.body { padding: 0 14px 14px; display: grid; gap: 10px; align-content: start; flex: 1; }
+.h { font-weight: 800; color: var(--ink); font-size: 18px; line-height: 1.2; letter-spacing: -.01em; }
+.sub { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: grid; gap: 6px; }
+.card.sel-hire { border: 1.5px solid var(--jade); background: var(--jade-soft); }
+.opt { display: grid; grid-template-columns: 30px 1fr 18px; gap: 10px; align-items: center; }
+.ico { width: 30px; height: 30px; border-radius: 9px; background: var(--surface2); display: grid; place-items: center; font-size: 14px; color: var(--ink); }
+.opt .n { font-weight: 700; color: var(--ink); font-size: 13.5px; }
+.opt .s { font-size: 11.5px; color: var(--muted); }
+.radio { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--line); }
+.radio.on { border: none; background: var(--jade); color: var(--on-deep); display: grid; place-items: center; font-size: 11px; font-weight: 800; }
+.btn { border-radius: 999px; padding: 10px 14px; font-weight: 800; font-size: 13px; text-align: center; }
+.btn.hire { background: var(--jade-deep); color: #fff; }
+.btn.earn { background: var(--blue); color: #fff; }
+.btn.quiet { background: var(--surface2); color: var(--ink); }
+.btn.off { opacity: .45; }
+.btns { display: flex; gap: 8px; }
+.btns .btn { flex: 1; }
+.link { color: var(--jade-deep); font-weight: 700; font-size: 13px; text-align: center; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; width: max-content; max-width: 100%; }
+.chip.gold { background: var(--gold-soft); color: var(--gold-ink); }
+.chip.earn { background: var(--blue-soft); color: var(--blue-deep); }
+.chip.hire { background: var(--jade-soft); color: var(--jade-deep); }
+.chip.plain { background: var(--surface2); color: var(--text); }
+.job { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: grid; gap: 6px; }
+.job .top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.job .ttl { font-weight: 800; color: var(--ink); font-size: 13.5px; line-height: 1.3; }
+.job .amt { font-weight: 800; color: var(--blue-deep); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.job .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11.5px; color: var(--muted); }
+.job.dim { opacity: .92; }
+.banner { border-radius: 14px; padding: 11px 12px; display: grid; gap: 8px; }
+.banner.gold { background: var(--gold-soft); color: var(--gold-ink); }
+.banner .bt { font-weight: 800; font-size: 13.5px; }
+.banner p { margin: 0; font-size: 12px; line-height: 1.45; }
+.field { border: 1.5px solid var(--line); background: var(--surface); border-radius: 14px; padding: 10px 12px; display: grid; gap: 2px; }
+.field .l { font-size: 11px; font-weight: 700; color: var(--muted); }
+.field .v { color: var(--ink); font-weight: 600; }
+.field.need { border-color: var(--blue); background: var(--blue-soft); }
+.field.need .v { color: var(--blue-deep); }
+.field.set { border-color: var(--blue); }
+.two { display: grid; grid-template-columns: 1fr 1.25fr; gap: 8px; }
+.sheet-shade { position: absolute; inset: 0; background: rgba(0,0,0,.42); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 22px 22px 0 0; padding: 10px 14px 16px; display: grid; gap: 10px; }
+.grab { width: 36px; height: 4px; border-radius: 4px; background: var(--line); margin: 0 auto 2px; }
+.days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.day { border-radius: 12px; background: var(--surface2); padding: 7px 0; text-align: center; font-size: 11px; color: var(--muted); line-height: 1.25; }
+.day b { display: block; font-size: 14px; color: var(--ink); }
+.day.on { background: var(--jade-deep); color: #fff; }
+.day.on b { color: #fff; }
+.day.on-earn { background: var(--blue); color: #fff; }
+.day.on-earn b { color: #fff; }
+.times { display: flex; gap: 6px; flex-wrap: wrap; }
+.time { padding: 6px 10px; border-radius: 999px; background: var(--surface2); font-size: 12px; font-weight: 700; color: var(--ink); }
+.time.on { background: var(--jade-soft); color: var(--jade-deep); outline: 1.5px solid var(--jade); }
+.time.on-earn { background: var(--blue-soft); color: var(--blue-deep); outline: 1.5px solid var(--blue); }
+.lock { position: relative; background: linear-gradient(180deg, #1c2b4a, #0f1520); color: #fff; min-height: 560px; }
+.lock .clock { text-align: center; font-size: 54px; font-weight: 300; padding-top: 30px; letter-spacing: -.02em; }
+.lock .date { text-align: center; font-size: 13px; opacity: .85; }
+.note { margin: 18px 12px 0; background: rgba(255,255,255,.14); backdrop-filter: blur(6px); border-radius: 18px; padding: 11px 12px; display: grid; gap: 3px; }
+.note .app { display: flex; justify-content: space-between; font-size: 11px; opacity: .85; }
+.note .nt { font-weight: 700; font-size: 13px; }
+.note .nb { font-size: 12.5px; opacity: .95; line-height: 1.4; }
+.offer { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: grid; gap: 6px; }
+.who { display: flex; gap: 10px; align-items: center; }
+.av { width: 34px; height: 34px; border-radius: 50%; background: var(--surface2); display: grid; place-items: center; font-weight: 800; color: var(--ink); font-size: 12px; }
+.who .nm { font-weight: 800; color: var(--ink); font-size: 13.5px; }
+.who .rt { font-size: 11.5px; color: var(--muted); }
+.who .pr { margin-left: auto; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.finish { font-weight: 700; font-size: 12.5px; color: var(--jade-deep); }
+.msg { font-size: 12px; color: var(--text); line-height: 1.45; }
+.row2 { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 8px 0; border-top: 1px solid var(--line); }
+.row2 span:first-child { color: var(--muted); }
+.row2 span:last-child { color: var(--ink); font-weight: 700; text-align: right; }
+.shot { width: 100%; border-radius: 14px; border: 1px solid var(--page-line); display: block; background: var(--page-card); }
+.questions { background: var(--page-card); border: 1px solid var(--page-line); border-radius: 18px; padding: 20px; display: grid; gap: 14px; max-width: 860px; }
+.questions h2 { margin: 0; font-size: 19px; }
+.questions ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.questions li { padding-left: 4px; }
+.questions li span { color: var(--page-muted); display: block; font-size: 13.5px; }
+.state-label { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--page-muted); }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+@media (max-width: 420px) { figure.screen { flex-basis: 86vw; } .phone { width: 100%; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Plan task 1.19 · rows J and K · design for your OK</div>
+    <h1>A task never disappears when its date passes<span class="dot">.</span></h1>
+    <p class="lede">K lets a customer post with no fixed date. J: when a date passes with nobody picked, the task switches to "No fixed date" by itself and stays open; the customer is told, and a worker can offer with their own finish date. (Redrawn 25 Nov from your note.) Nothing below is live yet. The work is paused on its branch until you say "build J" or "build K".</p>
+    <div class="legend">
+      <span class="pill hire">Jade = Hire (customer)</span>
+      <span class="pill earn">Royal blue = Earn (worker)</span>
+      <span class="pill built">Real screenshot from the app</span>
+      <span class="pill new">Drawn design, not built yet</span>
+    </div>
+  </header>
+
+  <!-- ================= K ================= -->
+  <section class="row" aria-labelledby="k">
+    <div class="row-head">
+      <h2 id="k">K · Post with no fixed date <span class="pill hire">Hire</span></h2>
+      <p>The date step in "Post a request" is now called "Close this task by". "No fixed date" is the first choice and is picked by default. A custom day and time is still there at the bottom of the list.</p>
+    </div>
+    <div class="strip">
+      <figure class="screen wide">
+        <img class="shot" src="shot-post-when.jpg" alt="Post a request, step 4: Close this task by, with No fixed date first and picked">
+        <figcaption><b>Post a request · step 4 (web, real screenshot)</b>"No fixed date" is first and already picked. The preview on the right says "No fixed date · open task".</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">×</div><div class="t">Post a request</div></div>
+          <div class="body">
+            <div class="h">Close this task by</div>
+            <div class="sub">Workers see this date. If it passes with nobody picked, the task stays open and we remind you to pick a new one.</div>
+            <div class="card sel-hire"><div class="opt"><div class="ico">▦</div><div><div class="n">No fixed date</div><div class="s">An open task: it stays open until you pick someone</div></div><div class="radio on">✓</div></div></div>
+            <div class="card"><div class="opt"><div class="ico">⚡</div><div><div class="n">Right now</div><div class="s">Within 2 hours, marked urgent</div></div><div class="radio"></div></div></div>
+            <div class="card"><div class="opt"><div class="ico">☀</div><div><div class="n">Today</div><div class="s">By 11:59 PM</div></div><div class="radio"></div></div></div>
+            <div class="card"><div class="opt"><div class="ico">◷</div><div><div class="n">In 2 days</div><div class="s">By Fri 27 Nov</div></div><div class="radio"></div></div></div>
+            <div class="card"><div class="opt"><div class="ico">▣</div><div><div class="n">Pick a date and time</div><div class="s">Choose the day and the hour</div></div><div class="radio"></div></div></div>
+          </div>
+        </div>
+        <figcaption><b>The same step on a phone</b>The default is "No fixed date". The last row opens the date-and-time picker.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">×</div><div class="t">Post a request</div></div>
+          <div class="body"><div class="h">Close this task by</div></div>
+          <div class="sheet-shade"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="h" style="font-size:16px">Close this task by</div>
+            <div class="sub">Workers see this date. The task stays open after it.</div>
+            <div class="days">
+              <div class="day">Wed<b>25</b></div><div class="day">Thu<b>26</b></div><div class="day on">Fri<b>27</b></div><div class="day">Sat<b>28</b></div><div class="day">Sun<b>29</b></div>
+            </div>
+            <div class="times"><span class="time">9 AM</span><span class="time">12 PM</span><span class="time">3 PM</span><span class="time on">6 PM</span><span class="time">9 PM</span></div>
+            <div class="btn hire">Set closing time</div>
+          </div>
+        </div>
+        <figcaption><b>Pick a date and time</b>The picker uses the same "Close this task by" words, with a "Set closing time" button.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">‹</div><div class="t">Find work</div></div>
+          <div class="body">
+            <div class="job">
+              <div class="top"><div class="ttl">Paint the front gate, about 2 metres wide</div><div class="amt">₹800</div></div>
+              <div class="meta"><span class="chip plain">▦ No fixed date</span><span>Kondapur · 2.1 km</span></div>
+            </div>
+            <div class="job">
+              <div class="top"><div class="ttl">Fix a leaking kitchen tap</div><div class="amt">₹450</div></div>
+              <div class="meta"><span class="chip gold">◷ 2 days left</span><span>Gachibowli · 3.4 km</span></div>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>What a worker sees</b>A task with no date says "No fixed date" on its card and on its page. It is never hidden by date.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= J: date passes ================= -->
+  <section class="row" aria-labelledby="jw">
+    <div class="row-head">
+      <h2 id="jw">J · When the date passes with nobody picked, the task becomes "No fixed date" <span class="pill earn">Earn</span> <span class="pill hire">Hire</span></h2>
+      <p>Today a task disappears from Find work, the map, Nearby, search and the guest lists once its date passes. With J, if nobody has been picked by then, the task switches to "No fixed date" by itself, within 15 minutes. It stays open and visible everywhere, like any other open task. Workers can still send offers and say when they can finish. City Hunts keep their own dates and are left out.</p>
+    </div>
+    <div class="strip">
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="t">Find work</div></div>
+          <div class="body">
+            <div class="job">
+              <div class="top"><div class="ttl">Deliver 3 cartons to Madhapur</div><div class="amt">₹350</div></div>
+              <div class="meta"><span class="chip gold">◷ 5 h left</span><span>Kondapur · 1.2 km</span></div>
+            </div>
+            <div class="job">
+              <div class="top"><div class="ttl">Assemble a study table</div><div class="amt">₹900</div></div>
+              <div class="meta"><span class="chip plain">▦ No fixed date</span><span>Kothaguda · 2.8 km</span></div>
+            </div>
+            <div class="job">
+              <div class="top"><div class="ttl">Translate a 2-page letter to Telugu</div><div class="amt">₹600</div></div>
+              <div class="meta"><span class="chip plain">▦ No fixed date</span><span>Remote</span></div>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>Find work list (worker)</b>"Assemble a study table" had 22 Nov as its date. Nobody was picked, so it now shows "No fixed date" and stays in the list in the usual order. Nothing is hidden.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">‹</div><div class="t">Task</div></div>
+          <div class="body">
+            <div class="h">Assemble a study table</div>
+            <div class="tag-row"><span class="chip plain">▦ No fixed date</span><span class="chip plain">Kothaguda · 2.8 km</span></div>
+            <div class="sub">IKEA-style flat pack, all parts and screws are here. Need it set up in the bedroom.</div>
+            <div class="row2"><span>Budget</span><span>₹900</span></div>
+            <div class="row2"><span>Close by</span><span>No fixed date</span></div>
+            <div class="sub">Say in your offer when you can finish it.</div>
+            <div style="flex:1"></div>
+            <div class="btn earn">Send an offer</div>
+          </div>
+        </div>
+        <figcaption><b>Task page (worker)</b>The same as any task with no date. A short line asks the worker to give their own finish time in the offer.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone lock">
+          <div class="status" style="color:#fff"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="clock">9:41</div>
+          <div class="date">Wednesday, 25 November</div>
+          <div class="note">
+            <div class="app"><span>taskdrop.</span><span>now</span></div>
+            <div class="nt">Your date passed: the task is still open</div>
+            <div class="nb">Assemble a study table now has no fixed date. Helpers can still offer and tell you when they can finish. Set a new date if you need it by a certain day.</div>
+          </div>
+        </div>
+        <figcaption><b>Message to the customer (push and in-app)</b>Sent once, when the task switches to "No fixed date". Tapping it opens the task.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="t">My tasks</div></div>
+          <div class="body">
+            <div class="state-label">No offers yet</div>
+            <div class="card">
+              <div class="chip plain">▦ No fixed date</div>
+              <div class="n" style="font-weight:800;color:var(--ink)">Assemble a study table</div>
+              <div class="sub">Your date (22 Nov) passed, so it is open with no fixed date. Helpers can still offer.</div>
+              <div class="btn quiet">Set a new date</div>
+            </div>
+            <div class="state-label">With offers</div>
+            <div class="card">
+              <div class="chip plain">▦ No fixed date · 2 offers</div>
+              <div class="n" style="font-weight:800;color:var(--ink)">Paint the front gate</div>
+              <div class="sub">Your date passed. Each offer says when the helper can finish.</div>
+              <div class="btns"><div class="btn hire">Choose an offer</div><div class="btn quiet">Set a new date</div></div>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>My tasks card (customer), two states</b>The card says the date passed and the task is still open. "Set a new date" is there if they want one; they do not have to.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">‹</div><div class="t">Your task</div></div>
+          <div class="body">
+            <div class="banner gold">
+              <div class="bt">Your date passed: still open</div>
+              <p>Nobody was picked by 22 Nov, 6 PM, so the task now has no fixed date. Helpers can still offer and say when they can finish.</p>
+              <div class="btns"><div class="btn quiet">Set a new date</div></div>
+            </div>
+            <div class="h">Assemble a study table</div>
+            <div class="row2"><span>Close by</span><span>No fixed date</span></div>
+            <div class="row2"><span>Offers</span><span>0</span></div>
+            <div class="row2"><span>Budget</span><span>₹900</span></div>
+          </div>
+        </div>
+        <figcaption><b>The task page (customer)</b>A banner says what happened. It goes away once they set a new date or pick someone. The menu also gets "Change the date" for any open task.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">‹</div><div class="t">Your task</div></div>
+          <div class="body"><div class="banner gold"><div class="bt">Your date passed: still open</div></div></div>
+          <div class="sheet-shade"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="h" style="font-size:16px">Close this task by</div>
+            <div class="sub">Workers see this date on your post.</div>
+            <div class="days">
+              <div class="day">Wed<b>25</b></div><div class="day on">Thu<b>26</b></div><div class="day">Fri<b>27</b></div><div class="day">Sat<b>28</b></div><div class="day">Sun<b>29</b></div>
+            </div>
+            <div class="times"><span class="time">9 AM</span><span class="time">12 PM</span><span class="time on">3 PM</span><span class="time">6 PM</span></div>
+            <div class="link">Keep no fixed date</div>
+            <div class="btn hire">Set closing time</div>
+          </div>
+        </div>
+        <figcaption><b>Set a new date</b>Optional. If the new date also passes with nobody picked, the task goes back to "No fixed date" and they get the message again.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= J offer date ================= -->
+  <section class="row" aria-labelledby="jo">
+    <div class="row-head">
+      <h2 id="jo">J · A worker offers with their own finish date <span class="pill earn">Earn</span> <span class="pill hire">Hire</span></h2>
+      <p>On every task with no fixed date (posted that way, or switched after its date passed), the offer form asks "When can you finish it?". Giving a date is optional. The customer sees it on the offer and in the new-offer notification. If they accept that offer, the task's date becomes the worker's date. Prices and fees do not change.</p>
+    </div>
+    <div class="strip">
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="body" style="padding-top:8px"></div>
+          <div class="sheet" style="position:relative;border-radius:22px 22px 0 0;margin-top:auto">
+            <div class="grab"></div>
+            <div class="h" style="font-size:16px">Send an offer</div>
+            <div class="sub">Assemble a study table · Customer’s budget <b style="color:var(--jade-deep)">₹900</b></div>
+            <div class="field"><span class="l">Your price (₹)</span><span class="v">₹ 900</span></div>
+            <div class="field"><span class="l">Why you</span><span class="v" style="font-weight:500">I have set up 40+ flat-pack tables, own tools.</span></div>
+            <div><div style="font-weight:800;color:var(--ink)">When can you finish it?</div><div class="sub">This task has no fixed date. Tell the customer when you can finish: it becomes the task’s date if they choose you.</div></div>
+            <div class="two"><div class="field"><span class="l">Hours (optional)</span><span class="v">—</span></div><div class="field"><span class="l">Finish by (optional)</span><span class="v">◷ Pick a date</span></div></div>
+            <div class="btn earn">Send offer</div>
+          </div>
+        </div>
+        <figcaption><b>Offer form, date not picked yet</b>The offer can go without a date. Offers with a date stand out to the customer.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="body" style="padding-top:8px"></div>
+          <div class="sheet-shade"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="h" style="font-size:16px">When can you finish it?</div>
+            <div class="sub">The customer sees this on your offer.</div>
+            <div class="days">
+              <div class="day">Wed<b>25</b></div><div class="day">Thu<b>26</b></div><div class="day on-earn">Fri<b>27</b></div><div class="day">Sat<b>28</b></div><div class="day">Sun<b>29</b></div>
+            </div>
+            <div class="times"><span class="time">9 AM</span><span class="time">12 PM</span><span class="time">3 PM</span><span class="time on-earn">6 PM</span></div>
+            <div class="btn earn">Set finish date</div>
+          </div>
+        </div>
+        <figcaption><b>Picking the finish date</b>Same picker, in Earn blue. From now on, up to 3 years ahead.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="body" style="padding-top:8px"></div>
+          <div class="sheet" style="position:relative;border-radius:22px 22px 0 0;margin-top:auto">
+            <div class="grab"></div>
+            <div class="h" style="font-size:16px">Send an offer</div>
+            <div class="field"><span class="l">Your price (₹)</span><span class="v">₹ 900</span></div>
+            <div><div style="font-weight:800;color:var(--ink)">When can you finish it?</div></div>
+            <div class="two"><div class="field"><span class="l">Hours (optional)</span><span class="v">3</span></div><div class="field set"><span class="l">Finish by</span><span class="v">◷ Fri 27 Nov, 6 PM ×</span></div></div>
+            <div class="btn earn">Send offer</div>
+          </div>
+        </div>
+        <figcaption><b>Offer form, date set</b>The worker can change the date later, until the customer picks someone.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone lock">
+          <div class="status" style="color:#fff"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="clock">9:52</div>
+          <div class="date">Wednesday, 25 November</div>
+          <div class="note">
+            <div class="app"><span>taskdrop.</span><span>now</span></div>
+            <div class="nt">Ravi K. offered ₹900</div>
+            <div class="nb">To do Assemble a study table. Can finish by 27 Nov, 6:00 PM. Open it to compare offers.</div>
+          </div>
+        </div>
+        <figcaption><b>The customer's new-offer notification</b>The usual message, with the worker's date added when the offer has one.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">‹</div><div class="t">Offers</div></div>
+          <div class="body">
+            <div class="offer">
+              <div class="who"><div class="av">RK</div><div><div class="nm">Ravi K.</div><div class="rt">★ 4.9 · 31 jobs</div></div><div class="pr">₹900</div></div>
+              <div class="finish">Can finish by 27 Nov, 6:00 PM</div>
+              <div class="msg">I have set up 40+ flat-pack tables, own tools.</div>
+              <div class="btn hire">Accept · ₹900</div>
+            </div>
+            <div class="offer">
+              <div class="who"><div class="av">SM</div><div><div class="nm">Sana M.</div><div class="rt">★ 4.7 · 12 jobs</div></div><div class="pr">₹850</div></div>
+              <div class="finish">Can finish by 28 Nov, 12:00 PM</div>
+              <div class="msg">Free tomorrow afternoon and Saturday.</div>
+              <div class="btn quiet">Accept · ₹850</div>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>Offers (customer)</b>Each offer with a date shows "Can finish by …" in jade, in the offer list and in Compare.</figcaption>
+      </figure>
+
+      <figure class="screen">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+          <div class="appbar"><div class="back">‹</div><div class="t">Your task</div></div>
+          <div class="body">
+            <div class="chip hire">Ravi K. is doing it</div>
+            <div class="h">Assemble a study table</div>
+            <div class="row2"><span>Due</span><span>27 Nov, 6:00 PM</span></div>
+            <div class="row2"><span>Price</span><span>₹900</span></div>
+            <div class="sub">The due date is the one Ravi gave on his offer.</div>
+            <div style="flex:1"></div>
+            <div class="btn hire">Pay to start</div>
+          </div>
+        </div>
+        <figcaption><b>After accepting</b>The task's date becomes the worker's date in the same step. Paying and the money hold work as today.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ================= Built ================= -->
+  <section class="row" aria-labelledby="built">
+    <div class="row-head">
+      <h2 id="built">Built · real screenshots (25 Nov) <span class="pill built">From the app</span></h2>
+      <p>Taken from a local web build of PR 511 against the staging data, phone (375×812) and web (1440×900), Earn mode. Staging had no open task without a date at the time, so the dates were blanked in that browser tab to show the "No fixed date" state. The worker screens match the design above.</p>
+    </div>
+    <div class="strip">
+      <figure class="screen"><img class="shot" src="real-findwork-phone.jpg" alt="Find work list on a phone, a card says No fixed date"><figcaption><b>Find work list (phone)</b>Cards say "No fixed date", in the usual order.</figcaption></figure>
+      <figure class="screen"><img class="shot" src="real-task-worker-phone.jpg" alt="Worker task page on a phone: Complete by No fixed date, and Say in your offer when you can finish it"><figcaption><b>Task page (phone)</b>"Complete by: No fixed date" and the line asking the worker to say when they can finish.</figcaption></figure>
+      <figure class="screen"><img class="shot" src="real-offer-phone.jpg" alt="Offer panel with When can you finish it and an optional Finish by field"><figcaption><b>Offer panel, no date yet</b>"When can you finish it?" with an optional "Finish by". The offer can go without it.</figcaption></figure>
+      <figure class="screen"><img class="shot" src="real-finish-picker-phone.jpg" alt="Date and time picker titled When can you finish it, with Set finish date button"><figcaption><b>Finish-date picker</b>"When can you finish it?" and "Set finish date", in Earn blue.</figcaption></figure>
+      <figure class="screen"><img class="shot" src="real-offer-set-phone.jpg" alt="Offer panel with Finish by 26 Nov, 11:30 PM set and a clear button"><figcaption><b>Offer panel, date set</b>The date shows with a × to clear it.</figcaption></figure>
+      <figure class="screen wide"><img class="shot" src="real-task-worker-web.jpg" alt="Worker task page on the web with No fixed date and the offer panel asking When can you finish it"><figcaption><b>Task page (web)</b>The same on a wide screen, with the offer panel on the right.</figcaption></figure>
+    </div>
+    <div class="row-head" style="margin-top:18px">
+      <p><b>Differences from the design, and why:</b></p>
+      <ul>
+        <li>"When can you finish it?" is also on the offer panel on the task page (the design drew only the offer sheet), because most offers are sent from there.</li>
+        <li>Home's next-step card has no special nudge: a task whose date passed shows like any other open task there.</li>
+        <li>Not yet checked in a browser: the customer's screens (the message, My tasks card, task-page banner, "Set a new date", "Can finish by" on offers, the date after accepting). They need migration 216 on the staging database and a signed-in customer, so they are checked by the SQL and unit tests only until you OK the merge.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="questions" aria-labelledby="q">
+    <h2 id="q">Decisions used</h2>
+    <ol>
+      <li>Accepting an offer with a finish date changes the task's date to it automatically.<span>As designed.</span></li>
+      <li>A task with offers still switches to "No fixed date" when its date passes.<span>As designed, so it never looks expired.</span></li>
+    </ol>
+    <p class="lede" style="font-size:13.5px">Built on PR 511. It waits for your OK to merge, because merging applies migration 216 to the database.</p>
+  </section>
+</div>
