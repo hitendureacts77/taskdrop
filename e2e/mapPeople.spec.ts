@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
-import { ASHA, MEERA, RAVI, SUPABASE_URL, accessToken, apiAs, expectSignedIn } from "./helpers";
+import { ASHA, MEERA, RAVI, SUPABASE_URL, accessToken, apiAs, expectSignedIn, openExplore } from "./helpers";
 
 // The People layer end to end (docs/design/map-tab/PLAN.md: WP4b layer, WP6 consent sheet; owner decision 35b).
 // Cloud TEST project, seed accounts.
@@ -123,7 +123,7 @@ test("Ravi shares his spot, Asha sees him at a rounded cell, Ravi hides and he i
 
   await asha.goto("/");
   await expectSignedIn(asha);
-  await asha.getByText("Explore", { exact: true }).first().click();
+  await openExplore(asha);
   const myPeopleChip = asha.getByRole("button", { name: "People", exact: true });
   const chooseArea = asha.getByRole("button", { name: "Choose your area" });
   await expect(myPeopleChip.or(chooseArea)).toBeVisible();
@@ -211,7 +211,7 @@ test("Meera, a stranger, chooses Everyone nearby: Asha sees her as Nearby on a c
     });
     await asha.goto("/");
     await expectSignedIn(asha);
-    await asha.getByText("Explore", { exact: true }).first().click();
+    await openExplore(asha);
     const peopleChip = asha.getByRole("button", { name: "People", exact: true });
     await expect(asha.getByRole("button", { name: "Choose your area" }), "Asha has an area chosen").toBeHidden();
     await peopleChip.click();

@@ -224,3 +224,21 @@ export async function closeStagingCard(page: Page): Promise<void> {
   const opened = await page.getByRole("heading", { name: "How TaskDrop works", exact: true }).waitFor({ timeout: 5_000 }).then(() => true, () => false);
   if (opened) await walk.click();
 }
+
+/**
+ * Opens the Explore tab: the side menu's "Explore" link on a wide screen, or the bottom tab bar's tab on a phone,
+ * which reads "Find work" in Earn mode and "Explore" in Hire mode (BottomTabBar.tsx).
+ */
+export async function openExplore(page: Page): Promise<void> {
+  const tab = page.getByRole("link", { name: "Explore", exact: true }).or(page.getByRole("tab", { name: /^(Explore|Find work)(,|$)/ }));
+  await tab.filter({ visible: true }).first().click();
+}
+
+/**
+ * A guest's way in since the sign-in-first front door (AccessScreen): the consent bar, then "Continue as guest".
+ * Leaves the page on the guest's Home.
+ */
+export async function continueAsGuest(page: Page): Promise<void> {
+  await answerConsent(page);
+  await page.getByRole("button", { name: "Continue as guest" }).click();
+}
