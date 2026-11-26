@@ -206,11 +206,22 @@ begin
   perform pg_temp.as_operator();
   perform set_config('enable_seqscan', 'off', true);
   perform set_config('enable_bitmapscan', 'off', true);
-  -- On the near-empty test table tasks_pillar_recent_idx (status, ...) costs exactly the same, so the planner
-  -- picked either one depending on what ran before (flaky since the suite runs in sorted order, PR 536). This
-  -- check is about the partial index being usable, so the competing index is dropped here; the whole file
-  -- rolls back at the end, so nothing changes.
-  drop index if exists public.tasks_pillar_recent_idx;
+  -- On the near-empty test tables several other indexes (tasks_pillar_recent_idx, tasks_open_recent_idx, ...)
+  -- cost exactly the same, so the planner picked any of them depending on what ran before (flaky since the
+  -- suite runs in sorted order, PR 536). This check is about the partial indexes being usable, so every other
+  -- plain index on the two tables is dropped here (unique and primary-key indexes stay); the whole file rolls
+  -- back at the end, so nothing changes.
+  for r in
+    select format('%I.%I', n.nspname, c.relname) as idx
+      from pg_index i
+      join pg_class c on c.oid = i.indexrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where i.indrelid in ('public.tasks'::regclass, 'public.profiles'::regclass)
+       and not i.indisunique and not i.indisprimary
+       and c.relname not in ('tasks_completed_at_done_idx', 'profiles_last_seen_at_live_idx')
+  loop
+    execute 'drop index ' || r.idx;
+  end loop;
 
   v_plan := '';
   for r in execute $q$
