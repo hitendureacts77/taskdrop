@@ -178,7 +178,7 @@ as $fn$
    where p_kind in ('request', 'service')
      and t.kind::text = p_kind
      and p.status = 'active' and p.starts_at <= now()
-     and p.spent_minor < p.amount_minor
+     and p.amount_minor - p.spent_minor >= greatest(private.promo_cfg('floor_minor', 20)::bigint, 1)   -- money for one more show
      and now() < private.promo_last_end(p)
      and t.status::text = 'OPEN'
      and t.poster_id is distinct from p_viewer
