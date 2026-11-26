@@ -53,12 +53,8 @@ what Google requires for a listing.
 
 ## Before you put it in front of real people
 
-**Restrict the Maps key.** `EXPO_GOOGLE_MAPS_API_KEY` is a build-time secret (an
-EAS secret), but it still ends up in the APK's manifest, and anyone can unzip an
-APK. The only thing protecting it is the restriction you set in Google Cloud
-Console: limit it to the Maps SDK for Android and to the `com.taskdrop.app`
-package and its SHA-1. Until you do, it is spendable by anyone who downloads the
-app.
+**No Maps key in the app.** Since plan 1.20 the phone map is MapLibre with OpenFreeMap tiles, so the APK
+carries no Google Maps key.
 
 **Rotate the Razorpay test keys.** They were pasted into a chat during
 development. They are test keys, so the exposure is limited, but do not carry

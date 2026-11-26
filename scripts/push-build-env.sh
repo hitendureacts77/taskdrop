@@ -16,11 +16,7 @@
 # EXPO_PUBLIC_SUPABASE_* are *publishable* and end up readable in the shipped bundle:
 #   EXPO_PUBLIC_SUPABASE_ANON_KEY  -- safe by design; RLS is what protects data.
 #
-# EXPO_GOOGLE_MAPS_API_KEY is pushed as an EAS *secret*, not plaintext. It is not
-# EXPO_PUBLIC_, so it never enters the JS bundle; app.config.js reads it at build
-# time for the Android manifest. It is still extractable from an APK's manifest,
-# so restrict it in Google Cloud Console to the Maps SDK for Android and the
-# com.taskdrop.app package + SHA-1.
+# No build secrets are pushed any more: the phone map (MapLibre, plan 1.20) needs no Google Maps key.
 
 set -euo pipefail
 
@@ -37,7 +33,7 @@ read_var() {
 }
 
 PUBLIC_KEYS="EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY"
-SECRET_KEYS="EXPO_GOOGLE_MAPS_API_KEY"
+SECRET_KEYS=""
 
 missing=0
 for key in $PUBLIC_KEYS $SECRET_KEYS; do

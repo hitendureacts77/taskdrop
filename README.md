@@ -123,16 +123,8 @@ Nominatim, which needs no key and returns real coordinates on both web and
 device. That matters because a place label with no latitude and longitude is
 how "Distance: nearby" ends up being a guess.
 
-The Android map key is a build-time secret, set as:
-
-```
-EXPO_GOOGLE_MAPS_API_KEY=...
-```
-
-It is deliberately not `EXPO_PUBLIC_`, so it is never inlined into the JavaScript
-bundle. Restrict it in Google Cloud Console to the Maps SDK for Android, the
-`com.taskdrop.app` package and the app's SHA-1. Google Places search for the
-server side uses the separate `GOOGLE_MAPS_API_KEY` Edge Function secret.
+The maps themselves (web and phone) use MapLibre with OpenFreeMap tiles and need no key (plan 1.20).
+Google Places search for the server side uses the `GOOGLE_MAPS_API_KEY` Edge Function secret.
 
 The lookup order is Google Places (if a key is set) → Nominatim → the device
 geocoder (native only). Whatever the source, the chosen place is stored with its
