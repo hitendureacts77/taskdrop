@@ -42,13 +42,20 @@ export const CARD_MIN = 290;
 export const TWO_PANE_MIN = 940;
 
 /**
- * Desktop scale (PLAN.md, Q2): the whole page grows with the window through
- * CSS zoom on <html> (lib/desktopScale.web.ts), so text, controls, spacing and
- * icons grow together. Never below 1, never above SCALE_MAX, and never so much
- * that the design height drops under SCALE_MIN_HEIGHT.
+ * Desktop scale: the whole page is sized through CSS zoom on <html>
+ * (lib/desktopScale.web.ts), so text, controls, spacing and icons move together.
+ *
+ * Owner, 26 Nov (task 1.19 S): text on desktop felt too big next to sites like
+ * Upwork (14 px body, 16 px paragraphs). The page now draws at SCALE_MIN (0.92,
+ * so the 14 px menu reads as about 13 px) up to a 1920 px wide window, then grows
+ * gently to SCALE_MAX on very wide monitors. Before, it grew from 1 to 1.35.
+ * A short window never zooms above height / SCALE_MIN_HEIGHT, and never below
+ * SCALE_MIN. Phones, tablets and the Android app are not touched (scale 1).
  */
-export const SCALE_MAX = 1.35;
-const SCALE_STEP_WIDTH = 3200;
+export const SCALE_MIN = 0.92;
+export const SCALE_MAX = 1.05;
+const SCALE_FLAT_UNTIL = 1920;
+const SCALE_STEP_WIDTH = 6400;
 const SCALE_MIN_HEIGHT = 650;
 
 const clamp = (lo: number, v: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -59,8 +66,8 @@ const zoomWorks =
 
 /** The desktop scale for a browser window of this real size (CSS px). */
 export function desktopScaleFor(width: number, height: number): number {
-  const byWidth = clamp(1, 1 + (width - DESKTOP_MIN_WIDTH) / SCALE_STEP_WIDTH, SCALE_MAX);
-  return Math.max(1, Math.round(Math.min(byWidth, height / SCALE_MIN_HEIGHT) * 100) / 100);
+  const byWidth = clamp(SCALE_MIN, SCALE_MIN + (width - SCALE_FLAT_UNTIL) / SCALE_STEP_WIDTH, SCALE_MAX);
+  return Math.max(SCALE_MIN, Math.round(Math.min(byWidth, height / SCALE_MIN_HEIGHT) * 100) / 100);
 }
 
 export type Layout = {
