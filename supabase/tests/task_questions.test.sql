@@ -206,6 +206,11 @@ begin
   perform pg_temp.as_operator();
   perform set_config('enable_seqscan', 'off', true);
   perform set_config('enable_bitmapscan', 'off', true);
+  -- On the near-empty test table tasks_pillar_recent_idx (status, ...) costs exactly the same, so the planner
+  -- picked either one depending on what ran before (flaky since the suite runs in sorted order, PR 536). This
+  -- check is about the partial index being usable, so the competing index is dropped here; the whole file
+  -- rolls back at the end, so nothing changes.
+  drop index if exists public.tasks_pillar_recent_idx;
 
   v_plan := '';
   for r in execute $q$
