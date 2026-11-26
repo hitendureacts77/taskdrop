@@ -227,12 +227,13 @@ revoke all on function private.promo_tell_paused(uuid) from public, anon, authen
 -- ---- the auction -------------------------------------------------------------------------------------
 -- Called each time a list opens. Returns every live promotion near the viewer that could be shown (for
 -- the Promoted label and the bigger map pin) and marks the top places won in this auction. Called for the map
--- (p_surface 'map') it only lists them: no auction and no charge. Each new top
+-- (p_surface 'map') it only lists them: no auction and no charge. The distance is used for the score only and
+-- never returned: from points the caller chooses it would give away a post's exact pin. Each new top
 -- place is charged its second price here, once; the same place shown again within repeat_minutes is free.
 create or replace function public.promoted_live(p_kind text, p_lat double precision, p_lng double precision,
                                                 p_radius_km numeric, p_surface text default 'list',
                                                 p_task_ids uuid[] default null)
-returns table (task_id uuid, promotion_id uuid, poster_id uuid, top boolean, place integer, km numeric)
+returns table (task_id uuid, promotion_id uuid, poster_id uuid, top boolean, place integer)
 language plpgsql security definer
 set search_path to 'public', 'pg_temp'
 as $fn$
@@ -335,7 +336,7 @@ begin
   end if;
 
   for r in select c.* from private.promo_candidates(v_me, p_kind, p_lat, p_lng, p_radius_km, v_ids) c loop
-    task_id := r.task_id; promotion_id := r.promotion_id; poster_id := r.poster_id; km := r.km;
+    task_id := r.task_id; promotion_id := r.promotion_id; poster_id := r.poster_id;
     top := r.promotion_id = any (v_top);
     if top then
       place := array_position(v_top, r.promotion_id);

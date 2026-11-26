@@ -717,7 +717,6 @@ export type PromotedLive = {
   poster_id: string;
   top: boolean;
   place: number | null;
-  km: number | null;
 };
 
 /**
