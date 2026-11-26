@@ -89,6 +89,19 @@ begin
     raise exception 'the post holding the searcher''s own word should rank above the one that only means the same, got %', v_ids;
   end if;
 
+  -- ---- caller check: a member always searches as themself; a passed viewer is ignored ----------------------
+  select count(*) into v_n
+    from public.search_posts('request', array['tap'], array['leak'], null, null, v_poster) s
+   where s.id = v_mine;
+  if v_n <> 0 then raise exception 'a member passing someone else''s id as viewer saw their own post'; end if;
+  perform set_config('request.jwt.claims', '', true);
+  v_err := pg_temp.fails('select * from public.search_posts(''request'', array[''tap''])');
+  if v_err is null then raise exception 'search_posts answered someone not signed in'; end if;
+  if has_function_privilege('anon', 'public.search_posts(text, text[], text[], text, text, uuid, text, bigint, bigint, double precision, double precision, double precision, double precision, real, integer)', 'execute') then
+    raise exception 'anon can execute search_posts';
+  end if;
+  perform pg_temp.become(v_worker);
+
   -- ---- area box: Bengaluru only, Delhi stays out -------------------------------------------------------------
   select array_agg(s.id) into v_ids
     from public.search_posts('request', array['tap'], array['leak'], null, null, v_worker, null, null, null, 12.8, 13.1, 77.5, 77.8) s;

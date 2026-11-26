@@ -108,6 +108,16 @@ begin
   select coalesce(p_semantic_min, (select (s.value #>> '{}')::real from settings s where s.key = 'search_semantic_min'), 0.80)
     into v_min;
   v_min := least(greatest(v_min, 0.5), 0.99);
+
+  -- Who is calling. A signed-in person always searches as themself (their own posts left out, whatever viewer was
+  -- passed); nobody signed out may call this. Only the service role (the api answering a guest, whose rows then
+  -- come through guest_open_posts) may search with no viewer.
+  if coalesce(auth.role(), '') <> 'service_role' then
+    if auth.uid() is null then
+      raise exception 'Sign in to search' using errcode = '42501';
+    end if;
+    p_viewer := auth.uid();
+  end if;
   select string_agg(w, ' | ') into v_words
     from (select distinct regexp_replace(lower(x), '[^a-z0-9]', '', 'g') as w
             from unnest(coalesce(p_words, '{}'::text[])) as u(phrase),
@@ -195,7 +205,7 @@ begin
 end;
 $$;
 
-revoke all on function public.search_posts(text, text[], text[], text, text, uuid, text, bigint, bigint, double precision, double precision, double precision, double precision, real, integer) from public;
+revoke all on function public.search_posts(text, text[], text[], text, text, uuid, text, bigint, bigint, double precision, double precision, double precision, double precision, real, integer) from public, anon;
 grant execute on function public.search_posts(text, text[], text[], text, text, uuid, text, bigint, bigint, double precision, double precision, double precision, double precision, real, integer) to authenticated, service_role;
 
 /** Open posts whose fingerprint is missing or out of date, oldest first, for the api to fill. Service role only. */
