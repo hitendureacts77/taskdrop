@@ -8,6 +8,7 @@ import { fontFamilyFor } from '../theme';
 import { Icon, type IconName } from './Icon';
 import { useAuth } from '../providers/AuthProvider';
 import { countNeedsAttention } from '../data/api';
+import { withAlpha } from '../lib/withAlpha';
 
 /** 5-tab bar: Home · Explore · My Tasks (My Work) · Wallet · Profile. */
 export function BottomTabBar() {
@@ -34,7 +35,8 @@ export function BottomTabBar() {
 
   const tabs: Array<{ key: ScreenName; icon: IconName; label: string }> = [
     { key: 'home', icon: 'home', label: 'Home' },
-    { key: 'explore', icon: 'map', label: 'Explore' },
+    // Earn calls this tab Find work, as the phone's native tabs already do.
+    { key: 'explore', icon: 'map', label: mode === 'worker' ? 'Find work' : 'Explore' },
     { key: 'myTasks', icon: 'orders', label: mode === 'worker' ? 'My Work' : 'My Tasks' },
     { key: 'wallet', icon: 'wallet', label: 'Wallet' },
     { key: 'profile', icon: 'user', label: 'Profile' },
@@ -46,7 +48,7 @@ export function BottomTabBar() {
         flexDirection: 'row',
         alignItems: 'flex-start',
         // v2: a frosted bar on the web; a solid surface on native.
-        backgroundColor: Platform.OS === 'web' ? (t.isDark ? 'rgba(22,25,28,0.92)' : 'rgba(255,255,255,0.92)') : t.colors.surface,
+        backgroundColor: Platform.OS === 'web' ? withAlpha(t.colors.surface, 0.92) : t.colors.surface,
         ...(Platform.OS === 'web' ? ({ backdropFilter: 'blur(16px)' } as object) : null),
         borderTopColor: t.colors.line,
         borderTopWidth: 1,

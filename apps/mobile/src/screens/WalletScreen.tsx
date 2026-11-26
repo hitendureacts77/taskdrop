@@ -31,6 +31,8 @@ import {
 import { Pressy, tx } from '../components/primitives';
 import { AddFundsSheet } from '../components/AddFundsSheet';
 import { AppHeader } from '../components/AppHeader';
+import { TabTitle } from '../components/TabTitle';
+import { walletLine } from '../lib/tabLines';
 import { Icon } from '../components/Icon';
 import { LoadFailed, Pill, SectionTitle, TopBar, UnderlineTabs } from '../components/kit';
 import { MoneyBars, type MoneyBar } from '../components/MoneyBars';
@@ -1056,6 +1058,22 @@ function WalletBody({ insights = false }: { insights?: boolean } = {}) {
   return (
     <Screen padded={false}>
       {insights ? <TopBar title="Spending insights" onBack={back} /> : <AppHeader />}
+      {insights || desktop ? null : (
+        <TabTitle
+          title="Wallet"
+          live={walletLine({ loaded, held: formatINR(heldMinor + shown.earningEscrow), heldMinor: heldMinor + shown.earningEscrow, available: formatINR(available) })}
+          action={
+            <Pressable
+              onPress={() => go('pricing')}
+              accessibilityRole="button"
+              accessibilityLabel="How fees work"
+              style={({ pressed }) => ({ borderWidth: 1.5, borderColor: t.colors.accentBorder, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 14, opacity: pressed ? 0.7 : 1 })}
+            >
+              <RNText style={tx('800', 13.5, t.colors.accentDeep)}>How fees work</RNText>
+            </Pressable>
+          }
+        />
+      )}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 16 }}

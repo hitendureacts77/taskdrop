@@ -4,6 +4,7 @@ import { noteFirstAction } from '../lib/appPrompt';
 import { View, Text as RNText, ScrollView, TextInput, Pressable, Animated, Platform, type TextInputInstance, type StyleProp, type ViewStyle } from 'react-native';
 import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
+import { TabTitle } from '../components/TabTitle';
 import { Icon } from '../components/Icon';
 import { BottomSheet, EmptyState, LoadFailed, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
 import { reportError } from '../lib/errors';
@@ -198,6 +199,12 @@ export function ExploreScreen() {
               placeIsMine={!lookAt}
               onChangePlace={() => setPickFor(area ? 'look' : 'mine')}
               onUseMyPlace={() => setLookAt(null)}
+              tabHeader={desktop || tablet ? undefined : (live) => (
+                <>
+                  <AppHeader />
+                  <TabTitle title={mode === 'worker' ? 'Find work' : 'Explore'} live={live} dot action={<ViewSwitch view="map" onList={() => setView('list')} />} />
+                </>
+              )}
               onChooseArea={() => setPrompt('type')}
               onUseLocation={() => {
                 void locate().then((p) => {
@@ -317,7 +324,7 @@ function ViewSwap({ on, reduced, style, children }: { on: boolean; reduced: bool
 }
 
 /** The one List / Map switch (design D21): List is where you are, Map opens the full map. */
-function ViewSwitch({ onMap }: { onMap: () => void }) {
+function ViewSwitch({ onMap, view = 'list', onList }: { onMap?: () => void; view?: 'list' | 'map'; onList?: () => void }) {
   const t = useTheme();
   const seg = (label: string, on: boolean, onPress?: () => void) => (
     <Pressy
@@ -341,8 +348,8 @@ function ViewSwitch({ onMap }: { onMap: () => void }) {
       accessibilityRole="tablist"
       style={{ flexDirection: 'row', padding: 3, borderRadius: 14, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line }}
     >
-      {seg('List', true)}
-      {seg('Map', false, onMap)}
+      {seg('List', view === 'list', view === 'list' ? undefined : onList)}
+      {seg('Map', view === 'map', view === 'map' ? undefined : onMap)}
     </View>
   );
 }
@@ -389,9 +396,7 @@ function ExploreIdeas({ onMap }: { onMap: () => void }) {
   return (
     <Screen padded={false}>
       <ExploreHeader />
-      <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingBottom: 2 }}>
-        <ViewSwitch onMap={onMap} />
-      </View>
+      <TabTitle title="Explore" live="Ideas, helpers and tasks near you" action={<ViewSwitch onMap={onMap} />} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {/* The hero: who can help near you, and what tasks round here pay. */}
         <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
@@ -802,16 +807,8 @@ function FindWork({
       onToggleSave={() => void toggleSave(task.id)}
     />
   );
-  const titleRow = (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: desktop ? 4 : 10 }}>
-      <View style={{ flex: 1 }}>
-        {/* On a desktop the page header already says "Find work". */}
-        {desktop ? null : <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Find work</RNText>}
-        <RNText style={tx('500', 13, t.colors.muted, { marginTop: desktop ? 0 : 2 })} numberOfLines={1}>Every open job, near you and online</RNText>
-      </View>
-      <ViewSwitch onMap={onMap} />
-    </View>
-  );
+  // On a desktop the page header already says "Find work" (and the title row is not drawn there).
+  const titleRow = <TabTitle title="Find work" live="Every open job, near you and online" action={<ViewSwitch onMap={onMap} />} />;
   const searchBox = (
     <SearchBox
       value={q}
