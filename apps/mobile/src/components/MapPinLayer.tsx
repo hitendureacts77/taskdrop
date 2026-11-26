@@ -93,15 +93,21 @@ function promoRect(x: number, y: number): Rect {
   return { x: x - 36, y: y - PROMO_PIN.anchor, w: 72, h: 72 };
 }
 
+/** A job pin's pointer and dot under its bubble: 6 px triangle, 2 px gap, 8 px dot. */
+const POINTER = 16;
+
 /**
  * A pin's bubble round its point (lib/mapLayout.ts PinBox), what no other pin's bubble may cover: a lone job's
- * price bubble, a spread job's face and price, a helper's icon and price, a promoted disc.
+ * price bubble, a spread job's face and price, a helper's icon and price, a promoted disc. A job's bubble keeps
+ * its pointer and dot (the 16 px under it, down to the area's point) so no other bubble hides where it points.
+ * A lone job is sized as if it were the best offer (its trending icon): the best one is known only after the layout.
  */
 export function pinBox(pin: JobPin | undefined, people: boolean, spread: boolean): PinBox {
-  if (!pin) return { x: -50, y: -48, w: 100, h: 36 };
+  if (!pin) return { x: -50, y: -48, w: 100, h: 36 + POINTER };
   if (pin.promoted) return promoRect(0, 0);
   if (people) return helperPinRects(0, 0, pin.label, pin.price).compact;
-  return spread ? taskPinRects(0, 0, pin.label, pin.who, pin.title, !!pin.face).compact : bubbleRect(0, 0, pin.label);
+  const b = spread ? taskPinRects(0, 0, pin.label, pin.who, pin.title, !!pin.face).compact : bubbleRect(0, 0, pin.label, true);
+  return { ...b, h: b.h + POINTER };
 }
 
 /** For jobs: each item's biggest offer and the best one on screen, which is drawn in the mode's colour. */
