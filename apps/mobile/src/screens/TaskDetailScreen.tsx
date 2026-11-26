@@ -124,8 +124,8 @@ const MIN_QUOTE_MINOR = PRICE_LIMITS.MIN_MINOR; // ₹20, the smallest offer
 
 function tagInk(t: Theme, tag: Detail['tag']): string {
   if (tag === 'SERVICES') return t.colors.accentDeep;
-  if (tag === 'PRODUCTS') return t.colors.purple;
-  return t.colors.blue;
+  if (tag === 'PRODUCTS') return t.colors.ink;
+  return t.colors.muted;
 }
 
 function isFeedRow(v: unknown): v is FeedRow {

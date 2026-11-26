@@ -52,8 +52,8 @@ export function ListingCard({
         <View style={{ position: 'absolute', right: -40, top: -50, width: 160, height: 160, borderRadius: 999, backgroundColor: t.colors.surface2, opacity: 0.6 }} />
         <Icon name={categoryIcon(task.category)} size={26} color={t.colors.accentDeep} strokeWidth={1.6} />
         {!owner && task.loc_lat === null ? (
-          <View style={{ position: 'absolute', top: 9, left: 10, height: 20, justifyContent: 'center', paddingHorizontal: 7, borderRadius: 6, backgroundColor: t.colors.surface }}>
-            <RNText style={tx('800', 9, t.colors.aiInk, { letterSpacing: 0.9 })}>REMOTE</RNText>
+          <View style={{ position: 'absolute', top: 9, left: 10, height: 20, justifyContent: 'center', paddingHorizontal: 7, borderRadius: 6, backgroundColor: t.colors.surface2 }}>
+            <RNText style={tx('800', 9, t.colors.ink, { letterSpacing: 0.9 })}>REMOTE</RNText>
           </View>
         ) : null}
         {owner ? (

@@ -160,9 +160,9 @@ export function TaskQuestions({
               onPress={() => void ask()}
               disabled={busy === 'ask'}
               label="Send question"
-              style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: t.colors.purple, alignItems: 'center', justifyContent: 'center', opacity: busy === 'ask' ? 0.6 : 1 }}
+              style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center', opacity: busy === 'ask' ? 0.6 : 1 }}
             >
-              <Icon name="send" size={18} color={t.colors.bg} strokeWidth={2} />
+              <Icon name="send" size={18} color={t.colors.onBtn} strokeWidth={2} />
             </Pressy>
           </View>
         </>

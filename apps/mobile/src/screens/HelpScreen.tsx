@@ -371,7 +371,7 @@ export function TicketScreen() {
                       padding: 12,
                     }}
                   >
-                    <RNText style={tx('700', 11, mine ? t.colors.accentDeep : t.colors.purpleDeep)}>
+                    <RNText style={tx('700', 11, t.colors.accentDeep)}>
                       {mine ? 'You' : 'TaskDrop support'}
                     </RNText>
                     <RNText style={tx('400', 14, t.colors.ink, { marginTop: 4, lineHeight: 20 })}>{m.body}</RNText>
