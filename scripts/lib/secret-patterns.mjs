@@ -22,7 +22,10 @@ export const RULES = [
     id: 'imagekit-private-key',
     re: /\bprivate_[A-Za-z0-9+/=]{20,}/,
     // A camelCase identifier is not a key (an Android Hermes bundle holds one: private_ plus words, no digits).
-    verify: (v) => !/^private_[a-z]+(?:[A-Z][a-z]+)+$/.test(v),
+    // Nor is a long letters-only run: Hermes packs strings side by side, and on 26 Nov (PR 556) the bundle held
+    // private_ + 57 letters, no digit and no + / = (names joined together, with an acronym). A real ImageKit private
+    // key is about 28 base64 characters after private_ and, at that length, all but certainly has a digit or + / =.
+    verify: (v) => !/^private_[a-z]+(?:[A-Z][a-z]+)+$/.test(v) && !(/^private_[A-Za-z]+$/.test(v) && v.length - 8 > 40),
   },
   { id: 'google-service-account', re: /"type"\s*:\s*"service_account"/ },
   {
