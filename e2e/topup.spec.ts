@@ -42,6 +42,9 @@ async function openMyTasks(page: Page, title: string) {
   // The saved sign-in may be in Earn mode (another test left it there), where the tab is "My Work".
   await page.getByText("Hire", { exact: true }).first().click();
   await page.getByText("My Tasks", { exact: true }).first().click();
+  // On a phone the search sits behind the magnifier in the header; the desktop table has it always open.
+  const magnifier = page.getByRole("button", { name: "Search tasks", exact: true });
+  if (await magnifier.isVisible().catch(() => false)) await magnifier.click();
   await page.getByPlaceholder("Search tasks, category…").fill(title);
 }
 

@@ -47,6 +47,7 @@ import { taskToFeedRow } from '../lib/openTask';
 import { isFresh } from '../lib/mapMotion';
 import { presenceOf } from '../lib/presence';
 import { useLayout } from '../lib/layout';
+import { mapLine } from '../lib/tabLines';
 import { browserInfo } from '../lib/appDownload';
 import { inFront, onBackInFront } from '../lib/inFront';
 import { PEOPLE_POLL_MS, isSpotFresh } from '../lib/mapSpot';
@@ -197,6 +198,7 @@ export function NearMap({
   placeIsMine = true,
   onChangePlace,
   onUseMyPlace,
+  tabHeader,
 }: {
   layer: NearMapLayer;
   /** Given: show the layer switch (Jobs, Helpers). Undefined: no switch (route use). */
@@ -226,6 +228,9 @@ export function NearMap({
   onChangePlace?: () => void;
   /** "My area" on the place row, shown while looking around another place. */
   onUseMyPlace?: () => void;
+  /** Phone tab only: the header drawn over the map (AppHeader + TabTitle), given the live counts line. It replaces the
+   *  floating title pill and the List pill; the distance button stays. */
+  tabHeader?: (live: string) => React.ReactNode;
 }) {
   const t = useTheme();
   const { go, screen } = useNav();
@@ -596,6 +601,14 @@ export function NearMap({
   const swipe = useSwipe(() => stepBy(1), () => stepBy(-1));
 
   const glass = { backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line };
+  // Height of the tab header above the map, so the pulled-up list stops below it.
+  const [tabHeaderH, setTabHeaderH] = useState(0);
+  const tabHeaderBox = (live: string) =>
+    tabHeader ? (
+      <View onLayout={(e) => setTabHeaderH(e.nativeEvent.layout.height)} style={{ paddingTop: insets.top, backgroundColor: t.colors.bg }}>
+        {tabHeader(live)}
+      </View>
+    ) : null;
 
   // The control where the close X sits: a close button on the route, a "List" pill in the tab.
   const leadingControl = (size: number) =>
@@ -618,6 +631,7 @@ export function NearMap({
   if (!home) {
     return (
       <View style={{ flex: 1, backgroundColor: t.colors.surface2 }}>
+        {tabHeaderBox('Choose your area')}
         <View style={{ flex: 1, marginBottom: bottomInset }}>
           <JobsMap
             me={null}
@@ -628,9 +642,9 @@ export function NearMap({
             startAt={INDIA_CENTRE}
             startZoom={INDIA_ZOOM}
             // Keeps the country in the part the "List" pill above and the card below leave uncovered.
-            fill={{ top: insets.top + 70, bottom: 190 + insets.bottom }}
+            fill={{ top: (tabHeader ? 0 : insets.top) + (tabHeader ? 16 : 70), bottom: 190 + insets.bottom }}
           />
-          <View style={{ position: 'absolute', left: 16, top: insets.top + 10 }}>{leadingControl(44)}</View>
+          {tabHeader ? null : <View style={{ position: 'absolute', left: 16, top: insets.top + 10 }}>{leadingControl(44)}</View>}
           <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom: insets.bottom + 24, alignItems: 'center' }}>
             <FadeIn {...(reduced ? { duration: 120 } : { duration: 280, translateY: 24 })} style={{ width: '100%', maxWidth: 360 }}>
               <View
@@ -1114,11 +1128,13 @@ export function NearMap({
   }
 
   // Phones: the map fills the screen; one sheet holds the hero card and the list, a picked job becomes one card.
-  const topBar = insets.top + TOP_BAR_H;
+  // With the tab header above, the map starts under it and only the distance button floats over the map.
+  const topInset = tabHeader ? 0 : insets.top;
+  const topBar = topInset + (tabHeader ? 56 : TOP_BAR_H);
   // The low sheet is a slim bar; everything else (hero card, controls, list, footer) is one pull away.
   const sheetLow = PEEK_H;
   // Pulled up, the list takes nearly all the screen; a strip of map stays above it to show where it went.
-  const sheetHigh = Math.max(sheetLow + 120, screenH - bottomInset - topBar - 90);
+  const sheetHigh = Math.max(sheetLow + 120, screenH - bottomInset - topBar - 90 - tabHeaderH);
   const bottom = (pickedHelper ? HELPER_H : pickedJob ? CARD_H : sheetLow) + insets.bottom;
   // The low bar's line: the best offer or nearest person, else why there is nothing yet.
   const peekTitle = hero
@@ -1136,13 +1152,28 @@ export function NearMap({
   return (
     <View ref={root} collapsable={false} style={{ flex: 1, backgroundColor: t.colors.surface2 }}>
       {modals}
+      {tabHeaderBox(loading ? 'Looking around…' : mapLine(countWords, placeName, withinTail))}
       {/* Everything is laid out inside this box, so a bar under the map is never drawn over. */}
       <View style={{ flex: 1, marginBottom: bottomInset }}>
         {map({ top: topBar, bottom: bottom + 16 })}
 
         {/* Top bar: what this map shows, where, how many; the distance button opens the Filters sheet. */}
-        <View style={{ position: 'absolute', left: 12, right: 12, top: insets.top + 10, gap: 10 }}>
+        <View style={{ position: 'absolute', left: 12, right: 12, top: topInset + 10, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {tabHeader && !here ? (
+              <>
+                {away && !busy ? <StatusPill text={`Back to ${placeName}`} busy={false} onPress={backToPlace} /> : busy && !loading ? <StatusPill text="Looking around…" busy /> : null}
+                <View style={{ flex: 1 }} />
+                <Pressy
+                  onPress={openFilters}
+                  label={fromHome ? 'Filters' : `How far: ${radius} km. Change`}
+                  style={{ height: 40, paddingHorizontal: 14, borderRadius: 20, ...glass, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                >
+                  <Icon name="filter" size={13} color={t.colors.ink} />
+                  <RNText style={tx('700', 12.5, t.colors.ink)}>{fromHome ? 'Filters' : `${radius} km`}</RNText>
+                </Pressy>
+              </>
+            ) : (
             <View style={{ flex: 1, height: 46, borderRadius: 23, ...glass, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 6, gap: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 }}>
               <View style={{ flex: 1 }}>
                 <RNText style={tx('800', 14, t.colors.ink)} numberOfLines={1}>
@@ -1163,9 +1194,10 @@ export function NearMap({
                 </Pressy>
               )}
             </View>
-            {leadingControl(46)}
+            )}
+            {tabHeader ? null : leadingControl(46)}
           </View>
-          {away && !busy ? (
+          {tabHeader && !here ? null : away && !busy ? (
             <View style={{ alignItems: 'center' }}>
               <StatusPill text={`Back to ${placeName}`} busy={false} onPress={backToPlace} />
             </View>

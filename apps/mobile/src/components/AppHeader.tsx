@@ -96,6 +96,8 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
   modeRef.current = mode;
   const { userId, guest } = useAuth();
   const toolsRef = useTourTarget('headerTools');
+  // Phones and tablets: the face opens the Profile tab (every account row is on Profile or Wallet). The desktop keeps the drawer.
+  const { desktop: onDesktop } = useLayout();
   const same = last.userId === userId;
   const [unread, setUnreadState] = useState(same ? last.unread : 0);
   const [messages, setMessagesState] = useState(same ? last.messages : 0);
@@ -164,9 +166,9 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
       <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} size={btn} />
       <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} badge={messages} size={btn} />
       <Pressable
-        onPress={() => setDrawer(true)}
+        onPress={() => (onDesktop ? setDrawer(true) : go('profile'))}
         accessibilityRole="button"
-        accessibilityLabel="Account menu"
+        accessibilityLabel={onDesktop ? "Account menu" : "Profile"}
         style={({ pressed }) => ({ marginLeft: 2, transform: [{ scale: pressed ? 0.94 : 1 }] })}
       >
         <View

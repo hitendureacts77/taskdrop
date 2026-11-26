@@ -15,6 +15,8 @@ import { HitArea, tx } from '../components/primitives';
 import { Icon, type IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/kit';
 import { AppHeader } from '../components/AppHeader';
+import { TabTitle } from '../components/TabTitle';
+import { PayoutDestinationSheet } from '../components/PayoutDestinationSheet';
 import { HeroBackground } from '../components/Hero';
 import { Ripples } from '../components/Ripples';
 import { GuestNote } from '../components/GuestBits';
@@ -67,6 +69,7 @@ const WORKER_ROWS: MenuRow[] = [
 const POSTER_ROWS: MenuRow[] = [
   { icon: 'heart' as IconName, label: 'My regulars', go: 'regulars' },
   { icon: 'bolt' as IconName, label: 'Promote a request', go: 'promote' },
+  { icon: 'bookmark' as IconName, label: 'Saved tasks', go: 'saved' },
   ...SHARED_ROWS,
 ];
 
@@ -122,6 +125,7 @@ export function ProfileScreen() {
   // <Image> can load it. Null just means we fall back to the initial.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [accounts, setAccounts] = useState(false);
   // W2-16: names every way this person can sign back in.
   const signOutWords = useSignOutMessage(confirmSignOut, profile?.username);
   const [regulars, setRegulars] = useState<Regular[]>([]);
@@ -133,6 +137,11 @@ export function ProfileScreen() {
   const memberRows: MenuRow[] = worker
     ? [{ icon: 'trending' as IconName, label: 'My earnings and jobs', go: 'analytics' as ScreenName }, ...WORKER_ROWS]
     : POSTER_ROWS;
+  // Rows the account drawer had that no other tab carries: the bank or UPI accounts and the app tour (decision 2, task 1.19).
+  const accountRows: MenuRow[] = [
+    { icon: 'card' as IconName, label: 'Bank & UPI accounts', go: 'profile', act: () => setAccounts(true) },
+    { icon: 'sparkle' as IconName, label: TOUR_COPY.menuLabel, go: 'profile', act: () => startTour(worker ? 'earn' : 'hire') },
+  ];
   // A guest keeps Help, the tour and feedback; the rest is about an account they do not have yet.
   const guestRows: MenuRow[] = [
     { icon: 'edit', label: 'Edit my profile', go: 'profileEdit', act: () => needAccount('profile') },
@@ -140,7 +149,7 @@ export function ProfileScreen() {
     { icon: 'trending', label: 'Ideas & feedback', go: 'ideas' },
     { icon: 'help', label: 'Help & support', go: 'help' },
   ];
-  const rows: MenuRow[] = guest ? guestRows : memberRows;
+  const rows: MenuRow[] = guest ? guestRows : [...memberRows, ...accountRows];
 
   // Poster and worker reputations are separate, so re-fetch when the mode flips.
   useEffect(() => {
@@ -566,6 +575,24 @@ export function ProfileScreen() {
   return (
     <Screen padded={false}>
       <AppHeader />
+      {desk ? null : (
+        <TabTitle
+          title="Profile"
+          live={guest ? 'Looking around' : [profile?.username ? `@${profile.username}` : null, profile?.loc_label?.split(',')[0] ?? null, hasRating ? `★ ${Number(ratingAvg ?? 0).toFixed(1)}` : null].filter(Boolean).join(' · ') || null}
+          action={
+            guest ? undefined : (
+              <Pressable
+                onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })}
+                accessibilityRole="button"
+                accessibilityLabel="See as others"
+                style={({ pressed }) => ({ borderWidth: 1.5, borderColor: t.colors.accentBorder, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 14, opacity: pressed ? 0.7 : 1 })}
+              >
+                <RNText style={tx('800', 13.5, t.colors.accentDeep)}>See as others</RNText>
+              </Pressable>
+            )
+          }
+        />
+      )}
       <TwoPane
         width={Math.round(Math.min(480, Math.max(380, contentWidth('feed') * 0.34)))}
         left={
@@ -599,6 +626,7 @@ export function ProfileScreen() {
           </ScrollView>
         }
       />
+      <PayoutDestinationSheet visible={accounts} onClose={() => setAccounts(false)} onChanged={() => {}} />
       <ConfirmDialog
         visible={confirmSignOut}
         danger

@@ -2,7 +2,8 @@ import { countOrDash, successPercent } from '../lib/taskStatusText';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text as RNText, ScrollView, Pressable, TextInput, RefreshControl } from 'react-native';
 import { Screen, cardSurface, formatINR } from '../components/ui';
-import { HeroCard } from '../components/Hero';
+import { TabTitle } from '../components/TabTitle';
+import { myTasksLine, myWorkLine } from '../lib/tabLines';
 import { AppHeader } from '../components/AppHeader';
 import { Icon } from '../components/Icon';
 import { BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, timeAgo } from '../components/kit';
@@ -110,6 +111,9 @@ function MyPosted() {
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState('');
   const [needs, setNeeds] = useState(false);
+  // Phone: the search sits behind the magnifier in the header; the drafts are one pill that opens their list.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [draftsOpen, setDraftsOpen] = useState(false);
   const [menu, setMenu] = useState<Task | null>(null);
   const [closing, setClosing] = useState(false);
   const [keepIt, setKeepIt] = useState<Task | null>(null);
@@ -326,21 +330,38 @@ function MyPosted() {
       needsOn={needs}
       onNeeds={toggleNeeds}
     />
-  ) : (
-    <View style={{ paddingHorizontal: px, paddingTop: 8 }}>
-      <HeroCard radius={24} padding={20} watermark={false} ringSize={180}>
-        <RNText style={tx('700', 12.5, 'rgba(255,255,255,0.82)')}>Your tasks at a glance</RNText>
-        <View style={{ flexDirection: 'row', marginTop: 12 }}>
-          {summaryTiles.map((m, i) => (
-            <View key={m.label} style={{ flex: 1, borderLeftWidth: i ? 1 : 0, borderLeftColor: 'rgba(255,255,255,0.15)', paddingLeft: i ? 14 : 0 }}>
-              {/* W2-18: a dash while the tasks load, never a 0 that is not true yet. */}
-              <RNText style={tx('800', 30, '#FFFFFF', { letterSpacing: -0.6, fontVariant: ['tabular-nums'] })}>{countOrDash(m.value, tasks === null)}</RNText>
-              <RNText style={tx('600', 12, 'rgba(255,255,255,0.75)', { marginTop: 1 })}>{m.label}</RNText>
-            </View>
-          ))}
+  ) : null;
+
+  // Phone: the "at a glance" card and the tiles became this one live line under the tab's name (plan 1.19, row 3).
+  const titleRow = desktop ? null : (
+    <TabTitle
+      title="My tasks"
+      live={guest ? null : myTasksLine({ loaded: tasks !== null, need: needItems.length, active: (counts[0] ?? 0) + (counts[1] ?? 0), done: counts[2] ?? 0 })}
+      action={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {guest ? null : (
+            <Pressable
+              onPress={() => setSearchOpen((o) => !o)}
+              accessibilityRole="button"
+              accessibilityLabel="Search tasks"
+              accessibilityState={{ expanded: searchOpen }}
+              style={({ pressed }) => ({ width: 40, height: 40, borderRadius: 13, borderWidth: 1, borderColor: t.colors.line, backgroundColor: searchOpen ? t.colors.accentSoft : t.colors.surface, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}
+            >
+              <Icon name="search" size={17} color={searchOpen ? t.colors.accentDeep : t.colors.ink} />
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => go('aiPost')}
+            accessibilityRole="button"
+            accessibilityLabel="Post a task"
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.btn, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, opacity: pressed ? 0.8 : 1 })}
+          >
+            <Icon name="plus" size={15} color={t.colors.onBtn} />
+            <RNText style={tx('800', 13.5, t.colors.onBtn)}>Post</RNText>
+          </Pressable>
         </View>
-      </HeroCard>
-    </View>
+      }
+    />
   );
 
   const needsCard = <NeedsNow items={needItems} onPick={onNeed} desktop={desktop} side="hire" />;
@@ -370,6 +391,7 @@ function MyPosted() {
         onChangeText={setQ}
         placeholder="Search tasks, category…"
         placeholderTextColor={t.colors.muted}
+        autoFocus={!desktop}
         style={tx('400', 14, t.colors.ink, { flex: 1, paddingVertical: desktop ? 9 : 11 })}
       />
     </View>
@@ -379,10 +401,8 @@ function MyPosted() {
   const needsPill =
     needCount > 0 && !desktop ? <Pill label="Needs providers" icon="users" count={needCount} active={needs} onPress={toggleNeeds} /> : null;
 
-  const draftsBlock =
-    drafts.length > 0 ? (
-      <View style={{ paddingHorizontal: px, marginTop: desktop ? 0 : 16, marginBottom: desktop ? 20 : 0, gap: 8 }}>
-        <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>DRAFTS · {drafts.length}</RNText>
+  const draftRows = (
+    <>
         {drafts.map((d) => (
           <View key={d.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, ...cardSurface(t, 16), paddingLeft: 14, paddingRight: 8 }}>
             <Pressable
@@ -395,7 +415,10 @@ function MyPosted() {
               <RNText style={tx('500', 12, t.colors.accentDeep, { marginTop: 3 })}>Continue · saved {timeAgo(new Date(d.savedAt).toISOString())} · price and date asked again</RNText>
             </Pressable>
             <Pressable
-              onPress={() => setConfirmDraft(d)}
+              onPress={() => {
+                setDraftsOpen(false);
+                setConfirmDraft(d);
+              }}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Delete this draft"
@@ -405,8 +428,17 @@ function MyPosted() {
             </Pressable>
           </View>
         ))}
+    </>
+  );
+  // Desktop: the drafts stay a block above the table. Phone: one pill that opens the same rows in a sheet.
+  const draftsBlock =
+    desktop && drafts.length > 0 ? (
+      <View style={{ paddingHorizontal: px, marginBottom: 20, gap: 8 }}>
+        <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>DRAFTS · {drafts.length}</RNText>
+        {draftRows}
       </View>
     ) : null;
+  const draftsPill = !desktop && drafts.length > 0 ? <Pill label="Drafts" icon="edit" count={drafts.length} onPress={() => setDraftsOpen(true)} /> : null;
 
   const empty =
     shown === null ? null : shown.length === 0 && failed ? (
@@ -493,9 +525,34 @@ function MyPosted() {
     </DeskTableCard>
   );
 
+  // Phone children, in order. The tab pills row is the sticky one: it stays in view while the list scrolls.
+  const kids: React.ReactElement[] = [];
+  const add = (key: string, node: React.ReactNode) => {
+    if (node) kids.push(<View key={key}>{node}</View>);
+  };
+  add('guest', guestNote);
+  add('needs', needsCard);
+  add('alerts', alerts);
+  add('search', searchOpen || q ? searchBox : null);
+  add('chips', needsPill || draftsPill ? <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginTop: 10 }}>{needsPill}{draftsPill}</View> : null);
+  const stickyAt = kids.length;
+  kids.push(
+    <View key="tabs" style={{ backgroundColor: t.colors.bg, paddingTop: 10, paddingBottom: 6 }}>
+      <PillTabs
+        tabs={POSTER_TABS.map((x, i) => (tasks === null ? { label: x } : { label: x, count: counts[i] }))}
+        active={tab}
+        onPick={pickTab}
+      />
+    </View>,
+    <SwipeTabs key="list" index={tab} count={POSTER_TABS.length} onChange={pickTab} style={{ flex: 0 }}>
+      {results}
+    </SwipeTabs>,
+  );
+
   return (
     <Screen padded={false}>
       <AppHeader />
+      {titleRow}
       {portal}
       {desktop ? (
         <ListPage scrollProps={{ refreshControl, contentContainerStyle: LIST_SCROLL }}>
@@ -507,24 +564,8 @@ function MyPosted() {
           {table}
         </ListPage>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} refreshControl={refreshControl}>
-          {guestNote}
-          {summary}
-          {needsCard}
-          {alerts}
-          {searchBox}
-          {needsPill ? <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginTop: 10 }}>{needsPill}</View> : null}
-          {draftsBlock}
-          <View style={{ marginTop: 14 }}>
-            <PillTabs
-              tabs={POSTER_TABS.map((x, i) => (tasks === null ? { label: x } : { label: x, count: counts[i] }))}
-              active={tab}
-              onPick={pickTab}
-            />
-          </View>
-          <SwipeTabs index={tab} count={POSTER_TABS.length} onChange={pickTab} style={{ flex: 0 }}>
-            {results}
-          </SwipeTabs>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} refreshControl={refreshControl} stickyHeaderIndices={[stickyAt]}>
+          {kids}
         </ScrollView>
       )}
 
@@ -551,6 +592,10 @@ function MyPosted() {
             ) : null}
           </>
         ) : null}
+      </BottomSheet>
+
+      <BottomSheet visible={draftsOpen} onClose={() => setDraftsOpen(false)} title={`Drafts · ${drafts.length}`}>
+        <View style={{ gap: 8 }}>{draftRows}</View>
       </BottomSheet>
 
       <KeepTaskSheet
@@ -793,13 +838,34 @@ function MyWork() {
   const statsBlock = guest ? null : (
     <>
       <AlertsCard show={(rows?.length ?? 0) > 0} side="earn" />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: px, paddingTop: desktop ? 0 : 8, marginBottom: desktop ? 20 : 0 }}>
-        <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
-        <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
-        <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
-        <StatTile icon="trending" label="Success" value={success} tone="purple" />
-      </View>
+      {/* Phone: the four tiles became the live line under the tab's name; the desktop keeps them. */}
+      {desktop ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: px, marginBottom: 20 }}>
+          <StatTile icon="wallet" label="Earned" value={w ? formatINR(w.earnedMinor) : '–'} />
+          <StatTile icon="check" label="Completed" value={String(w?.jobsDone ?? '–')} tone="blue" />
+          <StatTile icon="play" label="Active" value={String(w?.jobsLive ?? '–')} tone="gold" />
+          <StatTile icon="trending" label="Success" value={success} tone="purple" />
+        </View>
+      ) : null}
     </>
+  );
+
+  const titleRow = desktop ? null : (
+    <TabTitle
+      title="My work"
+      live={guest ? null : myWorkLine({ earned: w ? formatINR(w.earnedMinor) : null, done: w ? w.jobsDone : null, active: w ? w.jobsLive : null, success })}
+      action={
+        <Pressable
+          onPress={() => go('listing')}
+          accessibilityRole="button"
+          accessibilityLabel="Offer a service"
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.btn, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, opacity: pressed ? 0.8 : 1 })}
+        >
+          <Icon name="plus" size={15} color={t.colors.onBtn} />
+          <RNText style={tx('800', 13.5, t.colors.onBtn)}>Offer a service</RNText>
+        </Pressable>
+      }
+    />
   );
 
   const needsCard = <NeedsNow items={needItems} onPick={onNeed} desktop={desktop} side="earn" />;
@@ -929,6 +995,7 @@ function MyWork() {
   return (
     <Screen padded={false}>
       <AppHeader />
+      {titleRow}
       {portal}
       {desktop ? (
         <ListPage scrollProps={{ refreshControl, contentContainerStyle: LIST_SCROLL }}>
@@ -946,12 +1013,13 @@ function MyWork() {
           {table}
         </ListPage>
       ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} refreshControl={refreshControl}>
-          {guestBlock}
-          {statsBlock}
-          {needsCard}
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} refreshControl={refreshControl} stickyHeaderIndices={guest ? undefined : [3]}>
+          <View>{guestBlock}</View>
+          <View>{statsBlock}</View>
+          <View>{needsCard}</View>
+          {/* Sticky: the tab pills stay in view while the list scrolls (child 3). */}
           {guest ? null : (
-            <View style={{ marginTop: 16 }}>
+            <View style={{ backgroundColor: t.colors.bg, paddingTop: 16, paddingBottom: 6 }}>
               <PillTabs tabs={WORKER_TABS.map((x, i) => (rows === null ? { label: x } : { label: x, count: counts[i] }))} active={tab} onPick={setTab} />
             </View>
           )}

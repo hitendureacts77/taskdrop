@@ -45,7 +45,7 @@ type Mode = "poster" | "worker";
 const SCREENS: { id: string; mode: Mode; open: (p: Page) => Promise<void> }[] = [
   { id: "home-hire", mode: "poster", open: async () => {} },
   { id: "home-earn", mode: "worker", open: async () => {} },
-  { id: "explore", mode: "worker", open: (p) => tab(p, "Explore") },
+  { id: "explore", mode: "worker", open: (p) => tab(p, "(Explore|Find work)") },
   { id: "myTasks-hire", mode: "poster", open: (p) => tab(p, "My (Tasks|Work)") },
   { id: "inbox", mode: "poster", open: (p) => headerButton(p, "Messages") },
   { id: "notifications", mode: "poster", open: (p) => headerButton(p, "Notifications") },
