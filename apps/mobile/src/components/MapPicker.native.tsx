@@ -1,35 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Animated, Platform } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import { View, Text as RNText, Animated } from 'react-native';
+import type { CameraRef } from '@maplibre/maplibre-react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
 import { MapPicker as TileMapPicker } from './MapPicker.tiles';
+import { ML, type MapLibre } from '../lib/mapLibreNative';
+import { glStyleUrl } from '../lib/mapStyle';
+import { tileToGl } from '../lib/mapLayers';
+import { useReducedMotion } from '../lib/motion';
 
 /**
- * Inside Expo Go the Google map comes up blank on Android -- Expo Go is a
- * separate app and our Maps key is not part of it -- so there the picker uses
- * the tile map the web build uses. Installed builds get Google's map, with the
- * key from app.config.js.
+ * Plan 1.20 (design D33): the picker is MapLibre Native, the same engine and
+ * OpenFreeMap style as the jobs map. Expo Go and builds without the native
+ * module use the tile map the web build uses (lib/mapLibreNative.ts).
  */
-const IN_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+// Only read inside components that render when ML is not null.
+const { Map: MLMap, Camera } = (ML ?? {}) as MapLibre;
 
 /**
- * The drag-the-map location picker, native build, on a real map SDK.
+ * The drag-the-map location picker, native build, on a real map engine.
  *
  * Same idea as the web version (MapPicker.tsx): the pin is nailed to the
  * centre of the frame and the map moves underneath, the way Swiggy and Zomato
- * do it. Here the map is Google's (Apple's on iOS), so pinch-zoom, fling and
- * the street detail all come for free, and there are no tiles to be refused.
- *
- * The web build keeps the tile map: react-native-maps does not run there.
+ * do it. Pinch-zoom, fling and the street detail come for free.
  */
-
-/** Map zoom level -> the latitude span react-native-maps wants. */
-function deltaFor(zoom: number): number {
-  return 360 / 2 ** zoom;
-}
 
 /** Near enough that a move is just the echo of one we asked for. */
 function same(a: { lat: number; lng: number }, b: { lat: number; lng: number }): boolean {
@@ -60,17 +55,17 @@ type MapPickerProps = {
   height?: number;
   /** 0 for a full-bleed map that runs to the edges of the screen. */
   radius?: number;
-  /** Positions the tile map's zoom buttons; the Google map has none. */
+  /** Positions the tile map's zoom buttons; the native map has none. */
   controlsTop?: number;
   /** false for a still preview of a point that has already been agreed. */
   interactive?: boolean;
 };
 
 export function MapPicker(props: MapPickerProps) {
-  return IN_EXPO_GO ? <TileMapPicker {...props} /> : <GoogleMapPicker {...props} />;
+  return ML ? <NativeMapPicker {...props} /> : <TileMapPicker {...props} />;
 }
 
-function GoogleMapPicker({
+function NativeMapPicker({
   lat,
   lng,
   zoom = 16,
@@ -80,7 +75,8 @@ function GoogleMapPicker({
   interactive = true,
 }: MapPickerProps) {
   const t = useTheme();
-  const mapRef = useRef<MapView>(null);
+  const reduced = useReducedMotion();
+  const camera = useRef<CameraRef>(null);
   const [hintVisible, setHintVisible] = useState(interactive);
 
   // Where we last sent the camera. A region-change that lands there is our own
@@ -93,10 +89,7 @@ function GoogleMapPicker({
   useEffect(() => {
     if (same(sentRef.current, { lat, lng })) return;
     sentRef.current = { lat, lng };
-    mapRef.current?.animateToRegion(
-      { latitude: lat, longitude: lng, latitudeDelta: deltaFor(zoom), longitudeDelta: deltaFor(zoom) },
-      450,
-    );
+    camera.current?.easeTo({ center: [lng, lat], zoom: tileToGl(zoom), duration: reduced ? 0 : 450 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lat, lng]);
 
@@ -109,21 +102,21 @@ function GoogleMapPicker({
   );
 
   const dragging = useRef(false);
-  const onRegionChange = (_r: Region, details?: { isGesture?: boolean }) => {
-    // Only a finger lifts the pin; our own animateToRegion should not.
+  const onRegionWillChange = (e: { nativeEvent: { userInteraction: boolean } }) => {
+    // Only a finger lifts the pin; our own camera moves should not.
     if (!interactive || dragging.current) return;
-    if (details?.isGesture === false) return;
+    if (!e.nativeEvent.userInteraction) return;
     dragging.current = true;
     setHintVisible(false);
     animateLift(true);
   };
 
-  const onRegionChangeComplete = (r: Region) => {
+  const onRegionDidChange = (e: { nativeEvent: { center: [number, number] } }) => {
     if (dragging.current) {
       dragging.current = false;
       animateLift(false);
     }
-    const next = { lat: r.latitude, lng: r.longitude };
+    const next = { lat: e.nativeEvent.center[1], lng: e.nativeEvent.center[0] };
     if (same(next, sentRef.current)) return;
     sentRef.current = next;
     onMovedRef.current?.(next);
@@ -143,26 +136,22 @@ function GoogleMapPicker({
         ...(radius > 0 ? { borderWidth: 1, borderColor: t.colors.line } : null),
       }}
     >
-      <MapView
-        ref={mapRef}
+      <MLMap
         style={{ flex: 1 }}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={{ latitude: lat, longitude: lng, latitudeDelta: deltaFor(zoom), longitudeDelta: deltaFor(zoom) }}
-        onRegionChange={onRegionChange}
-        onRegionChangeComplete={onRegionChangeComplete}
-        scrollEnabled={interactive}
-        zoomEnabled={interactive}
-        rotateEnabled={false}
-        pitchEnabled={false}
-        // A still preview is a picture of a map; lite mode draws it as one.
-        liteMode={!interactive && Platform.OS === 'android'}
-        showsUserLocation={interactive}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        toolbarEnabled={false}
-        moveOnMarkerPress={false}
-        userInterfaceStyle={t.isDark ? 'dark' : 'light'}
-      />
+        mapStyle={glStyleUrl(t.isDark)}
+        onRegionWillChange={onRegionWillChange}
+        onRegionDidChange={onRegionDidChange}
+        dragPan={interactive}
+        touchZoom={interactive}
+        touchRotate={false}
+        touchPitch={false}
+        compass={false}
+        logo={false}
+        attribution
+        attributionPosition={{ bottom: 8, right: 8 }}
+      >
+        <Camera ref={camera} initialViewState={{ center: [lng, lat], zoom: tileToGl(zoom) }} />
+      </MLMap>
 
       {/* The pin never moves. That is the whole idea — the map moves under it. */}
       <View

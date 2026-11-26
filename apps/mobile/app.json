@@ -93,6 +93,7 @@
       "expo-web-browser",
       "expo-apple-authentication",
       "expo-secure-store",
+      "@maplibre/maplibre-react-native",
       [
         "expo-notifications",
         {

@@ -1,14 +1,7 @@
-// Layered on top of app.json. The only thing added here is the Google Maps key
-// for installed Android builds, read from the environment so it never has to
-// be committed. Expo Go is a separate app and ignores this (the map picker
-// shows tiles there instead).
+// Layered on top of app.json. The phone map is MapLibre (plan 1.20, D33), which
+// needs no map key, so nothing about maps is handled here.
 //
-// The key has to go through react-native-maps' own config plugin. That plugin
-// runs on every build, and when it is not handed a key it *removes* the
-// manifest entry -- so setting `android.config.googleMaps.apiKey` alone left
-// installed builds with a blank map.
-//
-// It also adds the Sentry plugin, which uploads source maps and debug symbols
+// This file adds the Sentry plugin, which uploads source maps and debug symbols
 // during native builds so crash stacks are readable. It needs SENTRY_AUTH_TOKEN
 // in the build environment (apps/mobile/.env.local on this machine, an EAS
 // secret for EAS builds); without one the upload is skipped and the build
@@ -31,22 +24,11 @@ module.exports = ({ config }) => {
   if (problems.length) {
     throw new Error(['Build stopped: this build mixes staging and production.', ...problems.map((p) => ` - ${p}`)].join('\n'));
   }
-  // Deliberately not EXPO_PUBLIC_: that prefix inlines the value into the JS
-  // bundle. This one is only read here, at build time, for the Android manifest
-  // (an EAS secret for EAS builds, apps/mobile/.env on this machine).
-  //
-  // Plugin options are copied into the public app config (Constants.expoConfig),
-  // which the web bundle includes, so the key is only handed over when this is a
-  // native Android build: an EAS Android build, or a local command naming android
-  // (`expo run:android`, `expo prebuild --platform android`). A web export never
-  // gets it, even if the variable happens to be set in that environment.
-  const mapsKey = androidBuild ? process.env.EXPO_GOOGLE_MAPS_API_KEY : undefined;
   const plugins = (config.plugins ?? []).filter((p) => {
     const name = Array.isArray(p) ? p[0] : p;
-    return name !== '@sentry/react-native/expo' && !(mapsKey && name === 'react-native-maps');
+    return name !== '@sentry/react-native/expo';
   });
   plugins.push(['@sentry/react-native/expo', { ...SENTRY, project: sentryProject(process.env) }]);
-  if (mapsKey) plugins.push(['react-native-maps', { androidGoogleMapsApiKey: mapsKey }]);
   // Push on Android needs the Firebase app's google-services.json. It is kept out
   // of git: on EAS it is a file environment variable (GOOGLE_SERVICES_JSON, whose
   // value is the path to the file); on this machine point it at a local file.
