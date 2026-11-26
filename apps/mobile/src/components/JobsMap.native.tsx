@@ -32,7 +32,7 @@ import { SPREAD_MS, controlsRect, itemKey, pinLabels } from './MapPinLayer';
 import { MAX_FRESH, TAG_MS, introDelays, introEnd } from '../lib/mapMotion';
 import { RIPPLE_ROOM } from '../lib/mapMotion';
 import { usePinEpoch } from './usePinEpoch';
-import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMotion, PricePin, PromotedPin, TASK_PIN, TaskPin, type PinEnter } from './MapMarkers';
+import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMotion, PricePin, PromotedPin, TASK_PIN, TaskPin, hireColours, sideHue, type PinEnter } from './MapMarkers';
 
 export type { JobPin, MapTone, JobsMapProps } from './JobsMap.tiles';
 export { mapWords } from './JobsMap.tiles';
@@ -244,12 +244,13 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
   const labels = pinLabels(items, byId, offers, selectedId, mapWords(tone).many, {
     avoid: youOnScreen ? [youRect(youOnScreen.x, youOnScreen.y, meKind === 'live')] : [],
     controls: controlsRect(size, { right: 8, top: 8 + padTop, button: 36, gap: 6, count: bare ? 0 : (onExpand ? 1 : 0) + 2 + (me ? 1 : 0) }),
-  });
+  }, people);
 
   const delays = useMemo(() => introDelays(items, youOnScreen), [items, youOnScreen?.x, youOnScreen?.y]); // eslint-disable-line react-hooks/exhaustive-deps
   const here = { lat: view.lat, lng: view.lng };
-  const blue = t.colors.purple;
-  const hue = people ? blue : t.colors.btn;
+  // Earn (tasks) is always royal blue, Hire (helpers) always jade: one side colour for the shapes, ring and You dot.
+  const hue = sideHue(t, people);
+  const blue = hue;
   const words = mapWords(tone);
 
   // Everything that is not a pin, drawn by the engine from the same layout (lib/mapLayers.ts).
@@ -408,7 +409,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             const face = pin.face ?? { initials: '?', live: false };
             return (
               <PinMarker enter={enter} key={'p-' + it.id} faded={back} at={place} box={FACE_PIN} z={on ? 4 : 2} label={helperSays(pin)} onPress={pick}>
-                <FacePin face={face} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} />
+                <FacePin face={face} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} compact={hidePlace} />
               </PinMarker>
             );
           }
@@ -428,7 +429,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
               onPress={pick}
             >
               {spread ? (
-                <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} />
+                <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} compact={hidePlace} />
               ) : (
                 <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={hidePlace} />
               )}
@@ -469,7 +470,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
 
       {/* Left of the attribution button in the bottom-right corner, which has to stay visible. */}
       <View pointerEvents="none" style={{ position: 'absolute', left: 8, bottom: 8 + padBottom, right: 52, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
-        <Icon name="lock" size={12} color={people ? t.colors.purpleDeep : t.colors.accentDeep} />
+        <Icon name="lock" size={12} color={people ? hireColours(t.isDark).deep : t.colors.purpleDeep} />
         <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={2}>
           {words.privacy}
         </RNText>

@@ -74,7 +74,68 @@ export function planLabels(items: readonly LabelItem[], opts: { avoid?: readonly
   return out;
 }
 
-/** The "you" marker: its dot, and the "You" pill under it when it is a live position. */
-export function youRect(x: number, y: number, live: boolean): Rect {
+/**
+ * The "you" marker: its dot, and the pill under it. A live position says "You" (short); a typed or saved
+ * area says "Your area" on the tile map (`wide`), so that box carries the longer pill.
+ */
+export function youRect(x: number, y: number, live: boolean, wide = false): Rect {
+  if (wide) return { x: x - 40, y: y - 22, w: 80, h: 56 };
   return live ? { x: x - 22, y: y - 22, w: 44, h: 56 } : { x: x - 22, y: y - 22, w: 44, h: 44 };
+}
+
+/**
+ * Spread pins (D33, FEATURES 16): a spread task pin carries a face, name, task and price (TASK_PIN), a spread
+ * helper an icon with a service + price tag. When that full tag would overlap a better-ranked pin's box, it
+ * steps back to the compact form (the price bubble alone; for a helper the icon and its price). The pin is
+ * still there and taps the same way: nothing disappears.
+ */
+export type SpreadItem = {
+  id: string;
+  /** Box of the full pin and of the compact one (the same object when the pin has no tag). */
+  full: Rect;
+  compact: Rect;
+  /** Higher is placed first (best offer, active helpers first). */
+  rank: number;
+  /** The picked pin always keeps its full tag. */
+  keep?: boolean;
+};
+
+/** A spread task pin at point (x, y): bubble (with the poster's face) over a name + task tag (MapMarkers TASK_PIN, anchor 48). */
+export function taskPinRects(x: number, y: number, price: string, who: string | null | undefined, title: string | null | undefined, face: boolean): { full: Rect; compact: Rect } {
+  const bw = (face ? 41 : 24) + 8.5 * price.length;
+  const text = Math.max(who?.length ?? 0, title?.length ?? 0);
+  const compact = { x: x - bw / 2, y: y - 48, w: bw, h: 36 };
+  if (!text) return { full: compact, compact };
+  const w = Math.max(bw, Math.min(176, 16 + 6.3 * text));
+  const h = (who ? 15 : 0) + (title ? 14 : 0) + 6;
+  return { full: { x: x - w / 2, y: y - 48, w, h: 55 + h }, compact };
+}
+
+/** A spread helper at point (x, y): the 48 px icon disc over a service + price tag (FACE_PIN, anchor 30). */
+export function helperPinRects(x: number, y: number, what: string, price: string | null | undefined): { full: Rect; compact: Rect } {
+  const disc: Rect = { x: x - 24, y: y - 24, w: 48, h: 48 };
+  const withTag = (chars: number): Rect => {
+    const w = Math.max(48, Math.min(152, 24 + 6.2 * chars));
+    return { x: x - w / 2, y: y - 24, w, h: 73 };
+  };
+  const full = withTag(what.length + (price ? price.length + 1 : 0));
+  return { full, compact: price ? withTag(price.length) : disc };
+}
+
+/** The ids that step back to compact. Better-ranked pins are placed first; every compact box counts as taken. */
+export function planSpread(items: readonly SpreadItem[], opts: { avoid?: readonly Rect[] } = {}): Set<string> {
+  const compactIds = new Set<string>();
+  const taken: Rect[] = [...(opts.avoid ?? [])];
+  const order = items.map((it, i) => ({ it, i })).sort((a, b) => Number(!!b.it.keep) - Number(!!a.it.keep) || b.it.rank - a.it.rank || a.i - b.i);
+  for (const { it } of order) {
+    const hasTag = it.full !== it.compact;
+    const blocked = hasTag && !it.keep && (taken.some((o) => overlaps(it.full, o)) || items.some((o) => o.id !== it.id && overlaps(it.full, o.compact)));
+    if (blocked) {
+      compactIds.add(it.id);
+      taken.push(it.compact);
+    } else {
+      taken.push(it.full);
+    }
+  }
+  return compactIds;
 }

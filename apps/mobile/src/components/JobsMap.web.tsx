@@ -12,6 +12,7 @@ import { tx } from './primitives';
 import { Icon } from './Icon';
 import { JobsMap as TileJobsMap, YouMarker, type JobsMapProps } from './JobsMap.tiles';
 import { CALLOUT_LIFT, MapPinLayer, controlsRect, type LayoutFrame, type Scene } from './MapPinLayer';
+import { sideHue } from './MapMarkers';
 import type { Rect } from '../lib/mapLabels';
 import { GL_TO_TILE, MAX_PITCH, baseOptions, ctrlDragPitch, glStyleUrl, installLayers, noRotation, setShapes, useMapLib, useSharpMap, type MapLib } from './GlMap.web';
 
@@ -89,7 +90,7 @@ function GlJobsMap({
   onMoveEndRef.current = onMoveEnd;
   const ms = (n: number) => (reduce ? 0 : n);
   const people = tone === 'people';
-  const colours = { hue: people ? t.colors.purple : t.colors.btn, ring: t.colors.purple, ink: t.colors.ink, halo: t.colors.bg, isDark: t.isDark, reduced: reduce };
+  const colours = { hue: sideHue(t, people), ring: sideHue(t, people), ink: t.colors.ink, halo: t.colors.bg, isDark: t.isDark, reduced: reduce };
   const coloursRef = useRef(colours);
   coloursRef.current = colours;
   const reduceRef = useRef(reduce);
@@ -239,7 +240,7 @@ function GlJobsMap({
     return { x: p.x, y: p.y };
   };
   const zoom = map ? map.getZoom() + GL_TO_TILE : startZoom;
-  const blue = t.colors.purple;
+  const blue = sideHue(t, people);
   const you = me && map ? toScreen(me.lat, me.lng) : null;
   const ringCentre = ringAt ?? me;
 

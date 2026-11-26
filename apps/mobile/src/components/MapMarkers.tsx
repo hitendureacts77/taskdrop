@@ -3,6 +3,8 @@ import { View, Image, Text as RNText, Animated, Easing, Platform, type ViewStyle
 import { useTheme } from '../providers/ThemeProvider';
 import { useReducedMotion } from '../lib/motion';
 import { Icon, type IconName } from './Icon';
+import { makeTheme } from '../theme';
+import { peekSignedUrl, signedMediaUrl } from '../lib/media';
 import { tx } from './primitives';
 import { RIPPLE_EVERY_MS, RIPPLE_MS } from '../lib/mapMotion';
 import { PULSE_MS, RING_OPACITY, RING_R1, RING_SCALE0, rippleDelay } from '../lib/mapMotion';
@@ -41,6 +43,23 @@ export function faceTone(seed: string): string {
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
   return TONES[Math.abs(h) % TONES.length]!;
 }
+
+/**
+ * Hire is always jade, Earn always royal blue (owner rule). Helper pins are the Hire side, so they take the base
+ * palette's jade even when an Earn-mode theme sits above them (that theme swaps `btn`/`hero`/`accent` to blue).
+ */
+export function hireColours(isDark: boolean) {
+  const c = makeTheme(isDark).colors;
+  return { side: c.btn, fill: c.hero, soft: c.accentSoft, deep: c.accentDeep };
+}
+
+/** The side's colour on the map: Earn (tasks) royal blue, Hire (helpers) jade. */
+export function sideHue(t: { isDark: boolean; colors: { purple: string } }, people: boolean): string {
+  return people ? hireColours(t.isDark).side : t.colors.purple;
+}
+
+/** A photo that is already a link is used as it is; a stored `media:` reference is signed first (and never requested raw). */
+const DIRECT_PHOTO = /^(https?:|data:|blob:|file:)/i;
 
 const lift: ViewStyle = { shadowColor: '#000', shadowOpacity: 0.45, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 };
 
@@ -194,6 +213,18 @@ export function FaceDisc({
   const t = useTheme();
   const dot = Math.max(9, Math.round(size * 0.26));
   const [broken, setBroken] = useState(false);
+  const hire = hireColours(t.isDark);
+  const raw = face.photo ?? null;
+  const [signed, setSigned] = useState<string | null>(() => (raw && !DIRECT_PHOTO.test(raw) ? peekSignedUrl(raw, 'thumb') : null));
+  useEffect(() => {
+    if (!raw || DIRECT_PHOTO.test(raw)) return;
+    let alive = true;
+    void signedMediaUrl(raw, 'thumb').then((u) => alive && (u ? setSigned(u) : setBroken(true)));
+    return () => {
+      alive = false;
+    };
+  }, [raw]);
+  const photoUri = raw && DIRECT_PHOTO.test(raw) ? raw : signed;
   // A photo that arrives late fades in over the initials instead of popping in (Opus map audit).
   const reduced = useReducedMotion();
   const shown = useRef(new Animated.Value(0)).current;
@@ -210,22 +241,22 @@ export function FaceDisc({
           borderRadius: size / 2,
           borderWidth: rimWidth,
           borderColor: rim,
-          backgroundColor: face.icon ? t.colors.purpleSoft : faceTone(seed),
+          backgroundColor: face.icon ? hire.soft : faceTone(seed),
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
         {face.icon ? (
-          <Icon name={face.icon} size={Math.round(size * 0.42)} color={t.colors.purpleDeep} strokeWidth={1.9} />
+          <Icon name={face.icon} size={Math.round(size * 0.42)} color={hire.deep} strokeWidth={1.9} />
         ) : (
           // Initials sit underneath, so a photo that never loads still leaves a face.
           <RNText style={tx('800', Math.round(size * 0.3), '#FFFFFF')}>{face.initials}</RNText>
         )}
-        {face.photo && !face.icon && !broken ? (
+        {photoUri && !face.icon && !broken ? (
           <Animated.View style={{ position: 'absolute', left: 0, top: 0, opacity: shown }}>
             <Image
-              source={{ uri: face.photo }}
+              source={{ uri: photoUri }}
               onLoad={loaded}
               onError={() => (setBroken(true), onImage?.())}
               // Android's own fade would run a second time inside the marker snapshot.
@@ -286,6 +317,7 @@ function FacePinImpl({
   more = 0,
   on,
   glow = false,
+  compact = false,
   onImage,
 }: {
   face: Face;
@@ -295,9 +327,12 @@ function FacePinImpl({
   more?: number;
   on: boolean;
   glow?: boolean;
+  /** Another pin's words sit here (lib/mapLabels.ts planSpread): the icon and the price stay, the service name steps back. */
+  compact?: boolean;
   onImage?: () => void;
 }) {
   const t = useTheme();
+  const hire = hireColours(t.isDark);
   const size = on ? 60 : 48;
   const top = FACE_PIN.anchor - size / 2;
   const skillOnly = !price;
@@ -305,13 +340,14 @@ function FacePinImpl({
     <View style={{ width: FACE_PIN.w, height: FACE_PIN.h, alignItems: 'center' }} collapsable={false}>
       {glow && face.live && !on ? <LiveGlow size={size} top={top} /> : null}
       <View style={[{ marginTop: top, borderRadius: size / 2 }, lift]}>
-        <FaceDisc face={face} seed={seed} size={size} rim={on ? t.colors.purple : RIM} rimWidth={on ? 4 : 3} onImage={onImage} pulse />
+        <FaceDisc face={face} seed={seed} size={size} rim={on ? hire.side : RIM} rimWidth={on ? 4 : 3} onImage={onImage} pulse />
         {more > 0 ? (
-          <View style={{ position: 'absolute', right: -8, top: -4, height: 18, minWidth: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: RIM, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ position: 'absolute', right: -8, top: -4, height: 18, minWidth: 18, paddingHorizontal: 5, borderRadius: 9, borderWidth: 2, borderColor: RIM, backgroundColor: hire.fill, alignItems: 'center', justifyContent: 'center' }}>
             <RNText style={tx('800', 9.5, '#FFFFFF')}>+{more}</RNText>
           </View>
         ) : null}
       </View>
+      {compact && skillOnly ? null : (
       <View
         style={{
           marginTop: 5,
@@ -324,15 +360,18 @@ function FacePinImpl({
           borderRadius: 999,
           borderWidth: 1,
           borderStyle: skillOnly && !on ? 'dashed' : 'solid',
-          borderColor: on ? t.colors.purpleFill : skillOnly ? t.colors.muted : t.colors.bg,
-          backgroundColor: on ? t.colors.purpleFill : skillOnly ? t.colors.surface2 : t.colors.bg,
+          borderColor: on ? hire.fill : skillOnly ? t.colors.muted : t.colors.bg,
+          backgroundColor: on ? hire.fill : skillOnly ? t.colors.surface2 : t.colors.bg,
         }}
       >
-        <RNText numberOfLines={1} style={tx('800', 11, on ? '#FFFFFF' : t.colors.ink, { flexShrink: 1 })}>
-          {what}
-        </RNText>
-        {price ? <RNText style={tx('800', 11, on ? '#FFFFFF' : t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{price}</RNText> : null}
+        {compact ? null : (
+          <RNText numberOfLines={1} style={tx('800', 11, on ? '#FFFFFF' : t.colors.ink, { flexShrink: 1 })}>
+            {what}
+          </RNText>
+        )}
+        {price ? <RNText style={tx('800', 11, on ? '#FFFFFF' : hire.deep, { fontVariant: ['tabular-nums'] })}>{price}</RNText> : null}
       </View>
+      )}
     </View>
   );
 }
@@ -351,6 +390,7 @@ export function FaceStack({
   onImage?: () => void;
 }) {
   const t = useTheme();
+  const hire = hireColours(t.isDark);
   return (
     <View style={{ width: FACE_STACK.w, height: FACE_STACK.h, alignItems: 'center' }} collapsable={false}>
       <View style={[{ marginTop: FACE_STACK.anchor - 21, flexDirection: 'row', alignItems: 'center', padding: 3, borderRadius: 999, backgroundColor: RIM }, lift]}>
@@ -360,7 +400,7 @@ export function FaceStack({
           </View>
         ))}
         {extra > 0 ? (
-          <View style={{ height: 36, minWidth: 36, marginLeft: -9, paddingHorizontal: 7, borderRadius: 18, borderWidth: 2, borderColor: RIM, backgroundColor: t.colors.purpleFill, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ height: 36, minWidth: 36, marginLeft: -9, paddingHorizontal: 7, borderRadius: 18, borderWidth: 2, borderColor: RIM, backgroundColor: hire.fill, alignItems: 'center', justifyContent: 'center' }}>
             <RNText style={tx('800', 12, '#FFFFFF')}>+{extra}</RNText>
           </View>
         ) : null}
@@ -438,6 +478,7 @@ function TaskPinImpl({
   title,
   best,
   on,
+  compact = false,
   onImage,
 }: {
   price: string;
@@ -447,6 +488,8 @@ function TaskPinImpl({
   title?: string;
   best: boolean;
   on: boolean;
+  /** Another pin's words sit here (lib/mapLabels.ts planSpread): the face and price stay, the name and task step back. */
+  compact?: boolean;
   onImage?: () => void;
 }) {
   const t = useTheme();
@@ -475,7 +518,7 @@ function TaskPinImpl({
         <RNText style={tx('800', 15, fg, { fontVariant: ['tabular-nums'], letterSpacing: -0.2 })}>{price}</RNText>
       </View>
       <Pointer color={bg} />
-      {who || title ? (
+      {(who || title) && !compact ? (
         <Tag max={TASK_PIN.w}>
           {who ? (
             <RNText numberOfLines={1} style={tx('800', 12, t.colors.ink)}>
@@ -500,7 +543,7 @@ function TaskPinImpl({
  */
 function PromotedPinImpl({ price, side, on }: { price: string | null; side: 'earn' | 'hire'; on: boolean }) {
   const t = useTheme();
-  const fill = side === 'earn' ? t.colors.purple : t.colors.hero;
+  const fill = side === 'earn' ? t.colors.purple : hireColours(t.isDark).fill;
   return (
     <View style={{ width: PROMO_PIN.w, height: PROMO_PIN.h, alignItems: 'center' }} collapsable={false}>
       <View style={{ width: 72, height: 72, alignItems: 'center', justifyContent: 'center' }}>

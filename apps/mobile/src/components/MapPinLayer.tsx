@@ -5,10 +5,10 @@ import { groupPins } from '../lib/mapCluster';
 import { SPREAD_ZOOM, layoutPins, topAmount, type MapItem } from '../lib/mapLayout';
 import { MAX_FRESH, TAG_MS, areaAt, easeOut, introDelays, introEnd } from '../lib/mapMotion';
 import type { PinEnter } from './MapMarkers';
-import { planLabels, youRect, type LabelItem, type LabelPlan, type Rect } from '../lib/mapLabels';
+import { bubbleRect, helperPinRects, planLabels, planSpread, taskPinRects, youRect, type LabelItem, type LabelPlan, type Rect, type SpreadItem } from '../lib/mapLabels';
 import { useMapClock } from './useMapClock';
 import { usePinEpoch } from './usePinEpoch';
-import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMotion, PricePin, PromotedPin, TASK_PIN, TaskPin, type Face } from './MapMarkers';
+import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMotion, PricePin, PromotedPin, TASK_PIN, TaskPin, sideHue, type Face } from './MapMarkers';
 
 /**
  * One thing on the map. Jobs carry their price as `label` and in rupees as
@@ -122,11 +122,12 @@ export function pinLabels(
   selectedId: string | null,
   manyWord: string,
   opts: { avoid?: Rect[]; controls?: Rect | null },
+  people = false,
 ): Map<string, LabelPlan> {
-  if (!offers) return new Map();
+  // Price pins and group pins (names step back, P1-14). Their bubbles are fixed; spread pins plan around them.
   const list: LabelItem[] = [];
   items.forEach((it, i) => {
-    if (it.kind === 'one' && it.area) return;
+    if (!offers || (it.kind === 'one' && it.area)) return;
     const rank = (it.kind === 'one' && it.id === selectedId ? 1e12 : 0) + (offers.top[i] ?? 0);
     if (it.kind === 'group') {
       const top = topPinOf(it.ids, byId);
@@ -136,7 +137,22 @@ export function pinLabels(
       if (pin) list.push({ id: it.id, x: it.x, y: it.y, price: pin.label, tag: pin.area ?? 'Nearby', rank });
     }
   });
-  return planLabels(list, opts);
+  // Spread pins (D33): the full tag steps back to compact where it would overlap a better pin's box (best first = list order).
+  const spreadList: SpreadItem[] = [];
+  items.forEach((it, i) => {
+    const pin = it.kind === 'one' && it.area ? byId.get(it.id) : undefined;
+    if (!pin || it.kind !== 'one') return;
+    const r = people ? helperPinRects(it.x, it.y, pin.label, pin.price) : taskPinRects(it.x, it.y, pin.label, pin.who, pin.title, !!pin.face);
+    spreadList.push({ id: it.id, ...r, rank: -i, keep: it.id === selectedId });
+  });
+  const fixed = list.map((l) => bubbleRect(l.x, l.y, l.price));
+  const compact = planSpread(spreadList, { avoid: [...(opts.avoid ?? []), ...(opts.controls ? [opts.controls] : []), ...fixed] });
+  const out = new Map<string, LabelPlan>();
+  for (const s of spreadList) out.set(s.id, { dx: 0, showTag: !compact.has(s.id) });
+  // A price pin's name never covers a spread pin's words either.
+  const room = spreadList.map((s) => (compact.has(s.id) ? s.compact : s.full));
+  for (const [k, v] of planLabels(list, { ...opts, avoid: [...(opts.avoid ?? []), ...room] })) out.set(k, v);
+  return out;
 }
 
 /** The column of map buttons at the top right, as a box on screen. */
@@ -202,7 +218,7 @@ type Geo = { p: { lat: number; lng: number }; area: { lat: number; lng: number }
 export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, leftInset, size, zoom, toScreen, you, onGroup, controls = null, youLive = false, layoutAt, onScene }: Props) {
   const t = useTheme();
   const people = tone === 'people';
-  const hue = people ? t.colors.purple : t.colors.btn;
+  const hue = sideHue(t, people);
   const words = mapWords(tone);
   const byId = useMemo(() => new Map(pins.map((p) => [p.id, p])), [pins]);
   const engine = onScene !== undefined;
@@ -220,7 +236,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
     const items = layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), { zoom: f.zoom, gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP });
     const offers = people ? null : offersOf(items, byId);
     // Names that would overlap step back, and pins under the buttons step aside (P1-14).
-    const labels = pinLabels(items, byId, offers, selectedId, words.many, { avoid: f.you ? [youRect(f.you.x, f.you.y, youLive)] : [], controls });
+    const labels = pinLabels(items, byId, offers, selectedId, words.many, { avoid: f.you ? [youRect(f.you.x, f.you.y, true, !youLive)] : [], controls }, people);
     const delays = introDelays(items, f.you);
     const geo: (Geo | null)[] = items.map((it) =>
       layoutAt ? { p: layoutAt.toPlace(it.x, it.y), area: it.kind === 'one' && it.area ? layoutAt.toPlace(it.area.x, it.area.y) : null } : null,
@@ -343,7 +359,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
               style={[{ position: 'absolute', left: p.x - FACE_PIN.w / 2, top: p.y - FACE_PIN.anchor, zIndex: on ? 3 : 1 }, drop]}
             >
               <PinMotion box={FACE_PIN} enter={enter}>
-                <FacePin face={pin.face ?? { initials: '?', live: false }} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} glow />
+                <FacePin face={pin.face ?? { initials: '?', live: false }} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} glow compact={!tagShown(it)} />
               </PinMotion>
             </Pressable>
           );
@@ -378,7 +394,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
             >
               <PinMotion box={spread ? TASK_PIN : PRICE_PIN} enter={enter} ripple={turn >= 0 ? turn : null} hue={hue}>
                 {spread ? (
-                  <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} />
+                  <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} compact={!tagShown(it)} />
                 ) : (
                   <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={!tagShown(it)} />
                 )}
