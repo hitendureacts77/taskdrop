@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RING_R0, RING_R1, RING_SCALE0, epochLive, ringAt, rippleDelay, rippleRanks } from './pinMotion.ts';
+import { RING_R0, RING_R1, RING_SCALE0, epochLive, ringAt, rippleDelay, rippleRanks } from './mapMotion.ts';
 import { MAX_FRESH, RIPPLE_EVERY_MS } from './mapMotion.ts';
 
 test('the ring grows from 20 to 50 px and fades out', () => {

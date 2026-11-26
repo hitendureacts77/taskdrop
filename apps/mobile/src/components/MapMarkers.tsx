@@ -5,7 +5,7 @@ import { useReducedMotion } from '../lib/motion';
 import { Icon, type IconName } from './Icon';
 import { tx } from './primitives';
 import { RIPPLE_EVERY_MS, RIPPLE_MS } from '../lib/mapMotion';
-import { PULSE_MS, RING_OPACITY, RING_R1, RING_SCALE0, rippleDelay } from '../lib/pinMotion';
+import { PULSE_MS, RING_OPACITY, RING_R1, RING_SCALE0, rippleDelay } from '../lib/mapMotion';
 
 /**
  * The pins of the redesigned map (plan D12), drawn the same on the tile map and

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useReducedMotion } from '../lib/motion';
-import { epochLive } from '../lib/pinMotion';
+import { epochLive } from '../lib/mapMotion';
 
 /**
  * True for `windowMs` after `key` changes (and after mount), then false. Pins that mount while it is true play

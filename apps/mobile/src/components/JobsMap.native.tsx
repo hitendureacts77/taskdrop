@@ -30,7 +30,7 @@ import { SRC, buildingLayer, glToTile, sceneShapes, shapeLayers, tileToGl, tiltA
 import { glStyleUrl } from '../lib/mapStyle';
 import { SPREAD_MS, controlsRect, itemKey, pinLabels } from './MapPinLayer';
 import { MAX_FRESH, TAG_MS, introDelays, introEnd } from '../lib/mapMotion';
-import { RIPPLE_ROOM } from '../lib/pinMotion';
+import { RIPPLE_ROOM } from '../lib/mapMotion';
 import { usePinEpoch } from './usePinEpoch';
 import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMotion, PricePin, PromotedPin, TASK_PIN, TaskPin, type PinEnter } from './MapMarkers';
 
