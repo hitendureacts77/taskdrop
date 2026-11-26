@@ -381,11 +381,14 @@ export function FaceStack({
   faces,
   extra,
   label,
+  compact = false,
   onImage,
 }: {
   faces: { face: Face; seed: string }[];
   extra: number;
   label: string;
+  /** Another pin's words or the "Your area" pill sit here (lib/mapLabels.ts planSpread): the faces and "+N" stay, the area name steps back. */
+  compact?: boolean;
   /** A photo arrived: a native marker redraws its snapshot so the face shows. */
   onImage?: () => void;
 }) {
@@ -405,11 +408,13 @@ export function FaceStack({
           </View>
         ) : null}
       </View>
-      <View style={{ marginTop: 5, maxWidth: FACE_STACK.w, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: t.colors.bg }}>
-        <RNText numberOfLines={1} style={tx('700', 11, t.colors.ink)}>
-          {label}
-        </RNText>
-      </View>
+      {compact ? null : (
+        <View style={{ marginTop: 5, maxWidth: FACE_STACK.w, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: t.colors.bg }}>
+          <RNText numberOfLines={1} style={tx('700', 11, t.colors.ink)}>
+            {label}
+          </RNText>
+        </View>
+      )}
     </View>
   );
 }

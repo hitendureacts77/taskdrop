@@ -28,7 +28,7 @@ import { SPREAD_ZOOM, layoutPins } from '../lib/mapLayout';
 import { youRect } from '../lib/mapLabels';
 import { SRC, buildingLayer, glToTile, sceneShapes, shapeLayers, tileToGl, tiltAfterZoom } from '../lib/mapLayers';
 import { glStyleUrl } from '../lib/mapStyle';
-import { SPREAD_MS, controlsRect, itemKey, pinLabels } from './MapPinLayer';
+import { SPREAD_MS, controlsRect, itemKey, pinBox, pinLabels, stackLabel } from './MapPinLayer';
 import { MAX_FRESH, TAG_MS, introDelays, introEnd } from '../lib/mapMotion';
 import { RIPPLE_ROOM } from '../lib/mapMotion';
 import { usePinEpoch } from './usePinEpoch';
@@ -227,7 +227,11 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
       return { id: p.id, x: q.x - left, y: q.y - top };
     });
     const inView = placed.filter((p) => p.x > -120 && p.x < size.w + 120 && p.y > -120 && p.y < size.h + 120);
-    return layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), { zoom, gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP });
+    return layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), {
+      zoom,
+      gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP,
+      box: (id, spread) => pinBox(byId.get(id), people, spread),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pins, view, size, tone]);
   const offers = people ? null : offersOf(items, byId);
@@ -365,7 +369,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
               const shown = it.ids.slice(0, 3).map((id) => ({ seed: id, face: byId.get(id)!.face ?? { initials: '?', live: false } }));
               return (
                 <PinMarker enter={enter} key={'g-' + it.ids[0]} faded={back} at={place} box={FACE_STACK} z={2} label={`${it.ids.length} ${words.many} in ${name} area. Spread them out`} onPress={into}>
-                  <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${name} · ${it.ids.length}`} />
+                  <FaceStack faces={shown} extra={it.ids.length - shown.length} label={stackLabel(it.ids, byId)} compact={hidePlace} />
                 </PinMarker>
               );
             }

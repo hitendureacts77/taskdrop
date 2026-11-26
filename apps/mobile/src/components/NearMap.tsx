@@ -261,7 +261,7 @@ export function NearMap({
   // The other side's locked option was tapped: the switch sheet.
   const [lockWant, setLockWant] = useState<'jobs' | 'helpers' | null>(null);
   const mine = kind === 'mine';
-  // The look: 'mine' wears the helpers' blue faces.
+  // The look: 'mine' wears the helpers' look (jade, as on the map).
   const mode: 'jobs' | 'people' = kind === 'jobs' ? 'jobs' : 'people';
   const home = centre;
   const words = mine ? { ...mapWords('people'), ...MINE_WORDS } : mapWords(mode);
