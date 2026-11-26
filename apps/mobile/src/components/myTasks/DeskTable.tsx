@@ -6,26 +6,24 @@ import { rupees, timeAgo } from '../kit';
 import { categoryIcon, categoryLabel } from '../WorkCard';
 import { tx } from '../primitives';
 import type { ViewRow } from '../../lib/taskRows';
-import { toneInk } from '../../lib/taskRows';
 import type { HeldRates } from '../../lib/heldWords';
 import {
-  POSTER_STAGES,
-  WORKER_STAGES,
   customerShown,
-  dayMonth,
-  dueShort,
-  firstName,
   openDatePassed,
+  posterDateBits,
+  posterPill,
   posterStage,
+  whereLine,
   workerButton,
-  workerStage,
-  workerStateLabel,
+  workerPill,
+  type Bit,
 } from '../../lib/myTasksBoard';
+import { presenceOf } from '../../lib/presence';
 import { newOffersLabel } from '../../lib/seenOffers';
 import type { Profile, Task } from '../../data/api';
-import { ActionButton, DotsButton, IconTile, Initial, SegmentTrack } from './bits';
+import { ActionButton, DotsButton, Face, IconTile, StatusPill } from './bits';
 import { posterNextLabel } from './PosterCard';
-import { areaOf, earnOf, earnedLine } from './WorkerCard';
+import { areaOf, earnOf, earnedLine, workerDateBits } from './WorkerCard';
 
 /**
  * The desktop My tasks / My work table (D31 v11, board WebMyTasks, >= 1024 wide only): one card holding the tabs
@@ -36,20 +34,20 @@ import { areaOf, earnOf, earnedLine } from './WorkerCard';
 export type Column = { label: string; flex?: number; width?: number };
 
 export const POSTER_COLUMNS: Column[] = [
+  { label: 'STATUS', flex: 1.6 },
   { label: 'TASK', flex: 3 },
-  { label: 'STAGE', flex: 1.5 },
-  { label: 'OFFERS', flex: 1.4 },
+  { label: 'OFFERS', flex: 1.5 },
   { label: 'BUDGET', flex: 1.2 },
-  { label: 'DUE', flex: 1.4 },
+  { label: 'DATE', flex: 1.7 },
   { label: '', width: 290 },
 ];
 
 export const WORKER_COLUMNS: Column[] = [
+  { label: 'STATUS', flex: 1.6 },
   { label: 'TASK', flex: 3 },
-  { label: 'STAGE', flex: 1.5 },
   { label: 'CUSTOMER', flex: 1.7 },
   { label: 'PRICE', flex: 1.3 },
-  { label: 'DUE', flex: 1.3 },
+  { label: 'DATE', flex: 1.7 },
   { label: '', width: 230 },
 ];
 
@@ -140,7 +138,7 @@ function Row({ columns, cells, onPress, label }: { columns: Column[]; cells: Rea
 function TaskCell({ task, title }: { task: Pick<Task, 'category' | 'pillar' | 'loc_lat' | 'loc_label'> | null; title: string }) {
   const t = useTheme();
   const area = areaOf(task as Task | null);
-  const sub = task ? [categoryLabel(task), area].filter(Boolean).join(' · ') : '';
+  const sub = task ? whereLine(categoryLabel(task), area) : '';
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <IconTile icon={categoryIcon(task?.category)} tone="accent" size={36} />
@@ -167,7 +165,16 @@ function Two({ top, sub, topInk, subInk, icon }: { top: string; sub?: string | n
   );
 }
 
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** The date column: plain and bold parts, like the card's date line. */
+function DateText({ bits, prefix }: { bits: Bit[]; prefix?: string }) {
+  const t = useTheme();
+  return (
+    <RNText numberOfLines={2} style={tx('600', 12.5, t.colors.muted, { lineHeight: 18 })}>
+      {prefix}
+      {bits.map((b, i) => (b.b ? <RNText key={i} style={tx('800', 12.5, t.colors.ink)}>{b.t}</RNText> : b.t))}
+    </RNText>
+  );
+}
 
 /** One of my posted tasks as a table row. */
 export function PosterDeskRow({
@@ -199,7 +206,6 @@ export function PosterDeskRow({
   const closed = posterStage(task.status, offers) === 0;
   const passed = openDatePassed(task, now) || task.status === 'OVERDUE';
   const unpaid = task.status === 'LOCKED' && !task.funded_at;
-  const who = firstName(worker?.display_name);
   const rating = worker && worker.worker_rating_count > 0 ? worker.worker_rating_avg.toFixed(1) : null;
 
   const people = open ? (
@@ -211,10 +217,10 @@ export function PosterDeskRow({
     <RNText style={tx('400', 13.5, t.colors.muted)}>—</RNText>
   ) : worker ? (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <Initial name={worker.display_name} size={28} />
+      <Face name={worker.display_name} lastSeen={worker.last_seen_at} size={28} />
       <View style={{ flex: 1, minWidth: 0 }}>
         <RNText numberOfLines={1} style={tx('700', 13, t.colors.ink)}>{worker.display_name}</RNText>
-        <RNText numberOfLines={1} style={tx('500', 11.5, t.colors.muted)}>{[rating ? '★ ' + rating : '', done ? 'done' : 'hired'].filter(Boolean).join(' · ')}</RNText>
+        <RNText numberOfLines={1} style={tx('500', 11.5, t.colors.muted)}>{[rating ? '★ ' + rating : '', done ? 'done' : presenceOf(worker.last_seen_at).label].filter(Boolean).join(' · ')}</RNText>
       </View>
     </View>
   ) : (
@@ -230,30 +236,8 @@ export function PosterDeskRow({
     />
   );
 
-  const status: { text: string; ink: string } | null = done
-    ? null
-    : unpaid
-      ? { text: 'Waiting for your payment', ink: t.colors.signalDeep }
-      : task.status === 'LOCKED'
-        ? { text: `Paid · ${who ?? 'worker'} starts next`, ink: t.colors.accentDeep }
-        : task.status === 'TASK_STARTED'
-          ? { text: `${who ?? 'The worker'} is working`, ink: t.colors.accentDeep }
-          : task.status === 'WORK_DONE'
-            ? { text: task.auto_complete_at ? `Review by ${dayMonth(task.auto_complete_at)}` : 'Review the work', ink: t.colors.goldInk }
-            : task.status === 'REVISION_REQUESTED'
-              ? { text: 'You asked for changes', ink: t.colors.accentDeep }
-              : task.status === 'DISPUTED'
-                ? { text: 'Problem reported', ink: t.colors.signalDeep }
-                : null;
-  const due = done ? (
-    <Two top={task.completed_at ? `Done ${dayMonth(task.completed_at)}` : 'Done'} />
-  ) : closed ? (
-    <Two top="Closed" topInk={t.colors.muted} />
-  ) : passed ? (
-    <Two top="Date passed" topInk={t.colors.goldInk} sub={status?.text} subInk={status?.ink} />
-  ) : (
-    <Two top={task.due_at ? cap(dueShort(task.due_at, now)) : 'No date'} topInk={task.due_at ? t.colors.ink : t.colors.muted} sub={status?.text} subInk={status?.ink} />
-  );
+  const pill = posterPill(task, offers, now);
+  const dateBits = posterDateBits(task, now, timeAgo(task.created_at));
 
   const label = posterNextLabel(task, offers);
   const primary = label === 'Choose an offer' || label === 'Pay to start' || label === 'Review the work';
@@ -276,7 +260,7 @@ export function PosterDeskRow({
       columns={POSTER_COLUMNS}
       label={task.title}
       onPress={onOpen}
-      cells={[<TaskCell key="t" task={task} title={task.title} />, <SegmentTrack key="s" stages={POSTER_STAGES} stage={posterStage(task.status, offers)} compact />, people, budget, due, actions]}
+      cells={[<StatusPill key="s" label={pill.label} tone={pill.tone} />, <TaskCell key="t" task={task} title={task.title} />, people, budget, <DateText key="d" bits={dateBits} />, actions]}
     />
   );
 }
@@ -308,7 +292,7 @@ export function WorkerDeskRow({
   const person = active ? (
     shown && customer?.display_name ? (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Initial name={customer.display_name} size={28} />
+        <Face name={customer.display_name} lastSeen={customer.last_seen_at} size={28} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <RNText numberOfLines={1} style={tx('700', 13, t.colors.ink)}>{customer.display_name}</RNText>
           {areaOf(task) ? <RNText numberOfLines={1} style={tx('500', 11.5, t.colors.muted)}>{areaOf(task)}</RNText> : null}
@@ -332,18 +316,13 @@ export function WorkerDeskRow({
     />
   );
 
-  const due = (
-    <Two
-      top={task?.due_at ? cap(dueShort(task.due_at, now)) : 'No date'}
-      topInk={task?.due_at ? t.colors.ink : t.colors.muted}
-      sub={pending && sentAt ? `Offer sent ${timeAgo(sentAt)}` : workerStateLabel(row.state).toLowerCase().replace(/^./, (c) => c.toUpperCase())}
-      subInk={pending ? t.colors.muted : toneInk(row.tone, t.colors)}
-    />
-  );
+  const pill = workerPill(row.state, task?.status);
 
   const action = button ? (
     <ActionButton kind={button.kind === 'quiet' ? 'outline' : 'primary'} label={button.label} onPress={onOpen} a11y={`${button.label}: ${row.title}`} />
-  ) : null;
+  ) : (
+    <ActionButton kind="outline" label="Open job" onPress={onOpen} a11y={`Open job: ${row.title}`} />
+  );
 
   return (
     <Row
@@ -351,11 +330,11 @@ export function WorkerDeskRow({
       label={row.title}
       onPress={onOpen}
       cells={[
+        <StatusPill key="s" label={pill.label} tone={pill.tone} />,
         <TaskCell key="t" task={task} title={row.title} />,
-        <SegmentTrack key="s" stages={WORKER_STAGES} stage={workerStage(row.state)} compact />,
         person,
         price,
-        due,
+        <DateText key="d" bits={workerDateBits(row, task, now, sentAt)} prefix={row.state === 'ACTIVE · TIMER RUNNING' && task?.status !== 'OVERDUE' ? 'Timer running' : undefined} />,
         action,
       ]}
     />

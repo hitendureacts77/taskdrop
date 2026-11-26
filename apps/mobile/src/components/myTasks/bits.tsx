@@ -2,6 +2,8 @@ import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
 import { Icon, type IconName } from '../Icon';
 import { HitArea, tx } from '../primitives';
+import { presenceOf } from '../../lib/presence';
+import type { Bit, CardHint, PillTone } from '../../lib/myTasksBoard';
 
 /**
  * Small pieces shared by the My tasks / My work cards, the "Needs you now" card and the desktop tables
@@ -222,4 +224,195 @@ export function HeaderButton({ label, onPress }: { label: string; onPress: () =>
       <RNText style={tx('700', 14, t.colors.onBtn)}>{label}</RNText>
     </Pressable>
   );
+}
+
+// ------------------------------------------------------------------------------------------------
+// The new task card pieces (1.19 row G): pill, face with the active-now dot, money block, thin track,
+// date line, hint line. Theme tokens only; `accent*` is jade in Hire and royal blue in Earn.
+// ------------------------------------------------------------------------------------------------
+
+/** The status pill: words always, colour never alone. Ringed = waiting on you; coral = a problem; grey = the other person or closed. */
+export function StatusPill({ label, tone }: { label: string; tone: PillTone }) {
+  const t = useTheme();
+  const look =
+    tone === 'problem'
+      ? { bg: t.colors.signalSoft, fg: t.colors.signalDeep }
+      : tone === 'wait'
+        ? { bg: t.colors.surface2, fg: t.colors.ink }
+        : tone === 'closed'
+          ? { bg: t.colors.surface2, fg: t.colors.muted }
+          : { bg: t.colors.accentSoft, fg: t.colors.accentDeep };
+  return (
+    <View
+      accessibilityLabel={tone === 'you' ? `${label}, waiting on you` : label}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        flexShrink: 0,
+        borderRadius: 999,
+        paddingVertical: tone === 'you' ? 2.5 : 4,
+        paddingLeft: tone === 'you' ? 6.5 : 8,
+        paddingRight: tone === 'you' ? 8.5 : 10,
+        backgroundColor: look.bg,
+        borderWidth: tone === 'you' ? 1.5 : 0,
+        borderColor: t.colors.accentDeep,
+      }}
+    >
+      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: look.fg }} />
+      <RNText numberOfLines={1} style={tx('800', 12, look.fg)}>{label}</RNText>
+    </View>
+  );
+}
+
+/** A person's round initial with the green dot when they are active now. */
+export function Face({ name, lastSeen, size = 36 }: { name: string | null | undefined; lastSeen?: string | null; size?: number }) {
+  const t = useTheme();
+  const online = presenceOf(lastSeen).online;
+  return (
+    <View style={{ width: size, height: size }}>
+      <Initial name={name} size={size} />
+      {online ? (
+        <View
+          accessibilityLabel="Active now"
+          style={{ position: 'absolute', right: -1, bottom: -1, width: 12, height: 12, borderRadius: 6, backgroundColor: t.colors.online, borderWidth: 2, borderColor: t.colors.surface }}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+/** A grey round tile with an icon, for "no one yet" and closed rows. */
+export function QuietFace({ icon, size = 36 }: { icon: IconName; size?: number }) {
+  const t = useTheme();
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name={icon} size={size * 0.42} color={t.colors.muted} />
+    </View>
+  );
+}
+
+/** Right side of the person row: a big tabular price and what it means ("held safely", "not paid yet"). */
+export function MoneyBlock({ price, sub, held = false }: { price: string; sub?: string | null; held?: boolean }) {
+  const t = useTheme();
+  return (
+    <View style={{ alignItems: 'flex-end', flexShrink: 0 }}>
+      <RNText numberOfLines={1} style={tx('800', 19, t.colors.ink, { fontVariant: ['tabular-nums'], letterSpacing: -0.3 })}>{price}</RNText>
+      {sub ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 }}>
+          {held ? <Icon name="shield" size={12} color={t.colors.accentDeep} /> : null}
+          <RNText numberOfLines={1} style={tx('700', 11, held ? t.colors.accentDeep : t.colors.muted)}>{sub}</RNText>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** The thin 5-step track: steps reached filled, the next one half filled, the five names underneath. */
+export function ThinTrack({ stages, stage }: { stages: readonly string[]; stage: number }) {
+  const t = useTheme();
+  return (
+    <View accessible accessibilityLabel={stage > 0 ? `Step ${stage} of ${stages.length}: ${stages[stage - 1]}` : 'Closed'} style={{ marginTop: 12 }}>
+      <View style={{ flexDirection: 'row', gap: 4 }}>
+        {stages.map((s, k) => (
+          <View key={s} style={{ flex: 1, height: 4, borderRadius: 2, overflow: 'hidden', flexDirection: 'row', backgroundColor: t.colors.line }}>
+            {k < stage ? <View style={{ flex: 1, backgroundColor: t.colors.accent }} /> : k === stage ? <View style={{ width: '50%', backgroundColor: t.colors.accent }} /> : null}
+          </View>
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+        {stages.map((s, k) => (
+          <RNText key={s} numberOfLines={1} style={tx(k === stage - 1 ? '800' : '700', 10, k === stage - 1 ? t.colors.ink : t.colors.muted, { letterSpacing: 0.2 })}>
+            {s}
+          </RNText>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** The date line: a clock, then plain and bold parts. */
+export function WhenLine({ bits, children }: { bits: Bit[]; children?: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 }}>
+      <Icon name="clock" size={14} color={t.colors.muted} />
+      <RNText style={tx('600', 12, t.colors.muted, { flex: 1 })}>
+        {children}
+        {bits.map((b, i) => (b.b ? <RNText key={i} style={tx('800', 12, t.colors.ink)}>{b.t}</RNText> : b.t))}
+      </RNText>
+    </View>
+  );
+}
+
+/** The optional hint under the date: calm in the mode colour, grey, or coral for a problem. */
+export function HintLine({ hint }: { hint: CardHint }) {
+  const t = useTheme();
+  const look =
+    hint.tone === 'acc'
+      ? { bg: t.colors.accentSoft, fg: t.colors.accentDeep }
+      : hint.tone === 'coral'
+        ? { bg: t.colors.signalSoft, fg: t.colors.signalDeep }
+        : { bg: t.colors.surface2, fg: t.colors.muted };
+  return (
+    <View style={{ marginTop: 10, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: look.bg }}>
+      <RNText style={tx('600', 12, look.fg, { lineHeight: 17 })}>{hint.text}</RNText>
+    </View>
+  );
+}
+
+/** The meta row at the top of a card: pill, "Category · Nearby · Area", then the ⋯ slot. */
+export function CardTop({ pill, meta, right }: { pill: React.ReactNode; meta: string; right?: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      {pill}
+      <RNText numberOfLines={1} style={tx('600', 11.5, t.colors.muted, { flex: 1 })}>{meta}</RNText>
+      {right}
+    </View>
+  );
+}
+
+/** The person row: face, name + sub, anything small beside it (chat), and the money block. */
+export function PersonRow({
+  face,
+  name,
+  sub,
+  extra,
+  money,
+}: {
+  face: React.ReactNode;
+  name: React.ReactNode;
+  sub?: React.ReactNode;
+  extra?: React.ReactNode;
+  money: React.ReactNode;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+      {face}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        {name}
+        {sub ? <View style={{ marginTop: 1 }}>{sub}</View> : null}
+      </View>
+      {extra}
+      {money}
+    </View>
+  );
+}
+
+/** Name text of a person row. */
+export function PersonName({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
+  return <RNText numberOfLines={1} style={tx('800', 13.5, t.colors.ink)}>{children}</RNText>;
+}
+
+/** Small grey sub line of a person row ("★ 4.6 · Active now"). */
+export function PersonSub({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
+  return <RNText numberOfLines={1} style={tx('600', 12, t.colors.muted)}>{children}</RNText>;
+}
+
+/** The button row: ONE main button (filled when the next step is yours, outline when you wait), plus an optional quiet one. */
+export function CardAct({ children }: { children: React.ReactNode }) {
+  return <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>{children}</View>;
 }
