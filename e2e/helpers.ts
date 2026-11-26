@@ -202,6 +202,14 @@ export function must<T>(r: ApiResult<T>, what: string): T {
   return r.data;
 }
 
+/** The feed's tab or side-menu item: "Explore" in Hire, "Find work" in Earn (a seed account's mode can be either). */
+export const FEED_TAB = /^(Explore|Find work)$/;
+
+/** Opens the feed (it opens on the map) from the bottom tabs (phone) or the side menu (desktop). */
+export async function openFeedTab(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: FEED_TAB }).or(page.getByRole("link", { name: FEED_TAB })).filter({ visible: true }).first().click();
+}
+
 export async function expectSignedIn(page: Page) {
   await expect(page.getByText("Wallet").first()).toBeVisible();
   await closeStagingCard(page);
