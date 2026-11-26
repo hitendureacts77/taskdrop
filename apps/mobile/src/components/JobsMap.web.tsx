@@ -352,7 +352,7 @@ function GlJobsMap({
           onScene={setScene}
         />
         {/* After the pins, so it is on top, and outside the dim layer. */}
-        {you ? <YouMarker x={you.x} y={you.y} kind={meKind} /> : null}
+        {you ? <YouMarker x={you.x} y={you.y} kind={meKind} color={blue} /> : null}
       </View>
     ) : null;
 
