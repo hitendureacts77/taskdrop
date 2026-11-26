@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { View, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { groupPins } from '../lib/mapCluster';
@@ -164,7 +164,32 @@ type Props = {
   controls?: Rect | null;
   /** "You" is a live position: its marker carries a pill, which names must not cover. */
   youLive?: boolean;
+  /**
+   * The GL map's frozen layout frame (plan 1.20 step C). With it, grouping, spreading and labels run only
+   * when the frame changes (the map stopped moving); while the map moves the pins just follow their places
+   * through `toScreen`. Without it (tile map) the layout follows `toScreen` and `zoom` on every render.
+   */
+  layoutAt?: LayoutFrame;
+  /**
+   * The GL map draws the soft area circles and the heat glow itself (lib/mapLayers.ts), so they are not
+   * drawn here; this is told the layout each time it is made, to feed those layers.
+   */
+  onScene?: (scene: Scene) => void;
 };
+
+/** The map as it stood when the layout was made: flat screen pixels at an app zoom, and back to places. */
+export type LayoutFrame = {
+  zoom: number;
+  toScreen: (lat: number, lng: number) => { x: number; y: number };
+  toPlace: (x: number, y: number) => { lat: number; lng: number };
+  you: { x: number; y: number } | null;
+  /** Metres per pixel at this zoom, for the shape layers. */
+  mpp: number;
+};
+
+export type Scene = { items: MapItem[]; offers: { top: (number | null)[]; best: number | null } | null; frame: LayoutFrame };
+
+type Geo = { p: { lat: number; lng: number }; area: { lat: number; lng: number } | null };
 
 /**
  * Everything the job and helper maps draw over the map itself (plan D12 to D14,
@@ -172,78 +197,79 @@ type Props = {
  * groups that zoom in when tapped, and the picked job's card. The tile map and
  * the GL map (web) both use it, so the pins look and move the same on both.
  */
-export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, leftInset, size, zoom, toScreen, you, onGroup, controls = null, youLive = false }: Props) {
+export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, leftInset, size, zoom, toScreen, you, onGroup, controls = null, youLive = false, layoutAt, onScene }: Props) {
   const t = useTheme();
   const people = tone === 'people';
   const hue = people ? t.colors.purple : t.colors.btn;
   const words = mapWords(tone);
   const byId = useMemo(() => new Map(pins.map((p) => [p.id, p])), [pins]);
-  // A spread area puts its first pin at the top: the biggest offer, or (as the caller orders them) someone active now.
-  const placed = byOffer(pins, people).map((p) => ({ id: p.id, ...toScreen(p.lat, p.lng) }));
-  const inView = placed.filter((p) => p.x > -120 && p.x < size.w + 120 && p.y > -120 && p.y < size.h + 120);
-  const items = layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), { zoom, gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP });
-  const offers = people ? null : offersOf(items, byId);
-  // Names that would overlap step back, and pins under the buttons step aside (P1-14).
-  const labels = pinLabels(items, byId, offers, selectedId, words.many, { avoid: you ? [youRect(you.x, you.y, youLive)] : [], controls });
+  const engine = onScene !== undefined;
+  const controlsKey = controls ? `${controls.x},${controls.y},${controls.w},${controls.h}` : '';
+
+  // The layout: which pins group, where spread pins sit, which names fit. With a frozen frame it is made once per
+  // stop of the map, not on every frame of a move (plan 1.20 step C).
+  const layout = useMemo(() => {
+    const f: LayoutFrame = layoutAt ?? { zoom, toScreen, toPlace: (x, y) => ({ lat: y, lng: x }), you, mpp: 0 };
+    // A spread area puts its first pin at the top: the biggest offer, or (as the caller orders them) someone active now.
+    const placed = byOffer(pins, people).map((p) => ({ id: p.id, ...f.toScreen(p.lat, p.lng) }));
+    // A frozen layout shows a wider margin, so pins are already there when a drag brings them in.
+    const margin = layoutAt ? 240 : 120;
+    const inView = placed.filter((p) => p.x > -margin && p.x < size.w + margin && p.y > -margin && p.y < size.h + margin);
+    const items = layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), { zoom: f.zoom, gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP });
+    const offers = people ? null : offersOf(items, byId);
+    // Names that would overlap step back, and pins under the buttons step aside (P1-14).
+    const labels = pinLabels(items, byId, offers, selectedId, words.many, { avoid: f.you ? [youRect(f.you.x, f.you.y, youLive)] : [], controls });
+    const delays = introDelays(items, f.you);
+    const geo: (Geo | null)[] = items.map((it) =>
+      layoutAt ? { p: layoutAt.toPlace(it.x, it.y), area: it.kind === 'one' && it.area ? layoutAt.toPlace(it.area.x, it.area.y) : null } : null,
+    );
+    return { items, offers, labels, delays, geo };
+    // controls is keyed by its numbers; toScreen, zoom and you only matter to a layout that follows them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pins, people, layoutAt, layoutAt ? null : toScreen, layoutAt ? null : zoom, layoutAt ? null : you, size.w, size.h, selectedId, controlsKey, youLive]);
+  const { items, offers, labels, delays, geo } = layout;
   const nudge = (it: MapItem) => labels.get(itemKey(it))?.dx ?? 0;
   const tagShown = (it: MapItem) => labels.get(itemKey(it))?.showTag ?? true;
+
+  useEffect(() => {
+    if (onScene && layoutAt) onScene({ items: layout.items, offers: layout.offers, frame: layoutAt });
+    // Told once per layout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout]);
 
   // The intro replays for a new set of things, not when the map is moved.
   const introKey = useMemo(() => pins.map((p) => p.id).sort().join('|'), [pins]);
   const freshIds = useMemo(() => new Set(pins.filter((p) => p.fresh).slice(0, MAX_FRESH).map((p) => p.id)), [pins]);
   const clock = useMapClock(introKey, introEnd(pins.length), freshIds.size > 0);
-  const delays = introDelays(items, you);
   // Groups that have just spread fly out from their centre.
   // The fly-out plays when the zoom crosses the spread level, not each time a pin enters or leaves the view
   // (a pan used to make every spread pin snap back and fly out again).
   const spreadKey = zoom >= SPREAD_ZOOM ? 'spread' : 'stacked';
   const spreadClock = useMapClock(spreadKey, SPREAD_MS, false);
   const fan = easeOut(spreadClock.elapsed / SPREAD_MS);
-  const at = (it: MapItem) =>
-    it.kind === 'one' && it.area ? { x: it.area.x + (it.x - it.area.x) * fan, y: it.area.y + (it.y - it.area.y) * fan } : { x: it.x + nudge(it), y: it.y };
+  // Where an item is drawn now: the layout's own pixels, or (frozen layout) its place seen through the live map.
+  const at = (it: MapItem, i: number) => {
+    const g = geo[i];
+    const base = g ? toScreen(g.p.lat, g.p.lng) : { x: it.x, y: it.y };
+    const area = g?.area ? toScreen(g.area.lat, g.area.lng) : it.kind === 'one' && it.area ? { x: it.area.x, y: it.area.y } : null;
+    return it.kind === 'one' && area ? { x: area.x + (base.x - area.x) * fan, y: area.y + (base.y - area.y) * fan } : { x: base.x + nudge(it), y: base.y };
+  };
 
   // Where the picked pin is drawn, when it stands alone (a group zooms in first), and how tall it is.
-  const pickedItem = callout && selectedId ? items.find((it): it is Extract<MapItem, { kind: 'one' }> => it.kind === 'one' && it.id === selectedId) : undefined;
+  const pickedIdx = callout && selectedId ? items.findIndex((it) => it.kind === 'one' && it.id === selectedId) : -1;
+  const pickedItem = pickedIdx >= 0 ? (items[pickedIdx] as Extract<MapItem, { kind: 'one' }>) : undefined;
   const pickedAt = pickedItem
-    ? { ...at(pickedItem), lift: (byId.get(pickedItem.id)?.promoted ? PROMO_PIN.anchor : pickedItem.kind === 'one' && pickedItem.area ? TASK_PIN.anchor : PRICE_PIN.anchor) + 10 }
+    ? { ...at(pickedItem, pickedIdx), lift: (byId.get(pickedItem.id)?.promoted ? PROMO_PIN.anchor : pickedItem.kind === 'one' && pickedItem.area ? TASK_PIN.anchor : PRICE_PIN.anchor) + 10 }
     : null;
-
-  const areas = new Map<string, { x: number; y: number; r: number }>();
-  for (const it of items) if (it.kind === 'one' && it.area) areas.set(`${it.area.x},${it.area.y}`, { x: it.area.x, y: it.area.y, r: Math.max(it.area.rx, it.area.ry) });
 
   return (
     <>
-      {/* Spread areas: one soft circle behind everyone in it, never a spot. */}
-      {[...areas.entries()].map(([key, a]) => (
-        <View
-          key={'area-' + key}
-          pointerEvents="none"
-          style={{ position: 'absolute', left: a.x - a.r, top: a.y - a.r, width: a.r * 2, height: a.r * 2, borderRadius: 999, backgroundColor: hue + '1A', borderWidth: 1, borderColor: hue + '80', borderStyle: 'dashed' }}
-        />
-      ))}
-
-      {/* Jobs: a soft heat glow under each area, stronger where the biggest offer is higher. */}
-      {offers && offers.best
-        ? items.map((it, i) => {
-            if (it.kind === 'one' && it.area) return null;
-            const k = (offers.top[i] ?? 0) / offers.best!;
-            const a = areaAt(clock.elapsed, delays[i]!);
-            if (!a.shown) return null;
-            const r = (36 + 46 * k) * a.scale;
-            return (
-              <View key={'heat-' + i} pointerEvents="none" style={{ position: 'absolute', left: it.x - r, top: it.y - r, width: r * 2, height: r * 2, alignItems: 'center', justifyContent: 'center' }}>
-                {[1, 0.66, 0.36].map((s) => (
-                  <View key={s} style={{ position: 'absolute', width: r * 2 * s, height: r * 2 * s, borderRadius: 999, backgroundColor: hue, opacity: 0.05 + 0.1 * k }} />
-                ))}
-              </View>
-            );
-          })
-        : null}
+      {engine ? null : <AreaShapes items={items} offers={offers} hue={hue} delays={delays} elapsed={clock.elapsed} />}
 
       {items.map((it, i) => {
         const pop = tagAt(clock.elapsed, delays[i]!);
         if (pop === 0) return null;
-        const p = at(it);
+        const p = at(it, i);
         const back = dim && selectedId !== null && !(it.kind === 'one' && it.id === selectedId);
         const drop = { opacity: pop * (back ? 0.45 : 1), transform: [{ translateY: -10 * (1 - pop) }] };
         if (it.kind === 'group') {
@@ -361,6 +387,42 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
           {callout}
         </View>
       ) : null}
+    </>
+  );
+}
+
+/** The tile map's own soft circles and heat glow, as views (the GL map draws these with the map engine instead). */
+function AreaShapes({ items, offers, hue, delays, elapsed }: { items: MapItem[]; offers: { top: (number | null)[]; best: number | null } | null; hue: string; delays: number[]; elapsed: number }) {
+  const areas = new Map<string, { x: number; y: number; r: number }>();
+  for (const it of items) if (it.kind === 'one' && it.area) areas.set(`${it.area.x},${it.area.y}`, { x: it.area.x, y: it.area.y, r: Math.max(it.area.rx, it.area.ry) });
+  return (
+    <>
+      {/* Spread areas: one soft circle behind everyone in it, never a spot. */}
+      {[...areas.entries()].map(([key, a]) => (
+        <View
+          key={'area-' + key}
+          pointerEvents="none"
+          style={{ position: 'absolute', left: a.x - a.r, top: a.y - a.r, width: a.r * 2, height: a.r * 2, borderRadius: 999, backgroundColor: hue + '1A', borderWidth: 1, borderColor: hue + '80', borderStyle: 'dashed' }}
+        />
+      ))}
+
+      {/* Jobs: a soft heat glow under each area, stronger where the biggest offer is higher. */}
+      {offers && offers.best
+        ? items.map((it, i) => {
+            if (it.kind === 'one' && it.area) return null;
+            const k = (offers.top[i] ?? 0) / offers.best!;
+            const a = areaAt(elapsed, delays[i]!);
+            if (!a.shown) return null;
+            const r = (36 + 46 * k) * a.scale;
+            return (
+              <View key={'heat-' + i} pointerEvents="none" style={{ position: 'absolute', left: it.x - r, top: it.y - r, width: r * 2, height: r * 2, alignItems: 'center', justifyContent: 'center' }}>
+                {[1, 0.66, 0.36].map((s) => (
+                  <View key={s} style={{ position: 'absolute', width: r * 2 * s, height: r * 2 * s, borderRadius: 999, backgroundColor: hue, opacity: 0.05 + 0.1 * k }} />
+                ))}
+              </View>
+            );
+          })
+        : null}
     </>
   );
 }
