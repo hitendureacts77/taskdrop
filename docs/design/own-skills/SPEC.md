@@ -10,7 +10,7 @@ the small "My skill is something different" link stays (hidden when the match ca
 - Bad words, phone numbers, emails and links are refused. At most 10 new terms per person a day.
 - Admin page "Skills & categories": the ranked list; rename, add phrase, merge into…, hide/unhide.
 
-## Database (migration 226, `supabase/migrations/20261125120000_226_own_skills.sql`)
+## Database (migration 226, `supabase/migrations/20261126180000_226_own_skills.sql`)
 - `public.catalog_terms(id, kind 'skill'|'category', label, norm_key, source 'builtin'|'user', builtin_order, status 'live'|'hidden'|'merged', merged_into, created_by, created_at, updated_at, embedding vector(384))`
 - `public.catalog_phrases(id, term_id, kind, phrase, norm_key)`: words that mean an existing term ("teaching maths" -> Tutoring).
 - No direct table access; everything goes through these RPCs (all `security definer`, granted to `authenticated` only):
