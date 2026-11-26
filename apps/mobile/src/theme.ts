@@ -156,6 +156,8 @@ export const onHero = {
   chipHover: 'rgba(0,0,0,0.24)',
   /** Letters on the white circles of the hero art: the deep Earn blue, the same in both themes. */
   letter: light.purpleDeep,
+  /** Presence ("Active now") on a hero band: the band is deep in both themes, so the light green reads on both. */
+  online: dark.online,
 } as const;
 
 /** Plus Jakarta Sans families (from @expo-google-fonts/plus-jakarta-sans).
@@ -216,6 +218,12 @@ export const motion = {
   stagger: 60,
   staggerMax: 6,
   celebrate: 1200,
+  /** Task 1.19 I, "Alive, gently": a soft ring round a live dot, once every this many ms. */
+  liveRing: 2200,
+  /** The Just posted ticker's speed, in px a second (still under Reduce Motion). */
+  tickerPxPerSec: 40,
+  /** A "1 new" badge pops once (scale 0.7 to 1) in this many ms when it appears. */
+  pop: 500,
   /** Spring for chips, toggles and selected cards (≈ cubic-bezier(.34,1.56,.64,1)). */
   spring: { friction: 6, tension: 160 },
 } as const;

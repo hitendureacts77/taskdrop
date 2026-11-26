@@ -14,6 +14,7 @@ import { rupees } from './kit';
 import { categoryLabel } from './WorkCard';
 import { Pressy, tx } from './primitives';
 import { cardSurface } from './ui';
+import { NewBadge } from './HomeLive';
 
 /**
  * Home on a desktop browser (D31 web boards WebHire / WebEarn): the pieces that only the wide page has -- the
@@ -237,30 +238,41 @@ export function IdeaTag({ plural = false }: { plural?: boolean }) {
 
 // ------------------------------------------------------------ hire ----------
 
-export type PublishedStep = { line: string; button: string; tone: 'accent' | 'blue' | 'gold' };
+/**
+ * A task's one next step. Colour by whose move it is (task 1.19, decision 6): `accent` is yours (the mode's colour,
+ * a filled button), `muted` is waiting on the other person, `signal` is a problem. Gold stays for verified only.
+ */
+export type PublishedStep = { line: string; button: string; tone: 'accent' | 'muted' | 'signal' };
 
-/** "Your published tasks" as a table (WebHire): task, status, offers, budget, the one next step. */
+/**
+ * "Needs you now" as a short table on the desktop Home (WebHire, task 1.19 F): task, status, offers (with the
+ * "N new" pop), budget, the one next step; the link opens all of them in My tasks.
+ */
 export function PublishedTable({
   rows,
   onOpen,
   onManage,
+  total,
 }: {
-  rows: { task: Task; step: PublishedStep; offers: number }[];
+  rows: { task: Task; step: PublishedStep; offers: number; fresh?: number }[];
   onOpen: (task: Task) => void;
   onManage: () => void;
+  /** Every live task, for "All N in My tasks". */
+  total: number;
 }) {
   const t = useTheme();
   const head = (label: string, flex: number) => (
     <RNText style={tx('700', 11, t.colors.muted, { flex, letterSpacing: 0.9 })}>{label}</RNText>
   );
   return (
-    <View style={[cardSurface(t, 16), { marginTop: 24, overflow: 'hidden' }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 }}>
+    <View testID="home-needs-table" style={[cardSurface(t, 16), { marginTop: 24, overflow: 'hidden' }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 16 }}>
+        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.colors.accent }} />
         <RNText accessibilityRole="header" style={tx('800', 17, t.colors.ink, { flex: 1, letterSpacing: -0.3 })}>
-          Your published tasks
+          Needs you now
         </RNText>
         <Pressable onPress={onManage} accessibilityRole="button" hitSlop={8}>
-          <RNText style={tx('700', 13, t.colors.accentDeep)}>Manage</RNText>
+          <RNText style={tx('700', 13, t.colors.accentDeep)}>{`All ${total} in My tasks ›`}</RNText>
         </Pressable>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 10, borderTopWidth: 1, borderBottomWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface2 }}>
@@ -270,8 +282,8 @@ export function PublishedTable({
         {head('BUDGET', 0.8)}
         <View style={{ width: 150 }} />
       </View>
-      {rows.map(({ task, step, offers }, i) => {
-        const ink = step.tone === 'accent' ? t.colors.accentDeep : step.tone === 'gold' ? t.colors.goldInk : t.colors.blue;
+      {rows.map(({ task, step, offers, fresh = 0 }, i) => {
+        const ink = step.tone === 'accent' ? t.colors.accentDeep : step.tone === 'signal' ? t.colors.signalDeep : t.colors.muted;
         const strong = step.tone === 'accent';
         const where = task.loc_lat === null ? 'Remote' : (roughPlace(task.loc_label) ?? '');
         const sub = [where, task.category].filter(Boolean).join(' · ');
@@ -305,9 +317,12 @@ export function PublishedTable({
             <RNText style={tx('700', 12.5, ink, { flex: 1.2 })} numberOfLines={2}>
               {step.line}
             </RNText>
-            <RNText style={tx(offers > 0 ? '700' : '500', 13, offers > 0 ? t.colors.accentDeep : t.colors.muted, { flex: 1 })}>
-              {task.status !== 'OPEN' ? '–' : offers > 0 ? `${offers} offer${offers === 1 ? '' : 's'}` : 'No offers'}
-            </RNText>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+              <RNText style={tx(offers > 0 ? '700' : '500', 13, offers > 0 ? t.colors.accentDeep : t.colors.muted)}>
+                {task.status !== 'OPEN' ? '–' : offers > 0 ? `${offers} offer${offers === 1 ? '' : 's'}` : 'No offers'}
+              </RNText>
+              {task.status === 'OPEN' && fresh > 0 ? <NewBadge count={fresh} /> : null}
+            </View>
             <RNText style={tx('800', 14, t.colors.ink, { flex: 0.8, fontVariant: ['tabular-nums'] })}>
               {rupees(task.benchmark_minor / 100)}
             </RNText>
