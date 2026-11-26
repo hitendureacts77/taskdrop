@@ -1,4 +1,4 @@
--- Undo for 20261125150000_215_chat_window.sql (plan 1.19 row B).
+-- Undo for 20261126150000_215_chat_window.sql (plan 1.19 row B).
 --
 -- Stops the chat-purge job and lets the poster and live worker write at any time again (the insert
 -- policy as it was since 012). Messages already deleted by chat-purge cannot be brought back (restore
