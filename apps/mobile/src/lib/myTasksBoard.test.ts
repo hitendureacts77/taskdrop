@@ -146,8 +146,8 @@ test('status pill tones: moving, ringed (waiting on you), coral, grey; gold is n
 test('poster pill: an open post says how its offers stand', () => {
   const future = new Date(NOW + 86_400_000).toISOString();
   const past = new Date(NOW - 86_400_000).toISOString();
-  assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 3, NOW), { label: '3 offers in', tone: 'moving' });
-  assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 1, NOW), { label: '1 offer in', tone: 'moving' });
+  assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 3, NOW), { label: '3 offers in', tone: 'you' });
+  assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 1, NOW), { label: '1 offer in', tone: 'you' });
   assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 0, NOW), { label: 'Waiting for offers', tone: 'wait' });
   assert.deepEqual(posterPill({ status: 'OPEN', due_at: past }, 0, NOW), { label: 'Date passed', tone: 'wait' });
   assert.deepEqual(posterPill({ status: 'LOCKED', funded_at: null }, 0, NOW), { label: 'Waiting for payment', tone: 'you' });

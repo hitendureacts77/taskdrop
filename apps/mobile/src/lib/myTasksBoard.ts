@@ -464,7 +464,7 @@ export function posterPill(
   now: number,
 ): { label: string; tone: PillTone } {
   if (task.status === 'OPEN') {
-    if (offers > 0) return { label: `${offers} ${offers === 1 ? 'offer' : 'offers'} in`, tone: 'moving' };
+    if (offers > 0) return { label: `${offers} ${offers === 1 ? 'offer' : 'offers'} in`, tone: 'you' };
     return { label: openDatePassed(task, now) ? 'Date passed' : 'Waiting for offers', tone: 'wait' };
   }
   const b = statusBadge(task);
