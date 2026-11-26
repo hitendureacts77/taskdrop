@@ -494,6 +494,34 @@ await t("B53: a changed offer comes back as OFFER_CHANGED in plain words", async
   }
 });
 
+await t("227: lockBid checks the finish date the poster saw only when the app sends one", async () => {
+  const due = "2026-12-01T10:30:00.000Z";
+  const f = fake(() => ({ data: { id: TASK }, error: null }));
+  assert.ok((await runOp("lockBid", { bidId: BID, expectedPriceMinor: 120000, expectedDueAt: due }, ctx(f))).ok);
+  assert.deepEqual(f.calls[0].args, {
+    p_bid_id: BID, p_payout_mode: "one_time", p_expected_price_minor: 120000, p_check_due: true, p_expected_due_at: due,
+  });
+  // null = the offer the poster saw had no date: still checked.
+  const g = fake(() => ({ data: { id: TASK }, error: null }));
+  assert.ok((await runOp("lockBid", { bidId: BID, expectedDueAt: null }, ctx(g))).ok);
+  assert.deepEqual(g.calls[0].args, {
+    p_bid_id: BID, p_payout_mode: "one_time", p_expected_price_minor: null, p_check_due: true, p_expected_due_at: null,
+  });
+  for (const bad of ["soon", 5, true]) {
+    const h = fake();
+    const r = await runOp("lockBid", { bidId: BID, expectedDueAt: bad }, ctx(h));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS", String(bad));
+    assert.equal(h.calls.length, 0);
+  }
+  const r = await runOp("lockBid", { bidId: BID, expectedPriceMinor: 100000, expectedDueAt: due },
+    ctx(fake(() => ({ data: null, error: { message: "The helper changed their finish time. Please look again.", code: "P0001" } }))));
+  assert.ok(!r.ok);
+  if (!r.ok) {
+    assert.equal(r.error.code, "OFFER_DUE_CHANGED");
+    assert.equal(r.error.message, "The helper changed their finish time. Please look again.");
+  }
+});
+
 await t("internal database wording never leaves the server", async () => {
   const leaky = [
     { message: 'new row violates row-level security policy for table "bids"', code: "42501", details: null },

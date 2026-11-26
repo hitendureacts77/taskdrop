@@ -56,20 +56,27 @@ test.describe("signed in as the seed poster", () => {
     expect(errors).toEqual([]);
   });
 
-  test("the wallet shows money in rupees", async ({ page, isMobile }) => {
+  test("the wallet shows money in rupees", async ({ page }) => {
     await page.goto("/");
     await expectSignedIn(page);
     await page.getByText("Wallet", { exact: true }).first().click();
     await expect(page.locator("body")).toContainText("₹", { timeout: 20_000 });
-    if (!isMobile) await expect(page.getByText("Withdraw").first()).toBeVisible();
+    // Plan B money flow (task 2.21): each task is paid for on its own and held by Razorpay, so the wallet lists the
+    // money task by task (screens/MoneyScreen.tsx); there is no balance to withdraw any more.
+    await expect(page.getByText(/held by Razorpay until the work is approved/).first()).toBeVisible();
+    await expect(page.getByText("On hold", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Your money, task by task", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Withdraw", { exact: true })).toHaveCount(0);
   });
 
   test("a task can be opened from the feed", async ({ page }) => {
     await page.goto("/");
     await expectSignedIn(page);
-    await page.getByText("Explore", { exact: true }).first().click();
-    // Explore opens on the full-screen map; the list is one tap away (the "List" pill).
-    await page.getByRole("button", { name: "Show the list" }).click();
+    // The feed tab: "Explore" in Hire and on the desktop side menu, "Find work" on the phone's Earn tabs (task 1.19).
+    const feedTab = /^(Explore|Find work)$/;
+    await page.getByRole("tab", { name: feedTab }).or(page.getByRole("link", { name: feedTab })).filter({ visible: true }).first().click();
+    // The feed opens on the full-screen map; the list is one tap away (the "List" switch).
+    await page.getByRole("button", { name: "Show the list" }).filter({ visible: true }).first().click();
     await expect(page.locator("body")).toContainText("₹", { timeout: 20_000 });
   });
 });

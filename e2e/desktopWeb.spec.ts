@@ -163,6 +163,8 @@ const live = (page: Page) => [
   page.locator(".maplibregl-map"),
   // The face in the top bar: its letter comes from the name read live ("M" or the saved name), so it differs between runs.
   page.getByRole("button", { name: /^(Profile|Account menu)$/ }).filter({ visible: true }),
+  // A running work timer (WorkerCard "Timer running 470:18:45") ticks every second while the picture is taken.
+  page.getByText(/^\d+:\d{2}:\d{2}$/).filter({ visible: true }),
 ];
 
 for (const p of plans(true)) {

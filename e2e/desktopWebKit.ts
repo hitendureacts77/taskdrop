@@ -187,8 +187,15 @@ export function finish(): void {
 const NORMALISE = `(() => {
   const re = /\\b\\d+\\s?(?:seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|[smhdw])\\s(ago|left)\\b/i;
   const reAll = new RegExp(re.source, 'gi');
+  // Presence has no "ago" (lib/presence.ts: "Away · 10 min", "Away · 2h 5m"), so it gets its own fixed word.
+  const away = /\\bAway · \\d+\\s?(?:min|h)(?: \\d+m)?/g;
   // Only write when it changes: writing the same text again would fire the observer again, for ever.
-  const fix = (n) => { const v = n.nodeValue; if (!v || !re.test(v)) return; const next = v.replace(reAll, (_m, w) => '2h ' + w); if (next !== v) n.nodeValue = next; };
+  const fix = (n) => {
+    const v = n.nodeValue;
+    if (!v || !(re.test(v) || /\\bAway · \\d/.test(v))) return;
+    const next = v.replace(reAll, (_m, w) => '2h ' + w).replace(away, 'Away · 2h');
+    if (next !== v) n.nodeValue = next;
+  };
   const walk = (root) => {
     if (root.nodeType === 3) return fix(root);
     const it = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);

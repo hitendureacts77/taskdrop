@@ -31,9 +31,13 @@ function quoteRefusal(err: DbError): OpError {
   return toOpError(err);
 }
 
-/** A hire refused because the worker changed the offer's price after the poster looked (B53). */
+/** A hire refused because the worker changed the offer's price (B53) or finish date (227) after the poster looked. */
 function offerChangedRefusal(err: DbError): OpError {
   if (/offer changed/i.test(err.message ?? "")) return new OpError("The offer changed. Please review the new price.", "OFFER_CHANGED");
+  // 227: the same for the worker's finish date.
+  if (/changed their finish time/i.test(err.message ?? "")) {
+    return new OpError("The helper changed their finish time. Please look again.", "OFFER_DUE_CHANGED");
+  }
   return toOpError(err);
 }
 
@@ -302,6 +306,13 @@ export const WRITE_OPS: Record<string, Op> = {
       p_payout_mode: oneOf(a, "payoutMode", ["one_time", "milestones"], "one_time"),
     };
     if (a.expectedPriceMinor != null) args.p_expected_price_minor = int(a, "expectedPriceMinor", 0, MONEY_MAX);
+    // The finish date the poster saw (227). Sent at all (null = "the offer had no date") means
+    // check it; not sent (old builds) keeps the old call, with no date check.
+    if (Object.prototype.hasOwnProperty.call(a, "expectedDueAt")) {
+      args.p_expected_price_minor ??= null;
+      args.p_check_due = true;
+      args.p_expected_due_at = isoOrNull(a, "expectedDueAt");
+    }
     return take(await ctx.db.rpc("lock_bid", args), offerChangedRefusal);
   },
   payTaskFromWallet: rpcOp("pay_task_from_wallet", taskOnly),

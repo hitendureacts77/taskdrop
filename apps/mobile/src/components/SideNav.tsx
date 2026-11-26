@@ -41,7 +41,8 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
 
   const main: { key: ScreenName; icon: IconName; label: string; badge?: number }[] = [
     { key: 'home', icon: 'home', label: 'Home' },
-    { key: 'explore', icon: 'map', label: 'Explore' },
+    // Earn calls this item Find work, as the bottom tabs and the phone's native tabs already do.
+    { key: 'explore', icon: 'map', label: worker ? 'Find work' : 'Explore' },
     { key: 'myTasks', icon: 'orders', label: worker ? 'My Work' : 'My Tasks', badge: waiting },
     { key: 'wallet', icon: 'wallet', label: 'Wallet' },
     { key: 'inbox', icon: 'chat', label: 'Messages' },

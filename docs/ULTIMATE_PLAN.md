@@ -2142,10 +2142,56 @@ done 1.18
 | R | Desktop web is cluttered: calmer Home and tabs at desktop width (added 26 Nov from your message) | Opus | Hire and Earn Home, Explore, My tasks and Profile calm at 1280-1600 px, every feature kept, phone unchanged | Done 26 Nov: long lists start short with "Show N more" (Home ideas, services, ways to earn, jobs, rail lists, Explore templates), the helpers map moved up the Hire rail, one Explore title, My tasks columns no longer cut, Profile columns balanced; phone layout unchanged (`docs/design/desktop-declutter-1-19-r`) |
 | S | Text too big on desktop next to Upwork (added 26 Nov from your message) | Sonnet | Desktop text and controls at about Upwork size; phone and Android unchanged | Done 26 Nov: the desktop page zoom is now 0.92 up to a 1920 px wide window (it used to grow from 1 to 1.35 with the window), so the 14 px menu reads at about 13 px and headings shrink in step; it grows gently to 1.05 on very wide monitors; phones, tablets and the Android app stay at 1 (`apps/mobile/src/lib/layout.ts`) |
 | R2 | e2e fallout after PRs 518-521 (added 26 Nov) | Sonnet | `npm run check` green; desktopWeb and sizes green on the four projects | Done 26 Nov: Explore live line and map status pill shrink to one line (no sideways scroll at 640 x 360); specs follow the new header (Find work tab, List/Map switch, face opens Profile); profile patch also applies to batches that go live; 390 and 820 pictures re-taken, top-bar face masked |
+| T | Live check after the staging build, and the follow-ups (added 26 Nov) | Sonnet + Opus | Every 1.19 migration applied on staging, every row checked live, follow-ups merged | In progress 26 Nov. **Done:** the 26 Nov Vercel build applied migrations 203, 206, 215, 216, 223 and 226 (none skipped) and deployed `api` with `catalog`. Row D checked live as a guest ("fix my tap" → Plumbing, "drop parcel" → Pickup and drop, "laptop slow" → Computer repair; screenshots on the D design page). Desktop Home calm at 1568 px. Fixed and merged: "Only on TaskDrop" no longer wraps 4+1, a 4-digit price no longer breaks on search cards (PR 539); no empty bands beside the menu on a 1920 px screen (feed cap 1280 → 1760, PR 540); stale wallet + Explore e2e tests and 11 phone baselines (PR 545; the two explore-earn pictures are being re-recorded against fresh test data); test lists found automatically (PR 536); plan page one item per line so it rarely conflicts (PR 544); flaky index-plan SQL test (PR 543). Later 26 Nov: pixel guard replay data re-recorded, 28/28 on two runs (PR 547); money.spec skips the wallet path on Plan B (PR 548); Earn side menu says Find work (PR 549). **Open for Claude:** tune the 0.88 skill meaning threshold on real typing; feed catalog_phrases into the row D synonym map; search relevance when no exact helper exists (fix my tap showed a cleaner). **Waiting for your** 5-person check (row I) and an OTA for the phone check of F, G, I. **Waiting for your OK on migrations:** J/K hire re-checks the finish date (PR 538, migration 227) and E meaning check + old-app skills server-side (PR 537, migration 228). **Waiting for your username** on taskdrop.in (or your OK to sign in with fake test phones) for the signed-in checks of B, C (Razorpay test pay), E, J/K, L, N. Vercel is rate-limited again (~24 h), so PRs 539-545 reach taskdrop.in on the next build. Plan HTML rebuilt in CI is blocked by branch protection (bots can't push). |
 
 **Your question, answered:** the website is on Vercel (moving to Cloudflare, task 5.12). The backend is **Supabase**: the database, sign-in, file storage and the server functions (`api`, `money`, `razorpay-webhook` and others). Background jobs run on **Inngest**, images on **ImageKit**.
 
 **Done when:** every row is Done, or has your written "drop".
+</details>
+
+<details id="t1-20" data-short="Snap-style fast map">
+<summary>[CLAUDE] <b>1.20</b> Snap-style fast map (design D33) <small>· added 26 Nov, from your message · an upgrade to an existing feature, not a new one · waiting for your OK on design D33 (version 2: every current map feature kept)</small></summary>
+
+**In plain words:** Maps are the hero feature. The phone map moves to the same engine as the web map (MapLibre, free), and every pin is drawn in one GPU layer, so it scrolls like Snap Map even with thousands of people and tasks on it.
+
+**Why:** today the phone map (react-native-maps) draws each pin as its own view, so it lags past about 50 pins. The web map already uses MapLibre and OpenFreeMap tiles (free, no key).
+
+**Steps:**
+
+- [ ] [opus] Design D33 shown 26 Nov: waiting for your OK ("build D33") and answers Q1-Q2 (map engine, 3D buildings at street zoom). Helper photos and the online-dot question are dropped: helpers stay service icons until tapped (D13) and the active dot already exists.
+- [ ] [sonnet] Swap the phone map: add `@maplibre/maplibre-react-native` v11 with its Expo plugin; remove `react-native-maps` from `JobsMap.native.tsx` and `MapPicker.native.tsx`. This also means the Android app no longer needs a Google Maps key.
+- [ ] [opus] One shared map-layer module for web and phone: same OpenFreeMap style, one GeoJSON source per layer (tasks, helpers, My people), built-in clustering, faces drawn as images.
+- [ ] [sonnet] Pin images: round helper faces with a jade ring (Hire), blue price chips (Earn), initials when there is no photo.
+- [ ] [sonnet] Motion: fly to on tap, cluster burst on zoom, pulsing online dot, reduced-motion fallback.
+- [ ] [sonnet] Speed test: 2,000 fake pins on the staging fake city; smooth scroll on your phone (CPH2585); web e2e on port 8123.
+- [ ] [sonnet] New local Android build and a new site APK. This cannot go out as an over-the-air update.
+- [ ] [sonnet] Feature check: walk all 37 kept features on web and on the phone (CPH2585); none may be missing.
+- [ ] [opus] Final check before merge.
+
+**Keep every map feature (owner, 26 Nov):** 37 current features stay; none may be lost in the swap.
+
+- [ ] Privacy: task and helper spots stay rounded (~1.1 km), My people ~550 m with 15 min expiry, helpers anonymous (service icon only) until tapped; no exact coordinates in map data. Helper photos dropped (D13 privacy rule).
+- [ ] Zoom: zoomed out shows the best offer per area with a count; zoom 14+ spreads every task on rings; tap a group flies in; grouping 80 px tasks / 96 px people.
+- [ ] Layers + colours: Earn = tasks only, royal blue; Hire = helpers only, jade; My people layer (60 s refresh) and the Share my spot card stay.
+- [ ] Pins: helper pin = service icon, white rim, green active dot, stacks of 3 + "+N"; task pin = face + name + price; best offer takes the mode colour; City Hunt label stays; labels never overlap.
+- [ ] Taps + panels: helper sheet, job card (bottom card on phone, callout on desktop), person sheet; pull-up bar; desktop side panel with minimise and zoom tip.
+- [ ] Location + reach: You marker, location sheet (search, live spot, settings; guests keep area on device), reach 5/10/25 km + custom 1-100 km with dashed ring, people capped 50 km.
+- [ ] Filters + data: shared with the list (price, Nearby/Remote/All, how they hire, due soon, sort); Explore search filters pins; remote jobs have no pin; 200 newest tasks, refresh 600 ms after the map stops, 5 min cache.
+- [ ] Motion: heat glow, "just posted" ripple, staggered fade-in, reduced motion respected.
+- [ ] Other: topped-up badge, guest mode (helpers only, no map_people_around), dark mode, map picker, Home map previews + shortcut chips, Expo Go / web fallback tile map.
+
+**Build gotchas:**
+
+- Many tasks share one rounded point; native clusters cannot split them, so keep the ring spread (`lib/mapLayout.ts` ringSpots) and feed spread spots in at zoom 14+.
+- Clusters must carry the max offer (clusterProperties max) plus face/service data for stacks.
+- MapLibre RN zoom is 1 off the 256 px tile maths (GL_TO_TILE); keep mapReach / zoomToFit right.
+- Keep NearMap picked-id state, sheet offsets (leftInset, HELPER_SHEET_H), onMoveEnd refresh and fit-to-reach.
+- Guests must never call the map_people_around path (NEEDS_ACCOUNT).
+- Native change = new local Android build (C:	db, lb.mjs), not OTA.
+
+**Done when:** the phone map scrolls as smoothly as the web map with 2,000 pins, looks the same on both, and every D20-D24 map feature still works.
+
+**Notes:** Mapbox (`@rnmapbox/maps`) is the paid upgrade path if ever wanted (free up to 25,000 phone users a month, then about $4 per 1,000); the code shape is close to MapLibre. You asked for this on 26 Nov as an upgrade to an existing feature, so it is not a new feature under the feature freeze (decision 37).
 </details>
 
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
@@ -6716,6 +6762,10 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-26 (plan page diff-friendly):** Plan page: each list item and table row on its own line, so the page only conflicts where the .md does (CI rebuild blocked by branch protection).
+- **2026-11-26 (fewer merge conflicts: test lists found automatically):** `npm test` and `npm run test:db` no longer keep long hand-written file lists in package.json (almost every PR clashed on them). `scripts/run-unit-tests.mjs` and `scripts/run-db-tests.mjs` find the test files themselves; the set run is the same as before (145 unit files, 94 SQL files). Two passing tests that were never added to the old list (`chatWindow.test.ts`, `offerTiming.test.ts`) stay off in a commented exclude list until you or the lead switch them on. Rebuilding the plan page in CI after merge was **not** added: branch protection on `redesigned-2.0` (PR required, required checks, admins included) blocks a bot push, so PRs still commit `docs/ULTIMATE_PLAN.html`.
+- **2026-11-26 (1.20 / D33):** owner asked to keep every current map feature; 37-feature list and feature check added; helper photos dropped (D13 privacy rule).
+- **2026-11-26 (task 1.20, Snap-style fast map, design D33):** You asked for the phone map to scroll like Snap Map. Added task **1.20** under Step 1: move the phone map from react-native-maps to MapLibre (the web map's engine, free), draw every pin in one GPU layer, one shared map-layer module for web and phone. It is an upgrade to an existing feature, so it is allowed under the freeze (decision 37). Waiting for your OK on design D33 and answers Q1-Q4. Docs only: nothing built.
 - **2026-11-23 (T13 first pass on staging):** You asked for the remaining plan work one by one. Most of what is left is yours (accounts, payments, sign-ins, lawyer) or waits on a gate. The first Claude item that needs nothing from you was T13 (3.6): a first pass on taskdrop.in found a wrong address shows the sign-in screen instead of a 404 page, and every address has the same raw title and description, so 4.3 is the real fix. Details under T13 in 3.6. Nothing built.
 - **2026-11-23 (5.6b PostHog checked in Chrome, low-severity bugs checked):** The production PostHog project `taskdrop-production` already exists (EU, project 351004, no events yet), so the "make the project" part of 5.6b is done. Not done: PostHog asked to re-authenticate before showing the organisation page, which is a sign-in only you can do, so the organisation name was not confirmed and the `phc_` key was not copied. The app has no PostHog code or variable yet (it comes with 3.3c), so the production Expo project needs no PostHog value today. The still-open Low bugs in the debug ledger: B30 and B32 were already fixed and verified (migration 166); B18 (accept recommended), B21 (end status, refund rule and lock timeout are yours to decide) and B63 (after launch) stay open for your word. Nothing built.
 - **2026-11-23 (20-point website finish list added):** From an Instagram reel ("20 things to tell Claude to fix on your vibecoded website") you asked whether those checks are in the plan. Eight were already covered in part (favicon, page titles, meta descriptions in 4.3; sideways scrolling, mobile overflow and every-page-mobile in 1.14, T10 and F1; compressed pictures for videos only; error messages in T12). Twelve were not: broken links, a mobile menu, working footer links, a custom 404 page, a worked-out copyright year, broken buttons, success messages, no placeholder text, no unused navigation, a clickable logo, clickable phone, clickable email. Added them all as test **T13 "Website finish (20 points)"** with a 20-row table under task 3.6, a line in 4.3's search and share checklist, a "Done when" condition, and a row in the coverage table. Nothing built or run; it runs with round 3.

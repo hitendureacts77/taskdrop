@@ -35,6 +35,7 @@ import {
   cancelTask,
   getTaskDetail,
   isOfferChanged,
+  offerChangedMessage,
   listBidsForTask,
   lockBid,
   refundEscrow,
@@ -116,10 +117,10 @@ export function TaskManageScreen() {
   // The first load failed (not the same as a task that does not exist).
   const [loadFailed, setLoadFailed] = useState(false);
   const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>('newest');
-  const [selecting, setSelecting] = useState<{ bidId: string; name: string; priceMinor: number; newDate?: string } | null>(null);
+  const [selecting, setSelecting] = useState<{ bidId: string; name: string; priceMinor: number; dueAt?: string | null; newDate?: string } | null>(null);
   const [locking, setLocking] = useState(false);
   // Set when the wallet cannot cover the chosen offer: exactly what is missing.
-  const [shortBy, setShortBy] = useState<{ minor: number; pick: { bidId: string; name: string; priceMinor: number } } | null>(null);
+  const [shortBy, setShortBy] = useState<{ minor: number; pick: { bidId: string; name: string; priceMinor: number; dueAt?: string | null } } | null>(null);
 
   const load = useCallback(async () => {
     if (!taskId) return setDetail(null);
@@ -250,12 +251,12 @@ export function TaskManageScreen() {
   // Choosing an offer pays for it from the wallet in the same step. A wallet
   // that is short opens a top-up for exactly the difference, and the offer is
   // chosen by itself once that money lands.
-  const lockPick = async (pick: { bidId: string; name: string; priceMinor: number }) => {
+  const lockPick = async (pick: { bidId: string; name: string; priceMinor: number; dueAt?: string | null }) => {
     if (locking) return;
     setLocking(true);
     try {
-      // The price shown is the price charged: a changed offer is refused, not charged (B53).
-      await lockBid(pick.bidId, 'one_time', pick.priceMinor);
+      // The price and finish date shown are the ones hired on: a changed offer is refused (B53, 227).
+      await lockBid(pick.bidId, 'one_time', pick.priceMinor, pick.dueAt);
       setSelecting(null);
       if (planB) {
         // Pay per task: hired, now pay for this one task.
@@ -273,7 +274,7 @@ export function TaskManageScreen() {
       } else if (isOfferChanged(e)) {
         setSelecting(null);
         setShortBy(null);
-        flash('The offer changed. Please review the new price.');
+        flash(offerChangedMessage(e));
         await load().catch((err) => reportError(err, 'task-manage'));
       } else {
         flash(e instanceof Error ? hireRefusal(e.message) : 'Could not choose that offer');
@@ -617,6 +618,7 @@ export function TaskManageScreen() {
                             bidId: b.id,
                             name,
                             priceMinor: b.price_minor,
+                            dueAt: (b as { proposed_due_at?: string | null }).proposed_due_at ?? null,
                             ...(timing?.kind === 'more' ? { newDate: timing.text.replace('Asks for more time: ', '') } : null),
                           })
                         }
