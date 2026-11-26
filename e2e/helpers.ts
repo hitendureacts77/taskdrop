@@ -232,3 +232,12 @@ export async function closeStagingCard(page: Page): Promise<void> {
   const opened = await page.getByRole("heading", { name: "How TaskDrop works", exact: true }).waitFor({ timeout: 5_000 }).then(() => true, () => false);
   if (opened) await walk.click();
 }
+
+/**
+ * A guest's way in since the sign-in-first front door (AccessScreen): the consent bar, then "Continue as guest".
+ * Leaves the page on the guest's Home.
+ */
+export async function continueAsGuest(page: Page): Promise<void> {
+  await answerConsent(page);
+  await page.getByRole("button", { name: "Continue as guest" }).click();
+}

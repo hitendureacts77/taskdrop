@@ -53,8 +53,12 @@ import { useLayout } from '../lib/layout';
 import { mapLine } from '../lib/tabLines';
 import { browserInfo } from '../lib/appDownload';
 import { inFront, onBackInFront } from '../lib/inFront';
+import { fakePinCount, makeFakePins } from '../lib/fakePins';
 import { PEOPLE_POLL_MS, isPersonLive } from '../lib/mapSpot';
 import { useMapSharing } from '../lib/useMapSpot';
+
+// Read once, from the address the page was opened with (the router drops the query on its first move).
+const BOOT_FAKE_PINS = fakePinCount(Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.search : undefined);
 
 /** The desktop side panel. */
 const PANEL_W = 400;
@@ -552,7 +556,7 @@ export function NearMap({
     () => (mode === 'jobs' ? listJobs.map((j) => j.id) : mine ? listMine.map((p) => p.id) : listPeople.map((p) => p.id)),
     [mode, mine, listJobs, listMine, listPeople],
   );
-  const pins = useMemo<JobPin[]>(
+  const realPins = useMemo<JobPin[]>(
     () =>
       mode === 'jobs'
         ? shownJobs
@@ -569,6 +573,10 @@ export function NearMap({
               .filter((p): p is JobPin => p !== null),
     [mode, mine, shownJobs, shownMine, shownPeople, now, promotedJobIds, promotedPeople],
   );
+  // Dev/e2e only: ?fakepins=2000 on a build made with EXPO_PUBLIC_E2E_FAKE_PINS=1 swaps the pins for made-up ones (lib/fakePins.ts).
+  const fakeCount = BOOT_FAKE_PINS;
+  const fakePins = useMemo(() => (fakeCount ? makeFakePins(fakeCount) : null), [fakeCount]);
+  const pins = fakePins ?? realPins;
   const loading = mode === 'jobs' ? jobs === null && remoteJobs === null : mine ? peopleMine === null : people === null;
   const count = ids.length;
   // On the map, inside the reach or not.

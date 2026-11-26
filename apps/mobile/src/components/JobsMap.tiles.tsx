@@ -10,6 +10,7 @@ import { metresPerPixel } from '../lib/mapCluster';
 import { SPREAD_ZOOM } from '../lib/mapLayout';
 import { zoomToFit } from '../lib/mapReach';
 import { CALLOUT_LIFT, MapPinLayer, controlsRect, type JobPin, type MapTone } from './MapPinLayer';
+import { hireColours, sideHue } from './MapMarkers';
 
 export {
   CALLOUT_LIFT,
@@ -76,7 +77,7 @@ export type JobsMapProps = {
  * nothing covers it, and never dimmed. The halo pulses gently unless motion is reduced.
  * Place it at the point's screen position; the dot's centre sits exactly on it.
  */
-export function YouMarker({ x, y, kind = 'area' }: { x: number; y: number; kind?: 'live' | 'area' }) {
+export function YouMarker({ x, y, kind = 'area', color }: { x: number; y: number; kind?: 'live' | 'area'; color?: string }) {
   const t = useTheme();
   const reduced = useReducedMotion();
   const pulse = useRef(new Animated.Value(0)).current;
@@ -89,7 +90,8 @@ export function YouMarker({ x, y, kind = 'area' }: { x: number; y: number; kind?
     loop.start();
     return () => loop.stop();
   }, [reduced, pulse]);
-  const blue = t.colors.purple;
+  // The side's colour: Earn royal blue, Hire jade (owner rule).
+  const blue = color ?? t.colors.purple;
   const label = kind === 'live' ? 'You' : 'Your area';
   return (
     <View
@@ -292,7 +294,7 @@ export function JobsMap({
   const ringCentre = ringAt ?? me;
   const ring = ringCentre ? toScreen(ringCentre.lat, ringCentre.lng) : null;
   const ringPx = ringCentre ? (ringKm * 1000) / metresPerPixel(ringCentre.lat, zoom) : 0;
-  const blue = t.colors.purple;
+  const blue = sideHue(t, people);
   const words = mapWordsOf(tone);
 
   const control = (label: string, onPress: () => void, child: React.ReactNode) => (
@@ -355,7 +357,7 @@ export function JobsMap({
         />
 
         {/* After the pins, so it is on top, and outside the dim layer. */}
-        {you ? <YouMarker x={you.x} y={you.y} kind={meKind} /> : null}
+        {you ? <YouMarker x={you.x} y={you.y} kind={meKind} color={blue} /> : null}
       </View>
 
       {bare ? null : (
@@ -404,8 +406,8 @@ export function JobsMap({
             elevation: 2,
           }}
         >
-          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: people ? t.colors.purpleSoft : t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="lock" size={11} color={people ? t.colors.purpleDeep : t.colors.accentDeep} />
+          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: people ? hireColours(t.isDark).soft : t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="lock" size={11} color={people ? hireColours(t.isDark).deep : t.colors.accentDeep} />
           </View>
           <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={2}>
             {words.privacy}

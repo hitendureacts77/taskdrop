@@ -20,7 +20,7 @@ import { useReducedMotion } from '../lib/motion';
  * the pin" is never in question.
  *
  * It is a slippy map built from plain tile images rather than a mapping SDK.
- * That is a deliberate trade: react-native-maps does not run on the web build,
+ * That is a deliberate trade: a mapping SDK does not run on the web build,
  * and shipping two implementations for one small picker is not worth it. Tiles
  * are just images, so the same component works on web and on device, with no
  * extra dependency and no API key.

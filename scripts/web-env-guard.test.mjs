@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, existsSync, writeFileSync, rmSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { applyToHtml, assetLinks, DEFAULT_ORIGIN, fingerprintsOf, isProductionBuild, NOINDEX_META, originOf, PRODUCTION_ANDROID_PACKAGE, PUBLIC_EMAIL, publicEmail, ROBOTS_TXT, run, securityTxt, SECURITY_TXT_EXPIRES, SUPPORT_URL } from '../apps/mobile/scripts/web-env-guard.mjs';
+import { applyToHtml, assertNoFakePins, assetLinks, DEFAULT_ORIGIN, fingerprintsOf, isProductionBuild, NOINDEX_META, originOf, PRODUCTION_ANDROID_PACKAGE, PUBLIC_EMAIL, publicEmail, ROBOTS_TXT, run, securityTxt, SECURITY_TXT_EXPIRES, SUPPORT_URL } from '../apps/mobile/scripts/web-env-guard.mjs';
 
 const NL = String.fromCharCode(10);
 const HTML = '<!DOCTYPE html><html><head><title>TaskDrop</title></head><body></body></html>';
@@ -190,4 +190,12 @@ test('run() writes .well-known/security.txt for both staging and production', ()
   } finally {
     rmSync(dist, { recursive: true, force: true });
   }
+});
+
+test('fake map pins: never in production, in staging only for the speed-test build', () => {
+  assert.doesNotThrow(() => assertNoFakePins(true, undefined, undefined));
+  assert.doesNotThrow(() => assertNoFakePins(false, '', undefined));
+  assert.throws(() => assertNoFakePins(true, '1', '1'), /production/);
+  assert.throws(() => assertNoFakePins(false, '1', undefined), /E2E_FAKE_PINS_BUILD/);
+  assert.doesNotThrow(() => assertNoFakePins(false, '1', '1'));
 });

@@ -115,8 +115,22 @@ export function applyToHtml(html, production) {
   return clean.replace(/<\/head>/i, `${NOINDEX_META}</head>`);
 }
 
+/**
+ * EXPO_PUBLIC_E2E_FAKE_PINS=1 swaps the map's pins for 2,000 made-up ones (src/lib/fakePins.ts). It exists only for the
+ * map speed test (e2e/mapSpeed.spec.ts), so no build that people can open may carry it: a production build never,
+ * and a staging build only when E2E_FAKE_PINS_BUILD=1 says this is the speed-test build.
+ */
+export function assertNoFakePins(production, fakePins = process.env.EXPO_PUBLIC_E2E_FAKE_PINS, speedTest = process.env.E2E_FAKE_PINS_BUILD) {
+  if (String(fakePins ?? '').trim() === '') return;
+  if (production) throw new Error('EXPO_PUBLIC_E2E_FAKE_PINS is set in a production build: unset it (it is for the map speed test only)');
+  if (String(speedTest ?? '').trim() !== '1') {
+    throw new Error('EXPO_PUBLIC_E2E_FAKE_PINS is set but E2E_FAKE_PINS_BUILD=1 is not: only the map speed-test build may carry fake pins');
+  }
+}
+
 export function run(dist, env, email = process.env.EXPO_PUBLIC_LEGAL_EMAIL, origin = originOf(), fingerprintList = process.env.ANDROID_SHA256_CERT_FINGERPRINTS) {
   const production = isProductionBuild(env);
+  assertNoFakePins(production);
   const indexFile = join(dist, 'index.html');
   const robotsFile = join(dist, 'robots.txt');
   if (!existsSync(indexFile)) throw new Error(`${indexFile} not found; run expo export first`);
