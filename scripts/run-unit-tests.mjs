@@ -5,17 +5,20 @@
 // under one of ROOTS and it runs.
 //
 // Two node runs, same flags as the old hand list:
-//   1. node --experimental-strip-types --test <every found test>
-//   2. node --experimental-transform-types --no-warnings --test <hook tests>
-// A "hook test" compiles a component at run time through `register` from
-// 'node:module' (FormPage, ListPage); it needs the transform flag, so it runs
-// in the second group. The second run starts only if the first passes.
+//   1. node --experimental-strip-types --test <tests that strip-only can load>
+//   2. node --experimental-transform-types --no-warnings --test <the rest>
+// A test goes to run 2 when it, or any local file it imports (followed
+// through relative imports), is a .tsx file, uses TypeScript that strip-only
+// mode refuses (parameter properties, enums, namespaces), or compiles code at
+// run time through `register` from 'node:module' (FormPage, ListPage).
+// The second run starts only if the first passes.
 //
-// `node scripts/run-unit-tests.mjs --list` prints the files instead of running.
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, sep } from 'node:path';
+// `node scripts/run-unit-tests.mjs --list` prints both groups instead of running.
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { stripTypeScriptTypes } from 'node:module';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 
@@ -41,6 +44,8 @@ const EXCLUDE = new Set([
 ]);
 
 const HOOK_TEST = /import\s*\{[^}]*\bregister\b[^}]*\}\s*from\s*['"]node:module['"]/;
+const TYPE_ONLY_IMPORT = /\b(?:import|export)\s+type\s[^;]*?\bfrom\s*['"][^'"]+['"]/g;
+const IMPORT_SPEC =/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)['"](\.{1,2}\/[^'"]+)['"]/g;
 
 function walk(dir, out) {
   let entries;
@@ -51,7 +56,7 @@ function walk(dir, out) {
   }
   for (const e of entries) {
     if (e.name.startsWith('.')) continue;
-    const rel = dir ? `${dir}/${e.name}` : e.name;
+    const rel = `${dir}/${e.name}`;
     if (e.isDirectory()) {
       if (!SKIP_DIRS.has(e.name)) walk(rel, out);
     } else if (e.isFile() && TEST_FILE.test(e.name)) {
@@ -61,17 +66,64 @@ function walk(dir, out) {
   return out;
 }
 
+function resolveLocal(fromFile, spec) {
+  const base = resolve(dirname(fromFile), spec);
+  for (const p of [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) {
+    if (existsSync(p) && statSync(p).isFile()) return p;
+  }
+  return null;
+}
+
+// Silence the "stripTypeScriptTypes is experimental" warning for this check only.
+function stripsCleanly(code) {
+  const emit = process.emitWarning;
+  process.emitWarning = () => {};
+  try {
+    stripTypeScriptTypes(code, { mode: 'strip' });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    process.emitWarning = emit;
+  }
+}
+
+const verdict = new Map(); // absolute path -> true when it needs transform-types
+function needsTransform(file, seen = new Set()) {
+  if (verdict.has(file)) return verdict.get(file);
+  if (seen.has(file)) return false; // import cycle: decided by the first visit
+  seen.add(file);
+  const code = readFileSync(file, 'utf8');
+  let needs =
+    file.endsWith('.tsx') ||
+    HOOK_TEST.test(code) ||
+    (/\.(ts|mts|cts)$/.test(file) && !stripsCleanly(code));
+  if (!needs) {
+    // `import type` / `export type` lines are erased, so node never loads those files.
+    const loaded = code.replace(TYPE_ONLY_IMPORT, '');
+    for (const m of loaded.matchAll(IMPORT_SPEC)) {
+      const dep = resolveLocal(file, m[1]);
+      if (dep && /\.(ts|tsx|mts|mjs|js|cjs)$/.test(dep) && needsTransform(dep, seen)) {
+        needs = true;
+        break;
+      }
+    }
+  }
+  verdict.set(file, needs);
+  return needs;
+}
+
 const found = ROOTS.flatMap((r) => walk(r, []))
   .map((f) => f.split(sep).join('/'))
   .filter((f) => !EXCLUDE.has(f))
   .sort();
 
-const hookTests = found.filter((f) => HOOK_TEST.test(readFileSync(join(repo, f), 'utf8')));
-const plainTests = found.filter((f) => !hookTests.includes(f));
+const transformTests = found.filter((f) => needsTransform(join(repo, f)));
+const stripTests = found.filter((f) => !transformTests.includes(f));
 
 if (process.argv.includes('--list')) {
-  for (const f of plainTests) console.log(f);
-  for (const f of hookTests) console.log(f);
+  for (const f of stripTests) console.log(`strip     ${f}`);
+  for (const f of transformTests) console.log(`transform ${f}`);
   process.exit(0);
 }
 
@@ -85,6 +137,6 @@ function run(flags, files) {
   return r.status ?? 1;
 }
 
-const first = run(['--experimental-strip-types'], plainTests);
+const first = run(['--experimental-strip-types'], stripTests);
 if (first !== 0) process.exit(first);
-process.exit(run(['--experimental-transform-types', '--no-warnings'], hookTests));
+process.exit(run(['--experimental-transform-types', '--no-warnings'], transformTests));
