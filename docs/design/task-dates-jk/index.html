@@ -622,13 +622,36 @@ figcaption b { color: var(--page-ink); display: block; font-size: 14px; margin-b
     </div>
   </section>
 
+  <!-- ================= Counteroffer built ================= -->
+  <section class="row" aria-labelledby="builtc">
+    <div class="row-head">
+      <h2 id="builtc">Counteroffer built · real screenshots (26 Nov) <span class="pill built">From the app</span></h2>
+      <p>Local web build of PR 511 against the staging data, Earn mode, phone (375×812) and web (1440×900). The same picker is on the offer panel of the task page and in the offer sheet.</p>
+    </div>
+    <div class="strip">
+      <figure class="screen"><img class="shot" src="real-counter-bydate.jpg" alt="No-date task: When can you finish it, By a date picked, Finish by 27 Nov, 12:30 PM"><figcaption><b>No fixed date · "By a date"</b>The date is optional; × clears it.</figcaption></figure>
+      <figure class="screen"><img class="shot" src="real-counter-hours.jpg" alt="No-date task: In hours picked, stepper shows 4 hours, Counted from when you start the work"><figcaption><b>No fixed date · "In hours"</b>A − / + stepper, 1 hour to 7 days.</figcaption></figure>
+      <figure class="screen"><img class="shot" src="real-counter-more.jpg" alt="Dated task: Customer's date 6 Dec, Ask for more time picked, I can finish by, and a reason typed"><figcaption><b>Task with a date · "Ask for more time"</b>The customer's date, the later date, and the reason.</figcaption></figure>
+      <figure class="screen wide"><img class="shot" src="real-counter-web.jpg" alt="Web task page with the offer panel: Customer's date, That works picked"><figcaption><b>Web · "That works"</b>The default: nothing changes for most offers.</figcaption></figure>
+    </div>
+    <div class="row-head" style="margin-top:18px">
+      <p><b>Differences from the design, and why:</b></p>
+      <ul>
+        <li>The customer's button says "Choose with the new date" (the app's offer buttons say "Choose this offer", not "Accept"). The confirm adds "The task's date moves to …".</li>
+        <li>On a task with a date, the offer sheet keeps its optional "Hours it takes" box, so no existing feature is lost.</li>
+        <li>The reason box hint reads "Why (optional): what takes longer", not a painting example, since it shows on every kind of task.</li>
+        <li>The customer's side ("Can finish by", "Can finish in N hours", "Asks for more time") is covered by unit tests; it shows on staging once migration 216 is applied.</li>
+      </ul>
+    </div>
+  </section>
+
   <section class="questions" aria-labelledby="q">
     <h2 id="q">Decisions used, and one question</h2>
     <ol>
       <li>Accepting an offer with a finish date changes the task's date to it automatically.<span>As designed.</span></li>
       <li>A task with offers still switches to "No fixed date" when its date passes.<span>As designed, so it never looks expired.</span></li>
     </ol>
-    <p class="lede" style="font-size:13.5px"><b>Question:</b> for "In hours", is 1 hour to 7 days the right range? The design uses that.</p>
-    <p class="lede" style="font-size:13.5px">Rows J and K are built on PR 511 (not merged: merging applies migration 216). The counteroffer above (26 Nov) is not built yet: say "build the counteroffer" once you are happy with it.</p>
+    <p class="lede" style="font-size:13.5px">"In hours" uses 1 hour to 7 days. Say if you want a different range.</p>
+    <p class="lede" style="font-size:13.5px">Rows J, K and the counteroffer are built on PR 511 (you approved all designs on 26 Nov). It merges after PRs 515, 510 and 514, and merging applies migration 216.</p>
   </section>
 </div>

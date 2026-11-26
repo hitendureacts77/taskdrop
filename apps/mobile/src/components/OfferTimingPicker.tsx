@@ -184,7 +184,7 @@ export function OfferTimingPicker({
             editable={editable}
             multiline
             maxLength={REASON_MAX}
-            placeholder="Why (optional): e.g. the paint needs a day to dry"
+            placeholder="Why (optional): what takes longer"
             placeholderTextColor={t.colors.muted}
             accessibilityLabel="Why you need more time (optional)"
             style={tx('400', 13.5, t.colors.ink, {
