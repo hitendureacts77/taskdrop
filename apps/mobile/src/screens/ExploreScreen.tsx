@@ -967,8 +967,11 @@ function FindWork({
   const plainLoading = [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />);
   const loadingCards = query ? <SearchLoading role="earn" /> : plainLoading;
   // Under the search box: the spelling note and "Searching for" pills once a search ran; "looks like you mean" while typing.
+  // Only while still typing something new, and only with something to show: once the words are searched (the box
+  // keeps focus after Enter) the spelling note and pills take this place.
+  const stillTyping = focused && q.trim().length >= 2 && q.trim() !== query.trim();
   const looksLike =
-    focused && q.trim().length >= 2 ? (
+    stillTyping && (typing.length > 0 || recent.length > 0) ? (
       <LooksLikeYouMean role="earn" suggestions={typing} hasArea={at != null} recent={recent} onPick={runSearch} />
     ) : null;
   const understoodRows =
