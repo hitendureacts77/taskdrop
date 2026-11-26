@@ -31,7 +31,7 @@ endpoint (`/api/wallet/listOpenTasks`, `/api/tasks/noSuchOp`) answers **404 UNKN
 
 | Endpoint group | Reads | Writes |
 |---|---|---|
-| `/api/tasks/…` | `listOpenTasks`, `listMyTasks`, `searchTasks`, `searchTasksWithPosters`, `attachPosters`, `getTask`, `getTaskDetail`, `getPosterStats`, `recommendedTasks`, `remoteTasks`, `tasksNear`, `urgentTasks`, `nearbyPulse`, `countNeedsAttention`, `taskContactPhone`, `listSavedTaskIds`, `listSavedTasks` | `createTask`, `updateListing`, `removeListing`, `cancelTask`, `setRepeat`, `raiseTopUp`, `setSaved` |
+| `/api/tasks/…` | `listOpenTasks`, `listMyTasks`, `searchTasks`, `searchTasksWithPosters`, `attachPosters`, `getTask`, `getTaskDetail`, `getPosterStats`, `recommendedTasks`, `remoteTasks`, `tasksNear`, `urgentTasks`, `nearbyPulse`, `countNeedsAttention`, `taskContactPhone`, `listSavedTaskIds`, `listSavedTasks` | `createTask`, `updateListing`, `removeListing`, `cancelTask`, `setRepeat`, `setTaskDue`, `raiseTopUp`, `setSaved` |
 | `/api/questions/…` | `listTaskQuestions` | `askTaskQuestion`, `answerTaskQuestion` |
 | `/api/bids/…` | `listMyBids`, `listBidsForTask`, `countBidsByTask`, `myBidTaskIds`, `getMyBid`, `canQuoteOn` | `placeBid`, `updateBid`, `lockBid` |
 | `/api/jobs/…` | `listMyAssignments`, `getProof` | `startTask`, `markWorkDone`, `submitProof`, `requestRevision`, `confirmRelease` |

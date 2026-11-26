@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text as RNText, ActivityIndicator } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
@@ -8,7 +8,7 @@ import { canQuoteOn, getMyBid, placeBid, updateBid, type Bid, type Task } from '
 import { MAX_PRICE_INR, MIN_PRICE_INR } from '../lib/limits';
 import { maskContacts } from '../lib/mask';
 import { reportError } from '../lib/errors';
-import { DateTimeSheet, formatDeadline } from './DateTimeSheet';
+import { DateTimeSheet } from './DateTimeSheet';
 import { BottomSheet, Field, PrimaryButton, rupees } from './kit';
 import { Icon } from './Icon';
 import { SafetyCardSheet } from './SafetyCardSheet';
@@ -17,6 +17,8 @@ import { tx } from './primitives';
 import { OFFER_COPY, isDuplicateOfferError } from '../lib/offerState';
 import { noteMyOffer } from '../lib/useMyOffers';
 import { wholeDigits, wholeText } from '../lib/rupeeInput';
+import { OfferTimingPicker } from './OfferTimingPicker';
+import { REASON_LINE, initialTiming, timingFields, timingFromOffer, type OfferTiming } from '../lib/offerTiming';
 
 const HOURS_LINE = /^Estimated time: ([\d.]+) hours?$/m;
 const DATE_LINE = /^Can deliver by: (.+)$/m;
@@ -26,8 +28,13 @@ function parseMessage(message: string | null): { pitch: string; hours: string; d
   const text = message ?? '';
   const hours = HOURS_LINE.exec(text)?.[1] ?? '';
   const dateLabel = DATE_LINE.exec(text)?.[1] ?? null;
-  const pitch = text.replace(HOURS_LINE, '').replace(DATE_LINE, '').trim();
+  const pitch = text.replace(HOURS_LINE, '').replace(DATE_LINE, '').replace(REASON_LINE, '').trim();
   return { pitch, hours, dateLabel };
+}
+
+/** A task with no fixed date, posted that way or its date passed (plan 1.19 J and K). */
+function taskHasNoDate(task: Pick<Task, 'status' | 'due_at'>): boolean {
+  return task.status === 'OPEN' && (!task.due_at || Date.parse(task.due_at) <= Date.now());
 }
 
 /**
@@ -70,7 +77,8 @@ export function BidSheet({
   const [masked, setMasked] = useState(false);
   const [price, setPrice] = useState('');
   const [hours, setHours] = useState('');
-  const [deliverBy, setDeliverBy] = useState<Date | null>(null);
+  // When the worker can finish (plan 1.19 J, 26 Nov): a date or hours on a no-date task, or more time on a dated one.
+  const [timing, setTiming] = useState<OfferTiming>(() => initialTiming(true));
   const [savedDateLabel, setSavedDateLabel] = useState<string | null>(null);
   const [showDate, setShowDate] = useState(false);
   const [existing, setExisting] = useState<Bid | null>(null);
@@ -91,7 +99,7 @@ export function BidSheet({
     setMasked(false);
     setPrice('');
     setHours('');
-    setDeliverBy(null);
+    setTiming(initialTiming(taskHasNoDate(task)));
     setSavedDateLabel(null);
     setExisting(null);
     setBlocked(null);
@@ -117,7 +125,9 @@ export function BidSheet({
           const parsed = parseMessage(mine.message);
           setPitch(parsed.pitch);
           setHours(parsed.hours);
-          setSavedDateLabel(parsed.dateLabel);
+          // The finish date or hours the offer carries (migration 216); older offers only have a date in the message.
+          setTiming(timingFromOffer(mine, taskHasNoDate(task)));
+          if (!mine.proposed_due_at) setSavedDateLabel(parsed.dateLabel);
           setPrice(String(Math.round(mine.price_minor / 100)));
           return;
         }
@@ -145,6 +155,9 @@ export function BidSheet({
       : asked > MAX_PRICE_INR
         ? `Enter at most ₹${MAX_PRICE_INR.toLocaleString('en-IN')}`
         : null;
+  // No fixed date (posted that way, or its date passed, plan 1.19 J and K): ask when the worker can finish.
+  // Optional; on acceptance the task takes this date (migration 216).
+  const noDate = taskHasNoDate(task);
   const ready = !blocked && pitch.trim().length >= 10 && price.trim() !== '' && !priceError;
   const auto = !existing && task.assignment_mode === 'auto' && asked > 0 && asked <= budget;
   // A price other than the customer's budget is a counteroffer, and says so.
@@ -168,6 +181,8 @@ export function BidSheet({
     if (!userId) return flash('Sign in to send an offer');
     if (!price.trim()) return flash('Enter your price');
     if (pitch.trim().length < 10) return flash('Tell the customer a little about why you');
+    const timed = timingFields(timing, noDate ? null : task.due_at, Date.now());
+    if ('error' in timed) return flash(timed.error);
     // A job with a place is in person; one without is remote.
     if (!existing && task.loc_lat !== null && !safetySeen) {
       let needsCard: boolean;
@@ -184,15 +199,19 @@ export function BidSheet({
     }
     setBusy(true);
     try {
-      const h = Number(hours);
+      // A dated task keeps the optional hours estimate; a no-date task says hours through the picker.
+      const h = noDate ? NaN : Number(hours);
       const lines = [maskContacts(pitch.trim()).text];
       if (Number.isFinite(h) && h > 0) lines.push(`Estimated time: ${h} hour${h === 1 ? '' : 's'}`);
-      const dateLabel = deliverBy ? formatDeadline(deliverBy) : savedDateLabel;
-      if (dateLabel) lines.push(`Can deliver by: ${dateLabel}`);
+      lines.push(...timed.lines);
+      // An older offer's date that only lives in its message stays, unless a new date replaces it.
+      if (!timed.proposedDueAt && savedDateLabel) lines.push(`Can deliver by: ${savedDateLabel}`);
       const fields = {
         priceMinor: Math.round(asked * 100),
-        timeLimitMinutes: Number.isFinite(h) && h > 0 ? Math.round(h * 60) : (existing?.time_limit_minutes ?? 240),
+        timeLimitMinutes:
+          timed.timeLimitMinutes ?? (Number.isFinite(h) && h > 0 ? Math.round(h * 60) : (existing?.time_limit_minutes ?? 240)),
         message: lines.join('\n'),
+        proposedDueAt: timed.proposedDueAt,
       };
       if (existing) {
         await updateBid(existing.id, fields);
@@ -227,8 +246,6 @@ export function BidSheet({
     }
   };
   submitRef.current = () => submit();
-
-  const dateText = deliverBy ? formatDeadline(deliverBy) : savedDateLabel;
 
   return (
     <>
@@ -305,50 +322,32 @@ export function BidSheet({
               </View>
             ) : null}
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14, alignItems: 'stretch' }}>
+            {noDate ? null : (
               <Field
-                label="Hours (optional)"
-                style={{ flex: 1 }}
+                label="Hours it takes (optional)"
+                style={{ marginTop: 14 }}
                 value={hours}
                 onChangeText={(v) => setHours(v.replace(/[^0-9.]/g, '').slice(0, 5))}
                 keyboardType="decimal-pad"
                 placeholder="—"
                 editable={!blocked}
               />
-              <Pressable
-                onPress={() => !blocked && setShowDate(true)}
-                accessibilityRole="button"
-                accessibilityLabel="Delivery date"
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  borderWidth: 1.5,
-                  borderColor: dateText ? t.colors.accent : t.colors.line,
-                  backgroundColor: dateText ? t.colors.accentSoft : t.colors.surface,
-                  borderRadius: 14,
-                  paddingVertical: 13,
-                  paddingHorizontal: 14,
+            )}
+            <View style={{ marginTop: 16 }}>
+              <OfferTimingPicker
+                noDate={noDate}
+                taskDueAt={noDate ? null : task.due_at}
+                value={timing}
+                onChange={(next) => {
+                  if (next.finishBy !== timing.finishBy || next.mode !== timing.mode) setSavedDateLabel(null);
+                  setTiming(next);
                 }}
-              >
-                <Icon name="clock" size={16} color={dateText ? t.colors.accentDeep : t.colors.muted} />
-                <RNText style={tx('600', 13, dateText ? t.colors.ink : t.colors.muted, { flex: 1 })} numberOfLines={1}>
-                  {dateText ?? 'Delivery date'}
-                </RNText>
-                {dateText ? (
-                  <Pressable
-                    onPress={() => {
-                      setDeliverBy(null);
-                      setSavedDateLabel(null);
-                    }}
-                    hitSlop={8}
-                    accessibilityLabel="Clear delivery date"
-                  >
-                    <Icon name="close" size={14} color={t.colors.muted} />
-                  </Pressable>
-                ) : null}
-              </Pressable>
+                onPickDate={() => setShowDate(true)}
+                editable={!blocked}
+              />
+              {savedDateLabel && !timing.finishBy ? (
+                <RNText style={tx('500', 12, t.colors.muted, { marginTop: 6 })}>Your earlier offer said: can deliver by {savedDateLabel}</RNText>
+              ) : null}
             </View>
 
             {auto ? (
@@ -374,10 +373,14 @@ export function BidSheet({
       />
       <DateTimeSheet
         visible={visible && showDate}
-        initial={deliverBy ?? undefined}
+        initial={timing.finishBy ?? undefined}
+        title="When can you finish it?"
+        subtitle={timing.mode === 'more' ? 'Pick a date after the customer’s date. They see it on your offer.' : 'The customer sees this on your offer.'}
+        confirmLabel="Set finish date"
         onCancel={() => setShowDate(false)}
         onConfirm={(d) => {
-          setDeliverBy(d);
+          setTiming({ ...timing, finishBy: d });
+          setSavedDateLabel(null);
           setShowDate(false);
         }}
       />

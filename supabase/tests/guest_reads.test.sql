@@ -120,8 +120,9 @@ begin
     raise exception 'FAIL: a closed task''s questions must not show to a guest';
   end if;
   update public.tasks set status = 'OPEN', due_at = now() - interval '1 minute' where id = v_task;
-  if public.guest_task_questions(v_task) <> '[]'::jsonb then
-    raise exception 'FAIL: a past-due task''s questions must not show to a guest';
+  -- A passed date no longer hides a task: it stays open until someone is picked (plan 1.19 J, migration 216).
+  if public.guest_task_questions(v_task) = '[]'::jsonb then
+    raise exception 'FAIL: a task whose date passed is still open, so its questions still show to a guest';
   end if;
 
   -- ---- the Ideas board -------------------------------------------------------

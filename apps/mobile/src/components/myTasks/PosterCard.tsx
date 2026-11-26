@@ -72,6 +72,8 @@ export type PosterCardProps = {
   onChat: () => void;
   /** Opens the Top up picker for an open post (D31; lib/topUp, migration 194). */
   onTopUp?: () => void;
+  /** Opens the date picker for an open post whose date passed (plan 1.19 J): a new date, or keep no fixed date. */
+  onNewDate?: () => void;
 };
 
 /**
@@ -132,6 +134,10 @@ export function PosterCard(p: PosterCardProps) {
   );
 
   const topUp = p.onTopUp && tab === 0 && canTopUp(task) ? <ActionButton big kind="quiet" label="Top up" onPress={p.onTopUp} a11y={`Top up: ${task.title}`} /> : null;
+  // The date passed: the task is open with no fixed date now (plan 1.19 J); a new date is optional.
+  const newDate = passed && p.onNewDate ? (
+    <ActionButton big kind={offers > 0 ? 'quiet' : 'outline'} label="Set a new date" onPress={p.onNewDate} a11y={`Set a new date: ${task.title}`} />
+  ) : null;
   const act = closed ? (
     <ActionButton big kind="outline" label="Post again" onPress={p.onAgain} a11y={`Post again: ${task.title}`} />
   ) : done ? (
@@ -143,10 +149,10 @@ export function PosterCard(p: PosterCardProps) {
     offers > 0 ? (
       <>
         <ActionButton big label={`Choose an offer (${offers})`} onPress={p.onOpen} a11y={`Choose an offer: ${task.title}`} />
-        {topUp}
+        {newDate ?? topUp}
       </>
     ) : passed ? (
-      <ActionButton big label="Post again" onPress={p.onAgain} a11y={`Post again: ${task.title}`} />
+      newDate ?? <ActionButton big label="Post again" onPress={p.onAgain} a11y={`Post again: ${task.title}`} />
     ) : (
       <>
         <ActionButton big kind="outline" label="Open task" onPress={p.onOpen} a11y={`Open task: ${task.title}`} />

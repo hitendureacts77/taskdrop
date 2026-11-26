@@ -49,6 +49,7 @@ export const PROFILE_OWNER_SELECT = join([...PROFILE_PUBLIC, ...PROFILE_OWNER_EX
 export const TASK_PARTIES_ONLY = [
   "funded_minor", "funded_credits_minor", "funded_via", "funding_payment_id",
   "locked_minor", "locked_bid_id", "payout_mode", "wallet_refunded_at", "preferred_worker_id",
+  "due_lapsed_at",
 ] as const;
 
 /** Every other column of tasks: what anyone who can see the task may see. */
@@ -79,7 +80,7 @@ export function redactTask<T extends Row>(task: T): T {
 // thread (row rules), so each column is "parties only", except where noted.
 
 /** bids: price and message are seen by the poster and the bidder only. */
-export const BID_SELECT = "id, task_id, worker_id, price_minor, time_limit_minutes, message, is_locked, created_at";
+export const BID_SELECT = "id, task_id, worker_id, price_minor, time_limit_minutes, message, is_locked, created_at, proposed_due_at";
 /** assignments: the hold on one worker; poster and worker only. */
 export const ASSIGNMENT_SELECT = "id, task_id, bid_id, worker_id, status, escrow_minor, payout_mode, created_at, updated_at";
 /** task_proofs: what the worker handed in; poster and worker only. */

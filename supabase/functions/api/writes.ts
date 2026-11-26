@@ -160,11 +160,11 @@ async function noteDevice(ctx: Ctx, a: Args, push: boolean) {
 }
 
 /** A deadline, or null. Not already past (a few minutes of clock difference are allowed), and not years away. */
-function dueAtOrNull(a: Args): string | null {
-  const iso = isoOrNull(a, "dueAt");
+function dueAtOrNull(a: Args, key = "dueAt"): string | null {
+  const iso = isoOrNull(a, key);
   if (iso === null) return null;
   const t = Date.parse(iso);
-  if (t < Date.now() - 5 * 60_000 || t > Date.now() + 3 * 365 * 86_400_000) throw bad("dueAt");
+  if (t < Date.now() - 5 * 60_000 || t > Date.now() + 3 * 365 * 86_400_000) throw bad(key);
   return iso;
 }
 
@@ -502,6 +502,8 @@ export const WRITE_OPS: Record<string, Op> = {
           price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: terms.minutes,
           message: terms.message,
+          // The worker's own finish date (plan 1.19 J, migration 216). Old builds send none.
+          ...(a.proposedDueAt != null ? { proposed_due_at: dueAtOrNull(a, "proposedDueAt") } : {}),
         })
         .select(),
       quoteRefusal,
@@ -518,6 +520,8 @@ export const WRITE_OPS: Record<string, Op> = {
           price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: terms.minutes,
           message: terms.message,
+          // Only when sent, so an old build editing its offer keeps the date it had.
+          ...("proposedDueAt" in a ? { proposed_due_at: dueAtOrNull(a, "proposedDueAt") } : {}),
         })
         .eq("id", uuid(a, "bidId"))
         .eq("is_locked", false)
@@ -606,6 +610,16 @@ export const WRITE_OPS: Record<string, Op> = {
     const taskId = uuid(a, "taskId");
     take(await ctx.db.rpc("set_task_repeat", { p_task_id: taskId, p_every: every }));
     return { id: taskId, repeat_every: every };
+  },
+  /**
+   * A new date on an open post, or none: an open task (plan 1.19 J and K, migration 216). The database
+   * checks it is the poster's own OPEN post and moves a crew's open posts together.
+   */
+  setTaskDue: async (ctx, a) => {
+    const taskId = uuid(a, "taskId");
+    const dueAt = dueAtOrNull(a);
+    take(await ctx.db.rpc("set_task_due", { p_task_id: taskId, p_due_at: dueAt }));
+    return { id: taskId, due_at: dueAt };
   },
   /**
    * "Top up" on an open post (D31, migration 194): raise the top-up to a bigger step. The database decides

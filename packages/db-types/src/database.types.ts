@@ -488,6 +488,7 @@ export type Database = {
           is_locked: boolean
           message: string | null
           price_minor: number
+          proposed_due_at: string | null
           task_id: string
           time_limit_minutes: number
           worker_id: string
@@ -498,6 +499,7 @@ export type Database = {
           is_locked?: boolean
           message?: string | null
           price_minor: number
+          proposed_due_at?: string | null
           task_id: string
           time_limit_minutes: number
           worker_id: string
@@ -508,6 +510,7 @@ export type Database = {
           is_locked?: boolean
           message?: string | null
           price_minor?: number
+          proposed_due_at?: string | null
           task_id?: string
           time_limit_minutes?: number
           worker_id?: string
@@ -2223,6 +2226,7 @@ export type Database = {
           description: string
           difficulty: string | null
           due_at: string | null
+          due_lapsed_at: string | null
           flag: Database["public"]["Enums"]["task_flag"]
           funded_at: string | null
           funded_credits_minor: number
@@ -2279,6 +2283,7 @@ export type Database = {
           description?: string
           difficulty?: string | null
           due_at?: string | null
+          due_lapsed_at?: string | null
           flag?: Database["public"]["Enums"]["task_flag"]
           funded_at?: string | null
           funded_credits_minor?: number
@@ -2335,6 +2340,7 @@ export type Database = {
           description?: string
           difficulty?: string | null
           due_at?: string | null
+          due_lapsed_at?: string | null
           flag?: Database["public"]["Enums"]["task_flag"]
           funded_at?: string | null
           funded_credits_minor?: number

@@ -356,11 +356,23 @@ await t("chat window: the migration closes writing outside the window and schedu
   assert.doesNotMatch(sql, /function private\.can_use_task_thread/);
 });
 
-await t("the feed never offers the caller their own posts, nor expired ones", async () => {
+await t("the feed never offers the caller their own posts, and keeps posts whose date passed (plan 1.19 J)", async () => {
   const f = fake(() => ({ data: [], error: null }));
   await runOp("listOpenTasks", { kind: "request" }, ctx(f));
   assert.deepEqual(steps(f.calls[0], "neq")[0], ["poster_id", UID]);
-  assert.deepEqual(steps(f.calls[0], "or")[0], ["due_at.is.null,due_at.gt.2026-10-05T10:00:00.000Z"]);
+  assert.ok(!steps(f.calls[0], "or").some((args) => String(args[0]).includes("due_at")));
+});
+
+await t("an offer can carry the worker's own finish date (plan 1.19 J); a past one is refused", async () => {
+  const at = new Date(Date.now() + 3 * 86_400_000).toISOString();
+  let f = fake();
+  await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "I can do this well", proposedDueAt: at }, ctx(f));
+  assert.equal(inserted(f.calls[0]).proposed_due_at, at);
+  f = fake();
+  await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "I can do this well" }, ctx(f));
+  assert.ok(!("proposed_due_at" in inserted(f.calls[0])));
+  const past = await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "I can do this well", proposedDueAt: new Date(Date.now() - 86_400_000).toISOString() }, ctx(fake()));
+  assert.ok(!past.ok);
 });
 
 // ------------------------------------------------------------- validation --
@@ -1790,6 +1802,24 @@ await t("Plan B: raising the top-up of an auto-hire task skips the wallet check"
   const raised = await runOp("raiseTopUp", { taskId: TASK, topUpPct: 10 }, ctx(planB));
   assert.ok(raised.ok);
   assert.ok(!planB.calls.some((c) => c.table === "wallets"), "Plan B never reads the wallet");
+});
+
+await t("setTaskDue: a new date or none (open task) goes to set_task_due; a past or far date is refused", async () => {
+  const soon = new Date(Date.now() + 2 * 86_400_000).toISOString();
+  const f = fake(() => ({ data: soon, error: null }));
+  const dated = await runOp("setTaskDue", { taskId: TASK, dueAt: soon }, ctx(f));
+  assert.ok(dated.ok);
+  assert.equal(f.calls[0].rpc, "set_task_due");
+  assert.deepEqual(f.calls[0].args, { p_task_id: TASK, p_due_at: soon });
+  const g = fake(() => ({ data: null, error: null }));
+  const open = await runOp("setTaskDue", { taskId: TASK, dueAt: null }, ctx(g));
+  assert.ok(open.ok);
+  assert.deepEqual(g.calls[0].args, { p_task_id: TASK, p_due_at: null });
+  const past = await runOp("setTaskDue", { taskId: TASK, dueAt: new Date(Date.now() - 86_400_000).toISOString() }, ctx(fake()));
+  assert.ok(!past.ok);
+  const far = await runOp("setTaskDue", { taskId: TASK, dueAt: new Date(Date.now() + 4 * 365 * 86_400_000).toISOString() }, ctx(fake()));
+  assert.ok(!far.ok);
+  assert.ok(!(await runOp("setTaskDue", { taskId: "nope", dueAt: null }, ctx(fake()))).ok);
 });
 
 // ------------------------------------------------------------------- batch --

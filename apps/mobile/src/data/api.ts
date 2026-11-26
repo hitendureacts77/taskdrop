@@ -411,6 +411,8 @@ export async function placeBid(input: {
   priceMinor: number;
   timeLimitMinutes: number;
   message?: string;
+  /** The worker's own finish date (plan 1.19 J); asked for when the task's date has passed. */
+  proposedDueAt?: string | null;
 }): Promise<Bid> {
   const { workerId: _worker, ...rest } = input;
   return act<Bid>('placeBid', { ...rest });
@@ -420,7 +422,7 @@ export const getMyBid = (taskId: string, _userId: string) => act<Bid | null>('ge
 
 export const updateBid = (
   bidId: string,
-  edits: { priceMinor: number; timeLimitMinutes: number; message: string | null },
+  edits: { priceMinor: number; timeLimitMinutes: number; message: string | null; proposedDueAt?: string | null },
 ) => act<Bid>('updateBid', { bidId, ...edits });
 
 export type QuoteVerdict =
@@ -1026,6 +1028,9 @@ export const myRegulars = () => quietly<Regular[]>('myRegulars', {}, []);
 
 export const setRepeat = (taskId: string, every: 'week' | 'month' | null) =>
   act<{ id: string; repeat_every: string | null }>('setRepeat', { taskId, every });
+/** A new date on an open post, or null to make it open-ended (plan 1.19 J). A crew's posts move together. */
+export const setTaskDue = (taskId: string, dueAt: string | null) =>
+  act<{ id: string; due_at: string | null }>('setTaskDue', { taskId, dueAt });
 /** Raise the top-up on an open post to a bigger step (migration 194). The server works out the new price. */
 export const raiseTopUp = (taskId: string, topUpPct: number) =>
   act<{ id: string; topup_pct: number; benchmark_minor: number } | null>('raiseTopUp', { taskId, topUpPct });

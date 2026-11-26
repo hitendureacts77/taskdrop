@@ -216,8 +216,9 @@ export function AiPostScreen() {
 
   // When.
   // Home's day chips (plan D22, A6) open the composer with the day already picked.
-  const [whenKey, setWhenKey] = useState<WhenKey | 'custom'>(() =>
-    WHEN_OPTIONS.some((o) => o.key === params.when) ? (params.when as WhenKey) : 'today',
+  const [whenKey, setWhenKey] = useState<WhenKey | 'custom' | 'open'>(() =>
+    // No day picked on Home: an open task, no fixed date (owner, 25 Nov, plan 1.19 K).
+    WHEN_OPTIONS.some((o) => o.key === params.when) ? (params.when as WhenKey) : 'open',
   );
   const [customDue, setCustomDue] = useState<Date | null>(null);
   const [showDate, setShowDate] = useState(false);
@@ -585,8 +586,10 @@ export function AiPostScreen() {
     writeBrief(liveAnswers(), s);
   };
 
+  // An open task (plan 1.19 K) posts with no date; `due` stays a date so the date sheet has a start.
+  const openEnded = whenKey === 'open';
   const due = useMemo(
-    () => (whenKey === 'custom' ? (customDue ?? dueFor('week')) : dueFor(whenKey)),
+    () => (whenKey === 'custom' ? (customDue ?? dueFor('week')) : whenKey === 'open' ? dueFor('week') : dueFor(whenKey)),
     [whenKey, customDue],
   );
 
@@ -728,7 +731,8 @@ export function AiPostScreen() {
           return;
         }
       }
-      const minutes = Math.max(60, Math.round((due.getTime() - Date.now()) / 60000));
+      // An open task has no date; a week stands in as the rough time a job takes (the column needs one).
+      const minutes = openEnded ? 7 * 24 * 60 : Math.max(60, Math.round((due.getTime() - Date.now()) / 60000));
       const task = await createTask({
         posterId: userId,
         pillar: brief?.pillar ?? pillarFor(category),
@@ -746,7 +750,7 @@ export function AiPostScreen() {
         skills: brief?.skills ?? similar?.skills ?? [],
         difficulty: brief?.difficulty ?? (similar?.difficulty as Brief['difficulty'] | null) ?? 'medium',
         assignmentMode: mode,
-        dueAt: due.toISOString(),
+        dueAt: openEnded ? null : due.toISOString(),
         milestones,
         flash: opts.flash || undefined,
         liveAnswer: opts.liveAnswer || undefined,
@@ -1228,17 +1232,28 @@ export function AiPostScreen() {
   if (phase === 'when') {
     body = (
       <>
-        {heading('When should it be done by?', 'Workers plan their offers around this.')}
+        {heading('Close this task by', 'Workers see this date. If it passes with nobody picked, the task stays open and we remind you to pick a new one. No fixed date keeps it open until you pick someone.')}
         <View style={{ marginTop: 20, rowGap: 10 }}>
-          {/* Soonest first, with a line joining the rows from urgent to relaxed. */}
+          {/* No fixed date first (the default, owner 25 Nov), then the dates soonest first, with a line joining them. */}
           <View
             pointerEvents="none"
             style={{ position: 'absolute', left: 34, top: 34, bottom: 34, width: 3, borderRadius: 2, backgroundColor: t.colors.line }}
           />
+          {whenRow(
+            'open',
+            0,
+            whenKey === 'open',
+            () => setWhenKey('open'),
+            'calendar',
+            'No fixed date',
+            'An open task: it stays open until you pick someone',
+            false,
+            true,
+          )}
           {WHEN_OPTIONS.map((o, i) =>
             whenRow(
               o.key,
-              i,
+              i + 1,
               whenKey === o.key,
               () => setWhenKey(o.key),
               WHEN_ICONS[o.key],
@@ -1249,7 +1264,7 @@ export function AiPostScreen() {
           )}
           {whenRow(
             'custom',
-            WHEN_OPTIONS.length,
+            WHEN_OPTIONS.length + 1,
             whenKey === 'custom',
             () => setShowDate(true),
             'calendarCheck',
@@ -1505,7 +1520,7 @@ export function AiPostScreen() {
         </View>
 
         <View style={{ marginTop: 12, ...cardSurface(t, 20), paddingHorizontal: 16, paddingVertical: 4 }}>
-          {row('clock', 'Done by', `${whenKey === 'custom' ? 'A date you picked' : whenLabel} · ${formatDeadline(due)}`, 'when')}
+          {row('clock', 'Close this task by', openEnded ? 'No fixed date · open task' : `${whenKey === 'custom' ? 'A date you picked' : whenLabel} · ${formatDeadline(due)}`, 'when')}
           {divider}
           {row('tag', 'Budget', `${rupees(price)}${topUpPct ? ` · incl. ${topUpPct}% top up` : ''}${split ? ` · in ${split} steps` : ''}`, 'budget')}
           {divider}
@@ -1738,7 +1753,7 @@ export function AiPostScreen() {
       description={description}
       price={budgetOk ? rupees(price) : null}
       facts={[
-        ...(reached >= at('when') ? [{ icon: 'clock' as const, text: `Done by ${formatDeadline(due)}` }] : []),
+        ...(reached >= at('when') ? [{ icon: 'clock' as const, text: openEnded ? 'No fixed date · open task' : `Closes by ${formatDeadline(due)}` }] : []),
         ...(reached >= at('providers') ? [{ icon: remote ? ('compass' as const) : ('pin' as const), text: whereLabel }] : []),
       ]}
       tags={[...(reached >= at('brief') ? [category] : []), ...(media ? ['With attachment'] : [])]}
@@ -1885,6 +1900,9 @@ export function AiPostScreen() {
       <DateTimeSheet
         visible={showDate}
         quick={false}
+        title="Close this task by"
+        subtitle="Workers see this date. The task stays open after it."
+        confirmLabel="Set closing time"
         initial={whenKey === 'custom' && customDue ? customDue : due}
         onCancel={() => setShowDate(false)}
         onConfirm={(d) => {

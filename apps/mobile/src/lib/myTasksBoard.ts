@@ -12,6 +12,8 @@ export type BoardTask = {
   status: string;
   title: string;
   due_at?: string | null;
+  /** The date an open post had when it passed with nobody picked (migration 216). */
+  due_lapsed_at?: string | null;
   funded_at?: string | null;
   auto_complete_at?: string | null;
   started_at?: string | null;
@@ -98,9 +100,20 @@ export function posterStage(status: string, offers: number): number {
   }
 }
 
-/** An open post whose date is behind us: said calmly, in gold. */
-export function openDatePassed(task: Pick<BoardTask, 'status' | 'due_at'>, now: number): boolean {
-  return task.status === 'OPEN' && !!task.due_at && new Date(task.due_at).getTime() < now;
+/**
+ * An open post whose date passed with nobody picked (plan 1.19 J): the server switches it to no fixed
+ * date within 15 minutes and keeps the old date in due_lapsed_at. Still open; said calmly, in gold.
+ */
+export function openDatePassed(task: Pick<BoardTask, 'status' | 'due_at' | 'due_lapsed_at'>, now: number): boolean {
+  if (task.status !== 'OPEN') return false;
+  if (task.due_at) return new Date(task.due_at).getTime() < now;
+  return !!task.due_lapsed_at;
+}
+
+/** "22 Nov": the date an open post had before it passed (plan 1.19 J). */
+export function lapsedDay(task: Pick<BoardTask, 'due_at' | 'due_lapsed_at'>): string | null {
+  const at = task.due_lapsed_at ?? task.due_at;
+  return at ? dayMonth(at) : null;
 }
 
 /** Top line of an open post card: "GETTING OFFERS" once someone has offered, "WAITING FOR OFFERS" before. */
@@ -248,7 +261,7 @@ export function posterNeeds(
           taskId: task.id,
           lead: `${n} ${n === 1 ? 'offer' : 'offers'} to choose from`,
           rest: task.title,
-          hint: passed ? 'Date passed · choose an offer, or post it again' : 'Compare and pick one',
+          hint: passed ? 'Your date passed · each offer says when they can finish' : 'Compare and pick one',
           tone: 'accent',
           action: 'Choose an offer',
           primary: true,
@@ -258,11 +271,11 @@ export function posterNeeds(
           key: 'repost-' + task.id,
           kind: 'repost',
           taskId: task.id,
-          lead: 'No offers before the date',
+          lead: 'Your date passed: still open',
           rest: task.title,
-          hint: 'Post it again with a new date, or close it',
+          hint: 'No fixed date now. Helpers can still offer',
           tone: 'gold',
-          action: 'Post again',
+          action: 'Set a new date',
           primary: false,
         });
       }
@@ -459,13 +472,14 @@ export function whereLine(category: string, area: string | null): string {
 
 /** The pill of a posted task: words from statusBadge(), except an open post says how its offers stand. */
 export function posterPill(
-  task: Pick<BoardTask, 'status' | 'funded_at' | 'due_at'>,
+  task: Pick<BoardTask, 'status' | 'funded_at' | 'due_at' | 'due_lapsed_at'>,
   offers: number,
   now: number,
 ): { label: string; tone: PillTone } {
   if (task.status === 'OPEN') {
     if (offers > 0) return { label: `${offers} ${offers === 1 ? 'offer' : 'offers'} in`, tone: 'you' };
-    return { label: openDatePassed(task, now) ? 'Date passed' : 'Waiting for offers', tone: 'wait' };
+    // A passed date switches the post to no fixed date (plan 1.19 J): still open, waiting for offers.
+    return { label: openDatePassed(task, now) ? 'No fixed date' : 'Waiting for offers', tone: 'wait' };
   }
   const b = statusBadge(task);
   if (b.tone === 'neutral') return { label: b.label, tone: task.status === 'REVISION_REQUESTED' ? 'wait' : 'closed' };
@@ -478,7 +492,8 @@ export function posterDateBits(task: BoardTask, now: number, postedAgo = ''): Bi
   switch (task.status) {
     case 'OPEN': {
       const bits: Bit[] = [{ t: 'Posted ' }, { b: true, t: postedAgo || 'just now' }];
-      if (task.due_at) bits.push({ t: ' · due ' }, { t: dayDate(task.due_at), b: true });
+      if (task.due_at && !openDatePassed(task, now)) bits.push({ t: ' · due ' }, { t: dayDate(task.due_at), b: true });
+      else bits.push({ t: ' · ' }, { t: 'No fixed date', b: true });
       return bits;
     }
     case 'WORK_DONE':
@@ -515,7 +530,10 @@ export function posterHint(task: BoardTask, x: { offers: number; name: string | 
       return openDatePassed(task, x.now)
         ? {
             tone: 'mut',
-            text: x.offers > 0 ? 'The date has passed. Choose an offer, or post it again.' : 'The date has passed. Post it again, or close it.',
+            text:
+              x.offers > 0
+                ? 'Your date passed. Each offer says when the helper can finish.'
+                : `Your date${lapsedDay(task) ? ` (${lapsedDay(task)})` : ''} passed, so it is open with no fixed date. Helpers can still offer.`,
           }
         : null;
     case 'LOCKED':
