@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bubbleRect, helperPinRects, overlaps, planLabels, planSpread, tagRect, taskPinRects, youRect } from './mapLabels.ts';
+import { bubbleRect, helperPinRects, overlaps, planLabels, planSpread, stackRects, tagRect, taskPinRects, youRect } from './mapLabels.ts';
 
 test('rectangles overlap only when they share area', () => {
   assert.equal(overlaps({ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: 5, w: 10, h: 10 }), true);
@@ -101,4 +101,29 @@ test('spread pins: a pin with no tag has nothing to step back; helpers drop the 
 
 test('a typed area\'s pill is wider than the live "You" pill', () => {
   assert.ok(youRect(200, 200, false, true).w > youRect(200, 200, true).w);
+});
+
+// D33 follow-up: a helper stack's area name ("Hyderabad +6 · 7") stepped over the "Your area" pill.
+test('a helper stack under the "Your area" pill shows its faces alone; away from it, its name too', () => {
+  const you = youRect(400, 300, false, true);
+  const near = stackRects(400, 290, 3, 4, 'Hyderabad +6 · 7');
+  const far = stackRects(700, 500, 3, 4, 'Gachibowli · 7');
+  const compact = planSpread(
+    [
+      { id: 'near', ...near, rank: 0 },
+      { id: 'far', ...far, rank: -1 },
+    ],
+    { avoid: [you] },
+  );
+  assert.deepEqual([...compact], ['near']);
+  // The faces and "+N" pill never grow past the full stack, and the name sits under it.
+  assert.ok(near.compact.w <= near.full.w && near.compact.h < near.full.h);
+  assert.equal(near.full.y, near.compact.y);
+});
+
+test('a stack\'s pill widens with its faces and count', () => {
+  const one = stackRects(0, 0, 1, 0, 'Kondapur · 1').compact.w;
+  const three = stackRects(0, 0, 3, 0, 'Kondapur · 3').compact.w;
+  const more = stackRects(0, 0, 3, 12, 'Kondapur · 15').compact.w;
+  assert.ok(one < three && three < more);
 });

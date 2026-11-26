@@ -122,6 +122,18 @@ export function helperPinRects(x: number, y: number, what: string, price: string
   return { full, compact: price ? withTag(price.length) : disc };
 }
 
+/**
+ * A stack of helpers at point (x, y): up to three 36 px faces and "+N" in a white pill, the area's name under it
+ * (MapMarkers FACE_STACK, anchor 25). Compact is the pill alone: the name steps back, the faces and count stay.
+ */
+export function stackRects(x: number, y: number, faces: number, extra: number, label: string): { full: Rect; compact: Rect } {
+  const more = extra > 0 ? Math.max(36, 18 + 7.5 * (String(extra).length + 1)) - 9 : 0;
+  const pill = 6 + 36 + Math.max(0, faces - 1) * 25 + more;
+  const compact = { x: x - pill / 2, y: y - 21, w: pill, h: 42 };
+  const w = Math.max(pill, Math.min(176, 16 + 6.3 * label.length));
+  return { full: { x: x - w / 2, y: y - 21, w, h: 66 }, compact };
+}
+
 /** The ids that step back to compact. Better-ranked pins are placed first; every compact box counts as taken. */
 export function planSpread(items: readonly SpreadItem[], opts: { avoid?: readonly Rect[] } = {}): Set<string> {
   const compactIds = new Set<string>();

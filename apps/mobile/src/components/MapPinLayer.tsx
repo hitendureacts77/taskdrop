@@ -2,10 +2,10 @@ import { useEffect, useMemo } from 'react';
 import { View, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { groupPins } from '../lib/mapCluster';
-import { SPREAD_ZOOM, layoutPins, topAmount, type MapItem } from '../lib/mapLayout';
+import { SPREAD_ZOOM, layoutPins, topAmount, type MapItem, type PinBox } from '../lib/mapLayout';
 import { MAX_FRESH, TAG_MS, areaAt, easeOut, introDelays, introEnd } from '../lib/mapMotion';
 import type { PinEnter } from './MapMarkers';
-import { bubbleRect, helperPinRects, planLabels, planSpread, taskPinRects, youRect, type LabelItem, type LabelPlan, type Rect, type SpreadItem } from '../lib/mapLabels';
+import { bubbleRect, helperPinRects, planLabels, planSpread, stackRects, taskPinRects, youRect, type LabelItem, type LabelPlan, type Rect, type SpreadItem } from '../lib/mapLabels';
 import { useMapClock } from './useMapClock';
 import { usePinEpoch } from './usePinEpoch';
 import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMotion, PricePin, PromotedPin, TASK_PIN, TaskPin, sideHue, type Face } from './MapMarkers';
@@ -37,7 +37,7 @@ export type JobPin = {
   promoted?: boolean;
 };
 
-/** Jobs are money (the mode's colour); helpers are faces on blue. */
+/** Jobs are money (royal blue, Earn); helpers are service icons on jade (Hire). */
 export type MapTone = 'jobs' | 'people';
 
 /** Pins closer than this many pixels join into one group. */
@@ -81,6 +81,27 @@ export function placeOf(ids: string[], byId: Map<string, JobPin>): string {
     if (a && a !== first) others.add(a);
   }
   return others.size === 0 ? first : `${first} +${others.size}`;
+}
+
+/** The words under a stack of helpers: the area (or areas) and how many. */
+export function stackLabel(ids: string[], byId: Map<string, JobPin>): string {
+  return `${placeOf(ids, byId)} · ${ids.length}`;
+}
+
+/** A promoted pin's disc at point (x, y) (PROMO_PIN: 72 px, its pointer's dot on the point). */
+function promoRect(x: number, y: number): Rect {
+  return { x: x - 36, y: y - PROMO_PIN.anchor, w: 72, h: 72 };
+}
+
+/**
+ * A pin's bubble round its point (lib/mapLayout.ts PinBox), what no other pin's bubble may cover: a lone job's
+ * price bubble, a spread job's face and price, a helper's icon and price, a promoted disc.
+ */
+export function pinBox(pin: JobPin | undefined, people: boolean, spread: boolean): PinBox {
+  if (!pin) return { x: -50, y: -48, w: 100, h: 36 };
+  if (pin.promoted) return promoRect(0, 0);
+  if (people) return helperPinRects(0, 0, pin.label, pin.price).compact;
+  return spread ? taskPinRects(0, 0, pin.label, pin.who, pin.title, !!pin.face).compact : bubbleRect(0, 0, pin.label);
 }
 
 /** For jobs: each item's biggest offer and the best one on screen, which is drawn in the mode's colour. */
@@ -138,11 +159,20 @@ export function pinLabels(
     }
   });
   // Spread pins (D33): the full tag steps back to compact where it would overlap a better pin's box (best first = list order).
+  // Helpers too, alone or stacked: a stack's area name ("Hyderabad +6 · 7") steps back near the "Your area" pill.
   const spreadList: SpreadItem[] = [];
   items.forEach((it, i) => {
-    const pin = it.kind === 'one' && it.area ? byId.get(it.id) : undefined;
-    if (!pin || it.kind !== 'one') return;
-    const r = people ? helperPinRects(it.x, it.y, pin.label, pin.price) : taskPinRects(it.x, it.y, pin.label, pin.who, pin.title, !!pin.face);
+    if (it.kind === 'group') {
+      if (!people) return;
+      const shown = Math.min(3, it.ids.length);
+      spreadList.push({ id: itemKey(it), ...stackRects(it.x, it.y, shown, it.ids.length - shown, stackLabel(it.ids, byId)), rank: -i });
+      return;
+    }
+    const pin = it.area || people ? byId.get(it.id) : undefined;
+    if (!pin) return;
+    // A promoted pin has no words to step back: one box (the same object) for both.
+    const promo = pin.promoted ? promoRect(it.x, it.y) : null;
+    const r = promo ? { full: promo, compact: promo } : people ? helperPinRects(it.x, it.y, pin.label, pin.price) : taskPinRects(it.x, it.y, pin.label, pin.who, pin.title, !!pin.face);
     spreadList.push({ id: it.id, ...r, rank: -i, keep: it.id === selectedId });
   });
   const fixed = list.map((l) => bubbleRect(l.x, l.y, l.price));
@@ -233,7 +263,11 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
     // A frozen layout shows a wider margin, so pins are already there when a drag brings them in.
     const margin = layoutAt ? 240 : 120;
     const inView = placed.filter((p) => p.x > -margin && p.x < size.w + margin && p.y > -margin && p.y < size.h + margin);
-    const items = layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), { zoom: f.zoom, gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP });
+    const items = layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), {
+      zoom: f.zoom,
+      gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP,
+      box: (id, spread) => pinBox(byId.get(id), people, spread),
+    });
     const offers = people ? null : offersOf(items, byId);
     // Names that would overlap step back, and pins under the buttons step aside (P1-14).
     const labels = pinLabels(items, byId, offers, selectedId, words.many, { avoid: f.you ? [youRect(f.you.x, f.you.y, true, !youLive)] : [], controls }, people);
@@ -306,7 +340,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
                 style={[{ position: 'absolute', left: p.x - FACE_STACK.w / 2, top: p.y - FACE_STACK.anchor, zIndex: 1 }, drop]}
               >
                 <PinMotion box={FACE_STACK} enter={enter}>
-                  <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${placeOf(it.ids, byId)} · ${it.ids.length}`} />
+                  <FaceStack faces={shown} extra={it.ids.length - shown.length} label={stackLabel(it.ids, byId)} compact={!tagShown(it)} />
                 </PinMotion>
               </Pressable>
             );

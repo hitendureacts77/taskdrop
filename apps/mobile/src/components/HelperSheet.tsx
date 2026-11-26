@@ -7,7 +7,7 @@ import { workerServices, type NearbyWorker } from '../data/extras';
 import type { Task } from '../data/api';
 import { taskToFeedRow } from '../lib/openTask';
 import { useReducedMotion } from '../lib/motion';
-import { FaceDisc } from './MapMarkers';
+import { FaceDisc, hireColours } from './MapMarkers';
 import { areaName, farText, firstName, initialsOf, mainSkill, ratingOf } from './mapPins';
 import { categoryIcon } from './WorkCard';
 import { PresenceLabel } from './PresenceDot';
@@ -32,6 +32,8 @@ function doneIn(minutes: number | null | undefined): string | null {
  */
 export function HelperSheet({ worker: w, onClose }: { worker: NearbyWorker; onClose?: () => void }) {
   const t = useTheme();
+  // A helper is the Hire side: always jade, even over an Earn-mode theme (owner rule).
+  const hire = hireColours(t.isDark);
   const { go } = useNav();
   const { mode } = useMode();
   const reduced = useReducedMotion();
@@ -97,8 +99,8 @@ export function HelperSheet({ worker: w, onClose }: { worker: NearbyWorker; onCl
       {(w.skills ?? []).length > 0 ? (
         <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
           {(w.skills ?? []).slice(0, 4).map((s) => (
-            <View key={s} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: t.colors.purpleSoft }}>
-              <RNText style={tx('700', 11.5, t.colors.purpleDeep)}>{mainSkill([s])}</RNText>
+            <View key={s} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: hire.soft }}>
+              <RNText style={tx('700', 11.5, hire.deep)}>{mainSkill([s])}</RNText>
             </View>
           ))}
         </View>
@@ -133,14 +135,14 @@ export function HelperSheet({ worker: w, onClose }: { worker: NearbyWorker; onCl
               const time = doneIn(s.time_limit_minutes);
               return (
                 <FadeIn key={s.id} {...(reduced ? { duration: 120 } : { duration: 260, delay: 160 + i * 40 })}>
-                  <View style={{ width: CARD_W, padding: 12, gap: 6, borderRadius: 18, borderWidth: 1.5, borderColor: main ? t.colors.purple : t.colors.line, backgroundColor: t.colors.bg }}>
+                  <View style={{ width: CARD_W, padding: 12, gap: 6, borderRadius: 18, borderWidth: 1.5, borderColor: main ? hire.side : t.colors.line, backgroundColor: t.colors.bg }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon name={categoryIcon(s.category)} size={16} color={t.colors.purpleDeep} />
+                      <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: hire.soft, alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name={categoryIcon(s.category)} size={16} color={hire.deep} />
                       </View>
                       {main ? (
-                        <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: t.colors.purpleSoft }}>
-                          <RNText style={tx('800', 10, t.colors.purpleDeep)}>On the map</RNText>
+                        <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: hire.soft }}>
+                          <RNText style={tx('800', 10, hire.deep)}>On the map</RNText>
                         </View>
                       ) : null}
                     </View>

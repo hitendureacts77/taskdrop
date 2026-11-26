@@ -7,6 +7,7 @@ import { presenceOf } from '../lib/presence';
 import { areaName, farText, firstName, initialsOf, offerOf, personMeta } from './mapPins';
 import { mapWords, type MapTone } from './JobsMap';
 import { TopUpBadge } from './TopUpBadge';
+import { hireColours } from './MapMarkers';
 import { categoryIcon } from './WorkCard';
 import { Icon } from './Icon';
 import { rupees } from './kit';
@@ -26,12 +27,14 @@ export type MapJob = TaskWithPoster & { km: number; fresh: boolean; remote?: boo
 export const ROW_H = 64;
 export const ROW_GAP = 4;
 
-/** The colours of one side: jobs in the mode's accent, helpers in the Earn blue (as on the map). */
+/** The colours of one side: jobs in the mode's accent, helpers always in the Hire jade (as on the map; owner rule). */
 export function useTone(tone: MapTone) {
   const t = useTheme();
-  return tone === 'people'
-    ? { hue: t.colors.purple, soft: t.colors.purpleSoft, ink: t.colors.purpleDeep, border: t.colors.purple }
-    : { hue: t.colors.accent, soft: t.colors.accentSoft, ink: t.colors.accentDeep, border: t.colors.accentBorder };
+  if (tone === 'people') {
+    const hire = hireColours(t.isDark);
+    return { hue: hire.side, soft: hire.soft, ink: hire.deep, border: hire.side };
+  }
+  return { hue: t.colors.accent, soft: t.colors.accentSoft, ink: t.colors.accentDeep, border: t.colors.accentBorder };
 }
 
 /** Best offer and nearest (jobs), active now and nearest (helpers): two tiles that pick or filter. */

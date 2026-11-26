@@ -10,6 +10,7 @@ import { SectionTitle, Shimmer } from './kit';
 import { JobsMap, type JobPin } from './JobsMap';
 import { activeFirst, areaName, farText, offerOf, personPin, ratingOf } from './mapPins';
 import { HelperSheet } from './HelperSheet';
+import { hireColours } from './MapMarkers';
 import type { IconName } from './Icon';
 import { LocationSheet } from './LocationSheet';
 import { ModeLockSheet } from './ModeLockSheet';
@@ -98,10 +99,11 @@ export function NearYou({ first = false }: { active?: boolean; first?: boolean }
 /** A helper's service icon, with a green dot when they have TaskDrop open. */
 function OfferDot({ icon, live, size }: { icon: IconName; live: boolean; size: number }) {
   const t = useTheme();
+  const hire = hireColours(t.isDark);
   return (
     <View>
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={icon} size={Math.round(size * 0.45)} color={t.colors.purpleDeep} />
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: hire.soft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={Math.round(size * 0.45)} color={hire.deep} />
       </View>
       {live ? (
         <View style={{ position: 'absolute', right: -1, bottom: -1, width: 11, height: 11, borderRadius: 999, backgroundColor: t.colors.online, borderWidth: 2, borderColor: t.colors.surface }} />
@@ -119,6 +121,8 @@ function OfferDot({ icon, live, size }: { icon: IconName; live: boolean; size: n
  */
 function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number }; onOpenMap: () => void }) {
   const t = useTheme();
+  // Helpers are the Hire side: always jade (owner rule).
+  const hire = hireColours(t.isDark);
   const [list, setList] = useState<NearbyWorker[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -193,7 +197,7 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
                     paddingRight: 12,
                     borderRadius: 16,
                     borderWidth: 1.5,
-                    borderColor: on ? t.colors.purple : t.colors.line,
+                    borderColor: on ? hire.side : t.colors.line,
                     ...(on ? null : promotedBorder(t, 'hire', onTop)),
                     backgroundColor: t.colors.surface,
                     opacity: pressed ? 0.75 : 1,
