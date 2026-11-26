@@ -48,6 +48,7 @@ import { openRow, posterRow } from '../lib/taskRows';
 import { statusBadge } from './MyTasksScreen';
 import { useLayout } from '../lib/layout';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
+import { messageWithoutTiming, offerTimingLine } from '../lib/offerTiming';
 import { dueFor } from '../lib/taskBrief';
 import { openDatePassed } from '../lib/myTasksBoard';
 import { useFees } from '../lib/useFees';
@@ -115,7 +116,7 @@ export function TaskManageScreen() {
   // The first load failed (not the same as a task that does not exist).
   const [loadFailed, setLoadFailed] = useState(false);
   const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>('newest');
-  const [selecting, setSelecting] = useState<{ bidId: string; name: string; priceMinor: number } | null>(null);
+  const [selecting, setSelecting] = useState<{ bidId: string; name: string; priceMinor: number; newDate?: string } | null>(null);
   const [locking, setLocking] = useState(false);
   // Set when the wallet cannot cover the chosen offer: exactly what is missing.
   const [shortBy, setShortBy] = useState<{ minor: number; pick: { bidId: string; name: string; priceMinor: number } } | null>(null);
@@ -553,6 +554,9 @@ export function TaskManageScreen() {
               const who = b.profiles;
               const name = who?.username ? '@' + who.username : (who?.display_name ?? 'Worker');
               const diff = b.price_minor - task.benchmark_minor;
+              // When they can finish (plan 1.19 J, 26 Nov): a date, hours, or more time than the customer's date.
+              const timing = offerTimingLine(b as { proposed_due_at?: string | null; message?: string | null }, datePassed ? null : task.due_at, (d) => formatDeadline(d));
+              const shownMessage = messageWithoutTiming(b.message);
               return (
                 <FadeIn key={b.id} duration={300} delay={Math.min(i, 6) * 50}>
                   <View style={card}>
@@ -584,14 +588,20 @@ export function TaskManageScreen() {
                         </RNText>
                       </View>
                     </Pressable>
-                    {(b as { proposed_due_at?: string | null }).proposed_due_at ? (
-                      <RNText style={tx('700', 12.5, t.colors.accentDeep, { marginTop: 10 })}>
-                        Can finish by {formatDeadline(new Date((b as { proposed_due_at?: string | null }).proposed_due_at as string))}
-                      </RNText>
+                    {timing?.kind === 'more' ? (
+                      <View style={{ marginTop: 10, borderLeftWidth: 3, borderLeftColor: t.colors.accent, paddingLeft: 10 }}>
+                        <RNText style={tx('700', 12.5, t.colors.accentDeep)}>{timing.text}</RNText>
+                        <RNText style={tx('500', 11.5, t.colors.muted, { marginTop: 2 })}>{timing.yours}</RNText>
+                        {timing.reason ? (
+                          <RNText style={tx('400', 12.5, t.colors.text, { marginTop: 4, lineHeight: 18 })}>“{timing.reason}”</RNText>
+                        ) : null}
+                      </View>
+                    ) : timing ? (
+                      <RNText style={tx('700', 12.5, t.colors.accentDeep, { marginTop: 10 })}>{timing.text}</RNText>
                     ) : null}
-                    {b.message ? (
+                    {shownMessage ? (
                       <View style={{ marginTop: 11, backgroundColor: t.colors.surface2, borderRadius: 10, padding: 11 }}>
-                        <RNText style={tx('400', 13, t.colors.text, { lineHeight: 19 })} numberOfLines={4}>“{b.message}”</RNText>
+                        <RNText style={tx('400', 13, t.colors.text, { lineHeight: 19 })} numberOfLines={4}>“{shownMessage}”</RNText>
                       </View>
                     ) : null}
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
@@ -602,7 +612,14 @@ export function TaskManageScreen() {
                         </RNText>
                       </View>
                       <Pressable
-                        onPress={() => setSelecting({ bidId: b.id, name, priceMinor: b.price_minor })}
+                        onPress={() =>
+                          setSelecting({
+                            bidId: b.id,
+                            name,
+                            priceMinor: b.price_minor,
+                            ...(timing?.kind === 'more' ? { newDate: timing.text.replace('Asks for more time: ', '') } : null),
+                          })
+                        }
                         accessibilityRole="button"
                         accessibilityLabel={`Select ${name}'s quote of ${rupees(b.price_minor / 100)}`}
                         style={({ pressed }) => ({
@@ -617,7 +634,7 @@ export function TaskManageScreen() {
                         })}
                       >
                         <Icon name="check" size={14} color={t.colors.onAccent} strokeWidth={2.4} />
-                        <RNText style={tx('800', 13, t.colors.onAccent)}>Choose this offer</RNText>
+                        <RNText style={tx('800', 13, t.colors.onAccent)}>{timing?.kind === 'more' ? 'Choose with the new date' : 'Choose this offer'}</RNText>
                       </Pressable>
                     </View>
                   </View>
@@ -794,7 +811,7 @@ export function TaskManageScreen() {
         title={selecting ? `Select ${selecting.name}?` : ''}
         message={
           selecting
-            ? `${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. ${hireFineNote({ fineMinor: fineOf(selecting.priceMinor), finePct: Math.round(cancelPct * 100), money: formatINR })} Phone numbers are shared once the work starts.`
+            ? `${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. ${hireFineNote({ fineMinor: fineOf(selecting.priceMinor), finePct: Math.round(cancelPct * 100), money: formatINR })} Phone numbers are shared once the work starts.${selecting.newDate ? ` The task's date moves to ${selecting.newDate}.` : ''}`
             : ''
         }
         confirmLabel="Choose and pay from wallet"

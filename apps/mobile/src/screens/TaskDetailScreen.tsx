@@ -38,7 +38,9 @@ import { TaskDescription } from '../components/TaskDescription';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
 import { PersonSheet } from '../components/PersonSheet';
 import { BidSheet } from '../components/BidSheet';
-import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
+import { DateTimeSheet } from '../components/DateTimeSheet';
+import { OfferTimingPicker } from '../components/OfferTimingPicker';
+import { initialTiming, timingFields, type OfferTiming } from '../lib/offerTiming';
 import { roughPlace } from '../lib/place';
 import { AvatarPresence, PresenceLabel } from '../components/PresenceDot';
 import { HuntFinderPanel } from '../components/Hunt';
@@ -404,9 +406,11 @@ function TaskDetailBody() {
   const [withProposal, setWithProposal] = useState(false);
   const [proposal, setProposal] = useState('');
   const proposalShort = withProposal && proposal.trim().length < 10;
-  // No fixed date (plan 1.19 J and K): the worker may say when they can finish. Optional; if the customer
-  // accepts, the task takes this date (migration 216).
-  const [finishBy, setFinishBy] = useState<Date | null>(null);
+  // When the worker can finish (plan 1.19 J and K, owner note 26 Nov): on a no-date task a date or a number
+  // of hours; on a dated task "That works" or "Ask for more time". If the customer accepts an offer with a
+  // date, the task takes it (migration 216).
+  const [timing, setTiming] = useState<OfferTiming | null>(null);
+  const shownTiming = timing ?? initialTiming(noDate);
   const [finishPicker, setFinishPicker] = useState(false);
   // W2-2: a phone number or email in the proposal is refused as it is typed, as in a post or the bio (the
   // server refuses it too).
@@ -433,16 +437,20 @@ function TaskDetailBody() {
       if (quoteNote) return flash(quoteNote);
       if (proposalShort) return flash('Tell the customer a little about how you will do it');
       if (proposalIssue) return flash(offerIssueMessage(proposalIssue));
-      if (noDate && finishBy && finishBy.getTime() < Date.now() - 5 * 60_000) return flash('Pick a finish time from now on');
+      // A choice made while the task had a date keeps no meaning once it has none (and the other way round).
+      const pick = timing && (noDate ? timing.mode === 'date' || timing.mode === 'hours' : timing.mode === 'keep' || timing.mode === 'more') ? timing : initialTiming(noDate);
+      const timed = timingFields(pick, noDate ? null : (live?.dueAt ?? null), Date.now());
+      if ('error' in timed) return flash(timed.error);
+      const lines = [...(withProposal ? [maskContacts(proposal.trim()).text] : []), ...timed.lines];
       setBusy(true);
       try {
         await placeBid({
           taskId: realId,
           workerId: userId,
           priceMinor: quote,
-          timeLimitMinutes: 240,
-          ...(withProposal ? { message: maskContacts(proposal.trim()).text } : null),
-          ...(noDate && finishBy ? { proposedDueAt: finishBy.toISOString() } : null),
+          timeLimitMinutes: timed.timeLimitMinutes ?? 240,
+          ...(lines.length ? { message: lines.join('\n') } : null),
+          ...(timed.proposedDueAt ? { proposedDueAt: timed.proposedDueAt } : null),
         });
         noteMyOffer(userId, realId);
         celebrate((countering ? 'Counteroffer sent · ' : 'Offer sent · ') + formatINR(quote));
@@ -946,28 +954,16 @@ function TaskDetailBody() {
             ) : null
           )}
 
-          {worker && realId && noDate ? (
+          {worker && realId && (noDate || live?.dueAt) ? (
             <View style={{ marginTop: t.spacing.lg }}>
-              <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>WHEN CAN YOU FINISH IT?</RNText>
-              <RNText style={tx('500', 12.5, t.colors.muted, { marginTop: 4, lineHeight: 17 })}>
-                This task has no fixed date. Tell the customer when you can finish: it becomes the task’s date if they choose you.
-              </RNText>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                <Pressable
-                  onPress={() => setFinishPicker(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={finishBy ? `Finish by ${formatDeadline(finishBy)}. Change it` : 'When can you finish it?'}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: finishBy ? t.colors.accent : t.colors.line, backgroundColor: finishBy ? t.colors.accentSoft : t.colors.surface, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12 }}
-                >
-                  <Icon name="clock" size={15} color={finishBy ? t.colors.accentDeep : t.colors.muted} strokeWidth={1.9} />
-                  <RNText style={tx(finishBy ? '700' : '500', 13.5, finishBy ? t.colors.accentDeep : t.colors.muted, { flex: 1 })} numberOfLines={1}>
-                    {finishBy ? `Finish by ${formatDeadline(finishBy)}` : 'Finish by (optional)'}
-                  </RNText>
-                </Pressable>
-                {finishBy ? (
-                  <IconButton icon="close" label="Clear the finish date" onPress={() => setFinishBy(null)} />
-                ) : null}
-              </View>
+              <OfferTimingPicker
+                caps
+                noDate={noDate}
+                taskDueAt={noDate ? null : (live?.dueAt ?? null)}
+                value={shownTiming}
+                onChange={setTiming}
+                onPickDate={() => setFinishPicker(true)}
+              />
             </View>
           ) : null}
 
@@ -1000,11 +996,11 @@ function TaskDetailBody() {
       <DateTimeSheet
         visible={finishPicker}
         title="When can you finish it?"
-        subtitle="The customer sees this on your offer."
+        subtitle={shownTiming.mode === 'more' ? 'Pick a date after the customer’s date. They see it on your offer.' : 'The customer sees this on your offer.'}
         confirmLabel="Set finish date"
-        initial={finishBy ?? undefined}
+        initial={shownTiming.finishBy ?? undefined}
         onCancel={() => setFinishPicker(false)}
-        onConfirm={(d) => { setFinishPicker(false); setFinishBy(d); }}
+        onConfirm={(d) => { setFinishPicker(false); setTiming({ ...shownTiming, finishBy: d }); }}
       />
       <ReportSheet
         visible={reporting}

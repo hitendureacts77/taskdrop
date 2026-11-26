@@ -17,6 +17,7 @@ import { AddFundsSheet } from '../components/AddFundsSheet';
 import { useMoneyMode } from '../lib/useMoneyMode';
 import { hireRefusal } from '../lib/moneyText';
 import { formatDeadline } from '../components/DateTimeSheet';
+import { offerTimingLine } from '../lib/offerTiming';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
 import { TaskMediaThumb } from '../components/TaskMediaThumb';
@@ -35,6 +36,8 @@ type Quote = {
   eta: string;
   /** The date the worker says they can finish by (nullable). */
   canFinishBy?: string | null;
+  /** The offer's message, for its hours or the reason it asks for more time (plan 1.19 J). */
+  message?: string | null;
   lastSeen?: string | null;
   /** True for the offer the poster chose. */
   chosen?: boolean;
@@ -129,6 +132,7 @@ export function CompareScreen() {
             priceMinor: b.price_minor,
             eta: hoursLabel(b.time_limit_minutes),
             canFinishBy: (b as { proposed_due_at?: string | null }).proposed_due_at ?? null,
+            message: b.message ?? null,
             lastSeen: b.profiles?.last_seen_at ?? null,
             chosen: b.is_locked,
           })),
@@ -326,9 +330,18 @@ export function CompareScreen() {
                       )}
                     </View>
                     <RNText style={tx('400', 12, t.colors.muted, { marginTop: 3 })}>{row.meta}</RNText>
-                    {row.canFinishBy ? (
-                      <RNText style={tx('700', 12, t.colors.accentDeep, { marginTop: 3 })}>Can finish by {formatDeadline(new Date(row.canFinishBy))}</RNText>
-                    ) : null}
+                    {(() => {
+                      // A date, hours, or more time than the customer's own date (plan 1.19 J, 26 Nov).
+                      const due = task?.status === 'OPEN' && task.due_at && Date.parse(task.due_at) > Date.now() ? task.due_at : null;
+                      const line = offerTimingLine({ proposed_due_at: row.canFinishBy, message: row.message }, due, (d) => formatDeadline(d));
+                      if (!line) return null;
+                      return (
+                        <RNText style={tx('700', 12, t.colors.accentDeep, { marginTop: 3 })}>
+                          {line.text}
+                          {line.kind === 'more' ? <RNText style={tx('500', 11.5, t.colors.muted)}>{` · ${line.yours}`}</RNText> : null}
+                        </RNText>
+                      );
+                    })()}
                     {row.bidId ? (
                       <View style={{ marginTop: 4 }}>
                         <PresenceLabel lastSeen={row.lastSeen} />

@@ -1,4 +1,4 @@
--- Undo for 20261125170000_216_task_due_change.sql (plan 1.19 J and K).
+-- Undo for 20261126160000_216_task_due_change.sql (plan 1.19 J and K).
 -- Revert the PR first (the app stops calling setTaskDue and sending proposedDueAt), then run this. Puts
 -- run_task_reminders back as migration 128 left it (no date_passed nudge), removes set_task_due, hides
 -- passed-date open tasks again in the seven reads, restores 158's offer notification and removes the
