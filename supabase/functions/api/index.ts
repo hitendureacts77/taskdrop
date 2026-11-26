@@ -7,7 +7,7 @@ import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { type LogAttributes, captureSecurityEvent, guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
-import { type SessionCutoff, type Standing, StandingCache, callerFromClaims, cutoffOf, endedBefore, standingOf, tokenFacts } from "./core.ts";
+import { type CatalogFn, type SessionCutoff, type Standing, StandingCache, callerFromClaims, cutoffOf, endedBefore, standingOf, tokenFacts } from "./core.ts";
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
@@ -403,6 +403,12 @@ async function handle(req: Request, requestId: string): Promise<Response> {
     (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil?.(job);
   };
 
+  // The catalog check and add run with the service role (migration 228), always for the signed-in caller: the
+  // caller's id is set here, never taken from the request.
+  const catalogRpc = admin
+    ? (fn: CatalogFn, args: Record<string, unknown>) => admin.rpc(fn, { ...args, p_user: userId })
+    : undefined;
+
   // A confirmed phone number is what "verified" means; Supabase leaves phone_confirmed_at empty otherwise.
   // The token does not say, and only the "phone must be confirmed" switch uses the answer, so the auth
   // service is asked only while that switch is on.
@@ -423,7 +429,7 @@ async function handle(req: Request, requestId: string): Promise<Response> {
     const u = (data as { username?: unknown }).username;
     return typeof u === "string" && u.length > 0;
   };
-  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, catalogEmbeddings, client, controls, phoneVerified, usernameSet, imagekit, memo: publicMemo, searchFill: admin ? searchFiller(admin) : undefined };
+  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, catalogEmbeddings, catalogRpc, client, controls, phoneVerified, usernameSet, imagekit, memo: publicMemo, searchFill: admin ? searchFiller(admin) : undefined };
   const onUnexpected = (e: unknown) => {
     // Both finish in the background after the response is sent.
     background(log("error", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));

@@ -13,6 +13,9 @@ import type { PublicMemo } from "./publicMemo.ts";
 export type DbError = { message: string; code?: string | null; details?: string | null };
 export type DbResult = { data: unknown; error: DbError | null; count?: number | null };
 
+/** The catalog functions behind `Ctx.catalogRpc`. */
+export type CatalogFn = "catalog_check_for" | "catalog_add_for";
+
 /** The slice of a supabase-js client the operations use. */
 export interface Db {
   rpc(fn: string, args?: Record<string, unknown>): PromiseLike<DbResult>;
@@ -36,6 +39,11 @@ export type Ctx = {
   removeOwnFiles?: (paths: string[]) => Promise<void>;
   /** Fill in meaning vectors for a few catalog terms that lack one (service role, best-effort, never throws). */
   catalogEmbeddings?: () => Promise<void>;
+  /**
+   * Runs one of the two catalog functions only the service role may call (migration 228), always for this caller:
+   * the server fills in `p_user`. Absent when the service key is missing; the catalog check and add then refuse.
+   */
+  catalogRpc?: (fn: CatalogFn, args: Record<string, unknown>) => PromiseLike<DbResult>;
   /**
    * ImageKit, when its keys are configured; null or absent otherwise. Without it,
    * pictures keep going to Supabase Storage exactly as before.

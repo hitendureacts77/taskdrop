@@ -3,7 +3,7 @@ import { FEES, TIMING, distanceKm } from "../_shared/rules.ts";
 /** Most rows one "my" list returns. Said here so a long list is cut on purpose, not by the database's own row cap (S1-21). */
 const MY_LIST_MAX = 500;
 import {
-  type Args, type Ctx, type DbResult, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, nowIso, num, coordOrNull, oneOf, rows,
+  type Args, type CatalogFn, type Ctx, type DbResult, type Op, GENERIC, MONEY_MAX, OpError, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, nowIso, num, coordOrNull, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
@@ -98,10 +98,20 @@ export function catalogContactRefusal(kind: string, text: string): { result: "re
   return { result: "refused", reason: "contact", message: catalogRefusalMessage(kind, "contact") };
 }
 
-/** The meaning vector as a database argument (null when the model is not available). */
+/**
+ * The arguments for catalog_check_for / catalog_add_for. The meaning vector is always worked out here, never taken
+ * from the app (migration 228); null when the model is not available. The threshold lives in the database
+ * (private.catalog_settings.min_meaning) and the caller's id is added by `ctx.catalogRpc`.
+ */
 export async function catalogArgs(kind: string, text: string): Promise<Record<string, unknown>> {
   const v = await embedText(text);
   return { p_kind: kind, p_text: text, p_embedding: v ? toVectorLiteral(v) : null };
+}
+
+/** Calls a service-role catalog function for the caller, or refuses when the server has no service key. */
+export function catalogCall(ctx: Ctx, fn: CatalogFn, args: Record<string, unknown>): PromiseLike<DbResult> {
+  if (!ctx.catalogRpc) throw new OpError(GENERIC, "INTERNAL");
+  return ctx.catalogRpc(fn, args);
 }
 
 const kindArg = (a: Args) => oneOf(a, "kind", ["request", "service"], "request");
@@ -1102,7 +1112,7 @@ export const READ_OPS: Record<string, Op> = {
     const text = str(a, "text", 60);
     const refused = catalogContactRefusal(kind, text);
     if (refused) return refused;
-    const res = catalogRefusal(kind, take<Record<string, unknown>>(await ctx.db.rpc("catalog_check", await catalogArgs(kind, text))));
+    const res = catalogRefusal(kind, take<Record<string, unknown>>(await catalogCall(ctx, "catalog_check_for", await catalogArgs(kind, text))));
     void ctx.catalogEmbeddings?.().catch(() => {});
     return res;
   },
