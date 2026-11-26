@@ -25,7 +25,8 @@ import { EarnGoalPicker, isEarnGoal } from '../components/EarnGoalPicker';
 import { RoleTheme } from '../providers/ThemeProvider';
 import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
 import { useFileDrop } from '../lib/useFileDrop';
-import { LANGUAGES, SKILL_OPTIONS } from './ProfileEditScreen';
+import { LANGUAGES } from './ProfileEditScreen';
+import { SkillPicker } from '../components/SkillPicker';
 import { ActionBar, ActionBarContext, FormPage } from '../components/FormPage';
 import { StepList } from '../components/StepList';
 import { useLayout } from '../lib/layout';
@@ -374,10 +375,8 @@ export function OnboardingScreen() {
       <>
         <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>What are you good at?</RNText>
         <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8 })}>Pick up to 8 — we’ll recommend matching tasks.</RNText>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 }}>
-          {SKILL_OPTIONS.map((s) => (
-            <Pill key={s} label={s} active={skills.includes(s)} onPress={() => toggle(skills, setSkills, s, 8)} />
-          ))}
+        <View style={{ marginTop: 18 }}>
+          <SkillPicker kind="skill" value={skills} onChange={setSkills} max={8} />
         </View>
       </>
     );

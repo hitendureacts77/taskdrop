@@ -30,7 +30,7 @@ export const isGuestOp = (op: string) => GUEST_OPS.has(op);
  * QUIET_WRITES this is every write the server has (api.test.ts checks).
  */
 export const ACCOUNT_WRITES: ReadonlySet<string> = new Set([
-  'activatePromotion', 'addPayoutDestination', 'answerTaskQuestion', 'applyReferralCode', 'askTaskQuestion', 'attachMedia',
+  'activatePromotion', 'addCatalogTerm', 'addPayoutDestination', 'answerTaskQuestion', 'applyReferralCode', 'askTaskQuestion', 'attachMedia',
   'blockUser', 'cancelPromotion', 'cancelTask', 'cancelWithdrawal', 'commentFeedbackIdea', 'confirmRelease', 'createTask',
   'createUpload', 'deleteMyAccount', 'endMySessions', 'lockBid', 'markWorkDone', 'openDispute', 'openTicket',
   'payTaskFromWallet', 'placeBid', 'postFeedbackIdea', 'removeListing', 'removeMedia', 'removePayoutDestination',

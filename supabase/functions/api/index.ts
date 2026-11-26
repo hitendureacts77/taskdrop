@@ -11,6 +11,7 @@ import { type SessionCutoff, type Standing, StandingCache, callerFromClaims, cut
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
+import { embedText, toVectorLiteral } from "../_shared/meaning.ts";
 import { PublicMemo } from "./publicMemo.ts";
 import { requestFor, routeOf } from "./routes.ts";
 import { GuestCeiling, GuestLocalLimit, guestAddress, guestBusy, guestCost, guestNetKey, guestRateKey, guestSpend, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
@@ -386,6 +387,22 @@ async function handle(req: Request, requestId: string): Promise<Response> {
     }
   };
 
+  /** Gives up to 3 catalog terms without a meaning vector one, with the service role. Swallows every error. */
+  // Runs after the answer is sent (waitUntil), so the caller never waits for it.
+  const catalogEmbeddings = async () => {
+    const job = (async () => {
+      try {
+        if (!admin) return;
+        const { data } = await admin.rpc("catalog_embedding_todo", { p_limit: 3 });
+        for (const row of (Array.isArray(data) ? data : []) as { id: string; text: string }[]) {
+          const v = await embedText(row.text, 2000);
+          if (v) await admin.rpc("catalog_set_embedding", { p_id: row.id, p_embedding: toVectorLiteral(v) });
+        }
+      } catch { /* best-effort */ }
+    })();
+    (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil?.(job);
+  };
+
   // A confirmed phone number is what "verified" means; Supabase leaves phone_confirmed_at empty otherwise.
   // The token does not say, and only the "phone must be confirmed" switch uses the answer, so the auth
   // service is asked only while that switch is on.
@@ -406,7 +423,7 @@ async function handle(req: Request, requestId: string): Promise<Response> {
     const u = (data as { username?: unknown }).username;
     return typeof u === "string" && u.length > 0;
   };
-  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, usernameSet, imagekit, memo: publicMemo, searchFill: admin ? searchFiller(admin) : undefined };
+  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, catalogEmbeddings, client, controls, phoneVerified, usernameSet, imagekit, memo: publicMemo, searchFill: admin ? searchFiller(admin) : undefined };
   const onUnexpected = (e: unknown) => {
     // Both finish in the background after the response is sent.
     background(log("error", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));

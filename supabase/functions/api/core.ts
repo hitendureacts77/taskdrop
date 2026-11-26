@@ -34,6 +34,8 @@ export type Ctx = {
    * untidy, not broken.
    */
   removeOwnFiles?: (paths: string[]) => Promise<void>;
+  /** Fill in meaning vectors for a few catalog terms that lack one (service role, best-effort, never throws). */
+  catalogEmbeddings?: () => Promise<void>;
   /**
    * ImageKit, when its keys are configured; null or absent otherwise. Without it,
    * pictures keep going to Supabase Storage exactly as before.

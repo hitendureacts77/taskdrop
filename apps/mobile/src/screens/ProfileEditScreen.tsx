@@ -20,12 +20,10 @@ import { levelFor, profileStrength } from '../lib/levels';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
 import { ActionBar, FormPage, FormSection } from '../components/FormPage';
 import { useLayout } from '../lib/layout';
+import { SKILL_OPTIONS } from '../lib/catalogPick';
+import { SkillPicker } from '../components/SkillPicker';
 
-export const SKILL_OPTIONS = [
-  'Repairs', 'Delivery', 'Errands', 'Sourcing', 'Local intel', 'Cleaning', 'Carpentry', 'Painting',
-  'Photography', 'Video editing', 'Graphic design', 'Content writing', 'Data entry', 'Tutoring',
-  'Web development', 'Career coaching', 'Event planning', 'Translation', 'Research',
-];
+export { SKILL_OPTIONS };
 
 export const LANGUAGES = [
   'English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati', 'Punjabi', 'Urdu', 'Odia',
@@ -51,7 +49,6 @@ export function ProfileEditScreen() {
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [langs, setLangs] = useState<string[]>([]);
-  const [customSkill, setCustomSkill] = useState('');
   const [place, setPlace] = useState<{ label: string; lat: number | null; lng: number | null } | null>(null);
   const [showLoc, setShowLoc] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
@@ -276,41 +273,7 @@ export function ProfileEditScreen() {
     </View>
   );
 
-  const skillPills = (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: desktop ? 0 : 12 }}>
-      {[...new Set([...SKILL_OPTIONS, ...skills])].map((s) => (
-        <Pill key={s} label={s} active={skills.includes(s)} onPress={() => toggle(skills, setSkills, s, 8)} />
-      ))}
-    </View>
-  );
-
-  const customSkillField = (
-    <Field
-      style={{ marginTop: 14 }}
-      value={customSkill}
-      onChangeText={setCustomSkill}
-      placeholder="Add another skill"
-      maxLength={30}
-      returnKeyType="done"
-      onSubmitEditing={() => {
-        const s = customSkill.trim();
-        if (s) toggle(skills, setSkills, s.charAt(0).toUpperCase() + s.slice(1), 8);
-        setCustomSkill('');
-      }}
-      right={
-        <Pressable
-          onPress={() => {
-            const s = customSkill.trim();
-            if (s) toggle(skills, setSkills, s.charAt(0).toUpperCase() + s.slice(1), 8);
-            setCustomSkill('');
-          }}
-          hitSlop={8}
-        >
-          <RNText style={tx('700', 13, t.colors.accentDeep)}>Add</RNText>
-        </Pressable>
-      }
-    />
-  );
+  const skillPills = <SkillPicker kind="skill" variant="profile" value={skills} onChange={setSkills} max={8} />;
 
   const statusText = (
     <RNText style={tx('400', 12, t.colors.muted, { marginTop: desktop ? 0 : 6, lineHeight: 18 })}>
@@ -359,7 +322,7 @@ export function ProfileEditScreen() {
               hint="Pick up to 8. We use these to recommend tasks to you and to show you on the explore page."
             >
               {skillPills}
-              {customSkillField}
+
             </FormSection>
           ) : null}
           <FormSection title="Your status">
@@ -401,7 +364,7 @@ export function ProfileEditScreen() {
                   Pick up to 8. We use these to recommend tasks to you and to show you on the explore page.
                 </RNText>
                 {skillPills}
-                {customSkillField}
+
               </>
             ) : null}
 

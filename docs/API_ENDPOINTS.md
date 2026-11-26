@@ -52,6 +52,7 @@ endpoint (`/api/wallet/listOpenTasks`, `/api/tasks/noSuchOp`) answers **404 UNKN
 | `/api/feedback/…` | `listFeedbackBoard`, `getFeedbackPost` | `sendFeedback`, `postFeedbackIdea`, `voteFeedbackIdea`, `commentFeedbackIdea` |
 | `/api/support/…` | `listTickets`, `getTicket` | `openTicket`, `replyTicket`, `resolveTicket` |
 | `/api/referrals/…` | `countMyReferrals` | `applyReferralCode` |
+| `/api/catalog/…` | `listCatalog`, `checkCatalogTerm` | `addCatalogTerm` |
 | `/api/media/…` | `signMedia` | `createUpload`, `attachMedia`, `removeMedia` |
 
 The table lives in one file, [`supabase/functions/api/routes.ts`](../supabase/functions/api/routes.ts). The
