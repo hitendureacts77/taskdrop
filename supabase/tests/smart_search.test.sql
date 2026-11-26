@@ -102,6 +102,22 @@ begin
   end if;
   perform pg_temp.become(v_worker);
 
+  -- ---- hidden by staff, or blocked: gone from search, as from the tasks row rules ----------------------------
+  perform pg_temp.as_operator();
+  insert into public.task_moderation (task_id, reason) values (v_tap, 'test hide');
+  perform pg_temp.become(v_worker);
+  select count(*) into v_n from public.search_posts('request', array['tap'], array['leak'], null, null, v_worker) s where s.id = v_tap;
+  if v_n <> 0 then raise exception 'a post hidden by staff came back'; end if;
+  perform pg_temp.as_operator();
+  delete from public.task_moderation where task_id = v_tap;
+  insert into public.blocks (blocker_id, blocked_id) values (v_poster, v_worker);
+  perform pg_temp.become(v_worker);
+  select count(*) into v_n from public.search_posts('request', array['tap'], array['leak'], null, null, v_worker) s where s.id in (v_tap, v_sink);
+  if v_n <> 0 then raise exception 'posts by someone who blocked the searcher came back'; end if;
+  perform pg_temp.as_operator();
+  delete from public.blocks where blocker_id = v_poster and blocked_id = v_worker;
+  perform pg_temp.become(v_worker);
+
   -- ---- area box: Bengaluru only, Delhi stays out -------------------------------------------------------------
   select array_agg(s.id) into v_ids
     from public.search_posts('request', array['tap'], array['leak'], null, null, v_worker, null, null, null, 12.8, 13.1, 77.5, 77.8) s;

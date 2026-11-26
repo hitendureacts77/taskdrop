@@ -155,6 +155,10 @@ begin
        and (t.due_at is null or t.due_at > now())
        and (t.hunt_until is null or t.hunt_until > now())
        and (p_viewer is null or t.poster_id <> p_viewer)
+       -- The same two rules the tasks row rules apply (this runs as its owner, so it must say them itself):
+       -- posts staff have hidden, and posts by someone who blocked the searcher or whom they blocked.
+       and not private.task_is_hidden(t.id)
+       and (p_viewer is null or not private.blocked_between(p_viewer, t.poster_id))
        and (p_pillar is null or t.pillar::text = p_pillar)
        and (p_min_minor is null or t.benchmark_minor >= p_min_minor)
        and (p_max_minor is null or t.benchmark_minor <= p_max_minor)
