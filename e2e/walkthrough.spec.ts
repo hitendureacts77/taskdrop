@@ -57,7 +57,7 @@ test("Profile has How TaskDrop works, and the old practice tour is gone", async 
   await page.getByLabel("Account menu").click();
   await expect(page.getByText("Take the app tour", { exact: true })).toHaveCount(0);
   await page.keyboard.press("Escape");
-  await page.goto("/profile");
+  await page.getByText("Profile", { exact: true }).first().click();
   await page.getByText("How TaskDrop works", { exact: true }).first().click();
   await expect(heading(page, "How TaskDrop works")).toBeVisible();
   await expect(page.getByRole("button", { name: "Skip", exact: true })).toHaveCount(0);
