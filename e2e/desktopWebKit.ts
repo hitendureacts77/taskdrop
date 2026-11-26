@@ -147,6 +147,27 @@ async function handle(route: Route): Promise<void> {
   for (const c of parsed.calls) {
     if (fixture.calls[callKey(c)] === undefined) misses.add(`${c.op} ${JSON.stringify(c.args ?? {}).slice(0, 120)}`);
   }
+  // A batch with some call the fixture does not know goes live, but the calls it does know keep their recorded
+  // answer (so the person on screen is always the same one), and the profile patch applies to all of it.
+  if (parsed.batch || profilePatch) {
+    const res = await route.fetch().catch(() => null);
+    if (!res) return route.abort();
+    const text = await res.text();
+    try {
+      const got = JSON.parse(text) as { ok?: boolean; data?: unknown };
+      if (parsed.batch && Array.isArray(got.data)) {
+        const data = got.data.map((r, i) => {
+          const c = parsed.calls[i]!;
+          const known = fixture.calls[callKey(c)];
+          return patched(c, known !== undefined ? known : r);
+        });
+        return reply(route, { ...got, data });
+      }
+      return reply(route, patched(parsed.calls[0]!, got));
+    } catch {
+      return route.fulfill({ response: res, body: text });
+    }
+  }
   return route.continue();
 }
 

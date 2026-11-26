@@ -29,9 +29,9 @@ export function TabTitle({
           {title}
         </RNText>
         {live ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3, minWidth: 0, maxWidth: '100%' }}>
             {dot ? <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: t.colors.online }} /> : null}
-            <RNText style={tx('500', 12.5, t.colors.muted, { flexShrink: 1, fontVariant: ['tabular-nums'] })} numberOfLines={2}>
+            <RNText style={tx('500', 12.5, t.colors.muted, { flexShrink: 1, minWidth: 0, fontVariant: ['tabular-nums'] })} numberOfLines={1}>
               {live}
             </RNText>
           </View>

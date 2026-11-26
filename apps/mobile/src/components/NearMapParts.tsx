@@ -641,9 +641,9 @@ export function StatusPill({ text, busy, onPress }: { text: string; busy: boolea
   const t = useTheme();
   if (onPress) {
     return (
-      <Pressy onPress={onPress} label={text} style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.colors.ink }}>
+      <Pressy onPress={onPress} label={text} style={{ maxWidth: '100%', minWidth: 0, height: 34, paddingHorizontal: 14, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.colors.ink }}>
         <Icon name="compass" size={13} color={t.colors.bg} />
-        <RNText style={tx('800', 12.5, t.colors.bg)} numberOfLines={1}>
+        <RNText style={tx('800', 12.5, t.colors.bg, { flexShrink: 1, minWidth: 0 })} numberOfLines={1}>
           {text}
         </RNText>
       </Pressy>
@@ -653,10 +653,10 @@ export function StatusPill({ text, busy, onPress }: { text: string; busy: boolea
     <View
       accessibilityRole="text"
       accessibilityLiveRegion="polite"
-      style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3 }}
+      style={{ maxWidth: '100%', minWidth: 0, height: 34, paddingHorizontal: 14, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3 }}
     >
       <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: busy ? t.colors.muted : t.colors.online }} />
-      <RNText style={tx('700', 12.5, t.colors.text)} numberOfLines={1}>
+      <RNText style={tx('700', 12.5, t.colors.text, { flexShrink: 1, minWidth: 0 })} numberOfLines={1}>
         {text}
       </RNText>
     </View>
