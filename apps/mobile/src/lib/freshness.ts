@@ -30,6 +30,8 @@ export const FRESH_FOR_MS = 30_000;
  * none of the lists.
  */
 export const NEVER_REUSE: ReadonlySet<string> = new Set([
+  // own skills (row E): the already-covered check must see a term someone added a moment ago
+  'checkCatalogTerm',
   // money
   'getWallet', 'getEscrowHeld', 'listWalletActivity', 'getMoneyMode', 'getTaskHold', 'getMoneyLedger', 'listPayouts', 'listPayoutDestinations',
   'feesSince', 'platformFees', 'settleClearedEarnings', 'myStats', 'listPromotions',
@@ -55,6 +57,8 @@ export const NEVER_REUSE: ReadonlySet<string> = new Set([
  * (`PUBLIC_MEMO_OPS`), never reused (`NEVER_REUSE`), or this.
  */
 export const PER_PERSON_REUSE: ReadonlySet<string> = new Set([
+  // the ranked skills and categories list (row E); the app keeps its own 5-minute copy too
+  'listCatalog',
   // feeds and task lists (row rules and blocked people make them per person)
   'listOpenTasks', 'listMyTasks', 'listMyAssignments', 'countBidsByTask', 'searchTasks', 'attachPosters',
   'searchTasksWithPosters', 'searchSuggest', 'searchFallbacks', 'getPosterStats', 'promotableTasks', 'recommendedTasks', 'remoteTasks',

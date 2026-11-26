@@ -9,6 +9,8 @@ import {
 import { noKeep } from "./publicMemo.ts";
 import { chatStateFrom, readChatStates } from "./chat.ts";
 import { type Understanding, nearConcepts, rankedSearch, suggestConcepts, understand, whyLine } from "./search.ts";
+import { findContactIssue } from "../_shared/contacts.ts";
+import { embedText, toVectorLiteral } from "../_shared/meaning.ts";
 import {
   ASSIGNMENT_SELECT, BID_SELECT, CREW_MESSAGE_SELECT, MESSAGE_SELECT, PROFILE_OWNER_SELECT, PROFILE_PUBLIC_SELECT, PROOF_SELECT,
   NOTIFICATION_SELECT, PAYMENT_SELECT, PAYOUT_DESTINATION_SELECT, PAYOUT_SELECT, PROMOTION_SELECT, REVIEW_SELECT,
@@ -64,6 +66,42 @@ function openTasksQuery(ctx: Ctx, kind: "request" | "service") {
     .or(`hunt_until.is.null,hunt_until.gt.${nowIso(ctx)}`)
     .eq("kind", kind)
     .neq("poster_id", ctx.userId);
+}
+
+/** The two kinds of catalog term. */
+export const catalogKind = (a: Args) => oneOf(a, "kind", ["skill", "category"]);
+
+/** What a refused word is told, in words a person can act on. */
+export function catalogRefusalMessage(kind: string, reason: unknown): string {
+  const thing = kind === "category" ? "category" : "skill";
+  switch (reason) {
+    case "length": return "Keep it between 2 and 30 letters.";
+    case "letters": return `Type the ${thing} in English letters.`;
+    case "contact":
+    case "rude": return `A ${thing} can't have a phone number, email, link or rude words. Type just the ${thing}.`;
+    case "hidden": return "That one can't be used. Pick another.";
+    default: return "That one can't be used. Pick another.";
+  }
+}
+
+/** Adds the `message` to a refused answer; any other answer passes through. */
+export function catalogRefusal(kind: string, res: unknown): unknown {
+  if (res && typeof res === "object" && (res as { result?: unknown }).result === "refused") {
+    return { ...(res as object), message: catalogRefusalMessage(kind, (res as { reason?: unknown }).reason) };
+  }
+  return res;
+}
+
+/** A phone number, email or link is refused here, before the database or the model is asked. */
+export function catalogContactRefusal(kind: string, text: string): { result: "refused"; reason: "contact"; message: string } | null {
+  if (!findContactIssue(text)) return null;
+  return { result: "refused", reason: "contact", message: catalogRefusalMessage(kind, "contact") };
+}
+
+/** The meaning vector as a database argument (null when the model is not available). */
+export async function catalogArgs(kind: string, text: string): Promise<Record<string, unknown>> {
+  const v = await embedText(text);
+  return { p_kind: kind, p_text: text, p_embedding: v ? toVectorLiteral(v) : null };
 }
 
 const kindArg = (a: Args) => oneOf(a, "kind", ["request", "service"], "request");
@@ -1058,6 +1096,16 @@ export const READ_OPS: Record<string, Op> = {
   accountDeletionCheck: rpcOp("account_deletion_check"),
   platformStats: rpcOp("platform_stats", (a) => ({ p_days: int(a, "days", 1, 3650, 30) })),
   platformHighlights: rpcOp("platform_highlights"),
+  listCatalog: rpcOp("catalog_list", (a) => ({ p_kind: catalogKind(a) })),
+  checkCatalogTerm: async (ctx, a) => {
+    const kind = catalogKind(a);
+    const text = str(a, "text", 60);
+    const refused = catalogContactRefusal(kind, text);
+    if (refused) return refused;
+    const res = catalogRefusal(kind, take<Record<string, unknown>>(await ctx.db.rpc("catalog_check", await catalogArgs(kind, text))));
+    void ctx.catalogEmbeddings?.().catch(() => {});
+    return res;
+  },
   trendingCategories: rpcOp("trending_categories", (a) => ({ p_limit: limit(a, "limit", 8, 50) })),
   topEarners: rpcOp("top_earners", (a) => ({
     p_kind: oneOf(a, "kind", ["top_rated", "most_active", "new_talent"]),

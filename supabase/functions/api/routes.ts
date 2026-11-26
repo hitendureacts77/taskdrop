@@ -61,6 +61,7 @@ export const API_GROUPS = {
   feedback: ["listFeedbackBoard", "getFeedbackPost", "sendFeedback", "postFeedbackIdea", "voteFeedbackIdea", "commentFeedbackIdea"],
   support: ["listTickets", "getTicket", "openTicket", "replyTicket", "resolveTicket"],
   referrals: ["countMyReferrals", "applyReferralCode"],
+  catalog: ["listCatalog", "checkCatalogTerm", "addCatalogTerm"],
   media: ["createUpload", "attachMedia", "signMedia", "removeMedia"],
 } as const satisfies Record<string, readonly string[]>;
 

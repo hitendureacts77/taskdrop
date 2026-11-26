@@ -4,7 +4,7 @@ import {
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
 import { assertChatOpen } from "./chat.ts";
-import { planBOn, readFees } from "./reads.ts";
+import { catalogArgs, catalogContactRefusal, catalogKind, catalogRefusal, planBOn, readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
 import { MEDIA, OFFER_LIMITS, PRICE_LIMITS, PROFILE_LIMITS, PROOF_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
@@ -279,6 +279,20 @@ function feedbackFiles(a: Args): { path: string; kind: "image" | "file"; name: s
 }
 
 export const WRITE_OPS: Record<string, Op> = {
+  /** Add a skill or category of the caller's own, unless one that means the same already exists. */
+  addCatalogTerm: async (ctx, a) => {
+    const kind = catalogKind(a);
+    const text = str(a, "text", 60);
+    const refused = catalogContactRefusal(kind, text);
+    if (refused) return refused;
+    const res = await ctx.db.rpc("catalog_add", { ...(await catalogArgs(kind, text)), p_force: bool(a, "force") });
+    const out = catalogRefusal(kind, take(res, (e) =>
+      /catalog_daily_limit/i.test(e.message ?? "")
+        ? new OpError("You can add up to 10 new skills or categories a day. Try again tomorrow.", "RATE_LIMITED")
+        : toOpError(e)));
+    void ctx.catalogEmbeddings?.().catch(() => {});
+    return out;
+  },
   // ---- the task lifecycle, where money moves (all decided in SQL) ----
   // The price the poster saw (B53, migration 167): the database refuses when the offer no longer
   // says that. Old app builds send no price and keep the two-argument call.
