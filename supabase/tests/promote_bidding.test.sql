@@ -169,8 +169,10 @@ begin
   select spent_minor into v_price_a from public.task_promotions where id = pa.id;
   assert (select spent_minor from public.task_promotions where id = pc.id) = 0, '2: the loser pays nothing';
   assert v_price_a = 20, '2: the last winner pays the floor, got ' || v_price_a;
-  assert v_price_b between 100 and 120,
-    '2: the winner pays just enough to beat the next (about 80 / 0.73), not its own bid (300), got ' || v_price_b;
+  -- Second price: a's score (bid 80 x match 1.0) over b's own match (nearness only; no clicks yet).
+  assert v_price_b = ceil(80 / (1 / (1 + round(private.hunt_km(c_lat, c_lng, c_lat + 0.01, c_lng)::numeric, 1) / 3))),
+    '2: the winner pays just enough to beat the next, got ' || v_price_b;
+  assert v_price_b < 300, '2: and less than its own bid (300)';
   assert (select count(*) from public.ad_events where promotion_id = pb.id and top and viewer_id = v1) = 1,
     '2: one top show is written for the winner';
 

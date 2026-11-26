@@ -215,7 +215,10 @@ test('planBSplit: follows the admin-set rates and rounds like Postgres', () => {
 });
 
 test('promote budgets and the top-show estimate', async () => {
-  const { isPromoteBudget, estimateTopShows } = await import('./index.ts');
+  const { isPromoteBudget, estimateTopShows, isBusyArea } = await import('./index.ts');
+  assert.equal(isBusyArea(23, 110), true);
+  assert.equal(isBusyArea(4, 61), false, 'a few others at the usual price is not busy');
+  assert.equal(isBusyArea(15, null), true);
   assert.equal(isPromoteBudget(8000), true);
   assert.equal(isPromoteBudget(1900), false, 'under Rs 20');
   assert.equal(isPromoteBudget(100100), false, 'over Rs 1,000');

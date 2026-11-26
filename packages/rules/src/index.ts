@@ -417,6 +417,9 @@ export const PROMOTE_DEFAULTS = {
   /** Quick daily budgets offered on the Promote screen, and the one picked first. */
   BUDGET_PRESETS_MINOR: [3000, 8000, 15000] as readonly number[],
   DEFAULT_DAY_MINOR: 8000,
+  /** An area counts as busy when a top show costs at least this, or this many others promote there. */
+  BUSY_PRICE_MINOR: 90,
+  BUSY_OTHERS: 15,
   /** Price of a top show assumed when the area has none yet. */
   PRICE_GUESS_MINOR: 60,
   DAYS: [1, 3, 7] as readonly number[],
@@ -429,6 +432,11 @@ export const PROMOTE_DEFAULTS = {
 /** A daily budget the server accepts: whole rupees within the limits. */
 export function isPromoteBudget(dayMinor: number, min: number = PROMOTE_DEFAULTS.MIN_DAY_MINOR, max: number = PROMOTE_DEFAULTS.MAX_DAY_MINOR): boolean {
   return Number.isInteger(dayMinor) && dayMinor % PROMOTE_DEFAULTS.DAY_STEP_MINOR === 0 && dayMinor >= min && dayMinor <= max;
+}
+
+/** Busy enough to warn the payer that a top show costs more here (nothing is ever blocked). */
+export function isBusyArea(others: number, areaPriceMinor: number | null | undefined): boolean {
+  return (areaPriceMinor ?? 0) >= PROMOTE_DEFAULTS.BUSY_PRICE_MINOR || others >= PROMOTE_DEFAULTS.BUSY_OTHERS;
 }
 
 /**

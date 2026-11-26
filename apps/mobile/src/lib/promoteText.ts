@@ -1,5 +1,5 @@
 /** Plain-words helpers for the Promote screens. Pure, so they are unit-tested. */
-import { PROMOTE_DEFAULTS, estimateTopShows, isPromoteBudget } from '@taskdrop/rules';
+import { PROMOTE_DEFAULTS, estimateTopShows, isBusyArea, isPromoteBudget } from '@taskdrop/rules';
 
 /** "2 days 5 h left", "5 h 10 min left", "12 min left", or "Ended". */
 export function timeLeftText(endsAt: string | null | undefined, now: number = Date.now()): string {
@@ -158,9 +158,9 @@ export function estimateText(dayMinor: number, areaPriceMinor: number | null | u
 
 const othersAre = (n: number): string => (n === 1 ? '1 other is' : `${n} others are`);
 
-/** The note for an area where others promote too. Null when nobody does. */
+/** The warning for a busy area (isBusyArea). Null when the area is not busy. */
 export function busyNote(others: number, areaKm: number, areaPriceMinor: number | null | undefined): { title: string; body: string } | null {
-  if (!(others > 0)) return null;
+  if (!(others > 0) || !isBusyArea(others, areaPriceMinor)) return null;
   const price = areaPriceMinor && areaPriceMinor > 0 ? `a top show costs about ${moneyText(areaPriceMinor)} here` : 'a top show can cost more here';
   return { title: 'Busy here right now.', body: `${othersAre(others)} promoting within ${areaKm} km, so ${price}.` };
 }
@@ -176,13 +176,14 @@ export function estimateNote(args: {
 }): string {
   const { others, areaKm, areaPriceMinor, remote, service, raisedRupees } = args;
   if (remote) return service ? 'Shown to customers anywhere.' : 'Shown to workers anywhere.';
-  if (others > 0) {
+  if (others > 0 && isBusyArea(others, areaPriceMinor)) {
     if (raisedRupees === null) return '';
     const { low, high } = estimateTopShows(raisedRupees * 100, areaPriceMinor);
     return `${moneyText(raisedRupees * 100)} a day would get about ${low} to ${high}.`;
   }
   const price = areaPriceMinor && areaPriceMinor > 0 ? areaPriceMinor : PROMOTE_DEFAULTS.PRICE_GUESS_MINOR;
-  return `No one else is promoting within ${areaKm} km right now · usual price here ${moneyText(price)} per top show`;
+  const who = others > 0 ? `${others === 1 ? '1 other' : `${others} others`} promoting within ${areaKm} km` : `No one else is promoting within ${areaKm} km right now`;
+  return `${who} · usual price here ${moneyText(price)} per top show`;
 }
 
 /** Under the Promote button. */

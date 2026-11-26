@@ -126,7 +126,8 @@ test('the busy note appears only when others promote, and says the price', () =>
     title: 'Busy here right now.',
     body: '23 others are promoting within 5 km, so a top show costs about ₹1.10 here.',
   });
-  assert.equal(busyNote(1, 5, null)!.body, '1 other is promoting within 5 km, so a top show can cost more here.');
+  assert.equal(busyNote(15, 5, null)!.body, '15 others are promoting within 5 km, so a top show can cost more here.');
+  assert.equal(busyNote(6, 5, 55), null, 'a few others at the usual price is not busy');
 });
 
 test('the estimate note offers a bigger budget when busy and the usual price when quiet', () => {
@@ -134,6 +135,7 @@ test('the estimate note offers a bigger budget when busy and the usual price whe
   assert.equal(estimateNote({ ...base, others: 23, raisedRupees: 150 }), '₹150 a day would get about 100 to 140.');
   assert.equal(estimateNote({ ...base, others: 23, raisedRupees: null }), '');
   assert.equal(estimateNote({ ...base, others: 0, raisedRupees: null }), 'No one else is promoting within 5 km right now · usual price here ₹1.10 per top show');
+  assert.equal(estimateNote({ ...base, areaPriceMinor: 55, others: 6, raisedRupees: 150 }), '6 others promoting within 5 km · usual price here ₹0.55 per top show');
   assert.match(estimateNote({ ...base, areaPriceMinor: null, others: 0, raisedRupees: null }), /₹0\.60 per top show/);
   assert.equal(estimateNote({ ...base, remote: true, others: 0, raisedRupees: null }), 'Shown to workers anywhere.');
   assert.equal(estimateNote({ ...base, remote: true, service: true, others: 0, raisedRupees: null }), 'Shown to customers anywhere.');

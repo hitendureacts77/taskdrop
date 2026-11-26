@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -15,6 +15,9 @@ import { LocationSheet } from './LocationSheet';
 import { ModeLockSheet } from './ModeLockSheet';
 import { cardSurface } from './ui';
 import { Pressy, tx } from './primitives';
+import { PromotedPill, promotedBorder } from './PromotedPill';
+import { auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
+import { usePromotedLive } from '../lib/usePromotedLive';
 
 /** The reach of the poster's "Near you" map, in km. */
 const NEAR_KM = 5;
@@ -132,6 +135,15 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
     };
   }, [centre]);
 
+  // Promoted services (task 1.19 row C): the server's auction picks at most 2 of the helpers here (by their
+  // service) for the front of the strip; every promoted one carries the pill.
+  const serviceIds = useMemo(() => auctionIds((list ?? []).map((w) => w.top_service?.id)), [list]);
+  const promoLive = usePromotedLive('service', centre, { surface: 'list', taskIds: serviceIds, enabled: list !== null });
+  const promo = useMemo(
+    () => pickPromotedItems({ items: list ?? [], live: promoLive, keyOf: (w) => w.top_service?.id ?? w.id }),
+    [list, promoLive],
+  );
+  const strip = useMemo(() => liftPromoted(list ?? [], promo.top), [list, promo]);
   if (list === null) return <Shimmer height={260} style={{ marginTop: 12 }} />;
   const pins = list.map((w) => personPin(w, now)).filter((p): p is JobPin => p !== null);
   const live = list.filter((w) => presenceOf(w.last_seen_at, now).online).length;
@@ -158,9 +170,12 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
             <RNText style={tx('600', 11.5, t.colors.muted)}>active now first</RNText>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8, marginHorizontal: -4 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}>
-            {list.map((w) => {
+            {strip.map((w) => {
               const live = presenceOf(w.last_seen_at, now).online;
               const on = w.id === picked;
+              const key = w.top_service?.id ?? w.id;
+              const promoted = promo.badged.has(key);
+              const onTop = promo.top.includes(w);
               const o = offerOf(w);
               return (
                 <Pressable
@@ -168,7 +183,7 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
                   onPress={() => setPicked(on ? null : w.id)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
-                  accessibilityLabel={`${o.what}${o.price ? `, from ${o.price}` : ''}${live ? ', active now' : ''}, ${areaName(w.loc_label)} area`}
+                  accessibilityLabel={`${promoted ? 'Promoted. ' : ''}${o.what}${o.price ? `, from ${o.price}` : ''}${live ? ', active now' : ''}, ${areaName(w.loc_label)} area`}
                   style={({ pressed }) => ({
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -179,12 +194,14 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
                     borderRadius: 16,
                     borderWidth: 1.5,
                     borderColor: on ? t.colors.purple : t.colors.line,
+                    ...(on ? null : promotedBorder(t, 'hire', onTop)),
                     backgroundColor: t.colors.surface,
                     opacity: pressed ? 0.75 : 1,
                   })}
                 >
                   <OfferDot icon={o.icon} live={live} size={30} />
                   <View>
+                    {promoted ? <PromotedPill side="hire" style={{ marginBottom: 3 }} /> : null}
                     <RNText style={tx('800', 12.5, t.colors.ink, { maxWidth: 170 })} numberOfLines={1}>
                       {o.what}
                     </RNText>
