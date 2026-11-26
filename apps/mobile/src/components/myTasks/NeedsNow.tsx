@@ -23,7 +23,7 @@ const ICON: Record<NeedKind, IconName> = {
  * Desktop: full width, each row with its live button on the right. Nothing waiting: nothing drawn. A long list
  * shows the most pressing few and a "Show N more" row, so the tasks below stay in reach.
  */
-const FIRST = { phone: 3, desktop: 4 };
+const FIRST = { phone: 3, desktop: 3 };
 
 export function NeedsNow({ items, onPick, desktop, side }: { items: Need[]; onPick: (n: Need) => void; desktop: boolean; side: 'hire' | 'earn' }) {
   const t = useTheme();

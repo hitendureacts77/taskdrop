@@ -34,12 +34,12 @@ import { areaOf, earnOf, earnedLine, workerDateBits } from './WorkerCard';
 export type Column = { label: string; flex?: number; width?: number };
 
 export const POSTER_COLUMNS: Column[] = [
-  { label: 'STATUS', flex: 1.6 },
-  { label: 'TASK', flex: 3 },
+  { label: 'STATUS', flex: 2 },
+  { label: 'TASK', flex: 3.4 },
   { label: 'OFFERS', flex: 1.5 },
   { label: 'BUDGET', flex: 1.2 },
   { label: 'DATE', flex: 1.7 },
-  { label: '', width: 290 },
+  { label: '', width: 230 },
 ];
 
 export const WORKER_COLUMNS: Column[] = [

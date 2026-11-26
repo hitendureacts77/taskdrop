@@ -15,7 +15,7 @@ import { cardSurface } from './ui';
 
 /**
  * "Ideas to post" on Hire Home (task 1.19 F, decision 1): one block with chips instead of Quick templates, Idea
- * templates for you and the nine "manage your tasks" tiles. The phone shows four cards, the desktop six; every
+ * templates for you and the nine "manage your tasks" tiles. The phone shows four cards, the desktop one row of three; every
  * chip's other cards sit behind "Show N more", and "See all" opens Explore's list (Ideas), which holds them all.
  */
 export function IdeasToPost({ onPick, onSeeAll }: { onPick: (x: IdeaItem) => void; onSeeAll: () => void }) {
@@ -24,7 +24,8 @@ export function IdeasToPost({ onPick, onSeeAll }: { onPick: (x: IdeaItem) => voi
   const [chip, setChip] = useState(FOR_YOU);
   const [open, setOpen] = useState(false);
   const all = ideasIn(chip, homeTemplates(TEMPLATES));
-  const first = desktop ? 6 : 4;
+  // Desktop: one row (three cards); the rest wait behind Show more (task 1.19 R).
+  const first = desktop ? 3 : 4;
   const { shown, extra } = firstOf(all, first, open);
   const pick = (c: string) => {
     setChip(c);
@@ -218,7 +219,7 @@ export function WaysToEarn({ onSearch, onAddSkill }: { onSearch: (q: string) => 
       </View>
       <View style={{ marginTop: 12 }}>
         {desktop || tablet ? (
-          <Rail min={desktop ? 170 : 220}>{cards}</Rail>
+          <Rail min={desktop ? 170 : 220} rows={1}>{cards}</Rail>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 4 }}>
             {cards}

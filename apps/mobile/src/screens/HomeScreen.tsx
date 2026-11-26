@@ -930,7 +930,7 @@ export function HomeScreen() {
               <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed nearby yet.</RNText>
             ) : (
               <View style={{ marginTop: 12 }}>
-                <Rail step={250} min={desktop ? 180 : 260}>
+                <Rail step={250} min={desktop ? 180 : 260} rows={1}>
                   {(liveTasks ?? [])
                     .filter((task) => feed.some((row) => row.id === task.id))
                     .map((task) => (

@@ -553,12 +553,11 @@ export function ProfileScreen() {
         </>
   );
 
-  const rest = (
-        <>
-          {desk ? <View style={deskCard}>{themeBlock}</View> : themeBlock}
-          {guest ? null : desk ? <View style={deskCard}>{reviewsBlock}</View> : reviewsBlock}
+  const themeCard = desk ? <View style={deskCard}>{themeBlock}</View> : themeBlock;
+  const reviewsCard = guest ? null : desk ? <View style={deskCard}>{reviewsBlock}</View> : reviewsBlock;
 
-          {/* Terms, Privacy and Sign out: one small line of links. */}
+  // Terms, Privacy and Sign out: one small line of links.
+  const links = (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 18, marginTop: desk ? 0 : 32, paddingVertical: 8 }}>
             <Pressable onPress={() => go('terms')} hitSlop={8} accessibilityRole="link">
               <RNText style={tx('600', 12.5, t.colors.muted)}>Terms</RNText>
@@ -572,6 +571,13 @@ export function ProfileScreen() {
               </Pressable>
             )}
           </View>
+  );
+
+  const rest = (
+        <>
+          {themeCard}
+          {reviewsCard}
+          {links}
         </>
   );
 
@@ -609,13 +615,16 @@ export function ProfileScreen() {
               {modeBlock}
               {progressCard}
               {regularsBlock}
+              {/* Side by side, theme and reviews sit under you so the two columns end close together. */}
+              {themeCard}
+              {reviewsCard}
             </View>
           </>
         }
         right={
           <View style={{ maxWidth: 720, ...stack }}>
             {menuCard}
-            {rest}
+            {links}
           </View>
         }
         single={

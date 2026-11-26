@@ -386,7 +386,8 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
     const rows = (active ?? [])
       .map((task) => ({ task, offers: offers.get(task.id) ?? 0, fresh: fresh.get(task.id) ?? 0, step: nextStep(task, offers.get(task.id) ?? 0) }))
       .sort((a, b) => rank(a.step) - rank(b.step))
-      .slice(0, 4);
+      // Three rows keep Home calm (1.19 R); "All N in My tasks" opens the full list.
+      .slice(0, 3);
     return (
       <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
         {header === undefined ? areaBar(false) : header}
@@ -404,10 +405,13 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
           }
           rail={
             <>
+              {/* 1.19 R: the tool first (live numbers, then the helpers map), the news lists after it, each
+                  three rows long with the rest behind Show more. */}
               <LiveRailCard place={place} pulse={pulse} onOpen={() => setLiveOpen(true)} />
+              {helpersMap}
               <JustPosted tasks={posted} onOpen={postLike} onOpenList={() => setLiveOpen(true)} rail />
               {trending.length > 0 ? (
-                <RailCard title="Busy on TaskDrop" icon="trending">
+                <RailCard title="Busy on TaskDrop" icon="trending" limit={3}>
                   {trending.map((c, i) => (
                     <RailRow
                       key={c.category}
@@ -420,7 +424,6 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
                   ))}
                 </RailCard>
               ) : null}
-              {helpersMap}
             </>
           }
         />
@@ -488,7 +491,7 @@ function JustPosted({ tasks, onOpen, onOpenList, rail = false }: { tasks: Task[]
 
   if (rail) {
     return (
-      <RailCard title="Just posted" dot link="See what people are posting" onLink={onOpenList}>
+      <RailCard title="Just posted" dot link="See what people are posting" onLink={onOpenList} limit={3}>
         {rows.slice(0, 5).map((r, i) => (
           <RailRow
             key={r.id}
@@ -815,9 +818,10 @@ function EarnTop() {
     );
   };
 
-  // Two per chip to start with (a full row on a desktop); "Show more" opens the rest in place.
-  const { desktop, columns } = useLayout();
-  const FIRST = desktop ? Math.max(2, columns) : 2;
+  // Two per chip to start with; "Show more" opens the rest in place. On a desktop two is one full row of the main
+  // column beside the rail (the page-wide column count left a lone card on a second row, 1.19 R).
+  const { desktop } = useLayout();
+  const FIRST = 2;
   const more = (key: string, total: number) =>
     total > FIRST ? (
       <Pressable
