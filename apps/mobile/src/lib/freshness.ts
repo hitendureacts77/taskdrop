@@ -57,7 +57,7 @@ export const NEVER_REUSE: ReadonlySet<string> = new Set([
 export const PER_PERSON_REUSE: ReadonlySet<string> = new Set([
   // feeds and task lists (row rules and blocked people make them per person)
   'listOpenTasks', 'listMyTasks', 'listMyAssignments', 'countBidsByTask', 'searchTasks', 'attachPosters',
-  'searchTasksWithPosters', 'getPosterStats', 'promotableTasks', 'recommendedTasks', 'remoteTasks',
+  'searchTasksWithPosters', 'searchSuggest', 'searchFallbacks', 'getPosterStats', 'promotableTasks', 'recommendedTasks', 'remoteTasks',
   'tasksNear', 'urgentTasks', 'listSavedTaskIds', 'listSavedTasks', 'listTaskQuestions', 'nearbyPulse',
   // people and profiles
   'listBlockedUsers', 'getProfile', 'usernameAvailable', 'listActiveWorkers', 'workersNear',

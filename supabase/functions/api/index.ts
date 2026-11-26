@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { fillEmbeddings } from "./search.ts";
 import { APP_CHECK_HEADER, AppCheckLog, checkAppCheck } from "../_shared/appCheck.ts";
 import { ControlsCache,PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
@@ -90,6 +91,19 @@ const json = (body: unknown, status = 200) =>
 const refuse = (message: string, code: string, status: number) =>
   json({ ok: false, error: { message, code, details: null } }, status);
 
+/**
+ * Smart search fingerprints for posts that lack one, made in the background with the service role: a few per call,
+ * at most one run at a time per instance, so a busy minute does not stack model runs.
+ */
+let filling = false;
+const searchFiller = (admin: unknown) => () => {
+  if (filling) return;
+  filling = true;
+  background(fillEmbeddings(admin as never, 4).catch(() => 0).finally(() => {
+    filling = false;
+  }));
+};
+
 /** 200 with { ok: true } when the database answers, 503 otherwise, so a monitor can alert on the status code. */
 async function health(url: string): Promise<Response> {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -166,7 +180,7 @@ async function handleGuest(
   const signs = isBatch ? calls.some((c) => c.op === "signMedia") : body.op === "signMedia";
   const imagekit = signs ? await imageKitConfig(secret) : null;
   // No person: the nil id keeps the shared reads' types whole and matches nobody's rows.
-  const ctx = { db: admin as unknown as Db, userId: "00000000-0000-0000-0000-000000000000", client, controls, imagekit, memo: publicMemo };
+  const ctx = { db: admin as unknown as Db, userId: "00000000-0000-0000-0000-000000000000", client, controls, imagekit, memo: publicMemo, searchFill: searchFiller(admin) };
   const onUnexpected = (e: unknown) => {
     background(log("error", "guest op failed", { op: String(body.op), error: e instanceof Error ? e.message : String(e) }));
     background(captureServerError(e, { op: String(body.op), fn: "api", caller: "guest" }));
@@ -392,7 +406,7 @@ async function handle(req: Request, requestId: string): Promise<Response> {
     const u = (data as { username?: unknown }).username;
     return typeof u === "string" && u.length > 0;
   };
-  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, usernameSet, imagekit, memo: publicMemo };
+  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, usernameSet, imagekit, memo: publicMemo, searchFill: admin ? searchFiller(admin) : undefined };
   const onUnexpected = (e: unknown) => {
     // Both finish in the background after the response is sent.
     background(log("error", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));

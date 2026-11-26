@@ -65,6 +65,19 @@ async function act<T>(op: string, args: Record<string, unknown> = {}): Promise<T
   }
 }
 
+/**
+ * Smart search hints (chips, suggestions, next steps): never the account pop-up and never an error. A server that
+ * does not know the op yet, or refuses it, just means no hints; the search itself still runs.
+ */
+async function hint<T>(op: string, args: Record<string, unknown>, fallback: T): Promise<T> {
+  if (!(await myId()) && !isGuestOp(op)) return fallback;
+  try {
+    return await callApi<T>(op, args);
+  } catch {
+    return fallback;
+  }
+}
+
 /** Same, but signed out simply means "nothing" rather than an error. */
 async function ask<T>(op: string, args: Record<string, unknown>, signedOut: T): Promise<T> {
   if (!(await myId()) && !isGuestOp(op)) return signedOut;
@@ -116,11 +129,49 @@ export type TaskSearch = {
   limit?: number;
   kind?: TaskKind;
   near?: { lat: number; lng: number; radiusKm: number } | null;
+  /** Smart search: chip ids the person removed ("Searching for" pills). */
+  drop?: string[];
+  /** Smart search: keep the spelling as typed (no correction). */
+  exact?: boolean;
 };
 
 export const searchTasks = (input: TaskSearch = {}) => act<Task[]>('searchTasks', { ...input });
 
-export type TaskWithPoster = Task & { poster: Profile | null };
+/** A search result row: the post plus why it matched ("Same need: plumber, leak"), when the server says. */
+export type TaskWithPoster = Task & { poster: Profile | null; match_why?: string | null };
+
+export type SearchChip = { id: string; label: string };
+export type SearchSuggestion = { id: string; label: string; count: number | null };
+export type SearchSuggestResult = { corrected: string | null; chips: SearchChip[]; suggestions: SearchSuggestion[] };
+export type SearchSuggestInput = {
+  q: string;
+  kind: 'request' | 'service';
+  near?: { lat: number; lng: number; radiusKm: number } | null;
+  drop?: string[];
+  exact?: boolean;
+  /** false skips the counts (fast; use while typing). */
+  counts?: boolean;
+};
+
+/** What the search understood (chips), a spelling fix, and what the person may mean. */
+export const searchSuggest = (input: SearchSuggestInput) =>
+  hint<SearchSuggestResult>('searchSuggest', { ...input }, { corrected: null, chips: [], suggestions: [] });
+
+export type SearchFallbacks = {
+  wider: { km: number; count: number } | null;
+  remote: number;
+  related: { labels: string[]; q: string; count: number } | null;
+};
+export type SearchFallbacksInput = {
+  q: string;
+  kind: 'request' | 'service';
+  near?: { lat: number; lng: number; radiusKm: number } | null;
+  drop?: string[];
+};
+
+/** For an empty result: a wider area, remote jobs, close matches. */
+export const searchFallbacks = (input: SearchFallbacksInput) =>
+  hint<SearchFallbacks>('searchFallbacks', { ...input }, { wider: null, remote: 0, related: null });
 
 export async function attachPosters(tasks: Task[]): Promise<TaskWithPoster[]> {
   if (tasks.length === 0) return [];

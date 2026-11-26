@@ -15,6 +15,8 @@ import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { searchTasks, kindFor } from '../data/api';
+import { LooksLikeYouMean } from '../components/SmartSearch';
+import { useRecentSearches, useTypingSuggestions } from '../lib/useSmartSearch';
 import { resolveCurrentPlace, locationPermission } from '../lib/location';
 import { searchCtaLabel, SEARCH_COUNT_LIMIT } from '../lib/searchCount';
 import { fontFamilyFor, type Theme } from '../theme';
@@ -233,9 +235,23 @@ export function SearchScreen() {
     }
   };
 
-  const applyFilters = () => {
+  // Smart search: "looks like you mean" and the last five searches while the box has the cursor. A tap on a
+  // suggestion blurs the box first, so the list goes away a moment later.
+  const role = mode === 'worker' ? 'earn' : 'hire';
+  const [focused, setFocused] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onFocusChange = (f: boolean) => {
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    if (f) setFocused(true);
+    else blurTimer.current = setTimeout(() => setFocused(false), 200);
+  };
+  const { recent, remember } = useRecentSearches(role);
+  const typing = useTypingSuggestions(query, focused && query.trim().length >= 2, role, near);
+
+  const applyFilters = (word: string = query) => {
+    if (word.trim()) remember(word.trim());
     go('home', {
-      q: query.trim() || undefined,
+      q: word.trim() || undefined,
       pillar: filters.pillar ?? undefined,
       minMinor: filters.minMinor ?? undefined,
       maxMinor: filters.maxMinor ?? undefined,
@@ -286,12 +302,27 @@ export function SearchScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
+            onFocus={() => onFocusChange(true)}
+            onBlur={() => onFocusChange(false)}
             placeholder={worker ? 'Find a task or a service' : 'Find a worker or a service'}
             placeholderTextColor={t.colors.muted}
             style={{ flex: 1, fontFamily: fontFamilyFor('400'), fontSize: 14, color: t.colors.ink, padding: 0 }}
             autoFocus
           />
         </View>
+
+        {focused && query.trim().length >= 2 ? (
+          <LooksLikeYouMean
+            role={role}
+            suggestions={typing}
+            hasArea={near !== null}
+            recent={recent}
+            onPick={(word) => {
+              setQuery(word);
+              applyFilters(word);
+            }}
+          />
+        ) : null}
 
         <RNText style={tx('400', 11, t.colors.muted, { letterSpacing: 1.54, marginTop: 24 })}>LOCATION</RNText>
         <View
@@ -394,7 +425,7 @@ export function SearchScreen() {
         </RNText>
 
         <Pressy
-          onPress={applyFilters}
+          onPress={() => applyFilters()}
           style={{
             marginTop: 22,
             backgroundColor: t.colors.btn,

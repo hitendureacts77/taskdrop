@@ -17,7 +17,7 @@ import { handoffFresh } from './guestHandoff';
  */
 export const GUEST_OPS: ReadonlySet<string> = new Set([
   'trendingCategories', 'platformHighlights', 'topEarners', 'platformFees', 'publicProfileStats', 'adAuctionRanks',
-  'listOpenTasks', 'searchTasks', 'searchTasksWithPosters', 'attachPosters', 'getTask', 'getTaskDetail',
+  'listOpenTasks', 'searchTasks', 'searchTasksWithPosters', 'searchSuggest', 'searchFallbacks', 'attachPosters', 'getTask', 'getTaskDetail',
   'countBidsByTask', 'getPosterStats', 'recommendedTasks', 'remoteTasks', 'tasksNear', 'urgentTasks',
   'workerServices', 'workersNear', 'listActiveWorkers', 'getProfile', 'listReviewsAbout', 'signMedia',
   'listTaskQuestions', 'listFeedbackBoard', 'getFeedbackPost', 'nearbyPulse', 'workerProofPhotos',

@@ -11,7 +11,9 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
-import { searchTasks, attachPosters, placeBid, kindFor, getProfile } from '../data/api';
+import { searchTasks, searchTasksWithPosters, searchFallbacks, attachPosters, placeBid, kindFor, getProfile, type SearchFallbacks } from '../data/api';
+import { SearchEmpty, SearchLoading, SearchUnderstood, TypoNote, WhyLine } from '../components/SmartSearch';
+import { useSearchUnderstood } from '../lib/useSmartSearch';
 import { HOME_FEED_RADIUS_KM, nearThenRemote } from '../lib/homePlace';
 import { useAuth } from '../providers/AuthProvider';
 import { isNeedsAccount, needAccount } from '../lib/guest';
@@ -81,6 +83,8 @@ export type FeedRow = {
   options?: string[];
   /** A City Hunt: finders send finds, not offers. */
   hunt?: boolean;
+  /** Smart search: why this result matched ("Same need: plumber, leak"); only on search results. */
+  why?: string | null;
 };
 
 // Must match the pillar names in CreateScreen.tsx exactly — this list and
@@ -103,6 +107,7 @@ type LiveTask = {
   media_path: string | null;
   media_seconds: number | null;
   hunt_until?: string | null;
+  match_why?: string | null;
   poster: {
     display_name: string;
     poster_rating_avg: number | string;
@@ -141,6 +146,7 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
           ? 'Unique'
           : (roughPlace(task.loc_label) ?? 'Area not shared'),
     amountMinor: task.benchmark_minor,
+    why: task.match_why ?? null,
     // Media comes from the row now. hasMedia used to be hard-coded false, so an
     // attached photo was uploaded and then shown to nobody.
     hasMedia: Boolean(task.media_path),
@@ -322,6 +328,7 @@ const FeedCard = memo(function FeedCard({
             >
               {row.meta}
             </RNText>
+            <WhyLine role={worker ? 'earn' : 'hire'} why={row.why} />
           </View>
         </View>
 
@@ -402,6 +409,8 @@ export function HomeScreen() {
   // tapping the active chip clears it again.
   const [filter, setFilter] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Smart search: chips the person dropped, and "keep my spelling", for the words in the address bar only.
+  const [smart, setSmart] = useState<{ q: string; drop: string[]; exact: boolean }>({ q: '', drop: [], exact: false });
 
   // Filters arriving from the search screen. Their presence also switches the
   // feed from "fall back to samples" to "show exactly what matched".
@@ -433,6 +442,26 @@ export function HomeScreen() {
         return (await attachPosters(nearThenRemote(near, wide, at))) as unknown as LiveTask[];
       }
     }
+    const kindNow = kindFor(worker ? 'worker' : 'poster');
+    const smartNow = searchQ && smart.q === searchQ ? smart : null;
+    // Words searched: the meaning search, posters attached in the same request, rows in best-match order.
+    if (searchQ && searchQ.trim()) {
+      const hits = await searchTasksWithPosters({
+        q: searchQ,
+        pillar: searchPillar,
+        minMinor: searchMin,
+        maxMinor: searchMax,
+        near:
+          nearLat !== null && nearLng !== null && radiusKm !== null
+            ? { lat: nearLat, lng: nearLng, radiusKm }
+            : null,
+        limit: 20,
+        kind: kindNow,
+        drop: smartNow && smartNow.drop.length > 0 ? smartNow.drop : undefined,
+        exact: smartNow?.exact ? true : undefined,
+      });
+      return hits as unknown as LiveTask[];
+    }
     const rows = await searchTasks({
       q: searchQ ?? undefined,
       pillar: searchPillar,
@@ -447,7 +476,7 @@ export function HomeScreen() {
       kind: kindFor(worker ? 'worker' : 'poster'),
     });
     return (await attachPosters(rows)) as unknown as LiveTask[];
-  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker, focusTick, searching, userId]);
+  }, [searchQ, smart, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker, focusTick, searching, userId]);
 
   useEffect(() => {
     let active = true;
@@ -471,6 +500,26 @@ export function HomeScreen() {
       active = false;
     };
   }, [load, searching]);
+
+  const role = worker ? 'earn' : 'hire';
+  const smartDrop = smart.q === searchQ ? smart.drop : [];
+  const smartExact = smart.q === searchQ ? smart.exact : false;
+  const smartNear = nearLat !== null && nearLng !== null && radiusKm !== null ? { lat: nearLat, lng: nearLng, radiusKm } : null;
+  const understood = useSearchUnderstood({ q: searchQ ?? '', role, near: smartNear, drop: smartDrop, exact: smartExact });
+  // Nothing found for words: ask what to try instead.
+  const [fallbacks, setFallbacks] = useState<SearchFallbacks | null>(null);
+  const nothingFound = Boolean(searchQ && searchQ.trim()) && !loading && !failed && liveTasks !== null && liveTasks.length === 0;
+  useEffect(() => {
+    setFallbacks(null);
+    if (!nothingFound || !searchQ) return;
+    let alive = true;
+    searchFallbacks({ q: searchQ, kind: kindFor(worker ? 'worker' : 'poster'), near: smartNear, drop: smartDrop })
+      .then((r) => alive && setFallbacks(r))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [nothingFound, searchQ, smart, nearLat, nearLng, radiusKm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -735,7 +784,27 @@ export function HomeScreen() {
           </View>
         ) : null}
 
-          {loading ? (
+        {searchQ && searchQ.trim() ? (
+          <View style={{ paddingHorizontal: 20 }}>
+            <TypoNote
+              role={role}
+              typed={searchQ}
+              corrected={understood.corrected}
+              onExact={() => setSmart({ q: searchQ, drop: smartDrop, exact: true })}
+            />
+            <SearchUnderstood
+              role={role}
+              chips={understood.chips}
+              onDrop={(id) => setSmart({ q: searchQ, drop: [...smartDrop, id], exact: smartExact })}
+            />
+          </View>
+        ) : null}
+
+          {loading && searchQ && searchQ.trim() ? (
+            <View style={{ paddingHorizontal: 20 }}>
+              <SearchLoading role={role} cardHeight={96} />
+            </View>
+          ) : loading ? (
             <View style={{ paddingHorizontal: 20 }}>
               {[0, 1, 2].map((i) => (
                 <View
@@ -777,6 +846,29 @@ export function HomeScreen() {
         empty={
           loading ? null : failed ? (
             <LoadFailed onRetry={() => void refresh()} />
+          ) : nothingFound && filter === null && searchQ ? (
+            <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+              <SearchEmpty
+                role={role}
+                query={searchQ}
+                chipLabel={understood.chips[0]?.label}
+                km={smartNear ? smartNear.radiusKm : null}
+                fallbacks={fallbacks}
+                onWider={(km) =>
+                  go('home', {
+                    q: searchQ,
+                    pillar: searchPillar ?? undefined,
+                    minMinor: searchMin ?? undefined,
+                    maxMinor: searchMax ?? undefined,
+                    nearLat: nearLat ?? undefined,
+                    nearLng: nearLng ?? undefined,
+                    radiusKm: km,
+                  })
+                }
+                onRemote={worker && smartNear ? () => go('home', { q: searchQ }) : undefined}
+                onRelated={(rq) => go('home', { q: rq })}
+              />
+            </View>
           ) : (
             <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
                 <View

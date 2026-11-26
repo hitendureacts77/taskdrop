@@ -37,7 +37,7 @@ import { distanceKm, peopleReach, postedToday, withinReach } from '../lib/mapRea
 import { FAIR_RULES_HELPERS, auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
 import { usePromotedLive } from '../lib/usePromotedLive';
 import { FairRulesNote } from './PromotedPill';
-import { REMOTE_LIMIT, capped, matchesQuery } from '../lib/findWorkRead';
+import { REMOTE_LIMIT, capped, matchesSearch } from '../lib/findWorkRead';
 import { DEFAULT_FILTERS, KM_STEPS, changedFilters, clearJobFilters, filterJobs, jobsSummary, mapPillText, matchesJob, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { REFRESH_DEBOUNCE_MS, createRefreshCache, refreshKey, shouldRefresh } from '../lib/mapRefresh';
@@ -110,7 +110,11 @@ function once<T>(key: string, make: () => Promise<T>): Promise<T> {
 export type NearMapLayer = 'jobs' | 'people' | 'mine';
 
 /** The Explore list's search, applied to the jobs on the map too (Jobs layer only). The filters are shared (lib/jobFiltersStore). */
-export type NearMapListFilter = { query: string };
+export type NearMapListFilter = {
+  query: string;
+  /** The ids the list's smart search found (by meaning); the map keeps exactly these, not a words match. Null while unknown. */
+  ids?: ReadonlySet<string> | null;
+};
 
 /**
  * Is this screen the one being looked at? Phones: the tab or pushed screen is focused (expo-router, the
@@ -482,9 +486,10 @@ export function NearMap({
 
   // The Explore list's search narrows the jobs too.
   const filterQuery = (listFilter?.query ?? '').trim().toLowerCase();
+  const filterIds = listFilter?.ids ?? null;
   const matchesList = useMemo(
-    () => (j: MapJob) => matchesQuery(j, filterQuery),
-    [filterQuery],
+    () => (j: MapJob) => matchesSearch(j, filterQuery, filterIds),
+    [filterQuery, filterIds],
   );
   const pinnedPool = useMemo(() => (jobs ?? []).filter(matchesList), [jobs, matchesList]);
   const homePool = useMemo(() => (remoteJobs ?? []).filter(matchesList), [remoteJobs, matchesList]);
