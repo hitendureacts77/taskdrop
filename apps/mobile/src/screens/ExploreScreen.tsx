@@ -284,9 +284,10 @@ export function ExploreScreen() {
  * The header of the list pages. The map fills the whole area beside the menu,
  * so the screen host draws no page header here; the lists bring their own.
  */
-function ExploreHeader() {
+function ExploreHeader({ title = true }: { title?: boolean }) {
   const { desktop } = useLayout();
-  return desktop ? <DesktopPageHeader screen="explore" /> : <AppHeader />;
+  // `title={false}` when the page draws its own TabTitle, so desktop does not say "Explore" twice.
+  return desktop ? <DesktopPageHeader screen="explore" showDefaultTitle={title} /> : <AppHeader />;
 }
 
 /** Desktop Find work: draws its title, search bar and List / Map switch into the page header (D31 board). */
@@ -361,6 +362,7 @@ function ExploreIdeas({ onMap }: { onMap: () => void }) {
   const { go } = useNav();
   const { flash } = useActions();
   const { userId } = useAuth();
+  const { desktop } = useLayout();
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState('');
   const [tag, setTag] = useState<TemplateTag | null>(null);
@@ -395,7 +397,7 @@ function ExploreIdeas({ onMap }: { onMap: () => void }) {
 
   return (
     <Screen padded={false}>
-      <ExploreHeader />
+      <ExploreHeader title={false} />
       <TabTitle title="Explore" live="Ideas, helpers and tasks near you" action={<ViewSwitch onMap={onMap} />} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {/* The hero: who can help near you, and what tasks round here pay. */}
@@ -472,7 +474,7 @@ function ExploreIdeas({ onMap }: { onMap: () => void }) {
               <SectionTitle title="People often ask for" icon="users" action="Shuffle" onAction={() => setSeed((s) => s + 1)} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
                 {ideas.map((idea, i) => (
-                  <FadeIn key={idea.title + seed} duration={300} delay={i * 40} style={{ width: '47.5%' }}>
+                  <FadeIn key={idea.title + seed} duration={300} delay={i * 40} style={{ width: desktop ? '32.5%' : '47.5%' }}>
                     <Pressy
                       onPress={() => go('aiPost', { prompt: idea.prompt })}
                       scaleTo={0.98}
@@ -518,45 +520,72 @@ export function TemplateGrid({
   limit?: number;
 }) {
   const t = useTheme();
+  const { desktop } = useLayout();
+  const [open, setOpen] = useState(false);
+  // Desktop: three columns and only the first six until asked, so the page stays calm.
+  const fold = desktop && !limit;
+  const shown = limit ? items.slice(0, limit) : fold && !open ? items.slice(0, 6) : items;
+  const extra = fold ? items.length - 6 : 0;
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
-      {(limit ? items.slice(0, limit) : items).map((x, i) => (
-        <FadeIn key={x.key} duration={300} delay={Math.min(i, 8) * 35} style={{ width: '47.5%' }}>
-          <Pressy
-            onPress={() => onPick(x.prompt)}
-            scaleTo={0.98}
-            label={x.title}
-            style={{
-              ...cardSurface(t, 18),
-              padding: 12,
-              minHeight: 112,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={x.icon} size={16} color={t.colors.accentDeep} strokeWidth={1.9} />
-              </View>
-              {x.hot ? <Icon name="bolt" size={13} color={t.colors.signal} strokeWidth={2} /> : null}
-            </View>
-            <RNText style={tx('700', 13, t.colors.ink, { marginTop: 8 })} numberOfLines={2}>{x.title}</RNText>
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 3, lineHeight: 15 })} numberOfLines={2}>{x.sub}</RNText>
-            <RNText
-              style={tx('600', 10, t.colors.text, {
-                marginTop: 7,
-                alignSelf: 'flex-start',
-                backgroundColor: t.colors.surface2,
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-                borderRadius: 5,
-                overflow: 'hidden',
-              })}
+    <>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
+        {shown.map((x, i) => (
+          <FadeIn key={x.key} duration={300} delay={Math.min(i, 8) * 35} style={{ width: desktop ? '32.5%' : '47.5%' }}>
+            <Pressy
+              onPress={() => onPick(x.prompt)}
+              scaleTo={0.98}
+              label={x.title}
+              style={{
+                ...cardSurface(t, 18),
+                padding: 12,
+                minHeight: 112,
+              }}
             >
-              {x.tag}
-            </RNText>
-          </Pressy>
-        </FadeIn>
-      ))}
-    </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name={x.icon} size={16} color={t.colors.accentDeep} strokeWidth={1.9} />
+                </View>
+                {x.hot ? <Icon name="bolt" size={13} color={t.colors.signal} strokeWidth={2} /> : null}
+              </View>
+              <RNText style={tx('700', 13, t.colors.ink, { marginTop: 8 })} numberOfLines={2}>{x.title}</RNText>
+              <RNText style={tx('400', 11, t.colors.muted, { marginTop: 3, lineHeight: 15 })} numberOfLines={2}>{x.sub}</RNText>
+              <RNText
+                style={tx('600', 10, t.colors.text, {
+                  marginTop: 7,
+                  alignSelf: 'flex-start',
+                  backgroundColor: t.colors.surface2,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 5,
+                  overflow: 'hidden',
+                })}
+              >
+                {x.tag}
+              </RNText>
+            </Pressy>
+          </FadeIn>
+        ))}
+      </View>
+      {extra > 0 ? (
+        <Pressable
+          onPress={() => setOpen((v) => !v)}
+          accessibilityRole="button"
+          style={({ pressed }) => ({
+            marginTop: 10,
+            alignSelf: 'center',
+            paddingVertical: 8,
+            paddingHorizontal: 16,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: t.colors.line,
+            backgroundColor: t.colors.surface,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <RNText style={tx('700', 12.5, t.colors.accentDeep)}>{open ? 'Show less' : `Show ${extra} more`}</RNText>
+        </Pressable>
+      ) : null}
+    </>
   );
 }
 

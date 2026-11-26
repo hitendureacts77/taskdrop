@@ -80,6 +80,7 @@ export function RailCard({
   children,
   link,
   onLink,
+  limit,
 }: {
   title: string;
   icon?: IconName;
@@ -88,8 +89,13 @@ export function RailCard({
   children: React.ReactNode;
   link?: string;
   onLink?: () => void;
+  /** Show this many rows first; the rest open with "Show N more" (1.19 R: a calm rail). */
+  limit?: number;
 }) {
   const t = useTheme();
+  const [open, setOpen] = useState(false);
+  const rows = Children.toArray(children);
+  const extra = limit ? Math.max(0, rows.length - limit) : 0;
   return (
     <View style={[cardSurface(t, 16), { overflow: 'hidden' }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
@@ -99,7 +105,16 @@ export function RailCard({
           {title}
         </RNText>
       </View>
-      {children}
+      {extra > 0 && !open ? rows.slice(0, limit) : children}
+      {extra > 0 ? (
+        <Pressable
+          onPress={() => setOpen((v) => !v)}
+          accessibilityRole="button"
+          style={({ pressed }) => ({ paddingHorizontal: 16, paddingTop: 10, paddingBottom: link ? 0 : 12, opacity: pressed ? 0.7 : 1 })}
+        >
+          <RNText style={tx('700', 13, t.colors.muted)}>{open ? 'Show less' : `Show ${extra} more`}</RNText>
+        </Pressable>
+      ) : null}
       {link && onLink ? (
         <Pressable onPress={onLink} accessibilityRole="button" style={({ pressed }) => ({ paddingHorizontal: 16, paddingVertical: 12, opacity: pressed ? 0.7 : 1 })}>
           <RNText style={tx('700', 13, t.colors.accentDeep)}>{link} ›</RNText>
