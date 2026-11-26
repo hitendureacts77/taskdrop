@@ -27,7 +27,8 @@ export function IntroScreen() {
   const { session, continueAsGuest } = useAuth();
   const { mode: appMode, setMode } = useMode();
   const mode = introMode({ replay: Boolean(params.replay), signedIn: Boolean(session) });
-  const side = walkSideFor(params.side, appMode);
+  // A new install opens on Hire; a replay opens on the side the person is on.
+  const side = walkSideFor(params.side, mode === 'first' ? 'poster' : appMode);
 
   const makeAccount = useCallback(() => {
     void saveIntroSeen();
@@ -72,7 +73,7 @@ export function IntroScreen() {
 
   return (
     <Screen scroll>
-      <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', paddingTop: 12, paddingBottom: 24 }}>
+      <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', paddingTop: 12, paddingBottom: 160 }}>
         <Walkthrough
           side={side}
           onSkip={skip}

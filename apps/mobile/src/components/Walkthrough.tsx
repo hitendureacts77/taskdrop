@@ -79,8 +79,9 @@ function Dots({ at }: { at: number }) {
 /**
  * "How TaskDrop works": the first card (the video and "Show me the app"), five
  * real screens with one line each, and the last card. Skip is always at the
- * top. Swipe left and right, or use Next and Back. `extra` sits under the last
- * card's buttons (the first-run intro puts "Create my account" there).
+ * top. Swipe left and right, or use Next and Back. `extra` sits under every
+ * card (the first-run intro puts "Create my account" there, so a returning
+ * person can always reach sign-in).
  */
 export function Walkthrough({
   side: startSide,
@@ -153,16 +154,17 @@ function Inner({
   extra?: React.ReactNode;
 }) {
   const t = useTheme();
-  const { height } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const card = walkCard(side, i);
   const video = videoUrl();
   // The screen picture takes what height is left, so a card fits a phone without scrolling.
-  const shotH = Math.max(280, Math.min(560, height - 330));
+  // Wide screens show it inside the sign-in page's card, which has less height to spare.
+  const shotH = Math.max(260, Math.min(500, height - (width >= 768 ? 520 : 400)));
 
   let body: React.ReactNode;
   if (card.kind === 'intro') {
     body = (
-      <View style={{ borderRadius: 24, backgroundColor: t.colors.btn, padding: 22, gap: 14, minHeight: Math.min(shotH + 120, 600), justifyContent: 'space-between' }}>
+      <View style={{ borderRadius: 24, backgroundColor: t.colors.btn, padding: 22, gap: 18, minHeight: video ? Math.min(shotH + 120, 600) : undefined, justifyContent: 'space-between' }}>
         <View style={{ gap: 10 }}>
           <RNText style={tx('800', 26, t.colors.onBtn, { letterSpacing: -0.8 })}>taskdrop.</RNText>
           <RNText style={tx('600', 17, t.colors.onBtn, { lineHeight: 24 })}>{side === 'hire' ? WALK_COPY.introHire : WALK_COPY.introEarn}</RNText>
@@ -220,7 +222,6 @@ function Inner({
             <RNText style={tx('700', 14, t.colors.accentDeep)}>{WALK_COPY.videoAgain}</RNText>
           </Pressable>
         ) : null}
-        {extra}
       </View>
     );
   } else {
@@ -287,6 +288,7 @@ function Inner({
       </View>
       <SideSwitch side={side} onChange={pick} />
       <View {...swipe}>{body}</View>
+      {extra}
     </View>
   );
 }

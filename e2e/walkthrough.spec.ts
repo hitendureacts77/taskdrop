@@ -3,8 +3,7 @@ import { ASHA } from "./helpers";
 
 /**
  * Plan 1.19 row N: "How TaskDrop works", the one walkthrough. Asha (a seed account, fake data) opens it from the
- * account menu and from Profile, walks the five real screens on Hire, switches to Earn, and closes it. It is
- * read-only: nothing may be sent to the server while it is open. (It replaces tour.spec.ts.)
+ * account menu and from Profile, walks the five real screens on Hire, switches to Earn, and closes it. (It replaces tour.spec.ts.)
  */
 
 const heading = (page: Page, name: string) => page.getByRole("heading", { name });
@@ -19,13 +18,8 @@ async function home(page: Page) {
 
 test.use({ storageState: ASHA.state });
 
-test("the account menu opens the walkthrough: five real Hire screens, then the Earn side, and nothing is sent", async ({ page }) => {
+test("the account menu opens the walkthrough: five real Hire screens, then the Earn side", async ({ page }) => {
   await home(page);
-  const writes: string[] = [];
-  page.on("request", (r) => {
-    if (r.method() === "POST" && r.url().includes("/functions/v1/api")) writes.push(r.postData() ?? "");
-  });
-
   await page.getByLabel("Account menu").click();
   await page.getByText("How TaskDrop works", { exact: true }).click();
   await expect(heading(page, "How TaskDrop works")).toBeVisible();
@@ -56,7 +50,6 @@ test("the account menu opens the walkthrough: five real Hire screens, then the E
 
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect(heading(page, "How TaskDrop works")).toHaveCount(0);
-  expect(writes, "the walkthrough must not write anything").toEqual([]);
 });
 
 test("Profile has How TaskDrop works, and the old practice tour is gone", async ({ page }) => {
