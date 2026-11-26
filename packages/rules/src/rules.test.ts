@@ -213,3 +213,18 @@ test('planBSplit: follows the admin-set rates and rounds like Postgres', () => {
   assert.throws(() => planBSplit(0));
   assert.throws(() => planBSplit(Number.NaN));
 });
+
+test('promote budgets and the top-show estimate', async () => {
+  const { isPromoteBudget, estimateTopShows, isBusyArea } = await import('./index.ts');
+  assert.equal(isBusyArea(23, 110), true);
+  assert.equal(isBusyArea(4, 61), false, 'a few others at the usual price is not busy');
+  assert.equal(isBusyArea(15, null), true);
+  assert.equal(isPromoteBudget(8000), true);
+  assert.equal(isPromoteBudget(1900), false, 'under Rs 20');
+  assert.equal(isPromoteBudget(100100), false, 'over Rs 1,000');
+  assert.equal(isPromoteBudget(8050), false, 'whole rupees only');
+  assert.deepEqual(estimateTopShows(8000, null), { low: 90, high: 140 }, 'Rs 80 at the 60 paise guess');
+  assert.deepEqual(estimateTopShows(8000, 110), { low: 50, high: 80 }, 'a busy area costs more a show');
+  assert.deepEqual(estimateTopShows(8000, 5), estimateTopShows(8000, 20), 'never below the floor price');
+  assert.deepEqual(estimateTopShows(0, 60), { low: 0, high: 0 });
+});

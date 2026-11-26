@@ -35,14 +35,14 @@ export const ACCOUNT_WRITES: ReadonlySet<string> = new Set([
   'createUpload', 'deleteMyAccount', 'endMySessions', 'lockBid', 'markWorkDone', 'openDispute', 'openTicket',
   'payTaskFromWallet', 'placeBid', 'postFeedbackIdea', 'removeListing', 'removeMedia', 'removePayoutDestination',
   'replyTicket', 'reportContent', 'requestRevision', 'requestWithdrawal', 'resolveTicket', 'sendCrewMessage', 'sendFeedback',
-  'sendMessage', 'setDefaultPayoutDestination', 'setRepeat', 'raiseTopUp', 'setSaved', 'setWeeklyGoal', 'startPromotion', 'startTask',
+  'sendMessage', 'setDefaultPayoutDestination', 'setPromoAlerts', 'setRepeat', 'raiseTopUp', 'setSaved', 'setWeeklyGoal', 'startPromotion', 'startTask',
   'submitProof', 'submitReview', 'unblockUser', 'updateBid', 'updateListing', 'updateProfile', 'updateProfileExtras',
   'voteFeedbackIdea', 'huntLook', 'huntSendFind', 'huntAcceptFind', 'huntDeclineFind', 'huntAskPart', 'setMapSharing', 'setMapAudience', 'clearMapSpot',
 ]);
 
 /** Writes the app makes on its own (presence, ad counters, devices): signed out they simply do not happen. */
 export const QUIET_WRITES: ReadonlySet<string> = new Set([
-  'markNotificationsRead', 'recordAdClick', 'recordAdImpression', 'recordBirthDate', 'recordDevice', 'registerPushToken', 'forgetPushToken',
+  'markNotificationsRead', 'recordAdClick', 'recordAdImpression', 'recordPromoView', 'recordBirthDate', 'recordDevice', 'registerPushToken', 'forgetPushToken',
   'settleClearedEarnings', 'touchPresence',
 ]);
 

@@ -6,7 +6,7 @@ import { SPREAD_ZOOM, layoutPins, topAmount, type MapItem } from '../lib/mapLayo
 import { MAX_FRESH, areaAt, easeOut, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
 import { planLabels, youRect, type LabelItem, type LabelPlan, type Rect } from '../lib/mapLabels';
 import { useMapClock } from './useMapClock';
-import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN, TaskPin, type Face } from './MapMarkers';
+import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PricePin, PromotedPin, TASK_PIN, TaskPin, type Face } from './MapMarkers';
 
 /**
  * One thing on the map. Jobs carry their price as `label` and in rupees as
@@ -31,6 +31,8 @@ export type JobPin = {
   who?: string;
   title?: string;
   area?: string;
+  /** A live promotion (task 1.19 row C): a bigger, side-coloured pin drawn above the others. */
+  promoted?: boolean;
 };
 
 /** Jobs are money (the mode's colour); helpers are faces on blue. */
@@ -201,9 +203,9 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
     it.kind === 'one' && it.area ? { x: it.area.x + (it.x - it.area.x) * fan, y: it.area.y + (it.y - it.area.y) * fan } : { x: it.x + nudge(it), y: it.y };
 
   // Where the picked pin is drawn, when it stands alone (a group zooms in first), and how tall it is.
-  const pickedItem = callout && selectedId ? items.find((it) => it.kind === 'one' && it.id === selectedId) : undefined;
+  const pickedItem = callout && selectedId ? items.find((it): it is Extract<MapItem, { kind: 'one' }> => it.kind === 'one' && it.id === selectedId) : undefined;
   const pickedAt = pickedItem
-    ? { ...at(pickedItem), lift: (pickedItem.kind === 'one' && pickedItem.area ? TASK_PIN.anchor : PRICE_PIN.anchor) + 10 }
+    ? { ...at(pickedItem), lift: (byId.get(pickedItem.id)?.promoted ? PROMO_PIN.anchor : pickedItem.kind === 'one' && pickedItem.area ? TASK_PIN.anchor : PRICE_PIN.anchor) + 10 }
     : null;
 
   const areas = new Map<string, { x: number; y: number; r: number }>();
@@ -280,6 +282,20 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
         const on = selectedId === it.id;
         const pick = () => onSelect(on ? null : it.id);
         const spread = it.area !== null;
+        if (people && pin.promoted) {
+          return (
+            <Pressable
+              key={'p-' + it.id}
+              onPress={pick}
+              accessibilityRole="button"
+              accessibilityLabel={'Promoted. ' + helperSays(pin)}
+              accessibilityState={{ selected: on }}
+              style={[{ position: 'absolute', left: p.x - PROMO_PIN.w / 2, top: p.y - PROMO_PIN.anchor, zIndex: on ? 5 : 4 }, drop]}
+            >
+              <PromotedPin side="hire" price={pin.price ?? null} on={on} />
+            </Pressable>
+          );
+        }
         if (people) {
           return (
             <Pressable
@@ -292,6 +308,21 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
             >
               <FacePin face={pin.face ?? { initials: '?', live: false }} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} glow />
             </Pressable>
+          );
+        }
+        if (pin.promoted) {
+          return (
+            <View key={'j-' + it.id} pointerEvents="box-none" style={{ position: 'absolute', left: 0, top: 0, zIndex: on ? 5 : 4 }}>
+              <Pressable
+                onPress={pick}
+                accessibilityRole="button"
+                accessibilityLabel={`Promoted. ${pin.label}${pin.title ? ', ' + pin.title : ''}, ${pin.area ?? 'nearby'} area`}
+                accessibilityState={{ selected: on }}
+                style={[{ position: 'absolute', left: p.x - PROMO_PIN.w / 2, top: p.y - PROMO_PIN.anchor }, drop]}
+              >
+                <PromotedPin side="earn" price={pin.label} on={on} />
+              </Pressable>
+            </View>
           );
         }
         const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;

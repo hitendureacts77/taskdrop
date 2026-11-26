@@ -27,6 +27,7 @@ export type ScreenName =
   | 'wallet'
   | 'withdraw'
   | 'promote'
+  | 'promotions'
   | 'review'
   | 'profile'
   | 'analytics'

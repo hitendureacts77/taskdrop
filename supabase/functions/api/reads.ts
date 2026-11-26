@@ -3,7 +3,7 @@ import { FEES, TIMING, distanceKm } from "../_shared/rules.ts";
 /** Most rows one "my" list returns. Said here so a long list is cut on purpose, not by the database's own row cap (S1-21). */
 const MY_LIST_MAX = 500;
 import {
-  type Args, type Ctx, type DbResult, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, nowIso, num, oneOf, rows,
+  type Args, type Ctx, type DbResult, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, nowIso, num, coordOrNull, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
@@ -861,7 +861,26 @@ export const READ_OPS: Record<string, Op> = {
     ),
 
   listPromotions: async (ctx) =>
-    rows(await ctx.db.from("task_promotions").select(PROMOTION_SELECT).eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(20)),
+    rows(await ctx.db.from("task_promotions").select(`${PROMOTION_SELECT}, day_budget_minor, spent_minor, alerted_count, task:tasks(title, kind, status)`).eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(20)),
+
+  /** The Promote screen's facts for one of my posts (migration 203): budget limits, lengths, how busy the area is, campaign. */
+  promotionQuote: rpcOp("promotion_quote", (a) => ({ p_task_id: uuid(a, "taskId") })),
+  /**
+   * The auction for the top places (migration 203): live promotions of one kind near the caller, the top places
+   * marked. A new top place is charged its second price in the database, once; the same place again within a few
+   * minutes is free, so a retry never charges twice. Never reused (freshness NEVER_REUSE). taskIds: the posts in the
+   * list the caller is looking at (after filters); only those can win.
+   */
+  promotedLive: rpcOp("promoted_live", (a) => ({
+    p_kind: oneOf(a, "kind", ["request", "service"]),
+    p_lat: coordOrNull(a, "lat", 90),
+    p_lng: coordOrNull(a, "lng", 180),
+    p_radius_km: int(a, "radiusKm", 1, 100, 10),
+    p_surface: oneOf(a, "surface", ["list", "home", "map", "search"], "list"),
+    p_task_ids: a.taskIds == null ? null : uuids(a, "taskIds", 500),
+  })),
+  /** What the payer of one promotion sees: spend, top shows, price, saw it, opened, by place, offers, alerted (owner only). */
+  promotionResults: rpcOp("promotion_results", (a) => ({ p_promotion_id: uuid(a, "promotionId") })),
 
   /** The live ad auction's running order: { [taskId]: rank }. Rank 1 wins. */
   adAuctionRanks: async (ctx) => {

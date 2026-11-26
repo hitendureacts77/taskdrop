@@ -43,7 +43,7 @@ endpoint (`/api/wallet/listOpenTasks`, `/api/tasks/noSuchOp`) answers **404 UNKN
 | `/api/crew/…` | `crewOverview`, `listCrewMessages` | `sendCrewMessage` |
 | `/api/hunt/…` | `huntFinds`, `huntCounts` | `huntLook`, `huntSendFind`, `huntAcceptFind`, `huntDeclineFind`, `huntAskPart` |
 | `/api/wallet/…` | `getWallet`, `getEscrowHeld`, `listWalletActivity`, `feesSince`, `listPayouts`, `listPayoutDestinations` | `settleClearedEarnings`, `payTaskFromWallet`, `requestWithdrawal`, `cancelWithdrawal`, `addPayoutDestination`, `removePayoutDestination`, `setDefaultPayoutDestination` |
-| `/api/promotions/…` | `promotableTasks`, `promotionTiers`, `listPromotions`, `adAuctionRanks` | `startPromotion`, `activatePromotion`, `cancelPromotion`, `recordAdImpression`, `recordAdClick` |
+| `/api/promotions/…` | `promotableTasks`, `promotionTiers`, `listPromotions`, `adAuctionRanks`, `promotionQuote`, `promotedLive`, `promotionResults` | `startPromotion`, `activatePromotion`, `cancelPromotion`, `recordAdImpression`, `recordAdClick`, `recordPromoView`, `setPromoAlerts` |
 | `/api/platform/…` | `platformFees`, `platformStats`, `platformHighlights`, `trendingCategories` | – |
 | `/api/messages/…` | `listThreads`, `listMessages` | `sendMessage` |
 | `/api/notifications/…` | `listNotifications`, `getNotification`, `countUnreadNotifications`, `countUnreadFor`, `notificationSides` | `markNotificationsRead`, `registerPushToken`, `forgetPushToken` |

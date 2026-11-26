@@ -141,6 +141,12 @@ export function NotificationsScreen() {
     if (n.kind === 'feedback') return go('ideas');
     if (!n.task_id || !userId) return;
     if (n.kind === 'message') return go('chat', { taskId: n.task_id });
+    // The poster's promotion alerts open its results; the mode follows what was promoted (a service is Earn blue).
+    if (n.kind === 'promotion_live' || n.kind === 'promotion_paused' || n.kind === 'promotion_ended') {
+      const promoted = await getTask(n.task_id).catch(() => null);
+      if (promoted) setMode(promoted.kind === 'service' ? 'worker' : 'poster');
+      return go('promote', { taskId: n.task_id, results: true });
+    }
     setOpening(n.id);
     try {
       const task = await getTask(n.task_id).catch(() => null);

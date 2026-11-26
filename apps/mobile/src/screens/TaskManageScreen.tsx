@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { HoldLine } from '../components/HoldLine';
+import { TaskPromotionResults } from '../components/PromotionResultsCard';
 import { View, Text as RNText, ScrollView, Pressable, Platform, RefreshControl } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
@@ -328,6 +329,7 @@ export function TaskManageScreen() {
   const overview = (
     <>
       <HoldLine taskId={task.id} />
+      <TaskPromotionResults taskId={task.id} />
       <View style={card}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Icon name="list" size={16} color={t.colors.accentDeep} />

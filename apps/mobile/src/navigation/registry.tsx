@@ -28,6 +28,7 @@ import { OrdersScreen } from '../screens/OrdersScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { PromoteScreen } from '../screens/PromoteScreen';
+import { PromotionsScreen } from '../screens/PromotionsScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 // Second wave: AI posting, explore, my tasks and the account surfaces
 import { AiPostScreen } from '../screens/AiPostScreen';
@@ -87,6 +88,7 @@ export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   analytics: AnalyticsScreen,
   spending: SpendingScreen,
   promote: PromoteScreen,
+  promotions: PromotionsScreen,
   search: SearchScreen,
   aiPost: AiPostScreen,
   explore: ExploreScreen,

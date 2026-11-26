@@ -11,6 +11,9 @@ import { reportError } from '../lib/errors';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
+import { FairRulesNote } from '../components/PromotedPill';
+import { FAIR_RULES_TASKS, auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
+import { usePromotedLive } from '../lib/usePromotedLive';
 import { HowItWorks } from '../components/HowItWorks';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { useTheme, ring } from '../providers/ThemeProvider';
@@ -22,6 +25,8 @@ import {
   attachPosters,
   searchTasksWithPosters,
   listMyTasks,
+  recordAdClick,
+  recordPromoView,
   type Task,
   type TaskWithPoster,
 } from '../data/api';
@@ -793,6 +798,34 @@ function FindWork({
     () => (rows ? filterList(rows, atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters) : null),
     [rows, atLat, atLng, filters],
   );
+  // Promoted tasks (task 1.19 row C): the server runs the auction for the posts in this filtered list and says
+  // which 2 won the top places; the app lifts exactly those and badges every live promoted post.
+  const promoIds = useMemo(() => auctionIds((shown ?? []).map((r) => r.id)), [shown]);
+  const promoLive = usePromotedLive(
+    'request',
+    atLat != null && atLng != null ? { lat: atLat, lng: atLng, radiusKm: filters.km } : null,
+    { surface: 'list', taskIds: promoIds, enabled: shown !== null },
+  );
+  const promo = useMemo(
+    () => (shown ? pickPromotedItems({ items: shown, live: promoLive, keyOf: (r) => r.id }) : null),
+    [shown, promoLive],
+  );
+  const ordered = useMemo(() => (shown && promo ? liftPromoted(shown, promo.top) : shown), [shown, promo]);
+  const topIds = useMemo(() => new Set((promo?.top ?? []).map((r) => r.id)), [promo]);
+  const promoState = (id: string): 'top' | 'badge' | undefined =>
+    topIds.has(id) ? 'top' : promo?.badged.has(id) ? 'badge' : undefined;
+  // Showings below the top: one view per promoted task per screen open (the auction already counts the top ones).
+  const viewed = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!promo) return;
+    for (const id of promo.badged) {
+      if (topIds.has(id) || viewed.current.has(id)) continue;
+      viewed.current.add(id);
+      void recordPromoView(id, 'list', false).catch(() => {});
+    }
+  }, [promo, topIds]);
+  const fairRules = promo && promo.badged.size > 0 ? <FairRulesNote side="earn" text={FAIR_RULES_TASKS} /> : null;
+
   // How many a draft of the filters would show, for the sheet's button and the one-tap ways out.
   const countFor = (f: MapFilters) => (rows ? filterList(rows, at, f).length : 0);
   const narrowed = narrowsJobs(filters);
@@ -815,6 +848,8 @@ function FindWork({
   };
 
   const open = (task: TaskWithPoster) => {
+    // Opening a promoted post counts as "opened it" for whoever promoted it.
+    if (promo?.badged.has(task.id)) void recordAdClick(task.id).catch(() => {});
     setOpenTask({ title: task.title, price: '₹' + Math.round(task.benchmark_minor / 100) });
     go('taskDetail', { row: taskToFeedRow(task) });
   };
@@ -834,6 +869,7 @@ function FindWork({
       onOpen={() => open(task)}
       onApply={() => setBidTask(task)}
       onToggleSave={() => void toggleSave(task.id)}
+      promoted={promoState(task.id)}
     />
   );
   // On a desktop the page header already says "Find work" (and the title row is not drawn there).
@@ -970,7 +1006,7 @@ function FindWork({
               </>
             ) : (
               <View style={{ borderRadius: t.radius.lg, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface, overflow: 'hidden' }}>
-                {shown.map((task, i) => (
+                {(ordered ?? shown).map((task, i) => (
                   <WorkCard
                     key={task.id}
                     row
@@ -981,6 +1017,7 @@ function FindWork({
                     onOpen={() => open(task)}
                     onApply={() => setBidTask(task)}
                     onToggleSave={() => void toggleSave(task.id)}
+                    promoted={promoState(task.id)}
                   />
                 ))}
                 <View style={{ borderTopWidth: 1, borderTopColor: t.colors.line, paddingVertical: 14, paddingHorizontal: 20 }}>
@@ -991,6 +1028,7 @@ function FindWork({
                 </View>
               </View>
             )}
+            {tab === 0 && shown !== null && !noResults ? fairRules : null}
           </ListPage>
           {sheets}
         </DesktopPageScope>
@@ -1002,7 +1040,8 @@ function FindWork({
     <ScreenList
       above={<ExploreHeader />}
       tint={t.colors.purple}
-      data={tab === 0 && shown ? shown : []}
+      data={tab === 0 && ordered ? ordered : []}
+      footer={tab === 0 && fairRules ? <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>{fairRules}</View> : null}
       keyExtractor={(task) => task.id}
       renderItem={({ item: task, index: i }) => card(task, i)}
       onRefresh={() => void refresh()}

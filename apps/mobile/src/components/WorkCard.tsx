@@ -14,6 +14,7 @@ import { HuntTag } from './HuntTag';
 import { huntLook } from '../data/api';
 import { huntPhase, isHunt } from '../lib/hunt';
 import { useLayout } from '../lib/layout';
+import { PromotedPill, promotedBorder } from './PromotedPill';
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
@@ -55,6 +56,7 @@ export const WorkCard = memo(function WorkCard({
   km,
   quoted,
   row = false,
+  promoted,
 }: {
   task: TaskWithPoster;
   index?: number;
@@ -68,6 +70,8 @@ export const WorkCard = memo(function WorkCard({
   quoted?: boolean;
   /** Desktop Find work (D31): one row of a list card (no card of its own, a one-line description, price and actions on the right). */
   row?: boolean;
+  /** A promoted task: 'top' is one of the (at most 2) top spots (blue border), 'badge' keeps its normal place with the pill. */
+  promoted?: 'top' | 'badge';
 }) {
   const t = useTheme();
   const { desktop } = useLayout();
@@ -103,6 +107,8 @@ export const WorkCard = memo(function WorkCard({
   else if (option) tag = <Badge label={option.label} tone={option.tone} />;
   else if (task.difficulty) tag = <Badge label={task.difficulty} tone="blue" />;
   else if (task.assignment_mode === 'auto') tag = <Badge label="Auto-hire" tone="accent" />;
+  // A promoted task shows the PROMOTED pill in the one tag spot (Earn blue; the Hire side never sees this card).
+  if (promoted) tag = <PromotedPill side="earn" />;
 
   const place =
     km !== undefined && Number.isFinite(km)
@@ -138,6 +144,7 @@ export const WorkCard = memo(function WorkCard({
           paddingHorizontal: 20,
           borderTopWidth: index > 0 ? 1 : 0,
           borderTopColor: t.colors.line,
+          ...(promoted === 'top' ? { backgroundColor: t.colors.purpleSoft } : null),
         }}
       >
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
@@ -202,6 +209,7 @@ export const WorkCard = memo(function WorkCard({
             borderColor: live ? t.colors.signal : t.colors.line,
             padding: 16,
           },
+          promotedBorder(t, 'earn', promoted === 'top'),
         ]}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 24 }}>
