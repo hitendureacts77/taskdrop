@@ -12,7 +12,6 @@ import { GuestSignInPill } from './GuestBits';
 import { Drop } from './Ripples';
 import { SideNavAppCard } from './AppQr';
 import { tx } from './primitives';
-import { useTourTarget } from './tour/targets';
 
 /**
  * The wide-screen navigation: what the bottom tab bar and the floating drop
@@ -27,8 +26,6 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
   const { mode } = useMode();
   const { userId, guest } = useAuth();
   const worker = mode === 'worker';
-  // Wide screens have no drop button; the tour lights this one instead.
-  const tourRef = useTourTarget('fab');
 
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
@@ -123,7 +120,6 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
 
   const post = (
     <Pressable
-      ref={tourRef}
       collapsable={false}
       onPress={() => go(worker ? 'listing' : 'aiPost')}
       accessibilityRole="button"

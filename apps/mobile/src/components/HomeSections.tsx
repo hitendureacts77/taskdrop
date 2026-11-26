@@ -48,13 +48,13 @@ import { HelpersNearHero } from './HelpersNearHero';
 import { JobsNearHero } from './JobsNearHero';
 import { MapShortcuts } from './MapShortcuts';
 import { SafeSheet, TrustLine } from './SafeOnTaskDrop';
+import { HomeImproveCard } from './HomeImproveCard';
 import { HeroCard } from './Hero';
 import { Drop, Ripples } from './Ripples';
 import { cardSurface } from './ui';
 import { useLayout } from '../lib/layout';
 import { useReducedMotion } from '../lib/motion';
 import type { IconName } from './Icon';
-import { HowSheet } from './HowSheet';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { resolveCurrentPlace } from '../lib/location';
 import { pickedPlaceName, roughPlace } from '../lib/place';
@@ -144,7 +144,6 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
   // "N new" offers per open task, against what this device saw on My tasks (lib/seenOffers; read only here).
   const [fresh, setFresh] = useState<Map<string, number>>(new Map());
   const [trending, setTrending] = useState<TrendingCategory[]>([]);
-  const [howOpen, setHowOpen] = useState(false);
   const [liveOpen, setLiveOpen] = useState(false);
   const [safeOpen, setSafeOpen] = useState(false);
   // Starts from the area already known this session (P1-13): the same one Earn Home and Explore show.
@@ -272,7 +271,7 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
             <RNText style={tx('800', wideHero ? 34 : 24, onHero.text, { letterSpacing: -0.7, flex: 1, lineHeight: wideHero ? 40 : 30 })}>
               What do you need done?
             </RNText>
-            <HowButton onPress={() => setHowOpen(true)} />
+            <HowButton onPress={() => go('intro', { replay: true, side: 'hire' })} />
           </View>
           <RNText style={tx('500', wideHero ? 14.5 : 13, onHero.text, { marginTop: 6 })}>
             Ask for anything. Someone gets it done for you.
@@ -359,7 +358,6 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
 
   const sheets = (
     <>
-      <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="hire" />
       <SafeSheet visible={safeOpen} onClose={() => setSafeOpen(false)} worker={false} />
       <LiveSheet
         visible={liveOpen}
@@ -399,6 +397,7 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
                 <PublishedTable rows={rows} total={active?.length ?? 0} onOpen={(task) => openPostedTask(task, go)} onManage={() => go('myTasks')} />
               ) : null}
               {only}
+              <HomeImproveCard />
               {ideas}
               {footer}
             </>
@@ -446,6 +445,9 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
 
         {/* D22 H1: what only TaskDrop does, as big icons. */}
         {only}
+
+        {/* Owner, 26 Nov: a small "Help improve TaskDrop" card; the full board is on Profile. */}
+        <HomeImproveCard />
 
         {/* Decision 1: one Ideas block with chips (poster ideas, Quick templates, Everyday). */}
         {ideas}
@@ -660,7 +662,6 @@ function EarnTop() {
   const [saved, setSavedIds] = useState<Set<string>>(new Set());
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
-  const [howOpen, setHowOpen] = useState(false);
   const [safeOpen, setSafeOpen] = useState(false);
   // The chip they tapped; until then the list opens on the one their skills call for (lib/homeJobs).
   const [pickedChip, setPickedChip] = useState<JobsChip | null>(null);
@@ -898,7 +899,7 @@ function EarnTop() {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <RNText style={tx('700', 12, onHero.text, { flex: 1 })}>Find your next job</RNText>
         {/* D22 H2: "How TaskDrop works" is the ? in the card's corner, as on the Hire side. */}
-        <HowButton onPress={() => setHowOpen(true)} size={28} />
+        <HowButton onPress={() => go('intro', { replay: true, side: 'earn' })} size={28} />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 }}>
         <View style={{ flex: 1 }}>
@@ -1076,6 +1077,8 @@ function EarnTop() {
 
       {jobsForYou}
 
+      <HomeImproveCard />
+
       <WaysToEarn onSearch={(q) => go('explore', { q })} onAddSkill={() => go('profileEdit')} />
 
       <Pressable
@@ -1092,7 +1095,6 @@ function EarnTop() {
 
   const sheets = (
     <>
-      <HowSheet visible={howOpen} onClose={() => setHowOpen(false)} side="earn" />
       <SafeSheet visible={safeOpen} onClose={() => setSafeOpen(false)} worker />
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void load()} />
       <LocationSheet
@@ -1121,7 +1123,7 @@ function EarnTop() {
             <>
               {levelCard}
               <OnTheGoCard />
-              <EarnHowCard onSteps={() => setHowOpen(true)} />
+              <EarnHowCard />
             </>
           }
         />

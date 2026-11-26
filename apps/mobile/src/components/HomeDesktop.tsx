@@ -516,10 +516,9 @@ export function OnTheGoCard() {
 }
 
 /**
- * "How TaskDrop works for earning" (WebEarn rail): opens the existing How sheet (Earn side) and the walkthrough.
- * The steps themselves live in components/HowItWorks, shown by the sheet.
+ * "How TaskDrop works for earning" (WebEarn rail): opens the walkthrough on the Earn side (plan 1.19 row N).
  */
-export function EarnHowCard({ onSteps }: { onSteps: () => void }) {
+export function EarnHowCard() {
   const t = useTheme();
   const { go } = useNav();
   return (
@@ -535,11 +534,8 @@ export function EarnHowCard({ onSteps }: { onSteps: () => void }) {
       <RNText style={tx('500', 12.5, t.colors.muted, { lineHeight: 18 })}>
         Step by step, from finding a job to getting paid.
       </RNText>
-      <Pressable onPress={onSteps} accessibilityRole="button" hitSlop={6}>
+      <Pressable onPress={() => go('intro', { replay: true, side: 'earn' })} accessibilityRole="button" hitSlop={6}>
         <RNText style={tx('700', 13, t.colors.accentDeep)}>See the steps ›</RNText>
-      </Pressable>
-      <Pressable onPress={() => go('intro', { replay: true })} accessibilityRole="button" hitSlop={6}>
-        <RNText style={tx('700', 13, t.colors.accentDeep)}>Play the walkthrough ›</RNText>
       </Pressable>
     </View>
   );

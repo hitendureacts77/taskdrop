@@ -24,9 +24,7 @@ import { GuestSignInPill } from './GuestBits';
 import { tx } from './primitives';
 import { levelFor } from '../lib/levels';
 import { useLayout } from '../lib/layout';
-import { TOUR_COPY } from '../lib/tour';
-import { startTour } from './tour/tourStore';
-import { useTourTarget } from './tour/targets';
+import { WALK_COPY } from '../lib/walkthrough';
 
 /**
  * The bar across the top of every tab: brand, the Post / Earn switch, and the
@@ -86,7 +84,7 @@ export function AppHeader() {
 /**
  * Notifications (with the unread count), messages and the account menu -- or,
  * for a guest, the sign-in pill. Drawn by AppHeader on phones and tablets and by
- * the desktop page header. The tour lights the three up together ('headerTools').
+ * the desktop page header.
  */
 export function HeaderTools({ tight = false }: { tight?: boolean }) {
   const t = useTheme();
@@ -95,7 +93,6 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
   const modeRef = useRef(mode);
   modeRef.current = mode;
   const { userId, guest } = useAuth();
-  const toolsRef = useTourTarget('headerTools');
   // Phones and tablets: the face opens the Profile tab (every account row is on Profile or Wallet). The desktop keeps the drawer.
   const { desktop: onDesktop } = useLayout();
   const same = last.userId === userId;
@@ -160,8 +157,7 @@ export function HeaderTools({ tight = false }: { tight?: boolean }) {
 
   return (
     <>
-      {/* One wrapper so the tour can light up the bell, messages and account menu together. */}
-      <View ref={toolsRef} collapsable={false} style={{ flexDirection: 'row', alignItems: 'center', gap: tight ? 6 : 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: tight ? 6 : 8 }}>
       {guest ? <GuestSignInPill /> : (<>
       <IconButton icon="bell" label="Notifications" onPress={() => go('notifications')} badge={unread} size={btn} />
       <IconButton icon="chat" label="Messages" onPress={() => go('inbox')} badge={messages} size={btn} />
@@ -371,7 +367,7 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
               <View style={{ height: 1, backgroundColor: t.colors.line, marginVertical: 10 }} />
 
               {row('help', 'Help & support', 'Stuck on a payment, task or your account', () => open(() => go('help')))}
-              {row('sparkle', TOUR_COPY.menuLabel, TOUR_COPY.menuSub, () => open(() => startTour(mode === 'worker' ? 'earn' : 'hire')))}
+              {row('sparkle', WALK_COPY.menuLabel, WALK_COPY.menuSub, () => open(() => go('intro', { replay: true, side: mode === 'worker' ? 'earn' : 'hire' })))}
               {row('trending', 'Ideas & feedback', 'Suggest what we build next, and vote', () => open(() => go('ideas')))}
               {row('chat', 'Send feedback', 'Report a bug or suggest an improvement', () => {
                 onClose();
