@@ -737,7 +737,8 @@ export function SectionTitle({
   );
 }
 
-export type Tone = 'accent' | 'gold' | 'signal' | 'blue' | 'purple' | 'neutral';
+/** `you` = waiting on you: the mode colour with a ring (gold now means verified only). */
+export type Tone = 'accent' | 'you' | 'gold' | 'signal' | 'blue' | 'purple' | 'neutral';
 
 export function toneColors(t: ReturnType<typeof useTheme>, tone: Tone) {
   switch (tone) {
@@ -745,6 +746,8 @@ export function toneColors(t: ReturnType<typeof useTheme>, tone: Tone) {
       return { fg: t.colors.goldInk, bg: t.colors.goldSoft };
     case 'signal':
       return { fg: t.colors.signalDeep, bg: t.colors.signalSoft };
+    case 'you':
+      return { fg: t.colors.accentDeep, bg: t.colors.accentSoft };
     case 'blue':
       return { fg: t.isDark ? t.colors.blue : '#2A6CB8', bg: t.colors.purpleSoft };
     case 'purple':
@@ -803,8 +806,8 @@ export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }
         alignItems: 'center',
         gap: 5,
         backgroundColor: c.bg,
-        borderWidth: 1,
-        borderColor: `${c.fg}33`,
+        borderWidth: tone === 'you' ? 1.5 : 1,
+        borderColor: tone === 'you' ? c.fg : `${c.fg}33`,
         borderRadius: 999,
         minHeight: 22,
         paddingLeft: 7,
@@ -813,7 +816,7 @@ export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }
         alignSelf: 'flex-start',
       }}
     >
-      <HaloDot color={c.fg} pulse={tone === 'gold' || tone === 'signal'} />
+      <HaloDot color={c.fg} pulse={tone === 'you' || tone === 'signal'} />
       <RNText style={tx('800', 10, c.fg, { letterSpacing: 0.5 })}>{label.toUpperCase()}</RNText>
     </View>
   );
