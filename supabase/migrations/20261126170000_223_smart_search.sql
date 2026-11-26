@@ -9,7 +9,8 @@
 --     poster can write their own post's fingerprint to game the ranking (only the service role writes it).
 -- search_posts() answers ids and scores only; the api then reads the rows the usual way (row level security for
 -- members, guest_open_posts(p_ids) for guests), so what anyone may see is decided exactly where it was before.
--- Nothing existing is changed or deleted.
+-- Nothing existing is changed or deleted. A passed date does not hide a post (migration 216: it switches to No fixed
+-- date and stays open), so search, like the list reads, does not filter on due_at.
 
 create extension if not exists vector with schema extensions;
 create extension if not exists pg_trgm with schema extensions;
@@ -152,7 +153,6 @@ begin
       from tasks t
      where t.status = 'OPEN'
        and t.kind::text = p_kind
-       and (t.due_at is null or t.due_at > now())
        and (t.hunt_until is null or t.hunt_until > now())
        and (p_viewer is null or t.poster_id <> p_viewer)
        -- The same two rules the tasks row rules apply (this runs as its owner, so it must say them itself):
@@ -231,7 +231,6 @@ as $$
     from tasks t
     left join task_embeddings e on e.task_id = t.id
    where t.status = 'OPEN'
-     and (t.due_at is null or t.due_at > now())
      and (e.task_id is null or e.source_hash <> task_search_hash(t.title, t.category, t.description))
    order by t.created_at desc
    limit least(greatest(coalesce(p_limit, 10), 1), 50)
