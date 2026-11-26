@@ -275,8 +275,10 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
   );
   const beforeId = below ?? undefined;
 
+  // Clip to the map's box: MapLibre's pins are real native views and would otherwise draw over the header above
+  // the map (phone check, 26 Nov). The Google map clipped them itself.
   const frame = fill
-    ? { flex: 1, backgroundColor: t.colors.surface2 }
+    ? { flex: 1, overflow: 'hidden' as const, backgroundColor: t.colors.surface2 }
     : { height, borderRadius: 18, overflow: 'hidden' as const, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line };
 
   // The last zoom the tilt rule looked at: it acts when a zoom ends, not on every pan.
