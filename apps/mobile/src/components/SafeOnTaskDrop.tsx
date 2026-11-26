@@ -1,8 +1,9 @@
-import { Text as RNText, View } from 'react-native';
+import { Pressable, Text as RNText, View } from 'react-native';
 import { TIMING } from '@taskdrop/rules';
 import { useTheme } from '../providers/ThemeProvider';
+import { onHero } from '../theme';
 import { Icon, type IconName } from './Icon';
-import { cardSurface } from './ui';
+import { BottomSheet } from './kit';
 import { tx } from './primitives';
 
 type Line = { icon: IconName; title: string; body: string };
@@ -10,10 +11,13 @@ type Line = { icon: IconName; title: string; body: string };
 const DAYS = TIMING.REVIEW_WINDOW_DAYS;
 
 /**
- * Why a job is safer done on TaskDrop than off it, on Home for both sides. Posters already hear "your money
- * is held until you approve"; helpers get the same promise from their side (their pay is held before they
- * start and released when the work is approved), and both are told what they lose by swapping numbers and
- * going offline: no held money, no milestones, no one to help. Plain promises only, no legal claims.
+ * Why a job is safer done on TaskDrop than off it, for both sides. Posters already hear "your money is held until you
+ * approve"; helpers get the same promise from their side (their pay is held before they start and released when the
+ * work is approved), and both are told what they lose by swapping numbers and going offline: no held money, no
+ * milestones, no one to help. Plain promises only, no legal claims.
+ *
+ * Task 1.19 F (decision 3): this used to be a full section on both Homes. It is now one line in the Home hero
+ * (TrustLine) that opens these same words, unchanged, in a sheet (SafeSheet).
  */
 export function SafeOnTaskDrop({ worker }: { worker: boolean }) {
   const t = useTheme();
@@ -57,34 +61,9 @@ export function SafeOnTaskDrop({ worker }: { worker: boolean }) {
     : 'Paying someone outside TaskDrop means no held money, no milestones and no one to help if the work is not done. Keep the chat and the payment here.';
 
   return (
-    <View testID="home-safe-on-taskdrop" style={[cardSurface(t, 20), { marginTop: 32, padding: 18 }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 999,
-            backgroundColor: t.colors.accentSoft,
-            borderWidth: 1,
-            borderColor: t.colors.accentBorder,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon name="shield" size={18} color={t.colors.accentDeep} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <RNText accessibilityRole="header" style={tx('800', 17, t.colors.ink, { letterSpacing: -0.3 })}>
-            {worker ? 'Your pay is protected' : 'Your money is protected'}
-          </RNText>
-          <RNText style={tx('500', 12.5, t.colors.muted, { marginTop: 2 })}>
-            {worker ? 'Why working through TaskDrop is safer' : 'Why hiring through TaskDrop is safer'}
-          </RNText>
-        </View>
-      </View>
-
-      {lines.map((x) => (
-        <View key={x.title} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: 16 }}>
+    <View testID="home-safe-on-taskdrop">
+      {lines.map((x, i) => (
+        <View key={x.title} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginTop: i === 0 ? 4 : 16 }}>
           <Icon name={x.icon} size={18} color={t.colors.accentDeep} />
           <View style={{ flex: 1 }}>
             <RNText style={tx('700', 14, t.colors.ink)}>{x.title}</RNText>
@@ -99,6 +78,7 @@ export function SafeOnTaskDrop({ worker }: { worker: boolean }) {
           alignItems: 'flex-start',
           gap: 10,
           marginTop: 18,
+          marginBottom: 8,
           padding: 12,
           borderRadius: 14,
           backgroundColor: t.colors.signalSoft,
@@ -111,5 +91,48 @@ export function SafeOnTaskDrop({ worker }: { worker: boolean }) {
         </RNText>
       </View>
     </View>
+  );
+}
+
+/** The same words in a sheet, opened from the hero's trust line. */
+export function SafeSheet({ visible, onClose, worker }: { visible: boolean; onClose: () => void; worker: boolean }) {
+  return (
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={worker ? 'Your pay is protected' : 'Your money is protected'}
+      subtitle={worker ? 'Why working through TaskDrop is safer' : 'Why hiring through TaskDrop is safer'}
+    >
+      <SafeOnTaskDrop worker={worker} />
+    </BottomSheet>
+  );
+}
+
+/** One line at the foot of the Home hero (on the hero's deep shade, so white words): the promise, and a link to the sheet. */
+export function TrustLine({ worker, onPress }: { worker: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      testID="home-trust-line"
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={worker ? 'Your pay is protected. Why working here is safer' : 'Your money is held until you approve. Why hiring here is safer'}
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
+        marginTop: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 9,
+        borderRadius: 12,
+        backgroundColor: hovered ? onHero.chipHover : onHero.chip,
+        opacity: pressed ? 0.85 : 1,
+      })}
+    >
+      <Icon name="shield" size={16} color={onHero.text} />
+      <RNText style={tx('600', 12.5, onHero.text, { flex: 1, lineHeight: 17 })} numberOfLines={2}>
+        {worker ? 'Your pay is protected: held before you start' : 'Your money is held until you approve'}
+      </RNText>
+      <RNText style={tx('800', 12.5, onHero.text)}>{worker ? 'How ›' : 'Why it’s safer ›'}</RNText>
+    </Pressable>
   );
 }

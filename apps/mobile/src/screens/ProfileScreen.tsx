@@ -25,6 +25,8 @@ import { TOUR_COPY } from '../lib/tour';
 import { needAccount } from '../lib/guest';
 import { useLayout } from '../lib/layout';
 import { TwoPane } from '../components/TwoPane';
+import { HomeFeedbackCard } from '../components/HomeFeedbackCard';
+import { onHero } from '../theme';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -272,7 +274,7 @@ export function ProfileScreen() {
             {/* You have the app open, so you're active -- shown the way others see it. */}
             {/* A guest has no presence to show (no heartbeat runs without an account, B175). */}
             {guest ? null : (
-              <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#4ADE9A', borderWidth: 2.5, borderColor: band }} />
+              <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: onHero.online, borderWidth: 2.5, borderColor: band }} />
             )}
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.5 })} numberOfLines={1}>
@@ -282,7 +284,7 @@ export function ProfileScreen() {
                 {ratingLine}
                 {doneLine ? ' · ' + doneLine : ''}
               </RNText>
-              {guest ? null : <RNText style={tx('600', 12, '#86EFAC', { marginTop: 4 })}>● Active now</RNText>}
+              {guest ? null : <RNText style={tx('600', 12, onHero.online, { marginTop: 4 })}>● Active now</RNText>}
             </View>
           </View>
           {chips.length > 0 ? (
@@ -430,7 +432,9 @@ export function ProfileScreen() {
             </View>
           ) : null;
 
+  // Task 1.19 F (decision 4): the "Suggest a feature" vote card sits under the menu, by its Ideas & feedback row.
   const menuCard = (
+        <>
           <View style={{ ...cardSurface(t, 18), marginTop: split || desk ? 0 : 28, paddingHorizontal: 14 }}>
             {rows.map((r, i) => (
               <Pressable
@@ -463,6 +467,8 @@ export function ProfileScreen() {
               </Pressable>
             ))}
           </View>
+          <HomeFeedbackCard />
+        </>
   );
 
   // Theme, reviews and the line of links: below the menu, in both layouts. On a desktop the theme and the reviews are

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
-import { useFocusTick, useNav } from '../providers/NavProvider';
+import { useFocusTick, useNav, type ScreenName } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { listIdeas, voteIdea } from '../data/extras';
 import { withVote, withVoteResult, type Idea } from '../lib/ideas';
@@ -14,11 +14,12 @@ import { HitArea, tx } from './primitives';
 import { cardSurface } from './ui';
 
 /**
- * "Suggest a feature" on both Homes (owner, 23 Nov): the top three ideas on the public board with the same vote
- * box the board uses, a "See all" link to the board, and a button that opens the board's new-idea sheet. A guest's
- * vote is turned into the account pop-up by the server call itself (guest.ts), exactly as on the board.
+ * "Suggest a feature" (owner, 23 Nov): the top three ideas on the public board with the same vote box the board
+ * uses, a "See all" link to the board, and a button that opens the board's new-idea sheet. A guest's vote is turned
+ * into the account pop-up by the server call itself (guest.ts), exactly as on the board. Task 1.19 F (decision 4):
+ * it left both Homes and sits on Profile, under the Ideas & feedback row; `on` is the screen that shows it.
  */
-export function HomeFeedbackCard() {
+export function HomeFeedbackCard({ on = 'profile' }: { on?: ScreenName }) {
   const t = useTheme();
   const { go, screen } = useNav();
   const { flash } = useActions();
@@ -39,10 +40,10 @@ export function HomeFeedbackCard() {
     }
   }, []);
 
-  // Reads when Home is showing and again each time it regains focus, the same pattern as the other Home reads.
+  // Reads when its screen is showing and again each time it regains focus, the same pattern as Home's reads.
   useEffect(() => {
-    if (screen === 'home') void load();
-  }, [screen, tick, load]);
+    if (screen === on) void load();
+  }, [screen, on, tick, load]);
 
   const swap = (id: string, fn: (i: Idea) => Idea) => setIdeas((cur) => (cur ?? []).map((i) => (i.id === id ? fn(i) : i)));
 

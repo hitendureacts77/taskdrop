@@ -905,8 +905,8 @@ export function HomeScreen() {
     <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
       <FadeIn duration={260}>
         <AppHeader />
-        {/* A worker's home is sectioned (skills, near you, remote, needed
-            today) in HomeSections. The Rail below is the poster's. Search
+        {/* A worker's home is one Jobs for you list with chips (For you, near
+            you, remote, today) in HomeSections. The Rail below is the poster's. Search
             results are the virtualised list above. */}
         <HomeSections
           footer={
@@ -918,7 +918,6 @@ export function HomeScreen() {
               <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Services near you</RNText>
               <RNText style={tx('600', 12, t.colors.accentDeep)}>{loading ? '' : `${feed.length} offered`}</RNText>
             </View>
-            <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>Services workers offer — tap one to see it and hire</RNText>
             {loading ? (
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
                 {[0, 1].map((i) => (

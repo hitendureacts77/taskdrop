@@ -101,7 +101,7 @@ function OfferDot({ icon, live, size }: { icon: IconName; live: boolean; size: n
         <Icon name={icon} size={Math.round(size * 0.45)} color={t.colors.purpleDeep} />
       </View>
       {live ? (
-        <View style={{ position: 'absolute', right: -1, bottom: -1, width: 11, height: 11, borderRadius: 999, backgroundColor: '#22C55E', borderWidth: 2, borderColor: t.colors.surface }} />
+        <View style={{ position: 'absolute', right: -1, bottom: -1, width: 11, height: 11, borderRadius: 999, backgroundColor: t.colors.online, borderWidth: 2, borderColor: t.colors.surface }} />
       ) : null}
     </View>
   );
