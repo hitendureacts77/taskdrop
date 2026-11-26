@@ -5,7 +5,7 @@ import { Icon, type IconName } from '../components/Icon';
 import { EmptyState, LoadFailed, Shimmer, TopBar, UnderlineTabs, timeAgo } from '../components/kit';
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
-import { useLayout } from '../lib/layout';
+import { FEED_MAX, useLayout } from '../lib/layout';
 import { SegmentedTabs } from '../components/ListPage';
 import { CONTENT_INSET } from '../navigation/DesktopPage';
 import { useNav } from '../providers/NavProvider';
@@ -59,8 +59,9 @@ const ICON: Record<string, IconName> = {
  */
 export function NotificationsScreen() {
   const t = useTheme();
-  // Desktop: one card (880 wide, centred) with a divider between rows, the tabs as a segmented control above it,
-  // and the title, subtitle and "Mark all read" in the page header. Everywhere else the screen is drawn as before.
+  // Desktop: one card (the shared list width, FEED_MAX, like the other list pages) with a divider between rows, the
+  // tabs as a segmented control above it, and the title, subtitle and "Mark all read" in the page header.
+  // Everywhere else the screen is drawn as before.
   const { desktop } = useLayout();
   const { back, go } = useNav();
   const { userId, guest } = useAuth();
@@ -231,7 +232,7 @@ export function NotificationsScreen() {
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 28, paddingHorizontal: CONTENT_INSET }}
           refreshControl={refreshControl}
         >
-          <View style={{ width: '100%', maxWidth: 880, alignSelf: 'center' }}>
+          <View style={{ width: '100%', maxWidth: FEED_MAX, alignSelf: 'center' }}>
             <View style={{ marginBottom: 16 }}>
               <SegmentedTabs
                 tabs={[
