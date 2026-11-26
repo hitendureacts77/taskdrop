@@ -1,6 +1,6 @@
 // ListPage (docs/design/desktop-web/PLAN.md, package 5): off desktop it must hand
 // back what a list screen rendered before (toolbar inline, then the children; no
-// filter column, no frame); on desktop it draws the 1280 page, the 240 filter card
+// filter column, no frame); on desktop it draws the 1760 page, the 240 filter card
 // and the toolbar row. Same harness as FormPage.test.mjs: the file is compiled with
 // TypeScript, its app imports are swapped for stand-ins, and each piece is called
 // as a function so its element tree can be inspected without a renderer.
@@ -131,7 +131,7 @@ test('phone: ListPage with only children hands them back untouched', () => {
   assert.deepEqual(el.props.children, [null, null, grid]);
 });
 
-test('desktop: ListPage centres 1280, puts the 240 filter card left and the toolbar above the grid', () => {
+test('desktop: ListPage centres 1760, puts the 240 filter card left and the toolbar above the grid', () => {
   lp.layout = { desktop: true };
   const el = ListPage({
     children: grid,
@@ -144,7 +144,7 @@ test('desktop: ListPage centres 1280, puts the 240 filter card left and the tool
   const nodes = walk(el);
   const page = nodes.find((n) => n.props.nativeID === 'listPage');
   assert.equal(flat(page.props.style).maxWidth, LIST_MAX);
-  assert.equal(LIST_MAX, 1280);
+  assert.equal(LIST_MAX, 1760);
   assert.equal(flat(page.props.style).alignSelf, 'center');
   assert.equal(flat(page.props.style).flexDirection, 'row');
   const [filterCol, main] = page.props.children;

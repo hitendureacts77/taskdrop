@@ -3,7 +3,7 @@ import { View, Text as RNText, Animated, ScrollView, RefreshControl, Pressable, 
 import * as Clipboard from 'expo-clipboard';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { HeroCard } from '../components/Hero';
-import { useLayout } from '../lib/layout';
+import { FEED_MAX, useLayout } from '../lib/layout';
 import { CountUp } from '../components/CountUp';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
@@ -1017,7 +1017,7 @@ function WalletBody({ insights = false }: { insights?: boolean } = {}) {
     code && !insights ? referral : null,
   ].filter((x): x is React.JSX.Element => x !== null);
   const dPage = (
-    <View style={{ width: '100%', maxWidth: 1280, alignSelf: 'center' }}>
+    <View style={{ width: '100%', maxWidth: FEED_MAX, alignSelf: 'center' }}>
       {dCards}
       {dActions}
       <View style={{ flexDirection: 'row', gap: 24, alignItems: 'flex-start', marginTop: 28 }}>
