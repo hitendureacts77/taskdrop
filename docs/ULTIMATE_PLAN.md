@@ -2149,7 +2149,7 @@ done 1.18
 </details>
 
 <details id="t1-20" data-short="Snap-style fast map">
-<summary>[CLAUDE] <b>1.20</b> Snap-style fast map (design D33) <small>· added 26 Nov, from your message · an upgrade to an existing feature, not a new one · waiting for your OK on design D33</small></summary>
+<summary>[CLAUDE] <b>1.20</b> Snap-style fast map (design D33) <small>· added 26 Nov, from your message · an upgrade to an existing feature, not a new one · waiting for your OK on design D33 (version 2: every current map feature kept)</small></summary>
 
 **In plain words:** Maps are the hero feature. The phone map moves to the same engine as the web map (MapLibre, free), and every pin is drawn in one GPU layer, so it scrolls like Snap Map even with thousands of people and tasks on it.
 
@@ -2164,7 +2164,29 @@ done 1.18
 - [ ] [sonnet] Motion: fly to on tap, cluster burst on zoom, pulsing online dot, reduced-motion fallback.
 - [ ] [sonnet] Speed test: 2,000 fake pins on the staging fake city; smooth scroll on your phone (CPH2585); web e2e on port 8123.
 - [ ] [sonnet] New local Android build and a new site APK. This cannot go out as an over-the-air update.
+- [ ] [sonnet] Feature check: walk all 37 kept features on web and on the phone (CPH2585); none may be missing.
 - [ ] [opus] Final check before merge.
+
+**Keep every map feature (owner, 26 Nov):** 37 current features stay; none may be lost in the swap.
+
+- [ ] Privacy: task and helper spots stay rounded (~1.1 km), My people ~550 m with 15 min expiry, helpers anonymous (service icon only) until tapped; no exact coordinates in map data. Helper photos dropped (D13 privacy rule).
+- [ ] Zoom: zoomed out shows the best offer per area with a count; zoom 14+ spreads every task on rings; tap a group flies in; grouping 80 px tasks / 96 px people.
+- [ ] Layers + colours: Earn = tasks only, royal blue; Hire = helpers only, jade; My people layer (60 s refresh) and the Share my spot card stay.
+- [ ] Pins: helper pin = service icon, white rim, green active dot, stacks of 3 + "+N"; task pin = face + name + price; best offer takes the mode colour; City Hunt label stays; labels never overlap.
+- [ ] Taps + panels: helper sheet, job card (bottom card on phone, callout on desktop), person sheet; pull-up bar; desktop side panel with minimise and zoom tip.
+- [ ] Location + reach: You marker, location sheet (search, live spot, settings; guests keep area on device), reach 5/10/25 km + custom 1-100 km with dashed ring, people capped 50 km.
+- [ ] Filters + data: shared with the list (price, Nearby/Remote/All, how they hire, due soon, sort); Explore search filters pins; remote jobs have no pin; 200 newest tasks, refresh 600 ms after the map stops, 5 min cache.
+- [ ] Motion: heat glow, "just posted" ripple, staggered fade-in, reduced motion respected.
+- [ ] Other: topped-up badge, guest mode (helpers only, no map_people_around), dark mode, map picker, Home map previews + shortcut chips, Expo Go / web fallback tile map.
+
+**Build gotchas:**
+
+- Many tasks share one rounded point; native clusters cannot split them, so keep the ring spread (`lib/mapLayout.ts` ringSpots) and feed spread spots in at zoom 14+.
+- Clusters must carry the max offer (clusterProperties max) plus face/service data for stacks.
+- MapLibre RN zoom is 1 off the 256 px tile maths (GL_TO_TILE); keep mapReach / zoomToFit right.
+- Keep NearMap picked-id state, sheet offsets (leftInset, HELPER_SHEET_H), onMoveEnd refresh and fit-to-reach.
+- Guests must never call the map_people_around path (NEEDS_ACCOUNT).
+- Native change = new local Android build (C:	db, lb.mjs), not OTA.
 
 **Done when:** the phone map scrolls as smoothly as the web map with 2,000 pins, looks the same on both, and every D20-D24 map feature still works.
 
@@ -6740,6 +6762,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 ## Changelog
 
 - **2026-11-26 (fewer merge conflicts: test lists found automatically):** `npm test` and `npm run test:db` no longer keep long hand-written file lists in package.json (almost every PR clashed on them). `scripts/run-unit-tests.mjs` and `scripts/run-db-tests.mjs` find the test files themselves; the set run is the same as before (145 unit files, 94 SQL files). Two passing tests that were never added to the old list (`chatWindow.test.ts`, `offerTiming.test.ts`) stay off in a commented exclude list until you or the lead switch them on. Rebuilding the plan page in CI after merge was **not** added: branch protection on `redesigned-2.0` (PR required, required checks, admins included) blocks a bot push, so PRs still commit `docs/ULTIMATE_PLAN.html`.
+- **2026-11-26 (1.20 / D33):** owner asked to keep every current map feature; 37-feature list and feature check added; helper photos dropped (D13 privacy rule).
 - **2026-11-26 (task 1.20, Snap-style fast map, design D33):** You asked for the phone map to scroll like Snap Map. Added task **1.20** under Step 1: move the phone map from react-native-maps to MapLibre (the web map's engine, free), draw every pin in one GPU layer, one shared map-layer module for web and phone. It is an upgrade to an existing feature, so it is allowed under the freeze (decision 37). Waiting for your OK on design D33 and answers Q1-Q4. Docs only: nothing built.
 - **2026-11-23 (T13 first pass on staging):** You asked for the remaining plan work one by one. Most of what is left is yours (accounts, payments, sign-ins, lawyer) or waits on a gate. The first Claude item that needs nothing from you was T13 (3.6): a first pass on taskdrop.in found a wrong address shows the sign-in screen instead of a 404 page, and every address has the same raw title and description, so 4.3 is the real fix. Details under T13 in 3.6. Nothing built.
 - **2026-11-23 (5.6b PostHog checked in Chrome, low-severity bugs checked):** The production PostHog project `taskdrop-production` already exists (EU, project 351004, no events yet), so the "make the project" part of 5.6b is done. Not done: PostHog asked to re-authenticate before showing the organisation page, which is a sign-in only you can do, so the organisation name was not confirmed and the `phc_` key was not copied. The app has no PostHog code or variable yet (it comes with 3.3c), so the production Expo project needs no PostHog value today. The still-open Low bugs in the debug ledger: B30 and B32 were already fixed and verified (migration 166); B18 (accept recommended), B21 (end status, refund rule and lock timeout are yours to decide) and B63 (after launch) stay open for your word. Nothing built.
