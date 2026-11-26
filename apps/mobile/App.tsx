@@ -9,6 +9,7 @@ import { ResumePost } from './src/components/ResumePost';
 import { Overlays } from './src/components/Overlays';
 import { AccountPrompt } from './src/components/AccountPrompt';
 import { StagingWelcome } from './src/components/StagingWelcome';
+import { WalkthroughHost } from './src/components/WalkthroughHost';
 import { AppSheet } from './src/components/AppSheet';
 import { WebShell } from './src/components/WebShell';
 import { ConsentBanner } from './src/components/ConsentBanner';
@@ -55,6 +56,7 @@ function Routes() {
             <Overlays />
             <AccountPrompt />
             <StagingWelcome />
+            <WalkthroughHost />
             <AppSheet />
           </ErrorBoundary>
         </KeyboardAvoidingView>

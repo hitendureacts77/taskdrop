@@ -5,7 +5,6 @@ import { Screen } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { Field, IconButton, Pill, PrimaryButton } from '../components/kit';
 import { Ripples } from '../components/Ripples';
-import { loadIntroSeen } from '../lib/intro';
 import { LocationSheet } from '../components/LocationSheet';
 import { tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -59,10 +58,6 @@ export function OnboardingScreen() {
   useEffect(() => (quick ? releaseAccountHold : undefined), [quick]);
   const [step, setStep] = useState(quick ? USERNAME : 0);
   const [busy, setBusy] = useState(false);
-  const [introSeen, setIntroSeen] = useState<boolean | null>(null);
-  useEffect(() => {
-    void loadIntroSeen().then(setIntroSeen);
-  }, []);
 
   const [code, setCode] = useState('');
   const [username, setUsername] = useState('');
@@ -228,8 +223,6 @@ export function OnboardingScreen() {
       // account lands here after the reload): back to that post, on Review, with everything put back.
       const kept = await loadWizard();
       if (kept && resumable(kept) && ownerMatches(kept, userId)) go('aiPost', { resume: true });
-      // A device that never showed "How TaskDrop works" (it came straight to sign-in) shows it once now.
-      else if (introSeen === false) go('intro', { replay: true, side: intent === 'earn' ? 'earn' : 'hire' });
     } catch (e) {
       flash(e instanceof Error ? e.message : 'Could not finish setup');
     } finally {

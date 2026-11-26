@@ -48,6 +48,7 @@ import { HelpersNearHero } from './HelpersNearHero';
 import { JobsNearHero } from './JobsNearHero';
 import { MapShortcuts } from './MapShortcuts';
 import { SafeSheet, TrustLine } from './SafeOnTaskDrop';
+import { HomeImproveCard } from './HomeImproveCard';
 import { HeroCard } from './Hero';
 import { Drop, Ripples } from './Ripples';
 import { cardSurface } from './ui';
@@ -396,6 +397,7 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
                 <PublishedTable rows={rows} total={active?.length ?? 0} onOpen={(task) => openPostedTask(task, go)} onManage={() => go('myTasks')} />
               ) : null}
               {only}
+              <HomeImproveCard />
               {ideas}
               {footer}
             </>
@@ -443,6 +445,9 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
 
         {/* D22 H1: what only TaskDrop does, as big icons. */}
         {only}
+
+        {/* Owner, 26 Nov: a small "Help improve TaskDrop" card; the full board is on Profile. */}
+        <HomeImproveCard />
 
         {/* Decision 1: one Ideas block with chips (poster ideas, Quick templates, Everyday). */}
         {ideas}
@@ -1071,6 +1076,8 @@ function EarnTop() {
       </View>
 
       {jobsForYou}
+
+      <HomeImproveCard />
 
       <WaysToEarn onSearch={(q) => go('explore', { q })} onAddSkill={() => go('profileEdit')} />
 

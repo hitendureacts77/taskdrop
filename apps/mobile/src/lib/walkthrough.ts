@@ -90,3 +90,12 @@ export function walkSideFor(param: unknown, mode: 'poster' | 'worker' | null | u
   if (param === 'earn' || param === 'hire') return param;
   return mode === 'worker' ? 'earn' : 'hire';
 }
+
+/**
+ * When the walkthrough opens by itself (owner, 26 Nov): never before sign-in. Sign-in comes first; once someone is
+ * signed in and on Home, it opens once per device, after the staging tester card (if any) is closed. A guest sees it
+ * only from the "?" on Home, Profile or the account menu.
+ */
+export function shouldShowWalkthrough(a: { signedIn: boolean; seen: boolean | null; screen: string; stagingCardClear: boolean }): boolean {
+  return a.signedIn && a.seen === false && a.screen === 'home' && a.stagingCardClear;
+}

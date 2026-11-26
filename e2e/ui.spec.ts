@@ -8,8 +8,7 @@ test.describe("signed out", () => {
 
   test("the front door asks for a mobile number and offers Google and username", async ({ page }) => {
     await page.goto("/");
-    // The front door opens with the story; "Create my account" leads to the number box.
-    await page.getByRole("button", { name: "Create my account" }).click();
+    // The front door is the number box itself: sign-in comes first, "How TaskDrop works" after it (task 1.19 row N).
     await expect(page.getByText("Text me a code")).toBeVisible();
     await expect(page.getByText("Google", { exact: true })).toBeVisible();
     await expect(page.getByText("Username", { exact: true })).toBeVisible();
@@ -18,7 +17,6 @@ test.describe("signed out", () => {
 
   test("a number that is too short does not get a code", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Create my account" }).click();
     await page.getByPlaceholder("98765 43210").fill("12345");
     await page.getByText("Text me a code").click();
     await expect(page.getByText("Enter the code we just texted")).toHaveCount(0);

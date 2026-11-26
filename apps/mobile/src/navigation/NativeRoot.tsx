@@ -12,6 +12,7 @@ import { ResumePost } from '../components/ResumePost';
 import { Overlays } from '../components/Overlays';
 import { AccountPrompt } from '../components/AccountPrompt';
 import { StagingWelcome } from '../components/StagingWelcome';
+import { WalkthroughHost } from '../components/WalkthroughHost';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ScreenBoundary } from '../AppProviders';
 import { fontFamilyFor } from '../theme';
@@ -90,6 +91,7 @@ export function NativeRoot() {
         <Overlays />
         <AccountPrompt />
         <StagingWelcome />
+        <WalkthroughHost />
       </ErrorBoundary>
     </KeyboardAvoidingView>
   );

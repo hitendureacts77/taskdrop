@@ -1,12 +1,3 @@
-/**
- * Where the splash leads. A device that has never shown the intro (a fresh
- * install) goes to it first; every later start, and every return from signing
- * out, goes straight to the sign-in page. Pure, so it can be tested without
- * the device's storage.
- */
-export function afterSplash(introSeen: boolean): 'intro' | 'welcome' {
-  return introSeen ? 'welcome' : 'intro';
-}
 
 /**
  * What the intro's two buttons do. The first-run intro asks for the account

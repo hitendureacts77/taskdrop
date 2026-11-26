@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { videoUrl, walkCard, walkAnnouncement, walkSideFor, WALK_STEPS, WALK_LAST } from './walkthrough.ts';
+import { shouldShowWalkthrough, videoUrl, walkCard, walkAnnouncement, walkSideFor, WALK_STEPS, WALK_LAST } from './walkthrough.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -47,4 +47,14 @@ test('it opens on the side asked for, else the mode the person is in', () => {
   assert.equal(walkSideFor(undefined, 'worker'), 'earn');
   assert.equal(walkSideFor(undefined, null), 'hire');
   assert.equal(walkSideFor('other', 'poster'), 'hire');
+});
+
+test('it opens by itself only after sign-in, on Home, once, after the staging card', () => {
+  const base = { signedIn: true, seen: false, screen: 'home', stagingCardClear: true };
+  assert.equal(shouldShowWalkthrough(base), true);
+  assert.equal(shouldShowWalkthrough({ ...base, signedIn: false }), false, 'a guest or a signed-out visitor');
+  assert.equal(shouldShowWalkthrough({ ...base, seen: true }), false, 'already seen on this device');
+  assert.equal(shouldShowWalkthrough({ ...base, seen: null }), false, 'not read yet');
+  assert.equal(shouldShowWalkthrough({ ...base, screen: 'aiPost' }), false, 'a post being resumed comes first');
+  assert.equal(shouldShowWalkthrough({ ...base, stagingCardClear: false }), false, 'the tester card is still open');
 });

@@ -7,8 +7,6 @@ import { TopInsetUsedCtx } from '../components/topInsetUsed';
 import { tx } from '../components/primitives';
 import { dark } from '../theme';
 import { useReducedMotion } from '../lib/motion';
-import { loadIntroSeen } from '../lib/intro';
-import { afterSplash } from '../lib/introRoute';
 
 /** Every edge but the top, for when the staging ribbon or a banner has already used the status-bar gap. */
 const SIDES_AND_BOTTOM: Edge[] = ['right', 'bottom', 'left'];
@@ -49,8 +47,8 @@ const RING_STEP = 220;
  */
 export function SplashScreen() {
   const { reset } = useNav();
-  // A fresh install goes on to the intro, everyone else to sign-in (lib/introRoute.ts).
-  const leave = useCallback(() => void loadIntroSeen().then((seen) => reset(afterSplash(seen))), [reset]);
+  // Sign-in comes first, for a fresh install too (owner, 26 Nov); "How TaskDrop works" opens after it (WalkthroughHost).
+  const leave = useCallback(() => reset('welcome'), [reset]);
   const reduced = useReducedMotion();
   const topUsed = useContext(TopInsetUsedCtx);
 
