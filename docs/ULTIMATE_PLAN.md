@@ -2157,7 +2157,7 @@ done 1.18
 
 **Steps:**
 
-- [ ] [opus] Design D33 shown 26 Nov: waiting for your OK ("build D33") and answers Q1-Q4 (engine, helper photos, online dot, 3D buildings).
+- [ ] [opus] Design D33 shown 26 Nov: waiting for your OK ("build D33") and answers Q1-Q2 (map engine, 3D buildings at street zoom). Helper photos and the online-dot question are dropped: helpers stay service icons until tapped (D13) and the active dot already exists.
 - [ ] [sonnet] Swap the phone map: add `@maplibre/maplibre-react-native` v11 with its Expo plugin; remove `react-native-maps` from `JobsMap.native.tsx` and `MapPicker.native.tsx`. This also means the Android app no longer needs a Google Maps key.
 - [ ] [opus] One shared map-layer module for web and phone: same OpenFreeMap style, one GeoJSON source per layer (tasks, helpers, My people), built-in clustering, faces drawn as images.
 - [ ] [sonnet] Pin images: round helper faces with a jade ring (Hire), blue price chips (Earn), initials when there is no photo.
