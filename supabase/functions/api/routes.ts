@@ -51,7 +51,7 @@ export const API_GROUPS = {
     "setPromoAlerts",
   ],
   platform: ["platformFees", "platformStats", "platformHighlights", "trendingCategories"],
-  messages: ["listThreads", "listMessages", "sendMessage"],
+  messages: ["listThreads", "listMessages", "chatState", "sendMessage"],
   notifications: [
     "listNotifications", "getNotification", "countUnreadNotifications", "countUnreadFor", "notificationSides",
     "markNotificationsRead", "registerPushToken", "forgetPushToken",

@@ -156,7 +156,7 @@ await t("writes take the caller from the session, never from the request", async
 
   f = fake();
   await runOp("sendMessage", { taskId: TASK, senderId: OTHER, body: "yo" }, ctx(f));
-  assert.equal(inserted(f.calls[0]).sender_id, UID);
+  assert.equal(inserted(f.calls.find((c) => c.table === "messages")!).sender_id, UID);
 
   f = fake();
   await runOp("addPayoutDestination", { kind: "bank", accountName: "A B", accountNumber: "123", ifsc: " hdfc0001234 ", user_id: OTHER }, ctx(f));
@@ -237,10 +237,123 @@ await t("chat: contact details are refused until the work starts, and allowed af
   const ok = await runOp("sendMessage", { taskId: TASK, body: "my number is 98765 43210" }, ctx(started));
   assert.equal(ok.ok, true);
 
-  // Plain chat does not even look the task up.
+  // Plain chat does not even look the task up: only the chat-window check (1.19 row B) and the insert.
   const plain = fake(() => ({ data: { id: "m" }, error: null }));
   await runOp("sendMessage", { taskId: TASK, body: "On my way" }, ctx(plain));
-  assert.deepEqual(plain.calls.map((c) => c.table), ["messages"]);
+  assert.deepEqual(plain.calls.map((c) => c.table ?? c.rpc), ["task_chat_states", "messages"]);
+});
+
+// ------------------------------------------------- chat window (1.19 row B, migration 215) --
+
+/** The database's answer for TASK: one task_chat_states row. */
+const chatRow = (state: string, can_send: boolean, reason: string | null, closes_at: string | null = null, delete_after: string | null = null) =>
+  ({ task_id: TASK, state, can_send, reason, closes_at, delete_after });
+const chatDb = (row: ReturnType<typeof chatRow> | null) =>
+  fake((c) => (c.rpc === "task_chat_states" ? { data: row ? [row] : [], error: null } : { data: { id: "m1" }, error: null }));
+
+await t("chat window: a send before the task is locked is refused with CHAT_CLOSED and never inserted", async () => {
+  const f = chatDb(chatRow("closed", false, "not_locked"));
+  const r = await runOp("sendMessage", { taskId: TASK, body: "Hi, are you free?" }, ctx(f));
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.error.code, "CHAT_CLOSED");
+    assert.equal(r.error.details, "not_locked");
+    assert.match(r.error.message, /once this task is locked/);
+  }
+  assert.ok(!f.calls.some((c) => c.table === "messages"), "nothing reaches messages");
+  const ask = f.calls.find((c) => c.rpc === "task_chat_states")!;
+  assert.deepEqual(ask.args, { p_task_ids: [TASK] });
+});
+
+await t("chat window: a send while the task is live goes through", async () => {
+  const f = chatDb(chatRow("open", true, null));
+  const r = await runOp("sendMessage", { taskId: TASK, body: "On my way" }, ctx(f));
+  assert.ok(r.ok);
+  assert.equal(inserted(f.calls.find((c) => c.table === "messages")!).task_id, TASK);
+});
+
+await t("chat window: a send inside the 48 hours after completion goes through", async () => {
+  const f = chatDb(chatRow("closing", true, null, "2026-10-06T09:00:00Z", "2026-10-06T09:00:00Z"));
+  const r = await runOp("sendMessage", { taskId: TASK, body: "Thanks, all good" }, ctx(f));
+  assert.ok(r.ok);
+  assert.ok(f.calls.some((c) => c.table === "messages"));
+});
+
+await t("chat window: a send after the 48 hours, or on a cancelled task, is refused with its reason", async () => {
+  for (const [reason, words] of [["window_ended", /closed 2 days after the task was completed/], ["cancelled", /cancelled/], ["not_participant", /Only the poster and the hired helper/]] as const) {
+    const f = chatDb(chatRow("closed", false, reason, "2026-10-04T09:00:00Z", "2026-10-04T09:00:00Z"));
+    const r = await runOp("sendMessage", { taskId: TASK, body: "one more thing" }, ctx(f));
+    assert.equal(r.ok, false, reason);
+    if (!r.ok) {
+      assert.equal(r.error.code, "CHAT_CLOSED", reason);
+      assert.equal(r.error.details, reason);
+      assert.match(r.error.message, words);
+    }
+    assert.ok(!f.calls.some((c) => c.table === "messages"), `${reason} reached messages`);
+  }
+});
+
+await t("chat window: chatState gives the app open/closing/closed, the reason, a sentence and the times", async () => {
+  const closing = await runOp("chatState", { taskId: TASK }, ctx(chatDb(chatRow("closing", true, null, "2026-10-06T09:00:00Z", "2026-10-06T09:00:00Z"))));
+  assert.ok(closing.ok);
+  assert.deepEqual(closing.ok && closing.data, {
+    taskId: TASK, open: true, state: "closing", reason: null,
+    message: "Task completed. You can keep chatting for 2 days after completion, then the chat closes and its messages are deleted.",
+    closesAt: "2026-10-06T09:00:00Z", deleteAfter: "2026-10-06T09:00:00Z",
+  });
+  const live = await runOp("chatState", { taskId: TASK }, ctx(chatDb(chatRow("open", true, null))));
+  assert.deepEqual(live.ok && live.data, { taskId: TASK, open: true, state: "open", reason: null, message: null, closesAt: null, deleteAfter: null });
+  const ended = await runOp("chatState", { taskId: TASK }, ctx(chatDb(chatRow("closed", false, "window_ended", "2026-10-04T09:00:00Z", "2026-10-04T09:00:00Z"))));
+  assert.ok(ended.ok);
+  const e = ended.ok ? (ended.data as Record<string, unknown>) : {};
+  assert.equal(e.open, false);
+  assert.equal(e.state, "closed");
+  assert.equal(e.reason, "window_ended");
+  assert.equal(e.closesAt, "2026-10-04T09:00:00Z");
+  // No answer from the database (someone else's task, or unknown) reads as closed, not a participant.
+  const none = await runOp("chatState", { taskId: TASK }, ctx(chatDb(null)));
+  assert.equal(none.ok && (none.data as { reason: string }).reason, "not_participant");
+  assert.equal(none.ok && (none.data as { open: boolean }).open, false);
+  // A bad id never reaches the database.
+  const badId = fake();
+  const b = await runOp("chatState", { taskId: "nope" }, ctx(badId));
+  assert.ok(!b.ok && b.error.code === "BAD_ARGS");
+  assert.equal(badId.calls.length, 0);
+});
+
+await t("chat window: every listThreads row carries its chat state, and a failed check leaves it null", async () => {
+  const answer = (failChat: boolean) => (c: Call): Reply =>
+    c.rpc === "my_thread_latest"
+      ? { data: [{ task_id: TASK, body: "see you", created_at: "2026-10-05T08:00:00Z", sender_id: OTHER }], error: null }
+      : c.rpc === "task_chat_states"
+        ? failChat ? { data: null, error: { message: "boom" } } : { data: [chatRow("closing", true, null, "2026-10-06T09:00:00Z", "2026-10-06T09:00:00Z")], error: null }
+        : c.table === "tasks" ? { data: [{ id: TASK, title: "Fix tap", status: "COMPLETED", updated_at: "2026-10-05T08:00:00Z" }], error: null } : { data: [], error: null };
+  const ok = await runOp("listThreads", {}, ctx(fake(answer(false))));
+  assert.ok(ok.ok);
+  const row = (ok.ok ? (ok.data as Record<string, unknown>[]) : [])[0];
+  assert.equal((row.chat as { state: string }).state, "closing");
+  assert.equal((row.chat as { closesAt: string }).closesAt, "2026-10-06T09:00:00Z");
+  const failed = await runOp("listThreads", {}, ctx(fake(answer(true))));
+  assert.ok(failed.ok, "listThreads still answers");
+  assert.equal((failed.ok ? (failed.data as Record<string, unknown>[]) : [])[0].chat, null);
+});
+
+await t("chat window: the migration closes writing outside the window and schedules the purge", () => {
+  const dir = join(import.meta.dirname, "../../migrations");
+  const file = readdirSync(dir).find((f) => /_215_chat_window\.sql$/.test(f));
+  assert.ok(file, "migration 215 exists");
+  const sql = readFileSync(join(dir, file!), "utf8");
+  assert.match(sql, /alter policy messages_insert_participant on public\.messages[\s\S]*private\.can_send_task_message\(task_id/);
+  assert.match(sql, /interval '48 hours'/);
+  assert.match(sql, /when 'chat-purge' then\s+return private\.purge_ended_chats/);
+  assert.match(sql, /cron\.schedule\('chat-purge', '37 \* \* \* \*'/);
+  assert.match(sql, /select private\.run_cron_job\('chat-purge'\)/);
+  // A dispute, an open report and money still moving all pause deletion.
+  assert.match(sql, /v_status = 'DISPUTED'/);
+  assert.match(sql, /r\.status = 'open'/);
+  assert.match(sql, /'held', 'release_asked', 'refund_asked', 'split_asked', 'failed'/);
+  // can_use_task_thread is not redefined: chat photos still read through it.
+  assert.doesNotMatch(sql, /function private\.can_use_task_thread/);
 });
 
 await t("the feed never offers the caller their own posts, nor expired ones", async () => {

@@ -135,6 +135,7 @@ declare
   v_w      uuid := gen_random_uuid();
   v_task   uuid;
   v_bid    uuid;
+  v_failed boolean;
 begin
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
                           email_confirmed_at, created_at, updated_at)
@@ -164,9 +165,18 @@ begin
     'W2: the poster still hears which worker left';
   assert private.task_live_worker(v_task) is null, 'W2: nobody is the live worker after a walk-off';
 
-  -- The poster writes into the open task's thread, then cancels it.
+  -- 215 (1.19 row B): the poster can no longer write into an open task's thread.
   perform pg_temp.become(v_poster);
+  v_failed := false;
+  begin
+    insert into public.messages (task_id, sender_id, body) values (v_task, v_poster, 'are you coming back?');
+  exception when others then v_failed := true;
+  end;
+  assert v_failed, '215: nobody writes into the thread of a task that is back to OPEN';
+  -- A line written there anyway (as before 215, by the operator), then the poster cancels.
+  perform pg_temp.as_operator();
   insert into public.messages (task_id, sender_id, body) values (v_task, v_poster, 'are you coming back?');
+  perform pg_temp.become(v_poster);
   perform public.cancel_task(v_task);
 
   perform pg_temp.as_operator();
