@@ -114,8 +114,8 @@ export function TrendingSection({ onCategory }: { onCategory?: (category: string
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12, ...cardSurface(t, 18), paddingVertical: 14 }}>
         {[
           { label: 'Active now', value: hl?.activeNow, color: t.colors.accentDeep },
-          { label: 'Active today', value: hl?.activeToday, color: t.colors.purpleDeep },
-          { label: 'Open tasks', value: hl?.openTasks, color: t.colors.blue },
+          { label: 'Active today', value: hl?.activeToday, color: t.colors.online },
+          { label: 'Open tasks', value: hl?.openTasks, color: t.colors.accentDeep },
           { label: 'Done today', value: hl?.completedToday, color: t.colors.goldInk },
         ].map((s) => (
           <View key={s.label} style={{ width: '25%', alignItems: 'center' }}>

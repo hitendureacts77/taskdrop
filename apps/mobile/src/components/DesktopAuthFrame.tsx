@@ -1,7 +1,7 @@
 import { ScrollView, View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useLayout } from '../lib/layout';
-import { light } from '../theme';
+import { onHero } from '../theme';
 import { HeroBackground } from './Hero';
 import { FallingDrop, FloatCard } from './BrandArt';
 import { Icon } from './Icon';
@@ -40,14 +40,14 @@ export function DesktopAuthFrame({ children }: { children: React.ReactNode }) {
           showsVerticalScrollIndicator={false}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Drop size={34} fill="#FFFFFF" tick={light.heroMid} />
-            <RNText style={tx('800', 26, '#FFFFFF', { letterSpacing: -0.9 })}>
-              taskdrop<RNText style={tx('800', 26, '#7FE3C4')}>.</RNText>
+            <Drop size={34} fill={onHero.text} tick={t.colors.heroMid} />
+            <RNText style={tx('800', 26, onHero.text, { letterSpacing: -0.9 })}>
+              taskdrop<RNText style={tx('800', 26, onHero.text)}>.</RNText>
             </RNText>
           </View>
 
           <View style={{ maxWidth: 640 }}>
-            <RNText style={tx('800', 54, '#FFFFFF', { letterSpacing: -2.4, lineHeight: 56 })}>
+            <RNText style={tx('800', 54, onHero.text, { letterSpacing: -2.4, lineHeight: 56 })}>
               Drop a task.{'\n'}Watch it ripple{'\n'}to people nearby.
             </RNText>
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 28 }}>
@@ -63,10 +63,10 @@ export function DesktopAuthFrame({ children }: { children: React.ReactNode }) {
                     padding: 16,
                   }}
                 >
-                  <View style={{ width: 20, height: 20, borderRadius: 6, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
-                    <RNText style={tx('800', 11, light.heroMid)}>{p.n}</RNText>
+                  <View style={{ width: 20, height: 20, borderRadius: 6, backgroundColor: onHero.text, alignItems: 'center', justifyContent: 'center' }}>
+                    <RNText style={tx('800', 11, t.colors.heroMid)}>{p.n}</RNText>
                   </View>
-                  <RNText style={tx('800', 16, '#FFFFFF', { marginTop: 12, letterSpacing: -0.3 })}>{p.title}</RNText>
+                  <RNText style={tx('800', 16, onHero.text, { marginTop: 12, letterSpacing: -0.3 })}>{p.title}</RNText>
                   <RNText style={tx('400', 13, 'rgba(255,255,255,0.8)', { marginTop: 4, lineHeight: 20 })}>{p.body}</RNText>
                 </View>
               ))}

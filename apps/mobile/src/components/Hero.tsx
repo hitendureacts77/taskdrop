@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { useTheme } from '../providers/ThemeProvider';
+import { useTheme, WORKER_ACCENT } from '../providers/ThemeProvider';
+import { dark, light } from '../theme';
 import { Drop, Ripples } from './Ripples';
 
 /**
@@ -15,8 +16,14 @@ let gradientSeq = 0;
 /** A hero in a fixed side's colour, whatever mode the viewer is in. */
 export type HeroTone = 'mode' | 'hire' | 'earn' | 'hunt';
 const STOPS = {
-  hire: { light: ['#0D8A6F', '#0A6F58', '#064A3B'], dark: ['#0E8F72', '#0B5E4B', '#06372C'] },
-  earn: { light: ['#4069F2', '#2F5BEA', '#1A3BA8'], dark: ['#3A62E8', '#2547BD', '#152C7A'] },
+  hire: {
+    light: [light.heroFrom, light.heroMid, light.heroTo],
+    dark: [dark.heroFrom, dark.heroMid, dark.heroTo],
+  },
+  earn: {
+    light: [WORKER_ACCENT.light.heroFrom, WORKER_ACCENT.light.heroMid, WORKER_ACCENT.light.heroTo],
+    dark: [WORKER_ACCENT.dark.heroFrom, WORKER_ACCENT.dark.heroMid, WORKER_ACCENT.dark.heroTo],
+  },
   // City Hunt (D19): gold, deep enough under white text in both themes (#8A5A12 is 6:1 with white).
   hunt: { light: ['#B9802F', '#8A5A12', '#5A3A0A'], dark: ['#B9802F', '#7A5218', '#3E2A0C'] },
 } as const;

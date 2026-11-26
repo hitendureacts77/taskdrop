@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, Text as RNText, View, type StyleProp, type ViewStyle } from 'react-native';
-import { light } from '../theme';
+import { useTheme } from '../providers/ThemeProvider';
 import { LOOP_NATIVE, useReducedMotion } from '../lib/motion';
 import { Icon, type IconName } from './Icon';
 import { Drop } from './Ripples';
@@ -48,10 +48,11 @@ export function FloatCard({
   delay?: number;
   style?: StyleProp<ViewStyle>;
 }) {
+  const t = useTheme();
   const y = useFloat(delay);
-  // Always the light card: it floats on the jade hero in both themes.
-  const soft = tone === 'ai' ? light.aiSoft : light.accentSoft;
-  const ink = tone === 'ai' ? light.aiInk : light.accentDeep;
+  // The card follows the theme and the mode; it floats on the hero.
+  const soft = tone === 'ai' ? t.colors.aiSoft : t.colors.accentSoft;
+  const ink = tone === 'ai' ? t.colors.aiInk : t.colors.accentDeep;
   return (
     <Animated.View
       pointerEvents="none"
@@ -63,7 +64,7 @@ export function FloatCard({
           flexDirection: 'row',
           alignItems: 'center',
           gap: 9,
-          backgroundColor: light.surface,
+          backgroundColor: t.colors.surface,
           borderRadius: 14,
           paddingVertical: 8,
           paddingLeft: 8,
@@ -82,8 +83,8 @@ export function FloatCard({
         <Icon name={icon} size={14} color={ink} strokeWidth={2} />
       </View>
       <View>
-        <RNText style={tx('700', 11.5, light.ink)}>{title}</RNText>
-        <RNText style={tx('500', 10, light.muted)}>{sub}</RNText>
+        <RNText style={tx('700', 11.5, t.colors.ink)}>{title}</RNText>
+        <RNText style={tx('500', 10, t.colors.muted)}>{sub}</RNText>
       </View>
     </Animated.View>
   );
@@ -94,6 +95,7 @@ export function FloatCard({
  * out, and falls again (wFall / wRing from the design).
  */
 export function FallingDrop({ size = 76 }: { size?: number }) {
+  const t = useTheme();
   const reduced = useReducedMotion();
   const fall = useRef(new Animated.Value(reduced ? 1 : 0)).current;
   const ring = useRef(new Animated.Value(0)).current;
@@ -149,7 +151,7 @@ export function FallingDrop({ size = 76 }: { size?: number }) {
           transform: [{ translateY: fall.interpolate({ inputRange: [0, 1], outputRange: [-160, 0] }) }],
         }}
       >
-        <Drop size={size} fill="rgba(255,255,255,0.88)" tick={light.accentDeep} />
+        <Drop size={size} fill="rgba(255,255,255,0.88)" tick={t.colors.accentDeep} />
       </Animated.View>
     </View>
   );

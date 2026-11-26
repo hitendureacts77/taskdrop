@@ -40,6 +40,12 @@ export type Palette = {
   aiSoft: string;
   aiInk: string;
   blue: string;
+  /** Blue text on purpleSoft in the blue Badge tone: deeper than blue in light, same as blue in dark. */
+  blueDeep: string;
+  /** Text and icons on coral (signalDeep) fills. */
+  onSignal: string;
+  /** Text and icons on gold fills. */
+  onGold: string;
   onAccent: string;
   /** Background for big cards with white text (balances, summaries): dark enough in both themes. */
   hero: string;
@@ -84,6 +90,9 @@ export const light: Palette = {
   aiSoft: '#F0EFFC',
   aiInk: '#5148C2',
   blue: '#4A90D9',
+  blueDeep: '#2A6CB8',
+  onSignal: '#FFFFFF',
+  onGold: '#FFFFFF',
   onAccent: '#FFFFFF',
   hero: '#0A6F58',
   heroFrom: '#0D8A6F',
@@ -122,6 +131,9 @@ export const dark: Palette = {
   aiSoft: '#1E1C33',
   aiInk: '#A9A3F2',
   blue: '#5AA0E6',
+  blueDeep: '#5AA0E6',
+  onSignal: '#1A0C06',
+  onGold: '#1A0C06',
   onAccent: '#04140D',
   hero: '#0B5E4B',
   heroFrom: '#0E8F72',

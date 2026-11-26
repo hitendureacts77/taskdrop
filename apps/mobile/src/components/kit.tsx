@@ -496,7 +496,7 @@ export function ConfirmDialog({
   }, [visible]);
   const tone = danger ? t.colors.signalDeep : t.colors.btn;
   const toneIcon = danger ? t.colors.signal : t.colors.accent;
-  const onTone = danger ? (t.isDark ? '#1A0C06' : '#FFFFFF') : t.colors.onBtn;
+  const onTone = danger ? t.colors.onSignal : t.colors.onBtn;
   const toneSoft = danger ? t.colors.signalSoft : t.colors.accentSoft;
 
   return (
@@ -746,7 +746,7 @@ export function toneColors(t: ReturnType<typeof useTheme>, tone: Tone) {
     case 'signal':
       return { fg: t.colors.signalDeep, bg: t.colors.signalSoft };
     case 'blue':
-      return { fg: t.isDark ? t.colors.blue : '#2A6CB8', bg: t.colors.purpleSoft };
+      return { fg: t.colors.blueDeep, bg: t.colors.purpleSoft };
     case 'purple':
       return { fg: t.isDark ? t.colors.purpleDeep : t.colors.purple, bg: t.colors.purpleSoft };
     case 'neutral':
@@ -933,7 +933,7 @@ export function PrimaryButton({
   // v2: a 52-tall pill on the deep shade (white text 4.5:1+), lifted by a
   // soft shadow of its own colour in light.
   const bg = tone === 'signal' ? t.colors.signalDeep : tone === 'quiet' ? t.colors.surface : t.colors.btn;
-  const fg = tone === 'quiet' ? t.colors.ink : tone === 'signal' ? (t.isDark ? '#1A0C06' : '#FFFFFF') : t.colors.onBtn;
+  const fg = tone === 'quiet' ? t.colors.ink : tone === 'signal' ? t.colors.onSignal : t.colors.onBtn;
   return (
     <Pressable
       onPress={off ? undefined : onPress}

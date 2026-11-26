@@ -60,3 +60,12 @@ test('B174: day chips and small white text stay readable on every hero gradient 
   }
   for (const s of [workerHeroFrom('light'), workerHeroFrom('dark')]) atLeast(onHero.text, s, `Earn hero text on ${s}`);
 });
+
+test('1.19 row O: blueDeep, onSignal and onGold are readable on the fills and tints they sit on', () => {
+  for (const p of [light, dark]) {
+    const name = p === light ? 'light' : 'dark';
+    atLeast(p.blueDeep, p.purpleSoft, `${name} blue badge text`);
+    atLeast(p.onSignal, p.signalDeep, `${name} text on coral`);
+    atLeast(p.onGold, p.goldInk, `${name} onGold on gold`);
+  }
+});

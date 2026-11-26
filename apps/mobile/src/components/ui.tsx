@@ -301,9 +301,7 @@ export function Button({
     variant === 'primary'
       ? t.colors.onBtn
       : variant === 'danger'
-        ? t.isDark
-          ? '#1A0C06'
-          : '#FFFFFF'
+        ? t.colors.onSignal
         : variant === 'secondary'
           ? t.colors.accentDeep
           : t.colors.ink;

@@ -29,7 +29,7 @@ export function payoutTone(t: Theme, status: Payout['status']) {
     case 'cancelled':
       return { ink: t.colors.muted, bg: t.colors.surface2, label: 'Cancelled' };
     default:
-      return { ink: t.colors.purpleDeep, bg: t.colors.surface2, label: 'Waiting to be sent' };
+      return { ink: t.colors.text, bg: t.colors.surface2, label: 'Waiting to be sent' };
   }
 }
 

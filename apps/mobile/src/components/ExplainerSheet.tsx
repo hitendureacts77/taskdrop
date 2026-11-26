@@ -41,7 +41,7 @@ export function ExplainerSheet({
   const gold = which === 'hunt' || which === 'huntFinder';
   const tone = gold ? t.colors.goldInk : t.colors.accentDeep;
   const soft = gold ? t.colors.gold + '1F' : t.colors.accentSoft;
-  const onTone = gold ? (t.isDark ? '#1A1206' : '#FFFFFF') : t.colors.onBtn;
+  const onTone = gold ? t.colors.onGold : t.colors.onBtn;
   const steps = e.steps.map((s) => ({ ...s, body: fillFee(s.body, posterFee) }));
 
   const label = (text: string) => (

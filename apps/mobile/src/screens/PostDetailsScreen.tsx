@@ -468,7 +468,7 @@ export function PostDetailsScreen() {
             <View style={{ flexDirection: 'row', gap: 9, marginTop: gap(11) }}>
               {FLAGS.map((f, i) => {
                 const on = flag === i;
-                const hue = i === 1 ? t.colors.signal : i === 2 ? t.colors.purple : t.colors.line;
+                const hue = i === 1 ? t.colors.signal : i === 2 ? t.colors.accentDeep : t.colors.line;
                 return (
                   <Pressable
                     key={f}

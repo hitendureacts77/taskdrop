@@ -398,7 +398,7 @@ function PlanRow({
         )}
         <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
           {when} ·{' '}
-          <RNText style={item.kind === 'online' ? tx('700', 12, t.colors.aiInk) : undefined}>{kindLabel(item.kind)}</RNText>
+          <RNText style={item.kind === 'online' ? tx('700', 12, t.colors.ink, { backgroundColor: t.colors.surface2 }) : undefined}>{kindLabel(item.kind)}</RNText>
         </RNText>
       </Pressable>
     </View>
@@ -548,7 +548,7 @@ function Board({
                   <RNText style={tx('700', 14, t.colors.ink)}>{item.title}</RNText>
                   <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
                     {whenLabel(plan.day, item, today)} ·{' '}
-                    <RNText style={item.kind === 'online' ? tx('700', 12, t.colors.aiInk) : undefined}>{kindLabel(item.kind)}</RNText>
+                    <RNText style={item.kind === 'online' ? tx('700', 12, t.colors.ink, { backgroundColor: t.colors.surface2 }) : undefined}>{kindLabel(item.kind)}</RNText>
                   </RNText>
                 </Pressable>
                 {state === 'not_posted' || state === 'cancelled' ? (
