@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { View, Text as RNText, Pressable, type LayoutChangeEvent } from 'react-native';
 import type * as Gl from 'maplibre-gl';
@@ -138,7 +138,8 @@ function GlJobsMap({
     });
     m.on('moveend', () => {
       // The map has stopped: lay the pins out again from here.
-      setSnap(takeSnap(m));
+      // A transition: the new layout (hundreds of pins to build) is made in small slices between frames, so the map never stalls; the old pins keep following the map until it is ready.
+      startTransition(() => setSnap(takeSnap(m)));
       redraw();
       const wasZoom = zoomed.current;
       zoomed.current = false;

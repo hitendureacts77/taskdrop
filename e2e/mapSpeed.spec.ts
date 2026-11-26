@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { answerConsent, continueAsGuest, openExplore } from "./helpers";
 
 // Plan D33 step E: how smooth is the map with 2,000 pins? Needs a web build made with EXPO_PUBLIC_E2E_FAKE_PINS=1
-// (npm run web:export with that set); the pins come from `?fakepins=2000` (lib/fakePins.ts). Without that build the
+// (npm run web:export with that set, plus E2E_FAKE_PINS_BUILD=1, which the export guard asks for); the pins come from `?fakepins=2000` (lib/fakePins.ts). Without that build the
 // test skips. Never runs against a production build: the flag is not in one.
 //
 // The camera is flown with the mouse (wheel zoom, drag pan) for about ten seconds while a requestAnimationFrame
