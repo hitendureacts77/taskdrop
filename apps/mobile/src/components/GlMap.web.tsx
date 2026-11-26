@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type * as Gl from 'maplibre-gl';
 import { useLayout } from '../lib/layout';
 import { pageZoom } from '../lib/desktopScale';
+import { glStyleUrl } from '../lib/mapStyle';
 
 /**
  * The web map engine (plan D21): MapLibre GL drawing OpenFreeMap's free vector
@@ -17,10 +18,8 @@ import { pageZoom } from '../lib/desktopScale';
 
 export type MapLib = typeof Gl;
 
-/** OpenFreeMap styles: Positron is light and quiet, Dark is its night version. */
-export function glStyleUrl(isDark: boolean): string {
-  return isDark ? 'https://tiles.openfreemap.org/styles/dark' : 'https://tiles.openfreemap.org/styles/positron';
-}
+/** OpenFreeMap styles, shared with the phone map (lib/mapStyle.ts). */
+export { glStyleUrl };
 
 /** India with a margin. [west, south], [east, north]. The map no longer stops here (owner video, 9 Nov). */
 export const INDIA_BOUNDS: [[number, number], [number, number]] = [
