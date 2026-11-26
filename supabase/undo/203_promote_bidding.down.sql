@@ -1,4 +1,4 @@
--- Undo for 20261125120000_203_promote_bidding.sql (plan task 1.19 row C).
+-- Undo for 20261126110000_203_promote_bidding.sql (plan task 1.19 row C).
 --
 -- Puts start_promotion, cancel_promotion, settle_campaign and settle_finished_campaigns back to their
 -- 114/046 bodies by re-running those migrations' definitions, and removes the trigger. The new settings,
