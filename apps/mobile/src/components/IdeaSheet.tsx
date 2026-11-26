@@ -7,6 +7,8 @@ import { KINDS, KIND_LABEL, compactCount, similarQuery, type Idea, type IdeaKind
 import { BottomSheet, Field, Pill, PrimaryButton } from './kit';
 import { tx } from './primitives';
 import { isNeedsAccount, useAccountHold } from '../lib/guest';
+import { FeedbackAttach } from './FeedbackFiles';
+import type { FeedbackFile } from '../lib/media';
 
 /**
  * "Suggest an idea": a title, what it is, and optional details. While the title
@@ -32,6 +34,8 @@ export function IdeaSheet({
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<FeedbackFile[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [similar, setSimilar] = useState<Idea[]>([]);
 
   // Ideas that already say something like this, once the title has a real word in it.
@@ -56,8 +60,9 @@ export function IdeaSheet({
   const send = async () => {
     setBusy(true);
     try {
-      const idea = await postIdea(title, body, kind);
+      const idea = await postIdea(title, body, kind, files);
       setTitle('');
+      setFiles([]);
       setBody('');
       setSimilar([]);
       onClose();
@@ -77,7 +82,7 @@ export function IdeaSheet({
       onClose={onClose}
       title="Suggest an idea"
       subtitle="Everyone using TaskDrop can see it and vote. Keep phone numbers and emails out. For a private problem, use Help & support."
-      footer={<PrimaryButton label="Post idea" onPress={() => void send()} busy={busy} disabled={title.trim().length < 3} />}
+      footer={<PrimaryButton label="Post idea" onPress={() => void send()} busy={busy} disabled={title.trim().length < 3 || uploading} />}
     >
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {KINDS.map((k) => (
@@ -132,6 +137,12 @@ export function IdeaSheet({
         multiline
         maxLength={2000}
         placeholder="What would it help you do?"
+      />
+      <FeedbackAttach
+        files={files}
+        onChange={setFiles}
+        onBusy={setUploading}
+        note="Everyone signed in can see them, so leave out anything private."
       />
     </BottomSheet>
   );
