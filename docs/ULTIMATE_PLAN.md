@@ -2220,6 +2220,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.19 The debug loop (added 10 Nov) | Planned 10 Nov ([DEBUGGING_PLAN.html](DEBUGGING_PLAN.html)); Starter Story debugging lessons added 11 Nov (dig-deeper ladder, `BUG_PROMPT.md`; then "Advanced Debugging (Day 6)": code and live backend, context first, logs before code, fix path A or B); rounds 0 to 3 run 12 Nov, round 4 run 13 Nov (live web, Android, admin); not settled; whole-app coverage map, charters I to K and round 5 added 13 Nov; round 7 run 16 Nov (guest, signed-in, admin and phone walks; fixes in PRs 376 to 397); **round 8 (17 Nov) found everything first, fixed nothing:** 7 code audits and 4 signed-in walks, payments left out, 367 findings so far (0 Critical, 7 High, 90 Medium, 223 Low, 47 Info; walks L1 to L3 still running), written in [ROUND-8.md](debug-loop/ROUND-8.md) and `docs/debug-loop/round-8/`, to be fixed all at once and then one phone update; earlier: **round 5 started 14 Nov, not finished** ([ROUND-5.md](debug-loop/ROUND-5.md): both sweeps green, the 13 admin fixes of round 4 reviewed and merged, 11 new bugs B142 to B152, admin roles, golden path, forms and Android still to run) | Do the owner-only steps in section 19 of the plan page (still open: migration 152, `psql`, admin logins, the staging Android app, `EXPO_BUILDS_TOKEN`), then say "start debug round" again for round 6; then your "fix" or "accept" after each round. Gate 3 waits for it to settle; Gate 2b does not |
 | 2.20 The audit prompt for vibe-coded apps (added 10 Nov) | Not run | Say "start 2.20"; then your "fix" or "accept" on the Medium and Low finds. Does not block Gate 2b unless it finds a Critical or High |
 | 2.21 The money flow, Plan B (added 11 Nov, final pass) | Design done 18 Nov; code built 19 Nov; **on main 21 Nov** (PR 455 + admin PR 69, migration 195), switched off (`money_flow` = wallet) | Next: CI green, merge, look on staging with the simulated provider ([HANDOVER.md](../docs/design/plan-b-money/HANDOVER.md)); real money waits for Razorpay's written answer (S.4), the lawyer's yes (S.3) and test keys |
+| 2.25 The Claude Security scanner (added 23 Nov, from a YouTube video; docs checked) | Not started | Waiting for your Python install (not on this PC, checked 23 Nov), then say "start 2.25". Does not block Gate 2b unless it finds a Critical or High |
 
 **On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
 
@@ -3462,6 +3463,61 @@ start 2.20
 5. Nothing to do for migration 192: merging applied it to staging. Production gets it with every other migration in 5.9.
 
 **Done when:** Sentry EU is live and the US organisation is scheduled for deletion; ImageKit's region is confirmed India; migration 192 is applied; the Privacy Policy matches the table.
+</details>
+
+<details id="t2-25" data-short="Claude Security scanner">
+<summary>[BOTH] <b>2.25</b> The Claude Security scanner: a second AI reader over both code folders <small>· your time: about 20 minutes (Python install, one switch) · uses your Claude usage limits, no extra bill · added 23 Nov, not started; waiting for your Python install</small></summary>
+
+**Where this came from:** a video by Digital Benjamins ("Claude Code Security Plugin", 7 Aug 2026, https://www.youtube.com/watch?v=LdxjEZ8Yx2Q) where the maker scans their own live SaaS with Anthropic's new `claude-security` plugin. Claude checked the plugin's own docs page on 23 Nov (https://code.claude.com/docs/en/claude-security) so every command below is the official one, not the video's.
+
+**Why it earns a place:** it works differently from what we already run. The built-in `security-review` (rule 9) reads only one pull request's changes. The Claude Security scan reads the **whole** code folder with several agents: one maps the architecture, others hunt for holes, and a separate **independent verifier** tries to disprove each find before it reaches you. That verifier is why it raises few false alarms. It is a third, different pair of eyes next to 2.14 (Claude's own hunt) and 2.16 (Strix attacks the running staging app). It does not replace them: it reads code only and does not attack anything running.
+
+**What the video and the docs say (checked):**
+
+| Point | Detail |
+|---|---|
+| Install | `/plugin install claude-security@claude-plugins-official`, then `/reload-plugins`. Command to run it: `/claude-security`. Official docs say it is a beta plugin. |
+| Needs | A paid plan or API access; **Python 3.9 or later on the PATH as `python3`** (standard library only, nothing else to install); the **Dynamic workflows** switch. On a Pro plan, that switch is the row "Dynamic workflows" in `/config`. |
+| Three jobs | **Scan codebase**, **Scan changes** (one branch or commit), **Suggest patches** (turns findings into patch files). |
+| Effort | `low` = quick look, `medium` = default, `high` = more hunting. The same independent verification runs at every level. Big code folders: scan one area at a time (the API layer, sign-in, money). |
+| Results | A new folder `CLAUDE-SECURITY-<timestamp>/` **inside the code folder**: `CLAUDE-SECURITY-RESULTS.md` (the report), `.jsonl`, `.sarif`, and a revision stamp. Findings the verifier rejected are still listed, so we read them too. |
+| Fixes | Patches are **never applied automatically.** Each patch is built in a scratch copy and reviewed by a second agent, and the project's tests run against it. Applying one is always a choice. |
+| Cost | It runs in your own Claude session, so every scan uses your usage limits. A full scan of a big folder can use a lot. Scope it and start at `medium`. |
+| Mode | Works best in auto mode (Shift+Tab until it says auto). |
+
+**Claude's honest limits on the video (so nothing is over-believed):**
+
+- The maker says it is "not a full secure check, but good for low-hanging fruit." In their own scan it found 1 Medium and 1 Low and rejected 4 candidates. Treat a clean report as "nothing obvious," never as "safe."
+- It is a code reader only. The black-box and grey-box attack testing the maker mentions is already covered here by 2.16 (Strix) and 2.18 part B. Their paid "ShipDojo" runbook is **not** used; our 12 checks, 2.14 and 2.18 already cover that ground.
+- The second plugin in the video, `security-guidance@claude-plugins-official`, is **not** installed now: the docs describe it as editing-time guidance, and we already have rule 9 plus `secret-guard`. Claude only re-checks it if Claude Security proves useful.
+
+**The rules:**
+
+- **Our own code only**: the `taskdrop` and `taskdrop-admin` folders. Never anything running; this task attacks nothing.
+- **Reports stay out of git.** The results folder is a list of our holes. Before the first scan Claude adds `CLAUDE-SECURITY-*/` to `.gitignore` in both folders, and copies each report to a private folder outside the code folders. The repos are going private anyway (2.13 part H); this is the second lock.
+- **No secrets in the scan.** `.env` files and `.env.all-secrets` are never in the code folders being scanned; Claude checks that first. Nothing in a report is pasted in chat if it shows a key (Claude says "a key at file X", never the value).
+- **No auto-applied patches.** Each patch goes through the normal rule: branch, `npm run check`, `npm run test:db` for money or permission code, `security-review`, then merge.
+- **Money and sign-in are fixed by Opus, not Sonnet**, because a wrong patch there is costly (root CLAUDE.md model split).
+
+**Your steps:**
+
+1. CLICK: install Python 3. This PC has none (checked 23 Nov: `python3` and `python` both say "not found"). Open https://www.python.org/downloads/windows/, install the latest 3.x, and tick **Add python.exe to PATH**. Then open Settings → Apps → Advanced app settings → App execution aliases and switch **off** the two "App Installer python" entries, otherwise Windows answers with a Microsoft Store stub instead. Tell Claude when done.
+2. CLICK: the **Dynamic workflows** switch. The docs only say that on a Pro plan you must switch it on; on other plans Claude checks first. If a scan does nothing, open a terminal, run `claude`, then `/config` and switch **Dynamic workflows** on. (The Code tab here does not show that screen.)
+3. SAY:
+
+```say
+start 2.25
+```
+
+4. Wait (one or two sessions). Claude installs the plugin, runs a **medium** scan on one area at a time in this order: money and wallet (Edge Functions, `packages/rules`), sign-in and sessions, the admin app, then the rest.
+5. Reply "fix" or "accept" for each finding (the same short cards as 2.15). Critical and High are always fixed.
+6. TELL Claude: "done 2.25".
+
+**Claude's checks on each finding:** is it real (open the code and read it), is it already in the Security section (same H number) or new (next free H number), and does it overlap 2.14 or Strix. For every finding the verifier **rejected**, Claude reads the reason and only keeps it if it is still plausible.
+
+**Done when:** both code folders have been scanned at `medium` (money, sign-in and admin also at `high`); every finding is real, a false alarm, or already known; real Critical and High holes are fixed, each with a test that fails before the fix; every other find has your answer; new holes are in the Security section under the next free H numbers; the results folders are gitignored and copied outside the code folders.
+
+**Then keep it going:** Claude runs **Scan changes** on each big feature branch that touches money, sign-in or the admin (instead of only `security-review`), and repeats the whole-folder scan before Gate 5 and after any Plan B money-flow change. Putting it in CI is not done: it uses a person's usage limits, so it stays a deliberate run.
 </details>
 
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
