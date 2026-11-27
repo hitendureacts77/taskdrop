@@ -7,6 +7,7 @@ import {
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
+import { type PromotableRow, crewFilled, isPromotable, pageOf, toPromotable } from "./promotable.ts";
 import { chatStateFrom, readChatStates } from "./chat.ts";
 import { type Understanding, nearConcepts, rankedSearch, suggestConcepts, understand, whyLine } from "./search.ts";
 import { findContactIssue } from "../_shared/contacts.ts";
@@ -563,6 +564,35 @@ export const READ_OPS: Record<string, Op> = {
       (b) => b.task_id,
     );
     return list.map((r) => ({ ...r, quotes: counts[r.id] ?? 0 }));
+  },
+
+  /**
+   * One page of the caller's own posts that can be promoted: open, and with fewer workers than wanted
+   * (task 1.21 row D). Newest first, `limit` (default 10) at a time from `offset`; `hasMore` says whether another
+   * page follows. `kind` keeps tasks (request) and services apart so the two colours never mix.
+   */
+  promotableTasksPage: async (ctx, a) => {
+    const n = limit(a, "limit", 10, 30);
+    const offset = int(a, "offset", 0, 5000, 0);
+    const kind = oneOf(a, "kind", ["request", "service"], "request");
+    const fetched = rows<PromotableRow>(
+      await ctx.db.from("tasks")
+        .select("id,title,category,kind,benchmark_minor,status,crew_id,crew_size,crew_slot")
+        .eq("poster_id", ctx.userId).eq("kind", kind).eq("status", "OPEN")
+        .order("created_at", { ascending: false }).order("id", { ascending: false })
+        .range(offset, offset + n),
+    );
+    const { items, hasMore } = pageOf(fetched, n);
+    if (items.length === 0) return { items: [], hasMore: false };
+    const crewIds = [...new Set(items.map((r) => r.crew_id).filter((x): x is string => Boolean(x)))];
+    const filled = crewIds.length
+      ? crewFilled(rows<{ crew_id: string | null; status: string }>(await ctx.db.from("tasks").select("crew_id,status").in("crew_id", crewIds)))
+      : {};
+    const counts = countBy(
+      rows<{ task_id: string }>(await ctx.db.from("bids").select("task_id").in("task_id", items.map((r) => r.id))),
+      (b) => b.task_id,
+    );
+    return { items: items.filter((r) => isPromotable(r, filled)).map((r) => toPromotable(r, counts, filled)), hasMore };
   },
 
   /**

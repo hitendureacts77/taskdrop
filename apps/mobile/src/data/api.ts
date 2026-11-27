@@ -645,6 +645,21 @@ export type PromotableTask = {
 
 export const promotableTasks = () => ask<PromotableTask[]>('promotableTasks', {}, []);
 
+/** A promotable post on the picker: open, with fewer workers than wanted ("1 of 5 workers"). */
+export type PromotablePost = PromotableTask & {
+  category: string | null;
+  kind: 'request' | 'service';
+  crew_id: string | null;
+  filled: number;
+  wanted: number;
+};
+
+export const PROMOTABLE_PAGE = 10;
+
+/** The caller's promotable posts, newest first, one page at a time. `hasMore` says whether "Show more" has anything. */
+export const promotableTasksPage = (kind: TaskKind, offset = 0, limit = PROMOTABLE_PAGE) =>
+  ask<{ items: PromotablePost[]; hasMore: boolean }>('promotableTasksPage', { kind, offset, limit }, { items: [], hasMore: false });
+
 /** Daily budgets in whole rupees and campaign lengths in days that `start_promotion` accepts. */
 export type PromotionTiers = { budgets: number[]; days: number[] };
 
