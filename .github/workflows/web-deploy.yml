@@ -1,6 +1,7 @@
 name: Web deploy (Cloudflare)
 
-# Called by deploy-staging.yml (plan task 5.12). Builds the web app for one target and uploads it to the
+# Called by deploy-staging.yml (target staging, every merge) and release-production.yml (target production,
+# by hand; plan task 5.12 and decision 57). Builds the web app for one target and uploads it to the
 # Cloudflare Worker taskdrop-<target>. Secrets come from the GitHub environment web-<target>.
 
 on:

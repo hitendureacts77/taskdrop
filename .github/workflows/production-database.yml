@@ -2,8 +2,9 @@ name: Production database and functions
 
 # Plan task 5.9 (docs/ULTIMATE_PLAN.md) and docs/RELEASE.md section 4: "a button, not a command, for production".
 #
-# Runs when code that touches supabase/** is merged into `redesigned-2.0` (the one working branch since 21 Nov 2026), or by hand (Actions -> this workflow ->
-# Run workflow, branch redesigned-2.0). Two jobs:
+# Called by release-production.yml, the one way a change reaches production (plan decision 57, 27 Nov 2026), or run by hand for
+# the database alone (Actions -> this workflow -> Run workflow, branch redesigned-2.0). It no longer starts on every merge: those runs
+# sat waiting for Approve and blocked each other (one from 23 Nov held the queue for four days). Two jobs:
 #
 #   plan    lists what would be applied. Connects to nothing and holds no secret.
 #   deploy  waits for the owner's Approve on the GitHub environment `production-database` (owner is the required
@@ -34,9 +35,7 @@ name: Production database and functions
 
 on:
   workflow_dispatch:
-  push:
-    branches: [redesigned-2.0]
-    paths: ['supabase/**']
+  workflow_call:
 
 permissions:
   contents: read

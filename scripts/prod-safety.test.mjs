@@ -255,6 +255,27 @@ test('the production deploy waits for the approval environment, runs from redesi
   // the plan job holds no secret
   const plan = y.slice(y.indexOf('\n  plan:'), y.indexOf('\n  deploy:'));
   assert.ok(!plan.includes('${{ secrets.'));
+  // it never starts by itself: a merge must not queue a production run (plan decision 57)
+  const on = y.slice(y.indexOf('\non:'), y.indexOf('\npermissions:'));
+  assert.ok(!/\n\s+push:|\n\s+schedule:|\n\s+pull_request/.test(on), 'production-database must not start on push');
+  assert.match(on, /workflow_call:/);
+});
+
+test('production moves as one release: guard, then database, then website, then a check; staging never deploys production', () => {
+  const y = wf('release-production.yml');
+  const on = y.slice(y.indexOf('\non:'), y.indexOf('\nconcurrency:'));
+  assert.match(on, /workflow_dispatch:/);
+  assert.ok(!/\n\s+push:|\n\s+schedule:|\n\s+pull_request|workflow_call/.test(on), 'the release starts by hand only');
+  assert.match(y, /refs\/heads\/redesigned-2\.0/);
+  assert.match(y, /database:\r?\n(?:.*\n)*?    needs: guard\r?\n    uses: \.\/\.github\/workflows\/production-database\.yml/);
+  assert.match(y, /web:\r?\n(?:.*\n)*?    needs: database\r?\n    uses: \.\/\.github\/workflows\/web-deploy\.yml/);
+  assert.match(y, /needs: \[database, web\]/);
+  assert.ok(!/^\s*secrets:\s*inherit\s*$/m.test(y), 'pass named secrets, never all of them');
+  assert.match(y, /cancel-in-progress: false/);
+  // only the tagging job may write, and only tags
+  assert.equal((y.match(/contents: write/g) || []).length, 1);
+  const staging = wf('deploy-staging.yml');
+  assert.ok(!staging.includes('target: production'), 'deploy-staging must not deploy production');
 });
 
 test('the hourly alarm and the nightly copy run from redesigned-2.0 in their own environment', () => {
