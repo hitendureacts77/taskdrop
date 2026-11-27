@@ -37,10 +37,12 @@ import { areaOf, earnOf, earnedLine, workerDateBits } from './WorkerCard';
  * unit as `useTableWidth`, already divided by the page zoom), so nothing overlaps. `narrow`: the width the column
  * takes when the room is under NARROW.
  */
-export type Column = { label: string; flex?: number; width?: number; narrow?: number; minWidth?: number; dropBelow?: number };
+export type Column = { label: string; flex?: number; width?: number; narrow?: number; mid?: number; minWidth?: number; dropBelow?: number };
 
 /** Under this much room (about a 1024 px window) the fixed columns tighten and the action buttons may wrap. */
 const NARROW = 900;
+/** Under this much room (a 1366 px laptop window) Status, Offers and Budget give some room to the Task name. */
+const MID = 1300;
 
 /** The room the table's rows have, in layout px: the feed column less the page's side padding and the card's. */
 function useTableWidth(): number {
@@ -48,27 +50,27 @@ function useTableWidth(): number {
   return contentWidth('feed') - 80;
 }
 const shownCols = (columns: Column[], w: number): Column[] =>
-  columns.filter((c) => !c.dropBelow || w >= c.dropBelow).map((c) => (w < NARROW && c.narrow ? { ...c, width: c.narrow } : c));
+  columns.filter((c) => !c.dropBelow || w >= c.dropBelow).map((c) => (w < NARROW && c.narrow ? { ...c, width: c.narrow } : w < MID && c.mid ? { ...c, width: c.mid } : c));
 
 export const POSTER_COLUMNS: Column[] = [
   // Task takes the room that is left; the others hold a width of their own (design D3: Status, Offers, Budget
   // narrow, Date wide enough for "Posted 3 Nov · No fixed date" on one line). Date goes first, then Offers.
   { label: 'TASK', flex: 1.05, minWidth: 150 },
-  { label: 'STATUS', width: 156, narrow: 130 },
-  { label: 'OFFERS', width: 156, narrow: 110, dropBelow: 700 },
-  { label: 'BUDGET', width: 130, narrow: 100 },
+  { label: 'STATUS', width: 156, mid: 146, narrow: 130 },
+  { label: 'OFFERS', width: 156, mid: 112, narrow: 110, dropBelow: 700 },
+  { label: 'BUDGET', width: 130, mid: 104, narrow: 100 },
   { label: 'DATE', flex: 1, minWidth: 180, dropBelow: 1090 },
-  // Wide enough for the longest set (Leave a review + Book again + the menu); narrow: the buttons wrap.
-  { label: '', width: 290, narrow: 170 },
+  // Wide enough for the longest set (Leave a review + Book again + the menu); on a laptop (mid) and narrower a second button wraps under the first.
+  { label: '', width: 290, mid: 210, narrow: 170 },
 ];
 
 export const WORKER_COLUMNS: Column[] = [
   { label: 'TASK', flex: 1.05, minWidth: 150 },
-  { label: 'STATUS', width: 156, narrow: 130 },
-  { label: 'CUSTOMER', width: 170, narrow: 130, dropBelow: 700 },
-  { label: 'PRICE', width: 130, narrow: 100 },
+  { label: 'STATUS', width: 156, mid: 146, narrow: 130 },
+  { label: 'CUSTOMER', width: 170, mid: 140, narrow: 130, dropBelow: 700 },
+  { label: 'PRICE', width: 130, mid: 104, narrow: 100 },
   { label: 'DATE', flex: 1, minWidth: 180, dropBelow: 1090 },
-  { label: '', width: 290, narrow: 170 },
+  { label: '', width: 290, mid: 210, narrow: 170 },
 ];
 
 // The actions column (no label) never shrinks, so its buttons and the menu are always whole. The other fixed columns
