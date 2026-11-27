@@ -4918,7 +4918,7 @@ Build the staging APK.
 </details>
 
 <details id="t5-0d" data-short="Production APK and store file">
-<summary>[BOTH] <b>5.0d</b> Production Android app: the production APK and the store file <small>· your time: about 40 minutes · after 5.7 and 5.9</small></summary>
+<summary>[BOTH] <b>5.0d</b> Production Android app: the production APK and the store file <small>· your time: about 30 minutes · APK built 27 Nov on this PC (not from the release button yet) · waiting for your install and checks (step 2)</small></summary>
 
 **What you get:** a production APK you can install on your own phone to rehearse the real thing before Google's review, and the store file (AAB) that 6.6 uploads. Both are built from the commit last released to production (the release button, decision 57), so what you rehearse is the code that ships.
 
@@ -4926,7 +4926,15 @@ Build the staging APK.
 
 - Built by the **production** Expo project, with the production variables only. No debug token, ever.
 - The production Firebase app `com.taskdrop.app` and the Android maps key `taskdrop-production-android-maps` must list **both** signing certificates: the Play upload key (the APK is signed with it) and the Play app-signing key (the store version is signed with it). 5.3 adds the second one after Google shows it; add the first one now.
-- The production APK cannot sit beside the Play testing app (row 2) because they share a package and have different signatures. Use a different phone, or uninstall the testing app first. Row 1 (TaskDrop Staging) can stay.
+- The production APK and the current TaskDrop (beta) app share the package `com.taskdrop.app` **and** the signing key (the Play upload key is the same key the beta app was built with). So installing the production APK **replaces** the beta app on that phone (its sign-in is lost; the app then talks to production). Use a different phone, or move to TaskDrop Staging (5.0c) first. Row 1 (TaskDrop Staging) can stay.
+
+**Progress 27 Nov (Claude):**
+
+- Built on this PC (Expo cloud builds are used up until 1 Dec) from `redesigned-2.0` at c0bfd19, through the production Expo project and its production variables: `C:	d-tools	askdrop-production-r27.apk`. Checked: package `com.taskdrop.app`, name "TaskDrop", channel `production`, update address = the production Expo project, signed with the Play upload key (SHA-1 `1F:22:C8:0B:77:D1:C9:36:D2:B2:F6:C0:CF:35:09:B1:72:2B:E5:D1`), the app talks only to the production server, no App Check debug token, no Razorpay test key.
+- The build guard ran inside the build and passed.
+- The production Firebase app `com.taskdrop.app` already lists the upload-key SHA-1. The Play app-signing SHA is added in 5.3 once Google shows it.
+- Not done: nothing was sent to Google Play. The final rehearsal build comes from the release button (decision 57) once it exists; this one is from the current `redesigned-2.0`.
+- Waiting for your install and checks (step 2): with the phone on USB, `adb install -r C:	d-tools	askdrop-production-r27.apk` (read the rule above first: it replaces the beta app).
 
 1. Check that 5.2 to 5.7 and 5.9 are done. SAY:
 
