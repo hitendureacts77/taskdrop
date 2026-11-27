@@ -60,9 +60,12 @@ begin
   assert not private.admin_session_ok(), 'a garbled session id is refused';
 
   -- The limits are settings, clamped to sane bounds.
+  -- (Settings are changed as the operator: as an admin the settings guard asks for an authenticator code.)
+  perform set_config('request.jwt.claims', '', true);
   update public.settings set value = to_jsonb(14) where key = 'admin_session_hours';
   perform pg_temp.claims(v_admin, v_old::text);
   assert private.admin_session_ok(), 'admin_session_hours moves the absolute limit';
+  perform set_config('request.jwt.claims', '', true);
   update public.settings set value = to_jsonb(12) where key = 'admin_session_hours';
 
   -- The app's callers cannot reach the check directly.
