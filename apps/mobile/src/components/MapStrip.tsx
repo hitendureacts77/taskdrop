@@ -1,6 +1,7 @@
 import { View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { Pressy, tx } from './primitives';
+import { useLayout } from '../lib/layout';
 
 /** The strip is short on purpose: a taste of the map, the full one is a tap away. */
 export const STRIP_HEIGHT = 150;
@@ -32,6 +33,7 @@ export function MapStrip({
   testID?: string;
 }) {
   const t = useTheme();
+  const { desktop } = useLayout();
   const titleText = (
     <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.3 })} numberOfLines={1}>
       {title}
@@ -73,7 +75,7 @@ export function MapStrip({
         <Pressy
           onPress={onOpenMap}
           label="Open the map"
-          style={{ marginTop: 6, alignSelf: 'flex-start', height: 32, paddingHorizontal: 14, borderRadius: 16, backgroundColor: t.colors.btn, justifyContent: 'center' }}
+          style={{ marginTop: 6, alignSelf: 'flex-start', height: 32, paddingHorizontal: 14, borderRadius: desktop ? 10 : 16, backgroundColor: t.colors.btn, justifyContent: 'center' }}
         >
           <RNText style={tx('800', 12.5, t.colors.onBtn)}>Open the map</RNText>
         </Pressy>

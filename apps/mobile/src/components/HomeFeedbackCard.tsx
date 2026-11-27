@@ -6,6 +6,7 @@ import { useActions } from '../providers/AppStateProvider';
 import { listIdeas, voteIdea } from '../data/extras';
 import { withVote, withVoteResult, type Idea } from '../lib/ideas';
 import { reportError } from '../lib/errors';
+import { useLayout } from '../lib/layout';
 import { isNeedsAccount } from '../lib/guest';
 import { VoteBox } from './IdeaRow';
 import { IdeaSheet } from './IdeaSheet';
@@ -21,6 +22,7 @@ import { cardSurface } from './ui';
  */
 export function HomeFeedbackCard({ on = 'profile' }: { on?: ScreenName }) {
   const t = useTheme();
+  const { desktop, scale } = useLayout();
   const { go, screen } = useNav();
   const { flash } = useActions();
   const tick = useFocusTick();
@@ -89,9 +91,10 @@ export function HomeFeedbackCard({ on = 'profile' }: { on?: ScreenName }) {
             marginTop: rows.length ? 4 : 12,
             borderWidth: 1.5,
             borderColor: t.colors.accent,
-            borderRadius: 999,
-            paddingVertical: 9,
-            paddingHorizontal: 16,
+            // Desktop web: a 32 px rectangle (radius 10), as every desktop button.
+            ...(desktop
+              ? { borderRadius: 10, height: 32 / scale, paddingHorizontal: 14 / scale, justifyContent: 'center' as const }
+              : { borderRadius: 999, paddingVertical: 9, paddingHorizontal: 16 }),
             opacity: pressed ? 0.8 : 1,
           })}
         >

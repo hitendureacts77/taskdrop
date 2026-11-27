@@ -3,6 +3,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMyArea } from '../lib/useMyArea';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
+import { useLayout } from '../lib/layout';
 import { Icon, type IconName } from './Icon';
 import { Pressy, tx } from './primitives';
 
@@ -15,6 +16,7 @@ type Chip = { key: string; icon: IconName; label: string; hint: string; open: ()
  */
 export function MapShortcuts({ worker }: { worker: boolean }) {
   const t = useTheme();
+  const { desktop } = useLayout();
   const { go } = useNav();
   const { area } = useMyArea();
   const filters = useJobFilters();
@@ -68,7 +70,7 @@ export function MapShortcuts({ worker }: { worker: boolean }) {
               gap: 7,
               paddingVertical: 9,
               paddingHorizontal: 14,
-              borderRadius: 999,
+              borderRadius: desktop ? 10 : 999,
               borderWidth: 1,
               borderColor: t.colors.line,
               backgroundColor: t.colors.surface,

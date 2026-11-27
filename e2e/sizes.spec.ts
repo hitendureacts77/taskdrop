@@ -62,7 +62,11 @@ test.skip(
 function measureOverflow() {
   const vw = window.innerWidth;
   const root = document.documentElement;
-  const sideways = Math.max(root.scrollWidth, document.body.scrollWidth) - vw;
+  // Desktop (row W, 27 Nov): the web desktop draws its content at CSS zoom 0.92, and body.scrollWidth is reported in
+  // unzoomed pixels (1440 wide -> 1565), which is not a sideways scroll. Bring it back to screen pixels with the zoom of
+  // the element in the middle of the page (1 on phones and tablets, so their measure is unchanged).
+  const zoom = (document.elementFromPoint(vw / 2, 300) as (HTMLElement & { currentCSSZoom?: number }) | null)?.currentCSSZoom ?? 1;
+  const sideways = Math.max(root.scrollWidth, document.body.scrollWidth * zoom) - vw;
   const scrollsSideways = (el: Element) => {
     for (let a: Element | null = el.parentElement; a && a !== document.body; a = a.parentElement) {
       const cs = getComputedStyle(a);

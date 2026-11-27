@@ -57,9 +57,21 @@ type Door = 'signin' | 'signup';
 
 const spaced = spacedMobile;
 
+/** Desktop: the form (heading and the step's content) is centred in the panel, a little above the middle. Elsewhere it adds nothing. */
+function DeskCentered({ on, top, bottom, children }: { on: boolean; top: number; bottom: number; children: React.ReactNode }) {
+  // In normal flow (a box that grows to fill what the heading and footer leave), so a short window or a taller step scrolls the page.
+  return on ? (
+    <View style={{ flexGrow: 1, justifyContent: 'center', paddingTop: top, paddingBottom: bottom }}>{children}</View>
+  ) : (
+    <>{children}</>
+  );
+}
+
 export function AccessScreen() {
   const t = useTheme();
-  const { desktop } = useLayout();
+  const { desktop, scale } = useLayout();
+  // Desktop only (27 Nov design D1): sizes written in screen px, turned into layout px (the page is zoomed on a desktop).
+  const u = (n: number) => n / scale;
   const { go, reset, back, replace, params } = useNav();
   const { celebrate, flash } = useActions();
   const { requestCode, verifyCode, signInWithGoogle, signInWithApple, signOut, continueAsGuest } = useAuth();
@@ -339,7 +351,12 @@ export function AccessScreen() {
 
   const heading =
     stage === 'number'
-      ? { title: 'Get help, near or far.\nOr earn.', sub: 'All it takes is your mobile number. New or returning — we’ll know.' }
+      ? {
+          title: 'Get help, near or far.\nOr earn.',
+          sub: desktop
+            ? 'All it takes is your mobile number. New or returning, we’ll know.'
+            : 'All it takes is your mobile number. New or returning — we’ll know.',
+        }
       : stage === 'birth'
       ? {
           title: 'Nice to meet\nyou.',
@@ -356,13 +373,19 @@ export function AccessScreen() {
   // Said where the account is made (the code button, and Google beside it), so
   // agreeing is a clear act rather than a link in a footer.
   const consent = (
-    <RNText style={tx('400', 12, t.colors.muted, { marginTop: 12, lineHeight: 18, textAlign: 'center' })}>
+    <RNText
+      style={tx('400', desktop ? u(13) : 12, t.colors.muted, {
+        marginTop: desktop ? u(12) : 12,
+        lineHeight: desktop ? u(19) : 18,
+        textAlign: desktop ? 'left' : 'center',
+      })}
+    >
       By continuing you agree to TaskDrop’s{' '}
-      <RNText onPress={() => go('terms')} accessibilityRole="link" style={tx('700', 12, t.colors.accentDeep)}>
+      <RNText onPress={() => go('terms')} accessibilityRole="link" style={tx('700', desktop ? u(13) : 12, t.colors.accentDeep)}>
         Terms
       </RNText>{' '}
       and confirm you have read the{' '}
-      <RNText onPress={() => go('privacy')} accessibilityRole="link" style={tx('700', 12, t.colors.accentDeep)}>
+      <RNText onPress={() => go('privacy')} accessibilityRole="link" style={tx('700', desktop ? u(13) : 12, t.colors.accentDeep)}>
         Privacy Policy
       </RNText>
       .
@@ -383,11 +406,15 @@ export function AccessScreen() {
     );
   }
 
+  // Desktop buttons (27 Nov design D1): rectangles with radius 10, no glow. The main one is 44 tall, the outlined ones 40.
+  const mainBtn = { borderRadius: u(10), minHeight: u(44), paddingVertical: 0, paddingHorizontal: 20, shadowOpacity: 0 };
+  const outlined = desktop ? { height: u(40), borderRadius: u(10) } : { paddingVertical: 13, borderRadius: 16 };
+
   return (
     <Screen padded={false} style={desktop ? { backgroundColor: t.colors.surface } : undefined}>
       <KeyboardScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 22 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: desktop ? u(28) : 22 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -432,7 +459,15 @@ export function AccessScreen() {
           </View>
         )}
 
-        <View style={{ flex: 1, paddingHorizontal: 22, paddingTop: desktop ? 30 : 28 }}>
+        <View
+          style={
+            desktop
+              ? { flex: 1, width: '100%', maxWidth: u(400), alignSelf: 'center', minHeight: u(700) }
+              : { flex: 1, paddingHorizontal: 22, paddingTop: 28 }
+          }
+        >
+          <DeskCentered on={desktop} // The footer below is about 73 px tall; the same amount on top keeps the form where it was when it floated.
+          top={u(77)} bottom={0}>
           {fromGuest ? (
             <Pressable
               onPress={() => {
@@ -448,13 +483,63 @@ export function AccessScreen() {
               <RNText style={tx('700', 14, t.colors.muted)}>Not now</RNText>
             </Pressable>
           ) : null}
-          <RNText style={tx('800', 32, t.colors.ink, { letterSpacing: -1.2, lineHeight: 36 })}>{heading.title}</RNText>
-          <RNText style={tx('400', 14, t.colors.muted, { marginTop: 10, lineHeight: 21 })}>{heading.sub}</RNText>
+          <RNText
+            style={
+              desktop
+                ? tx('800', u(30), t.colors.ink, { letterSpacing: -u(0.6), lineHeight: u(38) })
+                : tx('800', 32, t.colors.ink, { letterSpacing: -1.2, lineHeight: 36 })
+            }
+          >
+            {heading.title}
+          </RNText>
+          <RNText style={tx('400', desktop ? u(15) : 14, t.colors.muted, { marginTop: 10, lineHeight: desktop ? u(22) : 21 })}>{heading.sub}</RNText>
 
           {stage === 'number' ? (
             <>
               {/* The number, big, on a line that fills as it is typed. On a phone the box sits low
                   (under the tall picture), so it scrolls itself above the keyboard when it gets focus. */}
+              {desktop ? (
+                <>
+                  <RNText style={tx('600', u(13), t.colors.ink, { marginTop: u(28) })}>Mobile number</RNText>
+                  <Pressable
+                    onPress={() => phoneRef.current?.focus()}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      height: u(44),
+                      marginTop: u(6),
+                      paddingLeft: u(6),
+                      paddingRight: u(12),
+                      borderRadius: u(10),
+                      borderWidth: 1,
+                      borderColor: phoneFocused || numberReady ? t.colors.accent : t.colors.line,
+                      backgroundColor: t.colors.surface,
+                    }}
+                  >
+                    <View style={{ height: u(30), paddingHorizontal: u(9), borderRadius: u(7), backgroundColor: t.colors.accentSoft, justifyContent: 'center' }}>
+                      <RNText style={tx('700', u(14), t.colors.accentDeep)}>+91</RNText>
+                    </View>
+                    <TextInput
+                      ref={phoneRef}
+                      value={Platform.OS === 'web' ? spaced(phone) : phone}
+                      onChangeText={(v) => setPhone(normalizeMobileInput(v))}
+                      onFocus={() => setPhoneFocused(true)}
+                      onBlur={() => setPhoneFocused(false)}
+                      onSubmitEditing={() => void sendCode()}
+                      returnKeyType="send"
+                      placeholder="98765 43210"
+                      placeholderTextColor={t.colors.muted}
+                      keyboardType="number-pad"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      textContentType="telephoneNumber"
+                      accessibilityLabel="Mobile number"
+                      style={tx('500', u(16), t.colors.ink, { flex: 1, minWidth: 0, padding: 0, marginLeft: u(10), letterSpacing: 0.2 })}
+                    />
+                    {numberReady ? <Icon name="check" size={u(18)} color={t.colors.accent} strokeWidth={2.6} /> : null}
+                  </Pressable>
+                </>
+              ) : (
               <RevealWhen when={phoneFocused}>
               <Pressable onPress={() => phoneRef.current?.focus()} style={{ marginTop: 28 }}>
                 <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.4 })}>YOUR MOBILE NUMBER</RNText>
@@ -501,21 +586,30 @@ export function AccessScreen() {
                 </View>
               </Pressable>
               </RevealWhen>
+              )}
 
               <PrimaryButton
                 label={busy ? 'Sending…' : 'Text me a code'}
-                onPress={() => void sendCode()}
+                // Desktop: the button always looks ready (deep jade); with an incomplete number a press only focuses the box.
+                onPress={() => {
+                  if (desktop && !numberReady) {
+                    phoneRef.current?.focus();
+                    flash('Enter a 10-digit mobile number');
+                    return;
+                  }
+                  void sendCode();
+                }}
                 busy={busy}
-                disabled={!numberReady}
-                style={{ marginTop: 26, borderRadius: 999 }}
+                disabled={desktop ? false : !numberReady}
+                style={desktop ? { ...mainBtn, marginTop: u(16) } : { marginTop: 26, borderRadius: 999 }}
               />
               {consent}
 
               {/* The other two ways in, side by side and quieter. */}
               {features.signInGoogle || features.signInPassword || (features.signInApple && Platform.OS === 'ios') ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 26 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: desktop ? u(24) : 26 }}>
                 <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
-                <RNText style={tx('500', 12, t.colors.muted)}>or use</RNText>
+                <RNText style={tx('500', desktop ? u(13) : 12, t.colors.muted)}>or use</RNText>
                 <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
               </View>
               ) : null}
@@ -524,7 +618,7 @@ export function AccessScreen() {
                   <AppleSignInButton onPress={() => void appleSignIn()} busy={appleBusy} />
                 </View>
               ) : null}
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              <View style={{ flexDirection: 'row', gap: desktop ? u(12) : 10, marginTop: desktop ? u(16) : 14 }}>
                 {features.signInGoogle ? (
                 <Pressable
                   onPress={() => void googleSignIn()}
@@ -537,8 +631,7 @@ export function AccessScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 8,
-                    paddingVertical: 13,
-                    borderRadius: 16,
+                    ...outlined,
                     backgroundColor: t.colors.surface,
                     borderWidth: 1,
                     borderColor: t.colors.line,
@@ -567,8 +660,7 @@ export function AccessScreen() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 8,
-                    paddingVertical: 13,
-                    borderRadius: 16,
+                    ...outlined,
                     backgroundColor: t.colors.surface,
                     borderWidth: 1,
                     borderColor: t.colors.line,
@@ -594,9 +686,8 @@ export function AccessScreen() {
                     style={({ pressed }) => ({
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginTop: 14,
-                      paddingVertical: 13,
-                      borderRadius: 16,
+                      marginTop: desktop ? u(12) : 14,
+                      ...outlined,
                       backgroundColor: t.colors.surface,
                       borderWidth: 1,
                       borderColor: t.colors.line,
@@ -605,7 +696,13 @@ export function AccessScreen() {
                   >
                     <RNText style={tx('700', 14, t.colors.ink)}>Continue as guest</RNText>
                   </Pressable>
-                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 8, lineHeight: 18, textAlign: 'center' })}>
+                  <RNText
+                    style={tx('400', desktop ? u(13) : 12, t.colors.muted, {
+                      marginTop: 8,
+                      lineHeight: desktop ? u(19) : 18,
+                      textAlign: desktop ? 'left' : 'center',
+                    })}
+                  >
                     Look around first. Make your account when you post, offer or pay.
                   </RNText>
                 </>
@@ -643,7 +740,7 @@ export function AccessScreen() {
                 onPress={() => void confirmBirth()}
                 busy={busy}
                 disabled={!parseBirthDate(dob.day, dob.month, dob.year)}
-                style={{ marginTop: 26, borderRadius: 999 }}
+                style={desktop ? { ...mainBtn, marginTop: 26 } : { marginTop: 26, borderRadius: 999 }}
               />
               {consent}
             </>
@@ -766,17 +863,18 @@ export function AccessScreen() {
                 onPress={() => void verify()}
                 busy={busy && complete}
                 disabled={!complete}
-                style={{ marginTop: 22, borderRadius: 999 }}
+                style={desktop ? { ...mainBtn, marginTop: 22 } : { marginTop: 22, borderRadius: 999 }}
               />
             </>
           )}
 
-          <View style={{ flex: 1 }} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 28 }}>
-            <Icon name="shield" size={13} color={t.colors.muted} />
-            <RNText style={tx('400', 12, t.colors.muted)}>One account for hiring and earning.</RNText>
+          </DeskCentered>
+          {desktop ? null : <View style={{ flex: 1 }} />}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: desktop ? 'auto' : 28, paddingTop: desktop ? 28 : 0 }}>
+            <Icon name="shield" size={desktop ? u(14) : 13} color={t.colors.muted} />
+            <RNText style={tx('400', desktop ? u(12.5) : 12, t.colors.muted)}>One account for hiring and earning.</RNText>
           </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 14, marginTop: 10 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: desktop ? u(15) : 14, marginTop: 10 }}>
             {(
               [
                 ['terms', 'Terms'],
@@ -794,6 +892,19 @@ export function AccessScreen() {
           </View>
         </View>
       </KeyboardScrollView>
+
+      {/* Desktop: a quiet link at the top right of the panel, to what "How TaskDrop works" opens everywhere else. */}
+      {desktop ? (
+        <Pressable
+          onPress={() => go('intro', { replay: true, from: 'signin' })}
+          accessibilityRole="link"
+          accessibilityLabel="How TaskDrop works"
+          hitSlop={8}
+          style={{ position: 'absolute', top: u(28), right: u(40), zIndex: 2 }}
+        >
+          <RNText style={tx('500', u(14), t.colors.muted)}>How TaskDrop works</RNText>
+        </Pressable>
+      ) : null}
 
       <BottomSheet
         visible={pwOpen}

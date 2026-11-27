@@ -240,4 +240,11 @@ export async function closeStagingCard(page: Page): Promise<void> {
 export async function continueAsGuest(page: Page): Promise<void> {
   await answerConsent(page);
   await page.getByRole("button", { name: "Continue as guest" }).click();
+  // Owner, 27 Nov: "How TaskDrop works" opens by itself once on Home right after "Continue as guest" (walkthrough.spec.ts
+  // protects that). Tests that only want the app behind it close it, like a person would.
+  const walk = page.getByRole("button", { name: "Show me the app" });
+  if (await walk.waitFor({ state: "visible", timeout: 8000 }).then(() => true, () => false)) {
+    await page.getByRole("button", { name: "Close", exact: true }).first().click();
+    await walk.waitFor({ state: "hidden", timeout: 5000 }).catch(() => undefined);
+  }
 }

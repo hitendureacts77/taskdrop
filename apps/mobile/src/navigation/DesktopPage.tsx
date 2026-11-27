@@ -2,6 +2,7 @@ import { useCallback, useContext, useMemo, useState } from 'react';
 import { View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useMode } from '../providers/ModeProvider';
+import type { ScreenName } from '../providers/NavProvider';
 import { HeaderTools } from '../components/AppHeader';
 import { tx } from '../components/primitives';
 import { nameForScreen } from './webAddress';
@@ -67,9 +68,9 @@ export function DesktopPageFrame({
  * Marks one screen in the column: `active` when it is the one in front. Off a desktop there is no frame above it,
  * and it changes nothing.
  */
-export function DesktopPageScope({ active, children }: { active: boolean; children: React.ReactNode }) {
+export function DesktopPageScope({ active, screen, children }: { active: boolean; screen?: ScreenName; children: React.ReactNode }) {
   const hosts = useContext(DesktopPageHostsContext);
-  const value = useMemo(() => (hosts ? { hosts, active } : null), [hosts, active]);
+  const value = useMemo(() => (hosts ? { hosts, active, screen } : null), [hosts, active, screen]);
   return <DesktopPageScopeContext.Provider value={value}>{children}</DesktopPageScopeContext.Provider>;
 }
 
@@ -99,13 +100,14 @@ export function DesktopPageHeader({
       style={{
         minHeight: 76,
         flexDirection: 'row',
-        alignItems: 'center',
+        // Top-aligned, with the bell, messages and face in a 76 px slot of their own: they sit at exactly the same
+        // place on every page, whatever the title block above or beside them holds (design D5/D7, "same as Home").
+        alignItems: 'flex-start',
         gap: 16,
         paddingHorizontal: CONTENT_INSET,
-        paddingVertical: 14,
       }}
     >
-      <View style={{ flexGrow: 1, flexShrink: 1, minWidth: 0 }}>
+      <View style={{ flexGrow: 1, flexShrink: 1, minWidth: 0, justifyContent: 'center', minHeight: 76, paddingVertical: 14 }}>
         {showDefaultTitle && name ? (
           <RNText accessibilityRole="header" style={tx('800', 26, t.colors.ink, { letterSpacing: -0.6 })} numberOfLines={1}>
             {name}
@@ -116,9 +118,11 @@ export function DesktopPageHeader({
       </View>
       {/* The middle slot (a search bar on Home and Find work, D31 web boards). Empty, it only takes up the
           free space, so the title stays left and the buttons right as before. */}
-      <View ref={centerRef as never} style={{ flexGrow: 2, flexShrink: 1, minWidth: 0, maxWidth: 560 }} />
-      <View ref={actionsRef as never} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }} />
-      <HeaderTools />
+      <View ref={centerRef as never} style={{ flexGrow: 2, flexShrink: 1, minWidth: 0, maxWidth: 560, minHeight: 76, justifyContent: 'center' }} />
+      <View ref={actionsRef as never} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 76 }} />
+      <View style={{ minHeight: 76, justifyContent: 'center' }}>
+        <HeaderTools />
+      </View>
     </View>
     <View style={{ height: 1, backgroundColor: t.colors.line, marginHorizontal: CONTENT_INSET }} />
     </>

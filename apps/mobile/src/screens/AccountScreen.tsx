@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useSignOutMessage } from '../lib/useSignOutMessage';
-import { View, Text as RNText, Pressable } from 'react-native';
+import type React from 'react';
+import {
+  View,
+  Text as RNText,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+  type TextInputProps,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { ConsentSetting } from '../components/ConsentBanner';
@@ -39,10 +49,125 @@ const TABS = ['You', 'Sign-in', 'App'];
  * Account & settings: the handle and name people see, the password that makes
  * @username sign-in possible, what the account costs, and how the app looks.
  */
+/**
+ * Desktop web: a 13 px normal-case label above a 40 px bordered field (radius 10), the helper or error line under it.
+ * Everywhere else this is the kit Field exactly as before.
+ */
+function AField({
+  label,
+  hint,
+  error,
+  style,
+  left,
+  ...input
+}: TextInputProps & {
+  label?: string;
+  hint?: string;
+  error?: string | null;
+  style?: StyleProp<ViewStyle>;
+  left?: React.ReactNode;
+}) {
+  const { desktop, scale } = useLayout();
+  const t = useTheme();
+  const u = (n: number) => n / scale;
+  const [focused, setFocused] = useState(false);
+  const [shown, setShown] = useState(false);
+  if (!desktop) return <Field label={label} hint={hint} error={error} style={style} left={left} {...input} />;
+  const secure = Boolean(input.secureTextEntry);
+  return (
+    <View style={style}>
+      {label ? <RNText style={tx('600', 13, t.colors.text, { marginBottom: 6 })}>{label}</RNText> : null}
+      <View
+        style={{
+          height: u(40),
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 8,
+          paddingHorizontal: u(12),
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: error ? t.colors.signal : focused ? t.colors.accent : t.colors.line,
+          backgroundColor: t.colors.surface,
+        }}
+      >
+        {left}
+        <TextInput
+          accessibilityLabel={input.accessibilityLabel ?? label}
+          placeholderTextColor={t.colors.muted}
+          {...input}
+          secureTextEntry={secure && !shown}
+          onFocus={(e) => {
+            setFocused(true);
+            input.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            input.onBlur?.(e);
+          }}
+          style={tx('400', 15, t.colors.ink, { flex: 1, padding: 0 })}
+        />
+        {secure ? (
+          <Pressable onPress={() => setShown((v) => !v)} hitSlop={10} accessibilityRole="button" accessibilityLabel={shown ? 'Hide password' : 'Show password'}>
+            <RNText style={tx('700', 13, t.colors.accentDeep)}>{shown ? 'Hide' : 'Show'}</RNText>
+          </Pressable>
+        ) : null}
+      </View>
+      {error ? (
+        <RNText style={tx('500', 12, t.colors.signalDeep, { marginTop: 6 })}>{error}</RNText>
+      ) : hint ? (
+        <RNText style={tx('400', 12, t.colors.muted, { marginTop: 6, lineHeight: 17 })}>{hint}</RNText>
+      ) : null}
+    </View>
+  );
+}
+
+/** Desktop web: a 36 px rectangle (radius 10), no glow or shadow, hugging its label. Elsewhere the kit PrimaryButton. */
+function AButton({
+  label,
+  onPress,
+  busy,
+  disabled,
+  style,
+}: {
+  label: string;
+  onPress: () => void;
+  busy?: boolean;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { desktop, scale } = useLayout();
+  const t = useTheme();
+  const u = (n: number) => n / scale;
+  if (!desktop) return <PrimaryButton label={label} onPress={onPress} busy={busy} disabled={disabled} style={style} />;
+  const off = disabled || busy;
+  return (
+    <Pressable
+      onPress={off ? undefined : onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(off) }}
+      style={({ pressed }) => [
+        {
+          height: u(36),
+          paddingHorizontal: u(16),
+          borderRadius: 10,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: disabled ? t.colors.surface2 : t.colors.btn,
+          opacity: pressed && !off ? 0.85 : 1,
+        },
+        style,
+      ]}
+    >
+      {busy ? <ActivityIndicator color={t.colors.onBtn} /> : <RNText style={tx('700', 14, disabled ? t.colors.muted : t.colors.onBtn)}>{label}</RNText>}
+    </Pressable>
+  );
+}
+
 export function AccountScreen() {
   const t = useTheme();
   // Desktop web (docs/design/desktop-web/PLAN.md, package 10): roomier cards, buttons at their natural width, the page at most 720 wide.
-  const { desktop: desk } = useLayout();
+  const { desktop: desk, scale } = useLayout();
   const { back, go, params } = useNav();
   const { flash, celebrate } = useActions();
   const { userId, signOut, linkGoogle, guest } = useAuth();
@@ -198,7 +323,9 @@ export function AccountScreen() {
 
   const card = { ...cardSurface(t, 18), padding: desk ? 20 : 15, marginTop: 14 } as const;
   // A desktop button is as wide as its label (at least 160), never the whole card.
-  const deskBtn = desk ? ({ alignSelf: 'flex-start', minWidth: 160, paddingHorizontal: 24 } as const) : null;
+  const deskBtn = desk ? ({ alignSelf: 'flex-start' } as const) : null;
+  // Desktop: single-column fields (passwords) stop at a readable width inside the wide cards.
+  const narrow = desk ? ({ maxWidth: 480 / scale } as const) : null;
 
   // The active tab's cards: under the tabs on a phone, beside them on a wide desktop.
   const tabBody = (
@@ -207,19 +334,22 @@ export function AccountScreen() {
           <>
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>Account information</RNText>
-              <Field label="Display name" value={name} onChangeText={setName} style={{ marginTop: 14 }} maxLength={40} />
-              <Field
-                label="Username"
-                value={username}
-                onChangeText={(v) => setUsername(v.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase().slice(0, 20))}
-                style={{ marginTop: 14 }}
-                autoCapitalize="none"
-                autoCorrect={false}
-                left={<RNText style={tx('600', 15, t.colors.muted)}>@</RNText>}
-                error={username && !handleOk ? '3–20 characters: a–z, 0–9 and _' : free === false ? 'That username is taken' : null}
-                hint={free ? 'Available' : 'Your public handle, and how you sign in with a password'}
-              />
-              <PrimaryButton label="Save" onPress={() => void saveProfile()} busy={savingProfile} style={{ marginTop: 16, ...deskBtn }} />
+              {/* Desktop: Display name and Username side by side; elsewhere stacked as before. */}
+              <View style={desk ? { flexDirection: 'row', gap: 16, alignItems: 'flex-start' } : null}>
+                <AField label="Display name" value={name} onChangeText={setName} style={{ marginTop: 14, ...(desk ? { flex: 1, minWidth: 0 } : null) }} maxLength={40} />
+                <AField
+                  label="Username"
+                  value={username}
+                  onChangeText={(v) => setUsername(v.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase().slice(0, 20))}
+                  style={{ marginTop: 14, ...(desk ? { flex: 1, minWidth: 0 } : null) }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  left={<RNText style={tx('600', 15, t.colors.muted)}>@</RNText>}
+                  error={username && !handleOk ? '3–20 characters: a–z, 0–9 and _' : free === false ? 'That username is taken' : null}
+                  hint={free ? 'Available' : 'Your public handle, and how you sign in with a password'}
+                />
+              </View>
+              <AButton label="Save" onPress={() => void saveProfile()} busy={savingProfile} style={{ marginTop: 16, ...(desk ? { alignSelf: 'flex-end' as const } : null) }} />
             </View>
             <View style={card}>
               <RNText style={tx('800', 15, t.colors.ink)}>More about you</RNText>
@@ -254,38 +384,38 @@ export function AccountScreen() {
                   : 'Pick a username on the You tab first — you sign in with it.'}
               </RNText>
               {needCurrent ? (
-                <Field
+                <AField
                   label="Current password"
                   value={pwCur}
                   onChangeText={setPwCur}
                   secureTextEntry
-                  style={{ marginTop: 14 }}
+                  style={{ marginTop: 14, ...narrow }}
                   autoCapitalize="none"
                   autoComplete="current-password"
                   hint="Forgot it? Sign out, sign in with your mobile number, then set a new one here within 15 minutes."
                 />
               ) : null}
-              <Field
+              <AField
                 label="New password"
                 value={pw}
                 onChangeText={setPw}
                 secureTextEntry
-                style={{ marginTop: 14 }}
+                style={{ marginTop: 14, ...narrow }}
                 autoCapitalize="none"
                 autoComplete="new-password"
                 error={pw ? passwordProblem(pw, profile?.username) : null}
                 hint={pw ? `Strength: ${passwordStrength(pw, profile?.username).label}` : `At least ${PASSWORD_MIN} characters. A few unrelated words work well.`}
               />
-              <Field
+              <AField
                 label="Confirm password"
                 value={pw2}
                 onChangeText={setPw2}
                 secureTextEntry
-                style={{ marginTop: 14 }}
+                style={{ marginTop: 14, ...narrow }}
                 autoCapitalize="none"
                 error={pw2 && pw !== pw2 ? 'Does not match' : null}
               />
-              <PrimaryButton
+              <AButton
                 label={needCurrent ? 'Change password' : 'Set password'}
                 onPress={() => void savePassword()}
                 busy={savingPw}
@@ -301,7 +431,7 @@ export function AccountScreen() {
                 <RNText style={tx('400', 13, t.colors.text)}>{profile?.username ? '✓' : '–'} Username and password</RNText>
               </View>
               {verify && !verify.google ? (
-                <PrimaryButton
+                <AButton
                   label="Link Google"
                   onPress={() => void linkGoogleAccount()}
                   busy={linking}
@@ -452,7 +582,7 @@ export function AccountScreen() {
   );
 
   // Desktop: the cards stop at 720, whether the tabs are beside them or above them.
-  const body = desk ? <View style={{ maxWidth: 720 }}>{tabBody}</View> : tabBody;
+  const body = desk ? <View style={{ maxWidth: 1040 / scale }}>{tabBody}</View> : tabBody;
 
   return (
     <Screen padded={false}>

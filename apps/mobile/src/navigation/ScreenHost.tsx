@@ -19,6 +19,7 @@ import { FadeIn, tx } from '../components/primitives';
 import { useKeyboardOpen } from '../lib/useKeyboardOpen';
 import { CreateFab } from '../components/CreateFab';
 import { Placeholder } from '../screens/Placeholder';
+import { IntroScreen } from '../screens/IntroScreen';
 import { REGISTRY } from './registry';
 import { isFresh, screenMayReuse, stamp, type Stamp } from '../lib/freshness';
 import { hasPendingAccountAction } from '../lib/guest';
@@ -61,7 +62,6 @@ export function ScreenHost() {
   const { userId, guest } = useAuth();
   const { desktop, tablet, gutter, contentWidth, twoPane } = useLayout();
   const keyboardOpen = useKeyboardOpen();
-  const Comp = REGISTRY[screen];
 
   // Which tabs are alive, with the params each last had and how many times it
   // has come back into view. Worked out during render, so a tab shows on the
@@ -71,6 +71,8 @@ export function ScreenHost() {
   // (lib/freshness.ts). Back from a quick look at a task, nothing is re-asked.
   const kept = useRef(new Map<ScreenName, { params: NavParams; focus: number; loaded: Stamp }>());
   const prevScreen = useRef<ScreenName | null>(null);
+  // The screen the person was on before "How TaskDrop works" opened (desktop draws that dialog over it).
+  const behind = useRef<ScreenName | null>(null);
   const keptFor = useRef(userId);
   // Not when a guest has just made their account to finish something (an offer half-written in a
   // sheet on Home): nothing on those tabs was anyone else's, and dropping them would drop that offer.
@@ -78,6 +80,12 @@ export function ScreenHost() {
     if (!(keptFor.current === null && hasPendingAccountAction())) kept.current.clear();
     keptFor.current = userId;
   }
+  // Desktop: "How TaskDrop works" is a dialog over the page the person was on (Home, the sign-in page, ...), which
+  // stays drawn, dimmed, behind it. `shown` is the screen drawn in the frame; closing the dialog goes Back to it.
+  if (screen !== 'intro') behind.current = screen;
+  const overlay = desktop && screen === 'intro' && behind.current !== null && behind.current !== 'splash';
+  const shown: ScreenName = overlay && behind.current ? behind.current : screen;
+  const Comp = REGISTRY[shown];
   if (KEEP_ALIVE.includes(screen)) {
     const cur = kept.current.get(screen);
     // The wallet always counts (3.5b): money is never shown from what was read before.
@@ -90,7 +98,7 @@ export function ScreenHost() {
       });
     }
   }
-  prevScreen.current = screen;
+  if (!overlay) prevScreen.current = screen;
 
   // Web: each screen names the browser tab (B179). ScreenHost only runs on web.
   const { mode } = useMode();
@@ -141,9 +149,9 @@ export function ScreenHost() {
           const Tab = REGISTRY[name];
           if (!Tab) return null;
           return (
-            <View key={name} style={{ flex: 1, display: name === screen ? 'flex' : 'none' }}>
+            <View key={name} style={{ flex: 1, display: name === shown ? 'flex' : 'none' }}>
               {/* Desktop: only the tab in front may put its title in the page header. */}
-              <DesktopPageScope active={name === screen}>
+              <DesktopPageScope active={name === shown} screen={name}>
                 <ScreenScope params={k.params} focus={k.focus}>
                   <Tab />
                 </ScreenScope>
@@ -151,13 +159,19 @@ export function ScreenHost() {
             </View>
           );
         })}
-        {KEEP_ALIVE.includes(screen) ? null : (
+        {KEEP_ALIVE.includes(shown) ? null : (
           // A screen opened on top eases in rather than snapping into place
           // (SYS-Motion "screen push": a short rise plus a fade).
-          <FadeIn key={screen} duration={320} translateY={14} style={{ flex: 1 }}>
-            <DesktopPageScope active>{Comp ? <Comp /> : <Placeholder name={screen} />}</DesktopPageScope>
+          <FadeIn key={shown} duration={320} translateY={14} style={{ flex: 1 }}>
+            <DesktopPageScope active screen={shown}>{Comp ? <Comp /> : <Placeholder name={shown} />}</DesktopPageScope>
           </FadeIn>
         )}
+        {/* The dialog draws itself (a Modal); this box only holds the screen's logic and takes no room. */}
+        {overlay ? (
+          <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, overflow: 'hidden' }}>
+            <IntroScreen />
+          </View>
+        ) : null}
       </View>
   );
 
@@ -167,7 +181,7 @@ export function ScreenHost() {
   const inApp = Boolean(userId) || guest;
   // Setup (onboarding) on a desktop: the FormPage card (720) with the steps beside it (320), centred, no menu.
   // The signed-out frame's 440 card cannot hold it (docs/design/desktop-web/PLAN.md, package 4). Tablet and phone keep that frame.
-  if (desktop && screen === 'setup') {
+  if (desktop && shown === 'setup') {
     return (
       <View style={{ flex: 1, alignItems: 'center', backgroundColor: t.colors.bg, paddingHorizontal: gutter }}>
         <View style={{ flex: 1, width: '100%', maxWidth: 720 + 24 + 320 }}>
@@ -179,21 +193,21 @@ export function ScreenHost() {
       </View>
     );
   }
-  if (desktop && usesAuthFrame(screen, inApp)) {
-    return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
+  if (desktop && usesAuthFrame(shown, inApp)) {
+    return <DesktopAuthFrame screen={shown}>{content}</DesktopAuthFrame>;
   }
   if (desktop) {
     // A column of the screen's class with a gutter each side, under the page
     // header (DesktopPage.tsx); full maps fill the whole area and keep their
     // own floating controls.
-    const cls = columnFor(screen, twoPane);
+    const cls = columnFor(shown, twoPane);
     const full = cls === 'full';
     return (
       <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
         <SideNav />
         <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: full ? 0 : gutter }}>
           <View style={{ flex: 1, width: '100%', maxWidth: full ? undefined : contentWidth(cls) }}>
-            <DesktopPageFrame screen={screen} header={!full}>
+            <DesktopPageFrame screen={shown} header={!full}>
               {content}
             </DesktopPageFrame>
           </View>

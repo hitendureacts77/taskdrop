@@ -6,7 +6,6 @@ import { EmptyState, LoadFailed, Shimmer, TopBar, UnderlineTabs, timeAgo } from 
 import { FadeIn, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
 import { FEED_MAX, useLayout } from '../lib/layout';
-import { SegmentedTabs } from '../components/ListPage';
 import { CONTENT_INSET } from '../navigation/DesktopPage';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
@@ -62,7 +61,7 @@ export function NotificationsScreen() {
   // Desktop: one card (the shared list width, FEED_MAX, like the other list pages) with a divider between rows, the
   // tabs as a segmented control above it, and the title, subtitle and "Mark all read" in the page header.
   // Everywhere else the screen is drawn as before.
-  const { desktop } = useLayout();
+  const { desktop, scale } = useLayout();
   const { back, go } = useNav();
   const { userId, guest } = useAuth();
   const { mode, setMode } = useMode();
@@ -224,24 +223,73 @@ export function NotificationsScreen() {
     ) : null;
 
   if (desktop) {
+    // Desktop: "Mark all read" is a 32 px outlined rectangle; the tabs are underline tabs; the list is one card of
+    // single-line 52 px rows (icon, bold title, grey sentence cut with "...", time column, dot).
+    const u = (n: number) => n / scale;
+    const desktopMarkAll =
+      unread.length > 0 ? (
+        <Pressable
+          onPress={() => void markAll()}
+          accessibilityRole="button"
+          style={{
+            height: u(32),
+            paddingHorizontal: u(14),
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: t.colors.accentBorder,
+            backgroundColor: t.colors.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <RNText style={tx('700', 13, t.colors.accentDeep)}>Mark all read</RNText>
+        </Pressable>
+      ) : undefined;
+    const deskTabs: { key: number; label: string; count?: number }[] = [
+      { key: 0, label: 'Unread', count: unread.length },
+      { key: 1, label: 'All' },
+    ];
     return (
       <Screen padded={false}>
-        <TopBar title="Notifications" subtitle={sideNote} onBack={back} right={markAllButton} />
+        <TopBar title="Notifications" subtitle={sideNote} onBack={back} right={desktopMarkAll} />
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 28, paddingHorizontal: CONTENT_INSET }}
           refreshControl={refreshControl}
         >
           <View style={{ width: '100%', maxWidth: FEED_MAX, alignSelf: 'center' }}>
-            <View style={{ marginBottom: 16 }}>
-              <SegmentedTabs
-                tabs={[
-                  { key: 'unread', label: 'Unread', count: unread.length },
-                  { key: 'all', label: 'All' },
-                ]}
-                value={tab === 0 ? 'unread' : 'all'}
-                onChange={(k) => setTab(k === 'unread' ? 0 : 1)}
-              />
+            <View
+              accessibilityRole="tablist"
+              style={{ flexDirection: 'row', gap: u(28), borderBottomWidth: 1, borderBottomColor: t.colors.line, marginBottom: 16 }}
+            >
+              {deskTabs.map((d) => {
+                const on = tab === d.key;
+                return (
+                  <Pressable
+                    key={d.key}
+                    onPress={() => setTab(d.key)}
+                    accessibilityRole="tab"
+                    accessibilityLabel={d.count ? `${d.label} ${d.count}` : d.label}
+                    accessibilityState={{ selected: on }}
+                    style={{
+                      height: u(44),
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 8,
+                      borderBottomWidth: 2,
+                      borderBottomColor: on ? t.colors.accentDeep : 'transparent',
+                      marginBottom: -1,
+                    }}
+                  >
+                    <RNText style={tx(on ? '800' : '600', 14, on ? t.colors.ink : t.colors.muted)}>{d.label}</RNText>
+                    {d.count ? (
+                      <View style={{ paddingHorizontal: 7, height: 18, borderRadius: 9, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                        <RNText style={tx('700', 11, t.colors.muted)}>{d.count}</RNText>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                );
+              })}
             </View>
             {stateBlock ?? (
               <View
@@ -260,16 +308,36 @@ export function NotificationsScreen() {
                       accessibilityRole="button"
                       style={({ pressed }) => ({
                         flexDirection: 'row',
+                        alignItems: 'center',
                         gap: 12,
-                        paddingVertical: 14,
+                        height: u(52),
                         paddingHorizontal: 16,
                         borderTopWidth: i === 0 ? 0 : 1,
                         borderTopColor: t.colors.line,
-                        backgroundColor: n.read_at ? t.colors.surface : t.colors.accentSoft,
+                        // A very light tint: the soft accent at about 55% over the card (tokens are 6-digit hex).
+                        backgroundColor: n.read_at ? t.colors.surface : `${t.colors.accentSoft}8C`,
                         opacity: pressed || opening === n.id ? 0.6 : 1,
                       })}
                     >
-                      {rowInner(n)}
+                      <View style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name={ICON[n.kind] ?? 'bell'} size={16} color={t.colors.accentDeep} strokeWidth={2} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <RNText style={tx(n.read_at ? '600' : '800', 14, t.colors.ink, { flexShrink: 0, maxWidth: '45%' })} numberOfLines={1}>
+                          {n.title}
+                        </RNText>
+                        {n.body ? (
+                          <RNText style={tx('400', 13, t.colors.muted, { flex: 1, minWidth: 0 })} numberOfLines={1}>
+                            {n.body}
+                          </RNText>
+                        ) : (
+                          <View style={{ flex: 1 }} />
+                        )}
+                      </View>
+                      <RNText style={tx('400', 12, t.colors.muted, { width: u(110), textAlign: 'right' })} numberOfLines={1}>
+                        {timeAgo(n.created_at)}
+                      </RNText>
+                      <View style={{ width: 8, height: 8, marginLeft: u(18) - 12, borderRadius: 999, backgroundColor: n.read_at ? 'transparent' : t.colors.accent }} />
                     </Pressable>
                   </FadeIn>
                 ))}

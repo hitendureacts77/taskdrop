@@ -92,10 +92,30 @@ export function walkSideFor(param: unknown, mode: 'poster' | 'worker' | null | u
 }
 
 /**
- * When the walkthrough opens by itself (owner, 26 Nov): never before sign-in. Sign-in comes first; once someone is
- * signed in and on Home, it opens once per device, after the staging tester card (if any) is closed. A guest sees it
- * only from the "?" on Home, Profile or the account menu.
+ * When the walkthrough opens by itself (owner, 27 Nov): never on the sign-in page. It opens once per device, on Home,
+ * right after a new sign-in AND right after "Continue as guest", after the staging tester card (if any) is closed.
+ * `entered` is true for a signed-in person and for a device that chose "Continue as guest"; a signed-out visitor
+ * who has not chosen yet is not "entered", so the sign-in page never shows it.
  */
-export function shouldShowWalkthrough(a: { signedIn: boolean; seen: boolean | null; screen: string; stagingCardClear: boolean }): boolean {
-  return a.signedIn && a.seen === false && a.screen === 'home' && a.stagingCardClear;
+/**
+ * Whether the staging tester card can still be in front of the walkthrough. It shows only on staging and only to a
+ * signed-in person (lib/environment.ts shouldShowStagingCard), so a guest never has one to wait for. Waiting on a card
+ * that is never shown left a new guest without the walkthrough for good (27 Nov).
+ */
+export function stagingCardCanBlock(a: { stagingUi: boolean; signedIn: boolean }): boolean {
+  return a.stagingUi && a.signedIn;
+}
+
+/**
+ * True when no tester card is in front of the walkthrough: there is none to show (production, a guest, signed out), or
+ * this device has closed it. `storedSeen` is what the device remembers (null until it has been read). Worked out at
+ * render time from the current sign-in, so the moment someone signs in on staging the answer is "not clear" until
+ * the stored answer says the card was closed; it never carries an old "clear" across the sign-in.
+ */
+export function stagingCardIsClear(a: { stagingUi: boolean; signedIn: boolean; storedSeen: boolean | null }): boolean {
+  return !stagingCardCanBlock(a) || a.storedSeen === true;
+}
+
+export function shouldShowWalkthrough(a: { entered: boolean; seen: boolean | null; screen: string; stagingCardClear: boolean }): boolean {
+  return a.entered && a.seen === false && a.screen === 'home' && a.stagingCardClear;
 }

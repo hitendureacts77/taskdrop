@@ -1,6 +1,7 @@
 import { ScrollView, View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useLayout } from '../lib/layout';
+import { useNav } from '../providers/NavProvider';
 import { onHero } from '../theme';
 import { HeroBackground } from './Hero';
 import { FallingDrop, FloatCard } from './BrandArt';
@@ -10,7 +11,9 @@ import { tx } from './primitives';
 
 /**
  * Desktop web, before sign-in (W1): the brand on the left, the app's own
- * sign-in screen on the right in a card at the width it was designed for.
+ * sign-in screen on the right on a plain full-height panel (27 Nov design D1: no floating phone-shaped card).
+ * The sign-in screen itself places its 400 px column, the "How TaskDrop works" link and the footer on the panel;
+ * the other screens drawn here (the public pages, the age check, picking a username) sit in a 440 px column.
  * The brand half says what TaskDrop is -- the drop falling onto its ripples,
  * what goes out when a task drops, and the three moves of a job.
  */
@@ -23,12 +26,16 @@ const PATH: { n: string; title: string; body: string }[] = [
 /** The design height (px) the brand half needs at its full spacing. */
 const SHORT_HEIGHT = 780;
 
-export function DesktopAuthFrame({ children }: { children: React.ReactNode }) {
+export function DesktopAuthFrame({ children, screen: shownScreen }: { children: React.ReactNode; screen?: string }) {
   const t = useTheme();
+  const { screen: navScreen } = useNav();
+  // The screen drawn in the panel. While "How TaskDrop works" is open over the sign-in page, that page is still the one drawn.
+  const screen = shownScreen ?? navScreen;
   // Design px (the page is zoomed on a desktop): below this the brand half no longer fits, so it
-  // scrolls inside its gradient and the card loses some of its margin. Taller windows look as before.
+  // scrolls inside its gradient and the other screens lose some of their margin.
   const short = useLayout().height < SHORT_HEIGHT;
   const pad = short ? 16 : 32;
+  const signIn = screen === 'welcome' || screen === 'signup';
   // The brand half is always the jade gradient, in both themes.
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
@@ -103,26 +110,13 @@ export function DesktopAuthFrame({ children }: { children: React.ReactNode }) {
         </ScrollView>
       </View>
 
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingVertical: pad }}>
-        <View
-          style={{
-            width: '100%',
-            maxWidth: 440,
-            height: '100%',
-            maxHeight: 700,
-            borderRadius: 28,
-            overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            backgroundColor: t.colors.surface,
-            shadowColor: '#000',
-            shadowOpacity: t.isDark ? 0 : 0.1,
-            shadowRadius: 40,
-            shadowOffset: { width: 0, height: 20 },
-          }}
-        >
-          {children}
-        </View>
+      {/* The same box as before the redesign (flex 1 with 32 px of side padding), so the green half keeps its width. */}
+      <View style={{ flex: 1, paddingHorizontal: 32, backgroundColor: t.colors.surface }}>
+        {signIn ? (
+          <View style={{ flex: 1, marginHorizontal: -32 }}>{children}</View>
+        ) : (
+          <View style={{ flex: 1, width: '100%', maxWidth: 440, alignSelf: 'center', paddingVertical: pad }}>{children}</View>
+        )}
       </View>
     </View>
   );

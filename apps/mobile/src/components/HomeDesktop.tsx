@@ -276,6 +276,7 @@ export function PublishedTable({
   total: number;
 }) {
   const t = useTheme();
+  const { scale } = useLayout();
   const head = (label: string, flex: number) => (
     <RNText style={tx('700', 11, t.colors.muted, { flex, letterSpacing: 0.9 })}>{label}</RNText>
   );
@@ -341,19 +342,26 @@ export function PublishedTable({
             <RNText style={tx('800', 14, t.colors.ink, { flex: 0.8, fontVariant: ['tabular-nums'] })}>
               {rupees(task.benchmark_minor / 100)}
             </RNText>
-            <View
-              style={{
-                width: 150,
-                height: 34,
-                borderRadius: 10,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: strong ? t.colors.btn : t.colors.surface,
-                borderWidth: strong ? 0 : 1,
-                borderColor: t.colors.accentBorder,
-              }}
-            >
-              <RNText style={tx('800', 13, strong ? t.colors.onBtn : t.colors.accentDeep)}>{step.button}</RNText>
+            {/* The last column keeps its 150 px (the columns stay under their headers); the button hugs its
+                words, 32 px tall, at the right edge (design D2). */}
+            <View style={{ width: 150, alignItems: 'flex-end' }}>
+              <View
+                style={{
+                  minWidth: 96 / scale,
+                  height: 32 / scale,
+                  paddingHorizontal: 16,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: strong ? t.colors.btn : t.colors.surface,
+                  borderWidth: strong ? 0 : 1,
+                  borderColor: t.colors.accentBorder,
+                }}
+              >
+                <RNText style={tx('800', 13, strong ? t.colors.onBtn : t.colors.accentDeep)} numberOfLines={1}>
+                  {step.button}
+                </RNText>
+              </View>
             </View>
           </Pressable>
         );

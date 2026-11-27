@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { ASHA, closeStagingCard } from "./helpers";
+import { ASHA, answerConsent, closeStagingCard } from "./helpers";
 
 /**
  * Plan 1.19 row N: "How TaskDrop works", the one walkthrough. Asha (a seed account, fake data) opens it from the
@@ -91,4 +91,30 @@ test("signed in on a device that never saw it, the walkthrough opens once by its
   await expect(page.getByText("Wallet").first()).toBeVisible();
   await page.waitForTimeout(3000);
   await expect(heading(page, "How TaskDrop works")).toHaveCount(0);
+});
+
+test.describe("a fresh signed-out browser (owner, 27 Nov: never on the sign-in page, once after Continue as guest)", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("the sign-in page does not show it; Continue as guest lands on Home and it opens once by itself", async ({ page }) => {
+    await page.goto("/");
+    await answerConsent(page);
+    await expect(page.getByPlaceholder("98765 43210")).toBeVisible();
+    await page.waitForTimeout(1500);
+    await expect(heading(page, "How TaskDrop works")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Continue as guest" }).click();
+    // The tester card comes first if shown; the walkthrough follows on its own.
+    const staging = page.getByRole("button", { name: "Got it", exact: true });
+    await staging.or(heading(page, "How TaskDrop works")).first().waitFor({ timeout: 30_000 });
+    if (await staging.isVisible().catch(() => false)) await staging.click();
+    await expect(heading(page, "How TaskDrop works")).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(heading(page, "How TaskDrop works")).toHaveCount(0);
+
+    // A reload does not open it again.
+    await page.reload();
+    await page.waitForTimeout(3000);
+    await expect(heading(page, "How TaskDrop works")).toHaveCount(0);
+  });
 });

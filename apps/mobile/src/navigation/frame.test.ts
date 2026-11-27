@@ -24,5 +24,8 @@ test('B149 sign-in screens always use the signed-out frame; app screens never do
 test('B149 ScreenHost counts a guest as in the app for both desktop and tablet frames', () => {
   const host = readFileSync(new URL('./ScreenHost.tsx', import.meta.url), 'utf8');
   assert.match(host, /const inApp = Boolean\(userId\) \|\| guest/);
-  assert.equal((host.match(/usesAuthFrame\(screen, inApp\)/g) ?? []).length, 2);
+  // The desktop frame decides on the screen it draws (`shown`: the page behind the walkthrough dialog while it is open);
+  // the tablet frame on the navigator's screen. Both ask with `inApp`, so a guest counts as in the app in each.
+  assert.equal((host.match(/usesAuthFrame\(shown, inApp\)/g) ?? []).length, 1);
+  assert.equal((host.match(/usesAuthFrame\(screen, inApp\)/g) ?? []).length, 1);
 });

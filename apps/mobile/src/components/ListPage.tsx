@@ -166,7 +166,7 @@ export function SegmentedTabs<K extends string>({
   /** Off desktop: the row's side padding. */
   inset?: number;
 }) {
-  const { desktop } = useLayout();
+  const { desktop, scale = 1 } = useLayout();
   const t = useTheme();
   if (segmentedTabsMode(desktop) === 'pills') {
     return (
@@ -181,16 +181,8 @@ export function SegmentedTabs<K extends string>({
     <View
       nativeID="segmentedTabs"
       accessibilityRole="tablist"
-      style={{
-        flexDirection: 'row',
-        alignSelf: 'flex-start',
-        gap: 2,
-        padding: 3,
-        borderRadius: 999,
-        backgroundColor: t.colors.surface2,
-        borderWidth: 1,
-        borderColor: t.colors.line,
-      }}
+      // Underline tabs (design section 3): text, a 2 px line under the chosen one, the count in a small grey pill.
+      style={{ flexDirection: 'row', alignSelf: 'flex-start', alignItems: 'stretch', gap: 28 }}
     >
       {tabs.map((tab) => {
         const on = tab.key === value;
@@ -204,14 +196,13 @@ export function SegmentedTabs<K extends string>({
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 7,
-              paddingVertical: 7,
-              paddingHorizontal: 14,
-              borderRadius: 999,
-              backgroundColor: on ? t.colors.surface : 'transparent',
+              gap: 6,
+              height: 52 / scale,
+              borderBottomWidth: 2,
+              borderBottomColor: on ? t.colors.accentDeep : 'transparent',
             }}
           >
-            <Text style={tx(on ? '700' : '600', 13, on ? t.colors.ink : t.colors.muted)}>{tab.label}</Text>
+            <Text style={tx(on ? '700' : '600', 14, on ? t.colors.ink : t.colors.muted)}>{tab.label}</Text>
             {typeof tab.count === 'number' ? (
               <View
                 style={{
@@ -220,10 +211,10 @@ export function SegmentedTabs<K extends string>({
                   paddingVertical: 1,
                   borderRadius: 999,
                   alignItems: 'center',
-                  backgroundColor: on ? t.colors.accentSoft : t.colors.line,
+                  backgroundColor: t.colors.surface2,
                 }}
               >
-                <Text style={tx('700', 11, on ? t.colors.accentDeep : t.colors.muted, { fontVariant: ['tabular-nums'] })}>
+                <Text style={tx('700', 11, t.colors.muted, { fontVariant: ['tabular-nums'] })}>
                   {tab.count}
                 </Text>
               </View>

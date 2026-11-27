@@ -24,6 +24,7 @@ import { WALK_COPY } from '../lib/walkthrough';
 import { needAccount } from '../lib/guest';
 import { useLayout } from '../lib/layout';
 import { TwoPane } from '../components/TwoPane';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
 import { HomeFeedbackCard } from '../components/HomeFeedbackCard';
 import { onHero } from '../theme';
 
@@ -104,7 +105,8 @@ function formatReviewDate(iso: string): string {
 export function ProfileScreen() {
   const t = useTheme();
   // Wide desktop: you on the left, the menu and the rest on the right (components/TwoPane.tsx).
-  const { twoPane: split, contentWidth, desktop: desk } = useLayout();
+  const { twoPane: split, contentWidth, desktop: desk, scale } = useLayout();
+  const u = (n: number) => n / scale;
   const padX = split ? 0 : 20;
   // Desktop web (docs/design/desktop-web/PLAN.md, package 10): every block sits on a card (surface, 1px line, radius 18),
   // 16 apart. Under 1024, and in the apps, desk is false and nothing below changes.
@@ -390,9 +392,9 @@ export function ProfileScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={progress.next.label}
                   style={({ pressed }) => ({
-                    paddingHorizontal: 18,
-                    height: 38,
-                    borderRadius: 999,
+                    paddingHorizontal: desk ? u(14) : 18,
+                    height: desk ? u(32) : 38,
+                    borderRadius: desk ? 10 : 999,
                     backgroundColor: t.colors.btn,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -434,39 +436,49 @@ export function ProfileScreen() {
           ) : null;
 
   // Task 1.19 F (decision 4): the "Suggest a feature" vote card sits under the menu, by its Ideas & feedback row.
+  // Desktop: the rows run in two columns (first half left, the rest right), 48 px each with a 32 px icon tile.
+  const menuRow = (r: (typeof rows)[number], last: boolean) => (
+    <Pressable
+      key={r.label}
+      onPress={() => (r.act ? r.act() : go(r.go, r.params))}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: desk ? u(14) : 15,
+        ...(desk ? { height: u(48) } : { paddingVertical: 14 }),
+        borderBottomWidth: last ? 0 : 1,
+        borderBottomColor: t.colors.line,
+        transform: [{ scale: pressed ? 0.985 : 1 }],
+      })}
+    >
+      <View
+        style={{
+          width: desk ? u(32) : 36,
+          height: desk ? u(32) : 36,
+          borderRadius: desk ? 10 : 11,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: t.colors.surface2,
+        }}
+      >
+        <Icon name={r.icon} size={desk ? 16 : 18} color={t.colors.ink} strokeWidth={1.8} />
+      </View>
+      <RNText style={tx('600', 15.5, t.colors.ink, { flex: 1 })}>{r.label}</RNText>
+      <Icon name="chevronRight" size={16} color={t.colors.muted} />
+    </Pressable>
+  );
+  const half = Math.ceil(rows.length / 2);
   const menuCard = (
         <>
-          <View style={{ ...cardSurface(t, 18), marginTop: split || desk ? 0 : 28, paddingHorizontal: 14 }}>
-            {rows.map((r, i) => (
-              <Pressable
-                key={r.label}
-                onPress={() => (r.act ? r.act() : go(r.go, r.params))}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 15,
-                  paddingVertical: 14,
-                  borderBottomWidth: i === rows.length - 1 ? 0 : 1,
-                  borderBottomColor: t.colors.line,
-                  transform: [{ scale: pressed ? 0.985 : 1 }],
-                })}
-              >
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 11,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: t.colors.surface2,
-                  }}
-                >
-                  <Icon name={r.icon} size={18} color={t.colors.ink} strokeWidth={1.8} />
-                </View>
-                <RNText style={tx('600', 15.5, t.colors.ink, { flex: 1 })}>{r.label}</RNText>
-                <Icon name="chevronRight" size={16} color={t.colors.muted} />
-              </Pressable>
-            ))}
+          <View style={{ ...cardSurface(t, 18), marginTop: split || desk ? 0 : 28, paddingHorizontal: 14, ...(desk ? { flexDirection: 'row' as const, gap: u(40), paddingVertical: u(6) } : null) }}>
+            {desk ? (
+              <>
+                <View style={{ flex: 1, minWidth: 0 }}>{rows.slice(0, half).map((r, i) => menuRow(r, i === half - 1))}</View>
+                <View style={{ flex: 1, minWidth: 0 }}>{rows.slice(half).map((r, i, a) => menuRow(r, i === a.length - 1))}</View>
+              </>
+            ) : (
+              rows.map((r, i) => menuRow(r, i === rows.length - 1))
+            )}
           </View>
           <HomeFeedbackCard />
         </>
@@ -623,7 +635,7 @@ export function ProfileScreen() {
           </>
         }
         right={
-          <View style={{ maxWidth: 720, ...stack }}>
+          <View style={{ maxWidth: desk ? undefined : 720, marginRight: desk ? CONTENT_INSET : 0, ...stack }}>
             {menuCard}
             {links}
           </View>
