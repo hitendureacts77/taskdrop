@@ -352,15 +352,17 @@ function WideView({
     if (last && Platform.OS === 'web') cta.current?.focus?.();
   }, [last, side]);
 
+  // The real height the page gets (the staging strip above takes a little of the window).
+  const [pageH, setPageH] = useState(layoutH);
   const topH = 68;
-  const bodyH = Math.max(480, layoutH - topH);
+  const bodyH = Math.max(480, pageH - topH);
   const panelW = layoutW / 2 - 40;
   // The phone's screen: exactly the screenshot's shape, as big as the panel allows.
   const screenH = Math.max(340, Math.min(bodyH - 120, (panelW - 70) / SHOT_RATIO, 760));
   const screenW = screenH * SHOT_RATIO;
 
   return (
-    <View style={{ width: '100%', height: layoutH, backgroundColor: t.colors.bg }} {...hoverProps(() => w.setHover(true), () => w.setHover(false))}>
+    <View style={{ width: '100%', flex: 1, minHeight: 0, backgroundColor: t.colors.bg }} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
       <View style={{ height: topH, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 28, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
         <View style={{ flex: 1, alignItems: 'flex-start' }}>
           <Pressable onPress={onSkip} accessibilityRole="button" accessibilityLabel={leftLabel} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 }}>
@@ -393,7 +395,11 @@ function WideView({
         <View style={{ flex: 1, borderRadius: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
           <HeroBackground radius={28} />
           <Ripples reduced={reduced} />
-          <View style={{ padding: 10, borderRadius: 46, backgroundColor: '#0E1110', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 30, shadowOffset: { width: 0, height: 18 } }}>
+          <View
+            style={{ padding: 10, borderRadius: 46, backgroundColor: '#0E1110', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 30, shadowOffset: { width: 0, height: 18 } }}
+            // Pause only while the pointer rests on the phone: on a desktop the pointer is always somewhere on the page.
+            {...hoverProps(() => w.setHover(true), () => w.setHover(false))}
+          >
             <View style={{ borderRadius: 36, overflow: 'hidden', width: screenW }}>
               <Shot shot={cur.shot} width={screenW} label={`TaskDrop screen: ${cur.title}`} reduced={reduced} />
             </View>
