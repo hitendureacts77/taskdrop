@@ -7,7 +7,7 @@ import { incomingTaskId, clearIncomingTask } from '../lib/links';
 import { getTask } from '../data/api';
 import { roughPlace } from '../lib/place';
 import { taskLinkTarget } from '../lib/taskLink';
-import { usesAuthFrame } from './frame';
+import { usesAuthFrame, usesFullPage } from './frame';
 import { PUBLIC_PAGES, pathForScreen, titleForScreen } from './webAddress';
 import { useMode } from '../providers/ModeProvider';
 import { BottomTabBar } from '../components/BottomTabBar';
@@ -179,6 +179,10 @@ export function ScreenHost() {
       </View>
     );
   }
+  // How TaskDrop works (task 1.21 row X): its own full page with its own top bar, never the sign-in frame.
+  if (desktop && usesFullPage(screen)) {
+    return <View style={{ flex: 1, backgroundColor: t.colors.bg }}>{content}</View>;
+  }
   if (desktop && usesAuthFrame(screen, inApp)) {
     return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
   }
@@ -206,7 +210,7 @@ export function ScreenHost() {
   // must not rebuild the screen and lose a half-written task). Position decides what React keeps, so `content`
   // stays at the same place in both: [rail or nothing] then [one column holding content, then the phone's button
   // and tab bar or nothing]. On a phone the column is the whole screen, exactly as before.
-  const rail = tablet && !usesAuthFrame(screen, inApp);
+  const rail = tablet && !usesAuthFrame(screen, inApp) && !usesFullPage(screen);
   const phoneBars = !rail;
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>

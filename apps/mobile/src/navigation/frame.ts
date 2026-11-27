@@ -7,11 +7,21 @@
  */
 
 /** Screens shown before sign-in. */
-export const PRE_AUTH: readonly string[] = ['splash', 'intro', 'welcome', 'signup', 'setup', 'pickUsername'];
+export const PRE_AUTH: readonly string[] = ['splash', 'welcome', 'signup', 'setup', 'pickUsername'];
+/**
+ * Screens drawn edge to edge on tablet and desktop: no sign-in frame, no side menu (task 1.21 row X).
+ * "How TaskDrop works" is its own big page, for a first-run guest and a signed-in replay alike.
+ */
+export const FULL_PAGE: readonly string[] = ['intro'];
 /** Pages anyone may read. */
 export const PUBLIC: readonly string[] = ['copyright', 'terms', 'privacy', 'support'];
 
 /** True when the screen is drawn in the signed-out hero frame. `inApp`: signed in, or a guest. */
 export function usesAuthFrame(screen: string, inApp: boolean): boolean {
   return PRE_AUTH.includes(screen) || (!inApp && PUBLIC.includes(screen));
+}
+
+/** True when the screen fills the whole window with its own top bar (no frame, no menu). */
+export function usesFullPage(screen: string): boolean {
+  return FULL_PAGE.includes(screen);
 }
