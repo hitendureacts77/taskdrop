@@ -41,3 +41,6 @@ playwright-report/
 
 # break-it and monkey run output
 e2e/.out/
+
+# wrangler local state
+.wrangler/
