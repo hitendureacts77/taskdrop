@@ -15,6 +15,8 @@ test("any other website is refused, however close its name", () => {
     "https://eviltaskdrop.in",
     "http://taskdrop.in",
     "https://other-app.vercel.app",
+    "https://taskdrop-staging.evil.workers.dev",
+    "https://taskdrop-production.hitendureacts.workers.dev", // production's site is never on the staging list
     "https://localhost:8081", // https localhost is not the dev server
     "http://localhost.evil.example",
   ]) {
