@@ -6,9 +6,10 @@
  * words. Nothing here turns anything on. Pure functions, so they are tested in
  * Node (posterOptions.test.ts).
  *
- * Owner, 2026-11-02: one suggestion only, from the post's details; Repeat,
- * Offer-first and Before-and-after photos are no longer offered while posting.
- * The keys stay so "Book again" and older tasks keep working.
+ * Owner, 2026-11-02: one suggestion only, from the post's details; Repeat and
+ * Before-and-after photos are no longer offered while posting. "regular" is
+ * now "Also notify" (owner, 2026-11-27): the task is open to everyone and the
+ * chosen helper only gets a notification; it is never suggested.
  */
 
 export type OptionKey = 'flash' | 'crew' | 'regular' | 'repeat' | 'photos' | 'liveAnswer' | 'hunt';

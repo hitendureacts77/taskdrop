@@ -246,7 +246,7 @@ export function DetailSheetScreen() {
           <RNText style={tx('400', 12, t.colors.muted, { marginTop: 12, lineHeight: 18 })}>
             {worker
               ? 'One offer per task. You can edit it later. Phone numbers stay hidden until the work starts.'
-              : 'Post your task and this worker gets the first 10 minutes to send an offer. You can send them more than one task.'}
+              : 'Post your task. It is open to everyone, and this worker gets a notification with the link. You can send them more than one task.'}
           </RNText>
         </ScrollView>
 

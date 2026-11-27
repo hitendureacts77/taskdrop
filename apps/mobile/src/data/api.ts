@@ -439,7 +439,7 @@ export type PosterOptionsInput = {
   /** Crew: how many helpers (2 to 10); benchmarkMinor is the whole budget, split evenly. */
   crewSize?: number;
   repeatEvery?: 'week' | 'month' | null;
-  /** Someone hired before, offered the task for the first 10 minutes. */
+  /** Someone hired before who also gets a notification with the link; the task is open to everyone. */
   preferWorkerId?: string | null;
   wantPhotos?: boolean;
   /** Let the helper show the photos on their profile. */
@@ -1093,6 +1093,12 @@ export const sendCrewMessage = (crewId: string, body: string) => act<CrewMessage
 /** Someone this poster hired for finished jobs: the Regulars list. */
 export type Regular = { profile: Profile; jobs: number; categories: string[]; lastAt: string | null };
 export const myRegulars = () => quietly<Regular[]>('myRegulars', {}, []);
+/**
+ * Tell a regular about one of your open tasks (migration 231): one notification with the link, once per
+ * helper per task. Nothing is reserved; the task stays open to everyone. `already` = they were told before.
+ */
+export const notifyHelperAboutTask = (taskId: string, workerId: string) =>
+  act<{ sent: boolean; already: boolean }>('notifyHelperAboutTask', { taskId, workerId });
 
 export const setRepeat = (taskId: string, every: 'week' | 'month' | null) =>
   act<{ id: string; repeat_every: string | null }>('setRepeat', { taskId, every });

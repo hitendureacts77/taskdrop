@@ -898,6 +898,8 @@ export const WRITE_OPS: Record<string, Op> = {
   })),
   blockUser: rpcOp("block_user", (a) => ({ p_user: uuid(a, "userId") })),
   unblockUser: rpcOp("unblock_user", (a) => ({ p_user: uuid(a, "userId") })),
+  // My regulars: tell someone hired before about an open task (migration 231). One notice per helper per task.
+  notifyHelperAboutTask: rpcOp("notify_helper_about_task", (a) => ({ p_task: uuid(a, "taskId"), p_worker: uuid(a, "workerId") })),
 
   // ---- saved tasks, notifications, feedback, support, referrals ----
   setSaved: async ({ db, userId }, a) => {

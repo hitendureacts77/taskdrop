@@ -60,6 +60,7 @@ import { CONTENT_INSET } from '../navigation/DesktopPage';
 import { useDesktopHeaderPortal } from '../components/pageHeader';
 import { NeedsNow } from '../components/myTasks/NeedsNow';
 import { PosterCard } from '../components/myTasks/PosterCard';
+import { NotifyHelperSheet, type NotifyHelper } from '../components/NotifyHelperSheet';
 import { WorkerCard } from '../components/myTasks/WorkerCard';
 import { DeskTiles } from '../components/myTasks/DeskTiles';
 import { DeskTableCard, POSTER_COLUMNS, PosterDeskRow, TableFooter, WORKER_COLUMNS, WorkerDeskRow } from '../components/myTasks/DeskTable';
@@ -126,6 +127,8 @@ function MyPosted() {
   const [topUp, setTopUp] = useState<Task | null>(null);
   // The open post whose date picker is showing (plan 1.19 J: a passed date, or "No fixed date").
   const [dateFor, setDateFor] = useState<Task | null>(null);
+  // The person hired for a finished task, being told about a task (task 1.21 C: it replaced "Book again").
+  const [notify, setNotify] = useState<NotifyHelper | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   // True when the last load failed (offline, server hiccup): an empty list is then
   // "could not load", not "you have no tasks".
@@ -477,6 +480,13 @@ function MyPosted() {
       )
     ) : null;
 
+  /** A finished task's "Notify about a task": only once the person hired is loaded. */
+  const notifyFor = (task: Task) => {
+    const done = task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED';
+    const who = done ? people.get(task.id) : null;
+    return who ? () => setNotify({ id: who.id, name: who.display_name, similar: task }) : undefined;
+  };
+
   const cardProps = (task: Task) => ({
     task,
     offers: quotes.get(task.id) ?? 0,
@@ -487,6 +497,7 @@ function MyPosted() {
     onTopUp: () => setTopUp(task),
     onNewDate: () => setDateFor(task),
     onAgain: () => go('aiPost', { similar: task }),
+    onNotify: notifyFor(task),
     onReview: () => review(task),
   });
 
@@ -618,6 +629,7 @@ function MyPosted() {
         <View style={{ gap: 8 }}>{draftRows}</View>
       </BottomSheet>
 
+      <NotifyHelperSheet helper={notify} onClose={() => setNotify(null)} flash={flash} />
       <KeepTaskSheet
         task={keepIt}
         hasWorker={false}

@@ -1684,6 +1684,17 @@ await t("a device is recorded from the headers, and registering a push token nev
   assert.ok((await runOp("registerPushToken", { token, platform: "android", installId: "install-abcdef12" }, ctx(j, { client }))).ok);
 });
 
+await t("notifyHelperAboutTask passes the task and the helper to its SQL function and is a write (migration 231)", async () => {
+  const f = fake(() => ({ data: { sent: true, already: false }, error: null }));
+  const r = await runOp("notifyHelperAboutTask", { taskId: TASK, workerId: OTHER }, ctx(f));
+  assert.ok(r.ok);
+  assert.equal(f.calls[0].rpc, "notify_helper_about_task");
+  assert.deepEqual(f.calls[0].args, { p_task: TASK, p_worker: OTHER });
+  const bad = await runOp("notifyHelperAboutTask", { taskId: TASK, workerId: "nope" }, ctx(fake()));
+  assert.ok(!bad.ok && bad.error.code === "BAD_ARGS");
+  assert.equal(rateBucket("notifyHelperAboutTask"), "write");
+});
+
 await t("reports and blocks pass the right ids to their SQL functions and refuse bad input", async () => {
   const f = fake(() => ({ data: null, error: null }));
   assert.ok((await runOp("reportContent", { targetType: "task", targetId: TASK, reason: " scam " }, ctx(f))).ok);
