@@ -1,9 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen } from '../components/ui';
 import { Walkthrough } from '../components/Walkthrough';
+import { WelcomeStory } from '../components/WelcomeStory';
+import { PrimaryButton } from '../components/kit';
 import { tx } from '../components/primitives';
-import { useTheme } from '../providers/ThemeProvider';
+import { PersonTheme, useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { useMode } from '../providers/ModeProvider';
@@ -19,7 +21,10 @@ import { walkSideFor, type WalkSide } from '../lib/walkthrough';
  * (Hire) or finding work (Earn). A guest is also offered the account there.
  *
  * The same screen opens again from Profile, the account menu and the "How
- * TaskDrop works" pill on Home (`replay`), on the side the person is on.
+ * TaskDrop works" pill on Home (`replay`), on the side the person is on. That
+ * path plays the drawn story straight away (owner, 27 Nov: no "Show me the
+ * app" question). The real-screen walkthrough only opens by itself once after
+ * sign-in (WalkthroughHost passes `walk`) and on a first launch.
  */
 export function IntroScreen() {
   const t = useTheme();
@@ -28,7 +33,9 @@ export function IntroScreen() {
   const { mode: appMode, setMode } = useMode();
   const mode = introMode({ replay: Boolean(params.replay), signedIn: Boolean(session) });
   // A new install opens on Hire; a replay opens on the side the person is on.
-  const side = walkSideFor(params.side, mode === 'first' ? 'poster' : appMode);
+  const startSide = walkSideFor(params.side, mode === 'first' ? 'poster' : appMode);
+  const [side, setSide] = useState<WalkSide>(startSide);
+  const walk = mode === 'first' || Boolean(params.walk);
 
   const makeAccount = useCallback(() => {
     void saveIntroSeen();
@@ -71,6 +78,18 @@ export function IntroScreen() {
       </View>
     );
 
+  if (!walk) {
+    return (
+      <Screen scroll>
+        <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', paddingTop: 20, paddingBottom: 60 }}>
+          <PersonTheme role={side === 'hire' ? 'poster' : 'worker'}>
+            <StoryPage side={side} onSide={setSide} mode={mode} onClose={skip} onAccount={makeAccount} />
+          </PersonTheme>
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen scroll>
       <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', paddingTop: 12, paddingBottom: 160 }}>
@@ -83,5 +102,57 @@ export function IntroScreen() {
         />
       </View>
     </Screen>
+  );
+}
+
+/** "How TaskDrop works" as the drawn story: plays at once, a Hire / Earn switch above, one button below. */
+function StoryPage({
+  side,
+  onSide,
+  mode,
+  onClose,
+  onAccount,
+}: {
+  side: WalkSide;
+  onSide: (s: WalkSide) => void;
+  mode: 'first' | 'guest-replay' | 'member-replay';
+  onClose: () => void;
+  onAccount: () => void;
+}) {
+  const t = useTheme();
+  const guest = mode === 'guest-replay';
+  return (
+    <View>
+      <RNText accessibilityRole="header" style={tx('800', 24, t.colors.ink, { textAlign: 'center', letterSpacing: -0.6 })}>How TaskDrop works</RNText>
+      <View style={{ flexDirection: 'row', alignSelf: 'center', marginTop: 14, padding: 4, borderRadius: 999, backgroundColor: t.colors.surface2 }}>
+        {(['hire', 'earn'] as const).map((k) => (
+          <PersonTheme key={k} role={k === 'hire' ? 'poster' : 'worker'}>
+            <SideTab on={side === k} label={k === 'hire' ? 'Hire' : 'Earn'} onPress={() => onSide(k)} />
+          </PersonTheme>
+        ))}
+      </View>
+      <WelcomeStory key={side} side={side} />
+      <PrimaryButton label={guest ? 'Create my account' : 'Done'} onPress={guest ? onAccount : onClose} style={{ marginTop: 26 }} />
+      {guest ? (
+        <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close" style={{ alignSelf: 'center', marginTop: 14, paddingVertical: 8, paddingHorizontal: 14 }}>
+          <RNText style={tx('600', 13, t.colors.muted)}>Close</RNText>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function SideTab({ on, label, onPress }: { on: boolean; label: string; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: on }}
+      accessibilityLabel={`${label} side`}
+      style={{ paddingVertical: 8, paddingHorizontal: 26, borderRadius: 999, backgroundColor: on ? t.colors.btn : 'transparent' }}
+    >
+      <RNText style={tx('800', 13.5, on ? t.colors.onBtn : t.colors.muted)}>{label}</RNText>
+    </Pressable>
   );
 }
