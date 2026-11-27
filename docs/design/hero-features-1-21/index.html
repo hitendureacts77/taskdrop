@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TaskDrop hero features (task 1.21 G)</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+Telugu:wght@500;700&family=Noto+Sans+Devanagari:wght@500;700&display=swap");
+:root,.frame,.shot{
+--bg:#F3F4F1;--fg:#121417;--surface:#FFFFFF;--surface2:#ECEEE9;--line:#E2E5DF;--ink:#121417;--text:#3F444A;--muted:#5F6368;
+--jade:#0E8F72;--jade-deep:#0A6F58;--jade-soft:#E7F5EF;--jade-border:#BFE3D5;--jade-fill:#0A6F58;
+--blue:#2F5BEA;--blue-deep:#1E40AF;--blue-soft:#EAF0FE;--blue-border:#C7D4FA;--blue-fill:#1E40AF;
+--gold:#E0A85A;--gold-soft:#FBF1E0;--gold-ink:#8A5A12;--signal:#E0724A;--signal-deep:#A8461F;--signal-soft:#FBEDE7;
+--ai:#7F77DD;--ai-soft:#F0EFFC;--ai-ink:#5148C2;--online:#12804A;--you:#4A90D9;--shadow:rgba(18,20,23,.16);--phone-edge:#121417;
+--m-land:#EDEFEA;--m-road:#FFFFFF;--m-case:#D5D9D1;--m-road2:#F8F8F5;--m-park:#CFE8D2;--m-water:#BCD9EC;--m-label:#7A8088;--m-bldg:#DADED5;
+color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+--bg:#0E1012;--fg:#F2F3F1;--surface:#16191C;--surface2:#1E2226;--line:#2A2F34;--ink:#F2F3F1;--text:#C9CDD2;--muted:#9AA0A6;
+--jade:#2FBF96;--jade-deep:#57D1AE;--jade-soft:#12271F;--jade-border:#1E3A30;--blue:#6B8CFF;--blue-deep:#9DB4FF;--blue-soft:#172036;--blue-border:#26345C;
+--gold-soft:#2A2216;--gold-ink:#E8BE80;--signal-deep:#F08A66;--signal-soft:#2C1A14;--shadow:rgba(0,0,0,.5);color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Plus Jakarta Sans","Noto Sans Telugu","Noto Sans Devanagari","Nirmala UI",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+.wrap{padding:28px max(16px,env(safe-area-inset-right,0px)) 64px max(16px,env(safe-area-inset-left,0px));max-width:1120px;margin:0 auto}
+h1{font-size:30px;line-height:1.15;margin:10px 0 8px;font-weight:800;letter-spacing:-.02em}
+h2{font-size:22px;margin:0 0 4px;font-weight:800;letter-spacing:-.015em;line-height:1.2}
+h3{margin:0 0 6px;font-size:15px;font-weight:800}
+p{margin:0}
+.lede{color:var(--text);max-width:68ch;font-size:16px}
+.sub{color:var(--muted);font-size:14px;max-width:70ch}
+.brand{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:18px;letter-spacing:-.02em;color:var(--ink)}
+.brand svg{width:22px;height:22px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px}
+.card p,.card li{font-size:14px;color:var(--text)}
+.card ul,.card ol{margin:0;padding-left:20px;display:grid;gap:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.tag{display:inline-block;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;vertical-align:middle}
+.tag.live{background:var(--jade-soft);color:var(--jade-deep);border:1px solid var(--jade-border)}
+.tag.idea{background:var(--gold-soft);color:var(--gold-ink);border:1px dashed var(--gold)}
+.tag.side-hire{background:var(--jade-soft);color:var(--jade-deep)}
+.tag.side-earn{background:var(--blue-soft);color:var(--blue-deep)}
+.tag.size{background:var(--surface2);color:var(--text)}
+.top3{counter-reset:t;display:grid;gap:10px;margin:10px 0 0;padding:0;list-style:none}
+.top3 li{counter-increment:t;display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start}
+.top3 li::before{content:counter(t);width:34px;height:34px;border-radius:50%;background:var(--jade-fill);color:#fff;display:grid;place-items:center;font-weight:800}
+.top3 b{color:var(--ink)}
+.listing{border-left:4px solid var(--jade);background:var(--jade-soft);border-radius:0 14px 14px 0;padding:10px 14px;margin-top:8px;font-weight:700;color:var(--ink);font-size:15px}
+.listing small{display:block;font-weight:600;color:var(--muted);font-size:12px;margin-bottom:2px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--text)}
+th{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+td b{color:var(--ink)}
+.tw{overflow-x:auto}
+/* hero sections */
+.hero{margin-top:56px;padding-top:28px;border-top:1px solid var(--line)}
+.hero .num{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.pitch{font-size:19px;font-weight:700;color:var(--ink);margin:8px 0 0;max-width:46ch;line-height:1.3}
+.pitch::before{content:"\201C"}.pitch::after{content:"\201D"}
+.hrow{display:flex;gap:28px;align-items:flex-start;margin-top:20px;flex-wrap:wrap}
+.phones{display:flex;gap:10px;flex-wrap:wrap;flex:none}
+.facts{flex:1 1 300px;min-width:280px;display:grid;gap:10px}
+.facts .card{padding:12px 16px}
+.facts h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px}
+.facts .risk{border-color:var(--gold);background:var(--gold-soft)}
+.facts .risk h3,.facts .risk p{color:var(--gold-ink)}
+/* shot = what is exported as one PNG */
+.shot{margin:0;padding:12px 12px 22px;background:var(--bg);border-radius:14px;display:grid;gap:8px;justify-items:center;color:var(--ink)}
+.shot figcaption{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;font-size:12px;font-weight:800;color:var(--ink);width:312px}
+/* phone */
+.frame{position:relative;width:312px;height:650px;border:6px solid var(--phone-edge);border-radius:40px;overflow:hidden;background:var(--bg);color:var(--text);font-size:13px;line-height:1.35;isolation:isolate;box-shadow:0 14px 30px var(--shadow)}
+.frame[data-role="earn"]{--acc:var(--blue);--acc-deep:var(--blue-deep);--acc-soft:var(--blue-soft);--acc-border:var(--blue-border);--acc-fill:var(--blue-fill);--h-from:#2F5BEA;--h-to:#1A3690}
+.frame[data-role="hire"]{--acc:var(--jade);--acc-deep:var(--jade-deep);--acc-soft:var(--jade-soft);--acc-border:var(--jade-border);--acc-fill:var(--jade-fill);--h-from:#0D8A6F;--h-to:#064A3B}
+.ico{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.ico.f{fill:currentColor;stroke:none}
+.sb{position:absolute;z-index:8;left:0;right:0;top:0;height:26px;padding:6px 22px 0;display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--ink);background:var(--bg)}
+.sb.onmap{background:var(--surface)}
+.scr{position:absolute;inset:26px 0 58px;padding:6px 12px 10px;display:flex;flex-direction:column;gap:9px;overflow:hidden}
+.scr.notabs{bottom:0;padding-bottom:16px}
+.ah{display:flex;align-items:center;gap:8px;min-height:34px}
+.ah .bk{width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink);flex:none}
+.ah b{font-size:16px;font-weight:800;color:var(--ink);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+.cx{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:11px 12px}
+.row{display:flex;align-items:center;gap:9px}
+.grow{flex:1;min-width:0}
+.t1{font-size:15px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.t2{font-size:13px;font-weight:700;color:var(--ink)}
+.t3{font-size:11px;font-weight:500;color:var(--muted)}
+.c{text-align:center}
+.up{text-transform:uppercase;letter-spacing:.06em;font-weight:800;font-size:10px}
+.price{font-size:17px;font-weight:800;color:var(--acc-deep);white-space:nowrap}
+.pl{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;font-size:10.5px;font-weight:800;white-space:nowrap}
+.pl .ico{width:11px;height:11px;stroke-width:2.6}
+.pl.acc{background:var(--acc-soft);color:var(--acc-deep)}
+.pl.gold{background:var(--gold-soft);color:var(--gold-ink)}
+.pl.mut{background:var(--surface2);color:var(--text)}
+.pl.sig{background:var(--signal-soft);color:var(--signal-deep)}
+.pl.line{background:var(--surface);border:1px solid var(--line);color:var(--ink)}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;background:var(--acc-fill);color:#fff;border-radius:14px;padding:11px 12px;font-size:14px;font-weight:800}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn.sm{padding:6px 12px;font-size:12px;border-radius:999px}
+.btn.wa{background:#128C4B}
+.tile{width:38px;height:38px;border-radius:12px;background:var(--acc-soft);color:var(--acc-deep);display:grid;place-items:center;flex:none}
+.tile .ico{width:19px;height:19px}
+.face{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#6D5BD0;color:#fff;font-weight:800;font-size:13px;flex:none}
+.face.f1{background:#0A6F58}.face.f2{background:#B4512C}.face.f3{background:#1E40AF}.face.f5{background:#9B3D6B}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:58px;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:8px 4px 0;z-index:9}
+.tabs span{display:grid;justify-items:center;align-content:start;gap:2px;font-size:9.5px;font-weight:700;color:var(--muted)}
+.tabs span.on{color:var(--acc-deep)}
+.tabs .ico{width:20px;height:20px}
+/* hero banner card inside the app */
+.hb{border-radius:22px;padding:13px 14px;color:#fff;background:linear-gradient(135deg,var(--h-from),var(--h-to));display:grid;gap:6px}
+.hb small{font-size:11px;font-weight:700;opacity:.85;display:block}
+.hb b{font-size:24px;font-weight:800;letter-spacing:-.02em;display:block;line-height:1.1}
+.hb p{font-size:11.5px;opacity:.92;font-weight:500}
+.hb .lk{width:42px;height:42px;border-radius:14px;background:rgba(255,255,255,.16);display:grid;place-items:center;flex:none}
+.hb .lk .ico{width:22px;height:22px}
+/* tracker */
+.steps{display:grid}
+.st{display:grid;grid-template-columns:22px 1fr;gap:10px;position:relative;padding-bottom:9px}
+.st:last-child{padding-bottom:0}
+.st>i{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:var(--surface);display:grid;place-items:center;z-index:1;color:#fff}
+.st>i .ico{width:12px;height:12px;stroke-width:3}
+.st:not(:last-child)::before{content:"";position:absolute;left:10px;top:22px;bottom:0;width:2px;background:var(--line)}
+.st.done>i{background:var(--acc-fill);border-color:var(--acc-fill)}
+.st.done::before{background:var(--acc)}
+.st.now>i{border-color:var(--acc);box-shadow:0 0 0 4px var(--acc-soft)}
+.st.now>i::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--acc)}
+.st b{display:block;font-size:12.5px;color:var(--ink);font-weight:800}
+.st small{display:block;font-size:10.5px;color:var(--muted);font-weight:500}
+.st:not(.done):not(.now) b{color:var(--muted)}
+/* map */
+.mapsvg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.mtop{position:absolute;z-index:7;left:0;right:0;top:24px;padding:6px 12px 20px;background:linear-gradient(to bottom,var(--surface) 66%,transparent)}
+.sw{display:flex;margin:0 auto 8px;width:176px;padding:3px;border-radius:999px;background:var(--surface2);border:1px solid var(--line)}
+.sw span{flex:1;text-align:center;padding:6px 0;border-radius:999px;font-weight:800;font-size:12px;color:var(--muted)}
+.sw span.on{background:var(--acc-fill);color:#fff}
+.ttl{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ttl b{display:block;font-size:17px;line-height:1.2;color:var(--ink);font-weight:800;letter-spacing:-.01em}
+.ttl small{display:block;font-size:11px;color:var(--muted)}
+.loc{display:inline-flex;gap:4px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 9px;font-weight:700;font-size:11px;color:var(--ink);white-space:nowrap}
+.loc .ico{width:12px;height:12px}
+.chips{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-weight:800;font-size:11px;color:var(--ink);white-space:nowrap}
+.chip.on{background:var(--acc-soft);border-color:var(--acc);color:var(--acc-deep)}
+.pin{position:absolute;z-index:3;transform:translate(-50%,-100%)}
+.tp{display:flex;align-items:center;gap:5px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--blue-fill);color:#fff;font-weight:800;font-size:12.5px;white-space:nowrap;box-shadow:0 4px 10px var(--shadow);border:2px solid var(--surface);position:relative}
+.tp::after{content:"";position:absolute;left:50%;top:100%;margin-left:-6px;border:6px solid transparent;border-top-color:var(--surface)}
+.tp .gl{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--blue-soft);color:var(--blue-deep)}
+.tp .gl .ico{width:13px;height:13px;stroke-width:2.3}
+.tp.sel{transform:scale(1.14);transform-origin:50% 100%;box-shadow:0 0 0 5px rgba(47,91,234,.22),0 6px 14px var(--shadow)}
+.tp .n{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#fff;color:var(--blue-deep);font-size:12px}
+.cl{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;box-shadow:0 6px 16px var(--shadow);font-weight:800;font-size:12px;white-space:nowrap}
+.cl.e{background:var(--blue-soft);border:2px solid var(--blue);color:var(--blue-deep)}
+.cl.h{background:var(--jade-soft);border:2px solid var(--jade);color:var(--jade-deep)}
+.cl b{font-size:14px}
+.pin.mid{transform:translate(-50%,-50%)}
+.hp{display:grid;justify-items:center;gap:3px}
+.hp .ic{position:relative;width:38px;height:38px;border-radius:50%;background:var(--jade-fill);border:3px solid #fff;box-shadow:0 4px 10px var(--shadow);display:grid;place-items:center;color:#fff}
+.hp .ic .ico{width:18px;height:18px}
+.hp .od{position:absolute;right:-3px;bottom:-3px;width:12px;height:12px;border-radius:50%;background:var(--online);border:2px solid #fff}
+.hp .lb{background:var(--surface);border:1px solid var(--jade-border);border-radius:9px;padding:2px 7px;font-size:10px;font-weight:800;color:var(--ink);text-align:center;line-height:1.25;box-shadow:0 2px 6px var(--shadow);white-space:nowrap}
+.hp .lb small{display:block;color:var(--jade-deep);font-weight:700;font-size:10px}
+.stk{display:flex}
+.stk i{width:24px;height:24px;border-radius:50%;background:var(--jade-fill);border:2px solid #fff;margin-left:-8px;display:grid;place-items:center;color:#fff}
+.stk i:first-child{margin-left:0}
+.stk .ico{width:12px;height:12px}
+.you{position:absolute;z-index:2;width:18px;height:18px;border-radius:50%;background:var(--you);border:3px solid #fff;box-shadow:0 0 0 8px rgba(74,144,217,.22),0 2px 8px var(--shadow);transform:translate(-50%,-50%)}
+.youl{position:absolute;z-index:2;transform:translate(-50%,0);background:var(--you);color:#fff;font-weight:800;font-size:10px;padding:1px 8px;border-radius:999px;border:2px solid #fff}
+.heat{position:absolute;width:220px;height:220px;margin:-110px 0 0 -110px;border-radius:50%;background:radial-gradient(circle,var(--acc) 0,transparent 68%);opacity:.16;z-index:1}
+.ring{position:absolute;border-radius:50%;border:2px solid var(--acc);transform:translate(-50%,-50%);z-index:1}
+.sheet{position:absolute;z-index:8;left:0;right:0;bottom:58px;background:var(--surface);border-top:1px solid var(--line);border-radius:26px 26px 0 0;box-shadow:0 -8px 24px var(--shadow);padding:8px 14px 12px;display:grid;gap:9px}
+.grab{width:38px;height:4px;border-radius:4px;background:var(--line);margin:0 auto}
+/* small parts */
+.beads{display:flex;gap:8px;justify-content:center}
+.beads span{width:46px;height:54px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);display:grid;place-items:center;font-size:24px;font-weight:800;color:var(--ink)}
+.beads span.cur{border:2px solid var(--acc);background:var(--surface)}
+.beads span.cur::after{content:"";width:2px;height:24px;background:var(--acc)}
+.dots{display:grid;grid-template-columns:repeat(5,1fr);position:relative}
+.dots::before{content:"";position:absolute;left:10%;right:10%;top:7px;height:2px;background:var(--line)}
+.dots span{display:grid;justify-items:center;gap:4px;font-size:9px;font-weight:700;color:var(--muted);text-align:center;position:relative}
+.dots span::before{content:"";width:16px;height:16px;border-radius:50%;background:var(--surface);border:2px solid var(--line)}
+.dots span.d::before{background:var(--acc-fill);border-color:var(--acc-fill)}
+.dots span.n::before{border-color:var(--acc);box-shadow:0 0 0 4px var(--acc-soft);background:var(--acc)}
+.dots span.d,.dots span.n{color:var(--ink)}
+.tog{width:38px;height:22px;border-radius:999px;background:var(--acc-fill);position:relative;flex:none}
+.tog::after{content:"";position:absolute;right:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.keys span{height:36px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-size:16px;font-weight:700;color:var(--ink)}
+.keys span.e{background:none;border:0}
+.seg{display:flex;padding:3px;border-radius:999px;background:var(--surface2);border:1px solid var(--line)}
+.seg span{flex:1;text-align:center;padding:5px 0;border-radius:999px;font-weight:700;font-size:12px;color:var(--muted)}
+.seg span.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 4px var(--shadow);font-weight:800}
+.mic{width:76px;height:76px;border-radius:50%;background:var(--signal-soft);color:var(--signal-deep);display:grid;place-items:center;margin:0 auto;box-shadow:0 0 0 10px rgba(224,114,74,.14),0 0 0 22px rgba(224,114,74,.07)}
+.mic .ico{width:30px;height:30px}
+.wave{display:flex;gap:3px;align-items:center;justify-content:center;height:26px}
+.wave i{width:3px;border-radius:3px;background:var(--signal)}
+.said{background:var(--surface);border:1px solid var(--line);border-radius:18px 18px 18px 6px;padding:9px 12px;font-size:13.5px;color:var(--ink);font-weight:500;line-height:1.5}
+.aic{background:var(--ai-soft);border:1px solid #D9D5F7;border-radius:18px;padding:11px 12px;display:grid;gap:7px}
+.aic .up{color:var(--ai-ink);display:flex;gap:5px;align-items:center}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px}
+.kv span{color:var(--muted);font-weight:600}.kv b{color:var(--ink);font-weight:700}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stat3 div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 6px;text-align:center}
+.stat3 b{display:block;font-size:17px;font-weight:800;color:var(--ink);letter-spacing:-.01em}
+.stat3 small{display:block;font-size:10px;color:var(--muted);font-weight:600;line-height:1.2}
+.mapbox{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);flex:none}
+.skel{border:1px dashed var(--line);border-radius:18px;padding:10px 12px;display:flex;gap:9px;align-items:center;color:var(--muted);font-size:12px;font-weight:600}
+.skel i{width:34px;height:34px;border-radius:50%;background:var(--surface2);flex:none}
+.bar{height:8px;border-radius:8px;background:var(--surface2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:8px;background:var(--acc)}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.thumbs svg{width:100%;height:auto;border-radius:10px;display:block}
+.ba{width:100%;height:auto;display:block;border-radius:14px}
+.stars,.kv .stars{display:flex;gap:2px;color:var(--gold)}
+.stars .ico{width:15px;height:15px}
+.rt{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.rt:last-of-type{border-bottom:0}
+.rt .no{width:24px;height:24px;border-radius:50%;background:var(--acc-fill);color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none}
+.done-on{display:flex;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:700;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.done-on svg{width:15px;height:15px}
+.done-on b{color:var(--ink);font-weight:800}
+@media (max-width:720px){.grid2{grid-template-columns:1fr}h1{font-size:25px}.phones{justify-content:center;width:100%}}
+</style>
+</head>
+<body>
+<!-- icons and drawings used by the phone mockups -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 9V6a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V7M16.5 14h.01"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 8 8 9 4.8-1 8-4.5 8-9V6l-8-3zM9 12l2 2 4-4"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><path d="M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+<symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24"><path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9zM18.5 15l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8"/></symbol>
+<symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s6 6.2 6 10.5a6 6 0 0 1-12 0C6 9.2 12 3 12 3z"/></symbol>
+<symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></symbol>
+<symbol id="i-fan" viewBox="0 0 24 24"><path d="M12 12c-1-4 0-8 3-8s3 5-3 8zM12 12c4-1 8 0 8 3s-5 3-8-3zM12 12c1 4 0 8-3 8s-3-5 3-8zM12 12c-4 1-8 0-8-3s5-3 8 3z"/></symbol>
+<symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.1 7-11a7 7 0 0 0-14 0c0 4.9 7 11 7 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21a6 6 0 0 0-12 0M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21a5 5 0 0 0-4-4.9M16 3.2a4 4 0 0 1 0 7.6"/></symbol>
+<symbol id="i-id" viewBox="0 0 24 24"><path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM8.5 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5.5 16a3 3 0 0 1 6 0M15 10h4M15 14h3"/></symbol>
+<symbol id="i-lang" viewBox="0 0 24 24"><path d="M4 5h8M8 3v2M5.5 5c.5 3 2.5 5.5 5.5 7M10.5 5c-.5 3-2.5 5.5-6 7M13 20l4-9 4 9M14.5 17h5"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></symbol>
+<symbol id="logo" viewBox="0 0 24 24"><path d="M12 2.2c3.4 3.8 6.3 7.2 6.3 10.9a6.3 6.3 0 0 1-12.6 0c0-3.7 2.9-7.1 6.3-10.9z" fill="#0E8F72"/><path d="M9 13.4l2.1 2.1 3.9-4.1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="mapbg" viewBox="0 0 312 650">
+<rect width="312" height="650" style="fill:var(--m-land)"/>
+<path d="M-10 572C70 548 160 600 330 566V660H-10z" style="fill:var(--m-water)"/>
+<rect x="196" y="252" width="96" height="92" rx="12" style="fill:var(--m-park)"/>
+<rect x="14" y="396" width="44" height="62" rx="8" style="fill:var(--m-park)"/>
+<g style="fill:var(--m-bldg)"><rect x="12" y="140" width="40" height="34" rx="4"/><rect x="12" y="182" width="40" height="40" rx="4"/><rect x="90" y="140" width="34" height="40" rx="4"/><rect x="132" y="140" width="34" height="26" rx="4"/><rect x="90" y="190" width="76" height="30" rx="4"/><rect x="198" y="140" width="48" height="36" rx="4"/><rect x="198" y="186" width="48" height="34" rx="4"/><rect x="282" y="140" width="30" height="80" rx="4"/><rect x="90" y="262" width="30" height="46" rx="4"/><rect x="128" y="262" width="38" height="30" rx="4"/><rect x="12" y="262" width="40" height="52" rx="4"/><rect x="90" y="396" width="76" height="28" rx="4"/><rect x="90" y="432" width="34" height="30" rx="4"/><rect x="198" y="396" width="48" height="66" rx="4"/><rect x="282" y="396" width="30" height="66" rx="4"/><rect x="12" y="500" width="40" height="40" rx="4"/><rect x="90" y="500" width="76" height="36" rx="4"/><rect x="198" y="500" width="94" height="32" rx="4"/><rect x="12" y="40" width="40" height="66" rx="4"/><rect x="90" y="40" width="76" height="66" rx="4"/><rect x="198" y="40" width="48" height="66" rx="4"/></g>
+<g style="stroke:var(--m-road2);fill:none;stroke-width:5"><path d="M0 180H312M0 300H180M0 430H312M128 120V240M222 120V240M128 370V480"/></g>
+<g style="stroke:var(--m-case);fill:none;stroke-width:15;stroke-linecap:round"><path d="M-10 122H322M-10 240H322M-10 482H322M70 -10V660M182 -10V660M266 -10V660M-10 350C80 330 200 386 322 356"/></g>
+<g style="stroke:var(--m-road);fill:none;stroke-width:11;stroke-linecap:round"><path d="M-10 122H322M-10 240H322M-10 482H322M70 -10V660M182 -10V660M266 -10V660M-10 350C80 330 200 386 322 356"/></g>
+<g style="fill:var(--m-label);font-weight:800;font-size:11px;letter-spacing:.14em;opacity:.75"><text x="86" y="258">KONDAPUR</text><text x="84" y="500">GACHIBOWLI</text></g>
+<g style="fill:var(--m-label);font-weight:600;font-size:8.5px"><text x="205" y="302">Botanical</text><text x="205" y="313">Garden</text></g>
+</symbol>
+<symbol id="ba" viewBox="0 0 264 130">
+<rect width="132" height="130" fill="#C9C0B2"/><rect x="132" width="132" height="130" fill="#E6F1EE"/>
+<g stroke="#B5AB9B" stroke-width="1"><path d="M0 22H132M0 44H132M0 66H132M33 0V88M66 0V88M99 0V88"/></g>
+<g stroke="#D3E3DE" stroke-width="1"><path d="M132 22H264M132 44H264M132 66H264M165 0V88M198 0V88M231 0V88"/></g>
+<rect y="88" width="132" height="42" fill="#8C8172"/><rect x="132" y="88" width="132" height="42" fill="#C2D2CC"/>
+<rect x="22" y="96" width="78" height="26" rx="6" fill="#75695B"/><rect x="164" y="96" width="78" height="26" rx="6" fill="#F5FAF8"/>
+<path d="M60 96V70a10 10 0 0 1 20 0v4" fill="none" stroke="#6A5F52" stroke-width="5" stroke-linecap="round"/><path d="M202 96V70a10 10 0 0 1 20 0v4" fill="none" stroke="#9FB2AC" stroke-width="5" stroke-linecap="round"/>
+<g fill="#6B6052" opacity=".75"><ellipse cx="24" cy="36" rx="12" ry="7"/><ellipse cx="104" cy="56" rx="15" ry="8"/><ellipse cx="48" cy="60" rx="8" ry="5"/><ellipse cx="112" cy="18" rx="9" ry="5"/><ellipse cx="36" cy="108" rx="9" ry="4"/></g>
+<g fill="#fff"><path d="M156 30l2.2 6 6 2.2-6 2.2-2.2 6-2.2-6-6-2.2 6-2.2zM236 52l1.6 4.4 4.4 1.6-4.4 1.6-1.6 4.4-1.6-4.4-4.4-1.6 4.4-1.6zM246 16l1.2 3.2 3.2 1.2-3.2 1.2-1.2 3.2-1.2-3.2-3.2-1.2 3.2-1.2z"/></g>
+<rect x="130.5" width="3" height="130" fill="#fff"/><circle cx="132" cy="65" r="11" fill="#fff"/><path d="M128 61l-4 4 4 4M136 61l4 4-4 4" fill="none" stroke="#121417" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</symbol>
+</defs></svg>
+
+<div class="wrap">
+<span class="brand"><svg><use href="#logo"/></svg>taskdrop.</span>
+<h1>Hero features: what sells taskdrop.</h1>
+<p class="lede">You asked for a few hero features, with pictures, that would sell the app. Here are eight. Number 1 is the map, which is live. The other seven are <b>ideas</b>: nothing is built, and nothing will be until you pick.</p>
+<p class="sub" style="margin-top:6px">Task 1.21, row G · 27 November 2026 · design page only, no app code · every phone picture below is also saved as a PNG in this folder.</p>
+
+<div class="grid2">
+<div class="card">
+<h3>My top three to build first</h3>
+<ol class="top3">
+<li><p><b>Money Lock (hero 2), small.</b> The money part already works on staging (Plan B). This gives it a face. It answers the first question on both sides: "what if I pay and he vanishes?" and "what if I work and he does not pay?"</p></li>
+<li><p><b>Safe Visit (hero 3), medium.</b> A start code at the door, and a family member can follow the job. It answers the second question: "who is this stranger?" No rival gives the worker a safety contact too.</p></li>
+<li><p><b>Say it (hero 4), medium.</b> Speak one sentence in Telugu, Hindi or English and the task is written. The Speak button already exists in English. It is the best 10-second ad of the eight.</p></li>
+</ol>
+<p style="margin-top:10px"><b>Cheap fourth:</b> Photo Receipt (hero 8) is small and rides on the before-and-after photos that are live. <b>Wait for a busy area:</b> Offer Radar, Trust Card and Earn Route look empty when few people are around, so they come after the launch areas fill.</p>
+</div>
+<div class="card">
+<h3>How the store listing would read</h3>
+<div class="listing"><small>One line</small>Say what you need in your own language, see helpers on a live map, and your money stays locked until the work is done.</div>
+<div class="listing"><small>Google Play short text (76 of 80 letters)</small>Any task, near you or online. Live map, start code, money locked until done.</div>
+<h3 style="margin-top:14px">What rivals sell (checked on the web, 27 Nov)</h3>
+<ul>
+<li><b>Urban Company InstaHelp, Snabbit, Pronto:</b> "house help in 10 minutes" from a fixed menu, with their own trained staff, priced by the hour. Snabbit's listing has a start OTP; Pronto sells a recorded "Verified" visit.</li>
+<li><b>JustDial, Sulekha, WhatsApp groups:</b> a phone number. No held money, no proof, no help if it goes wrong.</li>
+<li><b>Nobody in India sells these together:</b> any task at your own price, a live map for both sides, money locked for odd jobs, your own language, and safety for the worker as well as the customer.</li>
+</ul>
+</div>
+</div>
+
+<div class="card" style="margin-top:14px">
+<h3>The eight at a glance</h3>
+<div class="tw"><table>
+<tr><th>#</th><th>Hero</th><th>One-line pitch</th><th>For</th><th>Size</th><th>Status</th></tr>
+<tr><td>1</td><td><b>Live map</b></td><td>See who can help, and what pays, on your own street.</td><td>Both</td><td>None</td><td><span class="tag live">Live today</span></td></tr>
+<tr><td>2</td><td><b>Money Lock</b></td><td>Your money is locked until the work is done.</td><td>Both</td><td>Small</td><td><span class="tag idea">Idea, not built</span></td></tr>
+<tr><td>3</td><td><b>Safe Visit</b></td><td>A start code at your door, and your family can follow the job.</td><td>Both</td><td>Medium</td><td><span class="tag idea">Idea, not built</span></td></tr>
+<tr><td>4</td><td><b>Say it</b></td><td>Just say it, in Telugu, Hindi or English. We write the task.</td><td>Poster first</td><td>Medium</td><td><span class="tag idea">Idea, not built</span></td></tr>
+<tr><td>5</td><td><b>Offer Radar</b></td><td>Post it and watch offers arrive, in minutes.</td><td>Poster</td><td>Medium</td><td><span class="tag idea">Idea, not built</span></td></tr>
+<tr><td>6</td><td><b>Trust Card</b></td><td>See who your neighbours already hired, before you hire.</td><td>Poster</td><td>Medium</td><td><span class="tag idea">Idea, not built</span></td></tr>
+<tr><td>7</td><td><b>Earn Route</b></td><td>Today's earning on one route: 3 jobs, 4 km, ₹1,350.</td><td>Worker</td><td>Medium to large</td><td><span class="tag idea">Idea, not built</span></td></tr>
+<tr><td>8</td><td><b>Photo Receipt</b></td><td>Every job ends with a photo receipt: before, after, paid.</td><td>Both</td><td>Small</td><td><span class="tag idea">Idea, not built</span></td></tr>
+</table></div>
+</div>
+
+<!-- ===================== HERO 1 ===================== -->
+<section class="hero" id="h1">
+<div class="num">Hero 1 <span class="tag live">Live today</span><span class="tag size">Nothing to build</span></div>
+<h2>The live map</h2>
+<p class="pitch">See who can help, and what pays, on your own street. Live.</p>
+<div class="hrow">
+<div class="phones">
+<figure class="shot" data-file="hero-1-live-map-earn">
+<figcaption>1 · Live map <span class="tag live">Live today</span><span class="tag side-earn">Earn side</span></figcaption>
+<div class="frame" data-role="earn">
+<svg class="mapsvg" viewBox="0 0 312 650" preserveAspectRatio="xMidYMid slice"><use href="#mapbg" width="312" height="650"/></svg>
+<div class="heat" style="left:176px;top:262px"></div>
+<div class="pin" style="left:62px;top:214px"><div class="tp"><span class="gl"><svg class="ico"><use href="#i-box"/></svg></span>₹300</div></div>
+<div class="pin" style="left:186px;top:204px"><div class="tp sel"><span class="gl"><svg class="ico"><use href="#i-drop"/></svg></span>₹450</div></div>
+<div class="pin" style="left:248px;top:286px"><div class="tp"><span class="gl"><svg class="ico"><use href="#i-zap"/></svg></span>₹800</div></div>
+<div class="pin" style="left:104px;top:306px"><div class="tp"><span class="gl"><svg class="ico"><use href="#i-spark"/></svg></span>₹600</div></div>
+<div class="pin mid" style="left:74px;top:366px"><div class="cl e"><b>₹1,200</b><span>· 6 tasks</span></div></div>
+<div class="pin mid" style="left:230px;top:372px"><div class="cl e"><b>₹900</b><span>· 4 tasks</span></div></div>
+<div class="you" style="left:176px;top:268px"></div><div class="youl" style="left:176px;top:282px">You</div>
+<div class="sb onmap"><span>9:41</span><span>5G · 82%</span></div>
+<div class="mtop">
+<div class="sw"><span>Hire</span><span class="on">Earn</span></div>
+<div class="ttl"><div><b>Work near you</b><small>23 tasks within 3 km</small></div><span class="loc"><svg class="ico"><use href="#i-pin"/></svg>Kondapur</span></div>
+<div class="chips"><span class="chip on">Today</span><span class="chip">Within 3 km</span><span class="chip">₹300 and up</span></div>
+</div>
+<div class="sheet">
+<div class="grab"></div>
+<div class="t3 up">Nearest to you</div>
+<div class="row"><span class="tile"><svg class="ico"><use href="#i-drop"/></svg></span><div class="grow"><div class="t2">Fix a leaking kitchen tap</div><div class="t3">400 m away · by 6 pm today</div></div><div class="price">₹450</div></div>
+<div class="btn">Send offer</div>
+<div class="t3 c">22 more tasks near you. Pull up to see them.</div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span class="on"><svg class="ico"><use href="#i-map"/></svg>Find work</span><span><svg class="ico"><use href="#i-list"/></svg>My Work</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+<figure class="shot" data-file="hero-1-live-map-hire">
+<figcaption>1 · Live map <span class="tag live">Live today</span><span class="tag side-hire">Hire side</span></figcaption>
+<div class="frame" data-role="hire">
+<svg class="mapsvg" viewBox="0 0 312 650" preserveAspectRatio="xMidYMid slice"><use href="#mapbg" width="312" height="650"/></svg>
+<div class="ring" style="left:150px;top:290px;width:250px;height:250px;border-style:dashed;opacity:.55"></div>
+<div class="pin" style="left:70px;top:250px"><div class="hp"><span class="ic"><svg class="ico"><use href="#i-fan"/></svg><i class="od"></i></span><span class="lb">AC service<small>from ₹399</small></span></div></div>
+<div class="pin" style="left:212px;top:240px"><div class="hp"><span class="ic"><svg class="ico"><use href="#i-spark"/></svg><i class="od"></i></span><span class="lb">Deep cleaning<small>from ₹499</small></span></div></div>
+<div class="pin" style="left:78px;top:392px"><div class="hp"><span class="ic"><svg class="ico"><use href="#i-drop"/></svg></span><span class="lb">Plumber<small>from ₹199</small></span></div></div>
+<div class="pin" style="left:250px;top:344px"><div class="hp"><span class="ic"><svg class="ico"><use href="#i-zap"/></svg><i class="od"></i></span><span class="lb">Electrician<small>from ₹249</small></span></div></div>
+<div class="pin mid" style="left:226px;top:392px"><div class="cl h"><span class="stk"><i><svg class="ico"><use href="#i-wrench"/></svg></i><i><svg class="ico"><use href="#i-box"/></svg></i><i><svg class="ico"><use href="#i-spark"/></svg></i></span><b>+8</b></div></div>
+<div class="you" style="left:150px;top:290px"></div><div class="youl" style="left:150px;top:304px">Your area</div>
+<div class="sb onmap"><span>9:41</span><span>5G · 82%</span></div>
+<div class="mtop">
+<div class="sw"><span class="on">Hire</span><span>Earn</span></div>
+<div class="ttl"><div><b>Helpers near you</b><small>14 helpers · 9 active now</small></div><span class="loc"><svg class="ico"><use href="#i-pin"/></svg>Kondapur</span></div>
+<div class="chips"><span class="chip on">All</span><span class="chip">Cleaning</span><span class="chip">Repairs</span><span class="chip">Errands</span></div>
+</div>
+<div class="sheet">
+<div class="grab"></div>
+<div class="row"><span class="tile"><svg class="ico"><use href="#i-users"/></svg></span><div class="grow"><div class="t2">14 helpers around your home</div><div class="t3">Each pin is a real helper and what they offer. Names stay hidden until you tap one.</div></div></div>
+<div class="btn">Post a task to all of them</div>
+<div class="t3 c">Spots are rounded, so nobody's exact home is shown.</div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span class="on"><svg class="ico"><use href="#i-map"/></svg>Explore</span><span><svg class="ico"><use href="#i-list"/></svg>My Tasks</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+</div>
+<div class="facts">
+<div class="card"><h3>Who it is for</h3><p>Both. A worker sees the tasks and what each pays. A poster sees the helpers around their home and what each offers.</p></div>
+<div class="card"><h3>Why it sells, and the feeling</h3><p>A menu of services is the same in every city. A map of <b>your own street</b> is personal in one second: "there is ₹450 of work 400 m from me", "14 helpers live around my flat". The feeling is: my area is alive, and help is near. Urban Company, Snabbit and Pronto show a menu. None of them show the people and the prices around you.</p></div>
+<div class="card"><h3>How to pitch it as it is today</h3><p>Make the Earn map the first store picture ("See what pays near you") and the Hire map the second ("14 helpers around your home"). The ad is 10 seconds: open the app, the map flies to your area, the pins pop in. <b>From 27 Nov the Earn pins show the service icon and the price, not the poster's face</b>, so one look says what the job is and what it pays.</p></div>
+<div class="card"><h3>Already in the app</h3><p>Everything: Earn shows tasks only in royal blue, Hire shows helpers only in jade, the pull-up bar, one filter set for the map and the list, areas that open as you zoom, 3D buildings, and it stays smooth with 2,000 pins. Guests can see it before signing up.</p></div>
+<div class="card risk"><h3>Risk</h3><p>An empty map sells nothing, so the pitch only works in the launch areas where people are close together (decision 38). Spots stay rounded and helpers stay nameless until tapped. Never put fake pins on the real app.</p></div>
+</div>
+</div>
+</section>
+
+<!-- ===================== HERO 2 ===================== -->
+<section class="hero" id="h2">
+<div class="num">Hero 2 <span class="tag idea">Idea, not built</span><span class="tag size">Size: small</span></div>
+<h2>Money Lock</h2>
+<p class="pitch">Your money is locked until the work is done. You tap, then they get paid.</p>
+<div class="hrow">
+<div class="phones">
+<figure class="shot" data-file="hero-2-money-lock-poster">
+<figcaption>2 · Money Lock <span class="tag idea">Idea, not built</span><span class="tag side-hire">Hire side</span></figcaption>
+<div class="frame" data-role="hire">
+<div class="sb"><span>9:41</span><span>5G · 82%</span></div>
+<div class="scr">
+<div class="ah"><span class="bk"><svg class="ico"><use href="#i-back"/></svg></span><b>Deep clean 2BHK</b><span class="pl acc">In progress</span></div>
+<div class="hb"><div class="row"><span class="lk"><svg class="ico"><use href="#i-lock"/></svg></span><div><small>Money Lock</small><b>₹1,200 locked</b></div></div><p>Held by Razorpay, our payment partner. Lakshmi gets it only after you tap Approve.</p></div>
+<div class="cx steps">
+<div class="st done"><i><svg class="ico"><use href="#i-check"/></svg></i><div><b>You paid ₹1,200</b><small>UPI · today, 10:02 am</small></div></div>
+<div class="st done"><i><svg class="ico"><use href="#i-check"/></svg></i><div><b>Money locked</b><small>Lakshmi can see it is waiting for her</small></div></div>
+<div class="st now"><i></i><div><b>Work in progress</b><small>Lakshmi started at 11:15 am</small></div></div>
+<div class="st"><i></i><div><b>You approve the work</b><small>Or report a problem. The money stays locked.</small></div></div>
+<div class="st"><i></i><div><b>Paid to Lakshmi</b><small>Straight to her bank or UPI</small></div></div>
+</div>
+<div class="btn"><svg class="ico"><use href="#i-check"/></svg>Approve and pay ₹1,200</div>
+<div class="btn ghost">Report a problem</div>
+<div class="t3 c">Task deleted before work starts? All of it comes back to you.</div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span><svg class="ico"><use href="#i-map"/></svg>Explore</span><span class="on"><svg class="ico"><use href="#i-list"/></svg>My Tasks</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+<figure class="shot" data-file="hero-2-money-lock-worker">
+<figcaption>2 · Money Lock <span class="tag idea">Idea, not built</span><span class="tag side-earn">Earn side</span></figcaption>
+<div class="frame" data-role="earn">
+<div class="sb"><span>9:41</span><span>5G · 82%</span></div>
+<div class="scr">
+<div class="ah"><span class="bk"><svg class="ico"><use href="#i-back"/></svg></span><b>Deep clean 2BHK</b><span class="pl acc">You are hired</span></div>
+<div class="hb"><div class="row"><span class="lk"><svg class="ico"><use href="#i-lock"/></svg></span><div><small>Locked for you</small><b>₹1,080</b></div></div><p>The customer has already paid. It is locked before you travel.</p></div>
+<div class="cx"><div class="kv"><span>Task price</span><b style="text-align:right">₹1,200</b><span>TaskDrop fee (10%)</span><b style="text-align:right">− ₹120</b><span style="color:var(--ink);font-weight:800">You get</span><b style="text-align:right;color:var(--acc-deep);font-weight:800">₹1,080</b></div></div>
+<div class="cx steps">
+<div class="st done"><i><svg class="ico"><use href="#i-check"/></svg></i><div><b>Customer paid</b><small>Today, 10:02 am</small></div></div>
+<div class="st done"><i><svg class="ico"><use href="#i-check"/></svg></i><div><b>Locked for you</b><small>They cannot take it back while you work</small></div></div>
+<div class="st now"><i></i><div><b>Do the work</b><small>Kondapur · finish by 2 pm</small></div></div>
+<div class="st"><i></i><div><b>Customer approves</b><small>No reply in 3 days? It is released to you.</small></div></div>
+<div class="st"><i></i><div><b>In your bank or UPI</b><small>Get paid is set up</small></div></div>
+</div>
+<div class="btn">Start the job</div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span><svg class="ico"><use href="#i-map"/></svg>Find work</span><span class="on"><svg class="ico"><use href="#i-list"/></svg>My Work</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+</div>
+<div class="facts">
+<div class="card"><h3>Who it is for</h3><p>Both. The poster sees "my money is safe until I say done". The worker sees "the money is already there before I leave home".</p></div>
+<div class="card"><h3>Why it sells, and the feeling</h3><p>In India the fear is the same on both sides. The customer fears paying an advance and never seeing the person again. The worker fears finishing and then hearing "I will pay tomorrow" or a new, lower price. One picture of a lock with five steps answers both. The feeling is: <b>nobody can cheat me here</b>. Phone-number sites give no protection, and no home-help app shows the worker the money before the trip.</p></div>
+<div class="card"><h3>How it attracts</h3><p>Poster ad: "Pay only when you are happy." Worker ad: "Money locked before you start. No more chasing payments." It also gives a reason to stay on the app instead of swapping numbers.</p></div>
+<div class="card"><h3>Already in the app</h3><p>The Plan B money flow on staging (pay per task through Razorpay), the one-line "where is this task's money" note, the "Your money is protected" line and sheet on Home, refund when a paid task is deleted, and the 3 days to approve. Money Lock is a bigger, clearer face for facts the app already knows.</p></div>
+<div class="card risk"><h3>Risk</h3><p>These are money promises. The exact words need Razorpay's and the lawyer's written yes, and must say truthfully who holds the money (the payment partner, never a TaskDrop wallet). Never say "guaranteed" or "insured". The fee shown is today's test number and may change after the CA answers.</p></div>
+</div>
+</div>
+</section>
+
+<!-- ===================== HERO 3 ===================== -->
+<section class="hero" id="h3">
+<div class="num">Hero 3 <span class="tag idea">Idea, not built</span><span class="tag size">Size: medium</span></div>
+<h2>Safe Visit</h2>
+<p class="pitch">A start code at your door, and your family can follow the job.</p>
+<div class="hrow">
+<div class="phones">
+<figure class="shot" data-file="hero-3-safe-visit-poster">
+<figcaption>3 · Safe Visit <span class="tag idea">Idea, not built</span><span class="tag side-hire">Hire side</span></figcaption>
+<div class="frame" data-role="hire">
+<div class="sb"><span>9:41</span><span>5G · 82%</span></div>
+<div class="scr">
+<div class="ah"><span class="bk"><svg class="ico"><use href="#i-back"/></svg></span><b>Fix a leaking tap</b><span class="pl acc">On the way</span></div>
+<div class="cx"><div class="row"><span class="face f1">SK</span><div class="grow"><div class="t2">Suresh K</div><div class="t3">Trusted · 38 jobs done</div></div><span class="pl gold"><svg class="ico"><use href="#i-id"/></svg>ID checked</span></div></div>
+<div class="cx"><div class="dots"><span class="d">Hired</span><span class="n">On the way</span><span>At door</span><span>Working</span><span>Done</span></div></div>
+<div class="cx" style="display:grid;gap:8px"><div class="t3 up c">Your start code</div><div class="beads"><span>4</span><span>7</span><span>2</span><span>9</span></div><div class="t3 c">Say this code only when Suresh is at your door. The job starts when he enters it.</div></div>
+<div class="cx"><div class="row"><span class="tile"><svg class="ico"><use href="#i-users"/></svg></span><div class="grow"><div class="t2">Amma is following</div><div class="t3">She sees who is coming and each step. The link stops when the job ends.</div></div><span class="tog"></span></div></div>
+<div class="btn ghost"><svg class="ico"><use href="#i-share"/></svg>Share with someone else</div>
+<div class="t3 c">Feels wrong? Keep the code. Tap Need help.</div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span><svg class="ico"><use href="#i-map"/></svg>Explore</span><span class="on"><svg class="ico"><use href="#i-list"/></svg>My Tasks</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+<figure class="shot" data-file="hero-3-safe-visit-worker">
+<figcaption>3 · Safe Visit <span class="tag idea">Idea, not built</span><span class="tag side-earn">Earn side</span></figcaption>
+<div class="frame" data-role="earn">
+<div class="sb"><span>9:41</span><span>5G · 82%</span></div>
+<div class="scr">
+<div class="ah"><span class="bk"><svg class="ico"><use href="#i-back"/></svg></span><b>Fix a leaking tap</b><span class="pl acc">At the door</span></div>
+<div class="cx" style="display:grid;gap:8px"><div class="t1 c">Enter the start code</div><div class="t3 c">Ask the customer for the 4 digits. Right code, right door.</div><div class="beads"><span>4</span><span>7</span><span>2</span><span class="cur"></span></div></div>
+<div class="keys"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span class="e"></span><span>0</span><span class="e"><svg class="ico"><use href="#i-back"/></svg></span></div>
+<div class="cx"><div class="row"><span class="tile"><svg class="ico"><use href="#i-users"/></svg></span><div class="grow"><div class="t2">Trusted contact: Ravi</div><div class="t3">He gets a message when you start and when you finish, with the area of the job.</div></div><span class="tog"></span></div></div>
+<div class="row"><div class="btn ghost grow" style="color:var(--signal-deep)"><svg class="ico"><use href="#i-phone"/></svg>Need help</div><div class="btn ghost grow">Wrong address</div></div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span><svg class="ico"><use href="#i-map"/></svg>Find work</span><span class="on"><svg class="ico"><use href="#i-list"/></svg>My Work</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+</div>
+<div class="facts">
+<div class="card"><h3>Who it is for</h3><p>Both. The customer letting a stranger into the home, and the worker (often a woman) going into a stranger's home.</p></div>
+<div class="card"><h3>Why it sells, and the feeling</h3><p>After money, safety is the next thing an Indian family asks about. The code proves the right person is at the right door. The shared link means someone at home knows what is happening, without installing anything. The feeling is: <b>I am not doing this alone</b>. Rival apps use a start OTP for their own staff. None give the worker a safety contact, and none do this for any kind of task.</p></div>
+<div class="card"><h3>How it attracts</h3><p>The ad is one line a mother understands: "No code, no entry." For workers: "Someone always knows where you are working."</p></div>
+<div class="card"><h3>Already in the app</h3><p>Swipe to start a job, the four-line safety card before a first in-person job, the task timeline, alerts, the share sheet (WhatsApp and others), and the code boxes used at sign-in. Version 1 shares steps only (hired, on the way, started, done), not a moving dot.</p></div>
+<div class="card risk"><h3>Risk</h3><p>The Terms today promise no start code and no tracking on purpose (a test checks this), so the legal words change together with the build. The shared link must show the area and the steps only, never the address, and must expire. Call it "an extra check", never "guaranteed safe". TaskDrop is not an emergency service: "Need help" must point to 112 and to support hours that really exist.</p></div>
+</div>
+</div>
+</section>
+
+<!-- ===================== HERO 4 ===================== -->
+<section class="hero" id="h4">
+<div class="num">Hero 4 <span class="tag idea">Idea, not built</span><span class="tag size">Size: medium</span></div>
+<h2>Say it</h2>
+<p class="pitch">Just say it, in Telugu, Hindi or English. We write the task.</p>
+<div class="hrow">
+<div class="phones">
+<figure class="shot" data-file="hero-4-say-it-poster">
+<figcaption>4 · Say it <span class="tag idea">Idea, not built</span><span class="tag side-hire">Hire side</span></figcaption>
+<div class="frame" data-role="hire">
+<div class="sb"><span>9:41</span><span>5G · 82%</span></div>
+<div class="scr notabs">
+<div class="ah"><span class="bk"><svg class="ico"><use href="#i-x"/></svg></span><b>What do you need done?</b></div>
+<div class="seg"><span class="on">తెలుగు</span><span>हिन्दी</span><span>English</span></div>
+<div style="display:grid;gap:10px;padding:14px 0 2px"><div class="mic"><svg class="ico"><use href="#i-mic"/></svg></div>
+<div class="wave"><i style="height:8px"></i><i style="height:16px"></i><i style="height:24px"></i><i style="height:12px"></i><i style="height:20px"></i><i style="height:26px"></i><i style="height:14px"></i><i style="height:8px"></i><i style="height:18px"></i><i style="height:24px"></i><i style="height:10px"></i><i style="height:16px"></i><i style="height:6px"></i></div>
+<div class="t3 c" style="color:var(--signal-deep);font-weight:700">Listening… tap to stop</div></div>
+<div class="said">మా వంటింటి కుళాయి కారుతోంది. ఈరోజు సాయంత్రం లోపు బాగు చేయాలి.</div>
+<div class="aic"><div class="up"><svg class="ico" style="width:13px;height:13px"><use href="#i-spark"/></svg>We wrote your task</div><div class="t1">Fix a leaking kitchen tap</div>
+<div class="kv"><span>Kind</span><b>Plumbing</b><span>When</span><b>Today, by 6 pm</b><span>Where</span><b>Kondapur (your area)</b><span>Your price</span><b>You choose next</b></div></div>
+<div class="btn">Looks right, next</div>
+<div class="btn ghost"><svg class="ico"><use href="#i-mic"/></svg>Say it again</div>
+<div class="t3 c">Nothing is posted until you say yes.</div>
+</div>
+</div>
+</figure>
+<figure class="shot" data-file="hero-4-say-it-worker">
+<figcaption>4 · Say it <span class="tag idea">Idea, not built</span><span class="tag side-earn">Earn side</span></figcaption>
+<div class="frame" data-role="earn">
+<div class="sb"><span>9:41</span><span>5G · 82%</span></div>
+<div class="scr">
+<div class="ah"><span class="bk"><svg class="ico"><use href="#i-back"/></svg></span><b>Task</b><span class="pl sig">Today</span></div>
+<div class="cx" style="display:grid;gap:9px">
+<div class="row"><svg class="ico" style="color:var(--muted)"><use href="#i-lang"/></svg><div class="t3 grow" style="font-weight:700">Read this task in</div></div>
+<div class="seg"><span class="on">हिन्दी</span><span>తెలుగు</span><span>English</span></div>
+<div class="t1" style="line-height:1.4">रसोई का टपकता नल ठीक करना है</div>
+<div style="font-size:13px;color:var(--text);line-height:1.55">रसोई के नल से पानी टपक रहा है। आज शाम 6 बजे तक ठीक करना है।</div>
+<div class="row" style="flex-wrap:wrap;gap:5px"><span class="pl mut">Plumbing</span><span class="pl mut">Kondapur · 400 m</span><span class="pl mut">आज शाम 6 बजे तक</span></div>
+<div class="row"><div class="btn ghost sm"><svg class="ico" style="width:14px;height:14px"><use href="#i-play"/></svg>Listen</div><div class="t3 grow">Translated by TaskDrop. <b style="color:var(--acc-deep)">See the original</b></div></div>
+</div>
+<div class="cx"><div class="row"><div class="grow"><div class="t3">The customer's price</div><div class="price" style="font-size:24px">₹450</div></div><span class="pl acc"><svg class="ico"><use href="#i-lock"/></svg>Never translated</span></div><div class="t3" style="margin-top:4px">Prices, times and places are shown exactly as the customer set them.</div></div>
+<div class="btn">Send offer</div>
+<div class="btn ghost">Ask a question</div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span class="on"><svg class="ico"><use href="#i-map"/></svg>Find work</span><span><svg class="ico"><use href="#i-list"/></svg>My Work</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+</div>
+<div class="facts">
+<div class="card"><h3>Who it is for</h3><p>Posters first: parents, shop owners, anyone who would rather talk than type English. Workers too: a helper from another state reads the task in Hindi, or taps Listen and hears it.</p></div>
+<div class="card"><h3>Why it sells, and the feeling</h3><p>People in India already ask for help with a voice note. Rival apps give an English menu, and if your need is not on the menu you cannot ask. Here you say one sentence the way you would say it to a neighbour, and a clean task appears. The feeling is: <b>this app understands me</b>. The Telugu line in the picture says "Our kitchen tap is leaking. It must be fixed by this evening."</p></div>
+<div class="card"><h3>How it attracts</h3><p>The easiest ad of all eight: a woman says one Telugu sentence into the phone, the task writes itself, a helper's offer arrives. Ten seconds, no reading needed. It fits the tagline: "Ask for anything."</p></div>
+<div class="card"><h3>Already in the app</h3><p>Posting by one sentence with a Speak button (English only today), the writer that turns it into a title, kind, time and budget, and the meaning search that maps "fix my tap" to Plumbing. To add: Telugu and Hindi listening, and the read-in-my-language switch on a task. This is not a translation of the whole app; that is large and can come later.</p></div>
+<div class="card risk"><h3>Risk</h3><p>The app can hear wrong, so the written task is always shown for a yes before posting. A wrong translation must never change money: prices, times and places are copied, not translated. Each post costs a little AI money, so keep the limits. The rule that blocks phone numbers in tasks must also work in Telugu and Hindi.</p></div>
+</div>
+</div>
+</section>
+
+<!-- ===================== HERO 5 ===================== -->
+<section class="hero" id="h5">
+<div class="num">Hero 5 <span class="tag idea">Idea, not built</span><span class="tag size">Size: medium</span></div>
+<h2>Offer Radar</h2>
+<p class="pitch">Post it and watch offers arrive. First offer in minutes.</p>
+<div class="hrow">
+<div class="phones">
+<figure class="shot" data-file="hero-5-offer-radar">
+<figcaption>5 · Offer Radar <span class="tag idea">Idea, not built</span><span class="tag side-hire">Hire side</span></figcaption>
+<div class="frame" data-role="hire">
+<div class="sb"><span>9:41</span><span>5G · 82%</span></div>
+<div class="scr">
+<div class="ah"><span class="bk"><svg class="ico"><use href="#i-back"/></svg></span><b>Your task is live</b><span class="pl acc">Posted 3 min ago</span></div>
+<div class="mapbox" style="height:136px">
+<svg class="mapsvg" viewBox="20 181 290 136" preserveAspectRatio="xMidYMid slice"><use href="#mapbg" width="312" height="650"/></svg>
+<div class="ring" style="left:138px;top:70px;width:60px;height:60px;opacity:.9"></div><div class="ring" style="left:138px;top:70px;width:120px;height:120px;opacity:.5"></div><div class="ring" style="left:138px;top:70px;width:190px;height:190px;opacity:.25"></div>
+<div class="pin mid" style="left:138px;top:70px"><span class="tile" style="background:var(--acc-fill);color:#fff;border:3px solid #fff;border-radius:50%;box-shadow:0 4px 10px var(--shadow)"><svg class="ico"><use href="#i-drop"/></svg></span></div>
+<div class="pin mid" style="left:52px;top:34px"><div class="hp"><span class="ic" style="width:28px;height:28px;border-width:2px"><svg class="ico" style="width:13px;height:13px"><use href="#i-wrench"/></svg><i class="od"></i></span></div></div>
+<div class="pin mid" style="left:226px;top:32px"><div class="hp"><span class="ic" style="width:28px;height:28px;border-width:2px"><svg class="ico" style="width:13px;height:13px"><use href="#i-drop"/></svg><i class="od"></i></span></div></div>
+<div class="pin mid" style="left:238px;top:106px"><div class="hp"><span class="ic" style="width:28px;height:28px;border-width:2px"><svg class="ico" style="width:13px;height:13px"><use href="#i-wrench"/></svg></span></div></div>
+<div class="pin mid" style="left:64px;top:108px"><div class="hp"><span class="ic" style="width:28px;height:28px;border-width:2px"><svg class="ico" style="width:13px;height:13px"><use href="#i-drop"/></svg><i class="od"></i></span></div></div>
+</div>
+<div class="stat3"><div><b>8</b><small>helpers saw it</small></div><div><b>3</b><small>writing an offer</small></div><div><b>2 min</b><small>to first offer</small></div></div>
+<div class="cx"><div class="row"><span class="face f1">SK</span><div class="grow"><div class="t2">Suresh K <span class="pl acc">New</span></div><div class="t3">Trusted · 600 m · 5:30 pm</div></div><div style="text-align:right"><div class="price">₹420</div><div class="btn sm" style="margin-top:3px">Hire</div></div></div></div>
+<div class="cx"><div class="row"><span class="face f2">IM</span><div class="grow"><div class="t2">Imran M</div><div class="t3">Pro · 1.1 km · can come now</div></div><div style="text-align:right"><div class="price">₹450</div><div class="btn sm" style="margin-top:3px">Hire</div></div></div></div>
+<div class="skel"><i></i>Another helper is writing an offer…</div>
+<div class="btn ghost">Compare offers</div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span><svg class="ico"><use href="#i-map"/></svg>Explore</span><span class="on"><svg class="ico"><use href="#i-list"/></svg>My Tasks</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+</div>
+<div class="facts">
+<div class="card"><h3>Who it is for</h3><p>The poster, in the first ten minutes after posting.</p></div>
+<div class="card"><h3>Why it sells, and the feeling</h3><p>Speed is what the 10-minute apps sell. TaskDrop cannot promise a person at the door in 10 minutes for any task, but it can show speed honestly: who has seen your task, who is writing, and how fast the first price came. Silence after posting is where a new poster gives up. The feeling is: <b>people are already on it</b>.</p></div>
+<div class="card"><h3>How it attracts</h3><p>Ad line: "Posted at 4:02. First offer at 4:04." A screen recording of offers dropping in is the proof. It also makes the map useful again right after posting.</p></div>
+<div class="card"><h3>Already in the app</h3><p>Offers with a price and a time the helper can come, the Compare screen, alerts to helpers nearby, the active-now dot, the map, and the Just posted ticker. To add: a count of real views, and a "writing an offer" signal.</p></div>
+<div class="card risk"><h3>Risk</h3><p>In a quiet area the radar shows zeros and does harm, so switch it on area by area once enough helpers are active. Every number must be real: no made-up "8 people are looking". Helpers stay nameless until they send an offer. Still no chat before a hire.</p></div>
+</div>
+</div>
+</section>
+
+<!-- ===================== HERO 6 ===================== -->
+<section class="hero" id="h6">
+<div class="num">Hero 6 <span class="tag idea">Idea, not built</span><span class="tag size">Size: medium</span></div>
+<h2>Trust Card</h2>
+<p class="pitch">See who your neighbours already hired, before you hire.</p>
+<div class="hrow">
+<div class="phones">
+<figure class="shot" data-file="hero-6-trust-card">
+<figcaption>6 · Trust Card <span class="tag idea">Idea, not built</span><span class="tag side-hire">Hire side</span></figcaption>
+<div class="frame" data-role="hire">
+<div class="sb"><span>9:41</span><span>5G · 82%</span></div>
+<div class="scr">
+<div class="ah"><span class="bk"><svg class="ico"><use href="#i-back"/></svg></span><b>Trust card</b></div>
+<div class="cx"><div class="row"><span class="face f5" style="width:50px;height:50px;font-size:16px;box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--jade)">LR</span><div class="grow"><div class="t1">Lakshmi R</div><div class="row" style="gap:4px;flex-wrap:wrap;margin-top:3px"><span class="pl acc">Pro</span><span class="pl gold"><svg class="ico"><use href="#i-id"/></svg>ID checked</span></div><div class="t3" style="margin-top:3px">Phone checked · on TaskDrop since Aug</div></div></div></div>
+<div class="cx" style="background:var(--acc-soft);border-color:var(--acc-border);display:grid;gap:7px">
+<div class="mapbox" style="height:66px;border-radius:12px"><svg class="mapsvg" viewBox="20 196 290 66" preserveAspectRatio="xMidYMid slice"><use href="#mapbg" width="312" height="650"/></svg>
+<i class="ring" style="left:60px;top:22px;width:12px;height:12px;background:var(--jade);border-color:#fff"></i><i class="ring" style="left:96px;top:44px;width:12px;height:12px;background:var(--jade);border-color:#fff"></i><i class="ring" style="left:150px;top:18px;width:12px;height:12px;background:var(--jade);border-color:#fff"></i><i class="ring" style="left:188px;top:46px;width:12px;height:12px;background:var(--jade);border-color:#fff"></i><i class="ring" style="left:226px;top:26px;width:12px;height:12px;background:var(--jade);border-color:#fff"></i><i class="ring" style="left:124px;top:50px;width:12px;height:12px;background:var(--jade);border-color:#fff"></i><div class="you" style="left:136px;top:34px;width:14px;height:14px"></div></div>
+<div class="t2" style="color:var(--acc-deep)">Hired 12 times within 1 km of you</div><div class="t3">By 9 homes. We never show who or where.</div></div>
+<div class="stat3"><div><b>42</b><small>jobs done</small></div><div><b>96%</b><small>on time</small></div><div><b>17</b><small>hired her again</small></div></div>
+<div class="row" style="gap:5px;justify-content:center"><span class="pl line">On time · 21</span><span class="pl line">Careful work · 18</span><span class="pl line">Fair price · 15</span></div>
+<div class="cx" style="display:grid;gap:6px"><div class="t3 up">Her work, with customers' OK</div><div class="thumbs"><svg viewBox="0 0 264 130"><use href="#ba"/></svg><svg viewBox="0 0 264 130"><use href="#ba"/></svg><svg viewBox="0 0 264 130"><use href="#ba"/></svg></div></div>
+<div class="btn">Invite Lakshmi to my task</div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span class="on"><svg class="ico"><use href="#i-map"/></svg>Explore</span><span><svg class="ico"><use href="#i-list"/></svg>My Tasks</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+</div>
+<div class="facts">
+<div class="card"><h3>Who it is for</h3><p>The poster choosing between offers. Good workers gain most, because their history finally shows.</p></div>
+<div class="card"><h3>Why it sells, and the feeling</h3><p>In India you hire the person your neighbour used. A 4.8 star rating says little; "12 homes near you hired her, and 17 called her back" says a lot. This turns word of mouth into a number, with no group, no chat and no names. The feeling is: <b>people like me already trust this person</b>.</p></div>
+<div class="card"><h3>How it attracts</h3><p>Ad line: "Hired 12 times on your street." It is also a reason for workers to do every job through the app: each one adds to the card.</p></div>
+<div class="card"><h3>Already in the app</h3><p>Levels (Starter, Trusted, Pro, Top Dropper), reviews with praise words (On time, Careful work, Fair price), Regulars (hire the same helper again), phone and email checks, before-and-after photos with the customer's permission, and rounded locations to count from.</p></div>
+<div class="card risk"><h3>Risk</h3><p>Privacy: show counts only, only from 3 upward, never who or which building. "ID checked" may appear only when a real check ran; today the only check is the PAN a worker gives Razorpay to get paid, and an Aadhaar or DigiLocker check costs money per person and needs the lawyer. Never write "police verified". New helpers start at zero, so show a kind "New here" instead of empty tiles.</p></div>
+</div>
+</div>
+</section>
+
+<!-- ===================== HERO 7 ===================== -->
+<section class="hero" id="h7">
+<div class="num">Hero 7 <span class="tag idea">Idea, not built</span><span class="tag size">Size: medium to large</span></div>
+<h2>Earn Route</h2>
+<p class="pitch">See today's earning on one route: 3 jobs, 4 km, ₹1,350.</p>
+<div class="hrow">
+<div class="phones">
+<figure class="shot" data-file="hero-7-earn-route">
+<figcaption>7 · Earn Route <span class="tag idea">Idea, not built</span><span class="tag side-earn">Earn side</span></figcaption>
+<div class="frame" data-role="earn">
+<svg class="mapsvg" viewBox="0 0 312 650" preserveAspectRatio="xMidYMid slice"><use href="#mapbg" width="312" height="650"/></svg>
+<svg class="mapsvg" viewBox="0 0 300 638" preserveAspectRatio="none" style="z-index:2"><path d="M52 292 C74 250 104 234 136 230 S212 218 236 176 S256 262 214 306" fill="none" stroke="#1E40AF" stroke-width="4" stroke-dasharray="2 9" stroke-linecap="round"/></svg>
+<div class="you" style="left:52px;top:292px"></div><div class="youl" style="left:52px;top:306px">You</div>
+<div class="pin" style="left:136px;top:222px"><div class="tp"><span class="n">1</span>₹450</div></div>
+<div class="pin" style="left:236px;top:168px"><div class="tp"><span class="n">2</span>₹500</div></div>
+<div class="pin" style="left:214px;top:298px"><div class="tp"><span class="n">3</span>₹400</div></div>
+<div class="sb onmap"><span>9:41</span><span>5G · 82%</span></div>
+<div class="mtop" style="padding-bottom:26px">
+<div class="hb" style="border-radius:18px;padding:10px 12px;gap:2px"><small>Today near you, if you are hired for all three</small><div class="row" style="justify-content:space-between;align-items:flex-end"><b>₹1,350</b><span style="font-size:11.5px;font-weight:700;opacity:.92">3 jobs · 4.2 km · done by 5 pm</span></div></div>
+</div>
+<div class="sheet" style="gap:4px">
+<div class="grab"></div>
+<div class="rt"><span class="no">1</span><div class="grow"><div class="t2">Fix a leaking tap</div><div class="t3">10:30 am · Kondapur · ₹450</div></div><span class="pl acc"><svg class="ico"><use href="#i-check"/></svg>Offer sent</span></div>
+<div class="rt"><span class="no">2</span><div class="grow"><div class="t2">Fit 2 ceiling fans</div><div class="t3">1:00 pm · Kothaguda · ₹500</div></div><span class="btn sm">Offer</span></div>
+<div class="rt"><span class="no">3</span><div class="grow"><div class="t2">Assemble a study table</div><div class="t3">3:30 pm · Masjid Banda · ₹400</div></div><span class="btn sm">Offer</span></div>
+<div style="display:grid;gap:4px;padding-top:4px"><div class="row" style="justify-content:space-between"><span class="t3" style="font-weight:700;color:var(--ink)">This week</span><span class="t3">₹3,250 of your ₹5,000 goal</span></div><div class="bar"><i style="width:65%"></i></div></div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span class="on"><svg class="ico"><use href="#i-map"/></svg>Find work</span><span><svg class="ico"><use href="#i-list"/></svg>My Work</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+</div>
+<div class="facts">
+<div class="card"><h3>Who it is for</h3><p>The worker planning a day: students, people between jobs, skilled workers filling empty hours.</p></div>
+<div class="card"><h3>Why it sells, and the feeling</h3><p>A worker does not ask "is there a job?". They ask "how much can I make today without wasting petrol?". The map answers with one number and one route. Delivery apps decide the route for the rider; here the worker chooses. The feeling is: <b>I am in charge of my day, and I can see the money</b>. It makes the map a daily habit, not a one-time look.</p></div>
+<div class="card"><h3>How it attracts</h3><p>Worker ad: "₹1,350 of work within 4 km of you today." It is the map hero, pointed at earning.</p></div>
+<div class="card"><h3>Already in the app</h3><p>The Earn map with price pins, one filter set for map and list, the custom distance, finish times on tasks, offers, and the weekly goal on the Streaks screen. Version 1 can order jobs by time and straight-line distance with no paid routing service.</p></div>
+<div class="card risk"><h3>Risk</h3><p>It is a plan, not income: an offer can be refused, so it always says "if you are hired". Task spots are rounded until hired, so distance is rough. Real road routes cost money per request; leave them out of version 1. Do not nudge a worker to take more jobs than fit in the day, or late jobs will hurt reviews.</p></div>
+</div>
+</div>
+</section>
+
+<!-- ===================== HERO 8 ===================== -->
+<section class="hero" id="h8">
+<div class="num">Hero 8 <span class="tag idea">Idea, not built</span><span class="tag size">Size: small</span></div>
+<h2>Photo Receipt</h2>
+<p class="pitch">Every job ends with a photo receipt: before, after, paid.</p>
+<div class="hrow">
+<div class="phones">
+<figure class="shot" data-file="hero-8-photo-receipt">
+<figcaption>8 · Photo Receipt <span class="tag idea">Idea, not built</span><span class="tag side-hire">Hire side</span></figcaption>
+<div class="frame" data-role="hire">
+<div class="sb"><span>9:41</span><span>5G · 82%</span></div>
+<div class="scr">
+<div class="ah"><span class="bk"><svg class="ico"><use href="#i-back"/></svg></span><b>Job done</b><span class="pl acc"><svg class="ico"><use href="#i-check"/></svg>Approved</span></div>
+<div class="cx" style="display:grid;gap:9px;padding:10px">
+<div style="position:relative"><svg class="ba" viewBox="0 0 264 130"><use href="#ba"/></svg><span class="pl" style="position:absolute;left:8px;top:8px;background:rgba(18,20,23,.72);color:#fff">Before</span><span class="pl" style="position:absolute;right:8px;top:8px;background:var(--acc-fill);color:#fff">After</span></div>
+<div><div class="t1">Deep clean 2BHK</div><div class="t3">By Lakshmi R · 27 Nov, 1:40 pm · 2 h 25 min</div></div>
+<div class="kv"><span>Paid</span><b style="text-align:right">₹1,200 · UPI</b><span>Money</span><b style="text-align:right;color:var(--acc-deep)">Released to Lakshmi</b><span>Your rating</span><b style="justify-self:end"><span class="stars"><svg class="ico f"><use href="#i-star"/></svg><svg class="ico f"><use href="#i-star"/></svg><svg class="ico f"><use href="#i-star"/></svg><svg class="ico f"><use href="#i-star"/></svg><svg class="ico f"><use href="#i-star"/></svg></span></b></div>
+<div class="done-on"><svg><use href="#logo"/></svg>Done on <b>taskdrop.</b></div>
+</div>
+<div class="btn wa"><svg class="ico"><use href="#i-share"/></svg>Share on WhatsApp</div>
+<div class="btn ghost">Book Lakshmi again</div>
+<div class="cx"><div class="row"><span class="tile"><svg class="ico"><use href="#i-eye"/></svg></span><div class="grow"><div class="t2">Let Lakshmi show these</div><div class="t3">On her profile. No address, no faces.</div></div><span class="tog"></span></div></div>
+</div>
+<div class="tabs"><span><svg class="ico"><use href="#i-home"/></svg>Home</span><span><svg class="ico"><use href="#i-map"/></svg>Explore</span><span class="on"><svg class="ico"><use href="#i-list"/></svg>My Tasks</span><span><svg class="ico"><use href="#i-wallet"/></svg>Wallet</span><span><svg class="ico"><use href="#i-user"/></svg>Profile</span></div>
+</div>
+</figure>
+</div>
+<div class="facts">
+<div class="card"><h3>Who it is for</h3><p>Both. The poster gets proof to keep or forward (to a landlord, an office, a parent in another city). The worker gets a wall of real work that wins the next job.</p></div>
+<div class="card"><h3>Why it sells, and the feeling</h3><p>Proof you can see beats any promise. A before-and-after picture with the price and the date is a small moment of pride for both people. The feeling is: <b>it is really done, and I can show it</b>. Rival apps send an invoice email. Nobody sends something you want to forward.</p></div>
+<div class="card"><h3>How it attracts</h3><p>Every receipt shared on WhatsApp is a free ad with real work in it and "Done on taskdrop." at the bottom. That is how the app spreads inside a building without any group feature.</p></div>
+<div class="card"><h3>Already in the app</h3><p>Before-and-after photos on a finished job with the customer's permission and the drag-to-compare view, reviews, the share sheet, photo storage, and Regulars for "book again". To add: one tidy card and its share picture.</p></div>
+<div class="card risk"><h3>Risk</h3><p>Photos of a home are private: only the poster can share the receipt, and the worker's wall needs the poster's yes (already the rule). No address and no faces on the card. Call it a "job receipt", not a tax invoice, until the CA says what an invoice needs. Photo storage has a free limit to watch.</p></div>
+</div>
+</div>
+</section>
+
+<section class="hero">
+<div class="grid2" style="margin-top:0">
+<div class="card"><h3>Rules every idea here keeps</h3>
+<ul>
+<li>Nothing is built before you confirm the design.</li>
+<li>No chat before a hire. Questions on a task stay as they are.</li>
+<li>No communities or groups. "Hired near you" is a count, not a place to talk.</li>
+<li>Hire is always jade, Earn is always royal blue. Gold means verified only.</li>
+<li>Map spots stay rounded, helpers stay nameless until tapped.</li>
+<li>Tasks stay local and remote. The map is the local half; remote work keeps its list.</li>
+<li>Every number shown to a user is real. No fake pins, views or counts.</li>
+</ul></div>
+<div class="card"><h3>Already live, and worth a line in the pitch too</h3>
+<ul>
+<li><b>City Hunt:</b> put a reward on finding something; pay only the person who finds it.</li>
+<li><b>Big Days:</b> plan a house move or a wedding at home as one board of tasks.</li>
+<li><b>Regulars:</b> found a good helper? Book them again; they get the first 10 minutes.</li>
+<li><b>Guest mode:</b> look at the map and the tasks before making an account.</li>
+</ul>
+<h3 style="margin-top:14px">What to tell Claude</h3>
+<p>"Build hero 2", "pick 2, 3 and 4", or "drop 7". Each picked hero then gets its own full design for your OK before any code.</p></div>
+</div>
+</section>
+</div>
+</body>
+</html>
