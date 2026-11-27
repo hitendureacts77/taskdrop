@@ -66,8 +66,62 @@ export function nameForScreen(screen: string, mode: 'poster' | 'worker' = 'poste
   return (screen === 'explore' && mode === 'worker' ? 'Find work' : screen === 'myTasks' && mode === 'worker' ? 'My work' : TITLES[screen]) ?? null;
 }
 
-/** The browser tab's title for a screen: "Wallet · TaskDrop"; plain "TaskDrop" for one with no name here. */
+/**
+ * Browser-tab names for the screens that draw their own header (a TopBar, a sign-in step), so the desktop page
+ * header (DesktopPage, nameForScreen) must not add a second one. Plan 3.6, T13 point 5: no tab says "TaskDrop" alone.
+ */
+const TAB_ONLY_TITLES: Record<string, string> = {
+  intro: 'How TaskDrop works',
+  setup: 'Set up your account',
+  pickUsername: 'Pick a username',
+  detailSheet: 'Task details',
+  create: 'Post a task',
+  postDetails: 'Post a task',
+  compare: 'Compare offers',
+  myQuotes: 'My offers',
+  confirm: 'Confirm the work',
+  escrow: 'Lock the price',
+  swipe: 'Start the work',
+  active: 'Task in progress',
+  review: 'Ratings and review',
+  withdraw: 'Withdraw',
+  analytics: 'Analytics',
+  promote: 'Promote',
+  promotions: 'Promotions',
+  pricing: 'How fees work',
+  disputes: 'My complaints',
+  profileEdit: 'Edit profile',
+  workerSetup: 'Start earning',
+  listing: 'Edit service',
+  crew: 'Crew',
+  regulars: 'My regulars',
+  streaks: 'Streaks and badges',
+  ideaDetail: 'Idea',
+  bigDay: 'Plan a big day',
+  ticket: 'Support ticket',
+};
+
+/** The site's own title: the splash, and any screen with no name. Same as dist/index.html (scripts/web-route-pages.mjs). */
+export const SITE_TITLE = 'TaskDrop · Ask for anything. Someone gets it done for you.';
+
+/** The browser tab's title on the "Page not found" page (components/NotFound.tsx and dist/404.html). */
+export const NOT_FOUND_TITLE = 'Page not found · TaskDrop';
+
+/** The browser tab's title for a screen: "Wallet · TaskDrop"; the site's own title for one with no name (never bare "TaskDrop"). */
 export function titleForScreen(screen: string, mode: 'poster' | 'worker' = 'poster'): string {
-  const name = nameForScreen(screen, mode);
-  return name ? `${name} · TaskDrop` : 'TaskDrop';
+  const name = nameForScreen(screen, mode) ?? TAB_ONLY_TITLES[screen] ?? null;
+  return name ? `${name} · TaskDrop` : SITE_TITLE;
+}
+
+/**
+ * Every address the website answers (plan 3.6, T13 point 8). Anything else is "Page not found": the app shows
+ * NotFound, and Cloudflare sends dist/404.html with status 404. Must match ROUTE_PAGES in
+ * apps/mobile/scripts/web-route-pages.mjs (web-route-pages.test.mjs checks).
+ */
+export const KNOWN_PATHS: readonly string[] = ['/', '/get', ...PUBLIC_PAGES.map((p) => `/${p}`)];
+
+/** True for an address the website answers: "/", "/index.html", /get and the public pages, with or without a trailing slash. Case counts, as on Cloudflare (/Terms is a 404 there too). */
+export function isKnownPath(pathname: string | null | undefined): boolean {
+  const path = `/${(pathname ?? '').replace(/^\/+/, '').replace(/\/+$/, '')}`;
+  return path === '/index.html' || KNOWN_PATHS.includes(path);
 }
