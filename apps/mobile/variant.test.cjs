@@ -13,7 +13,7 @@ const PROD_OK = {
   APP_VARIANT: 'production',
   EXPO_PUBLIC_SUPABASE_URL: PROD_URL,
   EXPO_PUBLIC_SENTRY_ENVIRONMENT: 'production',
-  EXPO_PUBLIC_APP_URL: 'https://taskdrop-production.vercel.app',
+  EXPO_PUBLIC_APP_URL: 'https://taskdrop-production.hitendureacts.workers.dev',
   TASKDROP_PRODUCTION_EAS_PROJECT_ID: '11111111-2222-3333-4444-555555555555',
 };
 
@@ -100,6 +100,7 @@ test('the guard refuses staging settings in production and production settings i
   assert.equal(v.checkVariant({ ...PROD_OK, EXPO_PUBLIC_SENTRY_ENVIRONMENT: 'beta' }, { androidBuild: true }).length, 1);
   assert.equal(v.checkVariant({ ...PROD_OK, EXPO_PUBLIC_APP_ENV: 'staging' }, { androidBuild: true }).length, 1);
   assert.equal(v.checkVariant({ ...PROD_OK, EXPO_PUBLIC_APP_URL: 'https://taskdrop.in' }, { androidBuild: true }).length, 1);
+  assert.equal(v.checkVariant({ ...PROD_OK, EXPO_PUBLIC_APP_URL: 'https://taskdrop-staging.hitendureacts.workers.dev' }, { androidBuild: true }).length, 1);
   assert.equal(v.checkVariant({ ...PROD_OK, EXPO_PUBLIC_APP_URL: 'https://www.taskdrop.in/' }, { androidBuild: true }).length, 1);
   assert.equal(v.checkVariant({ APP_VARIANT: 'staging', EXPO_PUBLIC_SUPABASE_URL: PROD_URL }).length, 1);
   // the staging website's Vercel project labels its error reports "production" (a label only): not a mix-up

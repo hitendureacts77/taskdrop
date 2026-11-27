@@ -24,7 +24,8 @@ const STAGING_EAS_PROJECT_ID = '08aa002b-4eea-4952-a62a-ec9245e77953';
  * Web addresses that belong to staging. A production build may not use one as its app address.
  * Plan task 5.10, option B (swapping taskdrop.in onto production) means removing the first two here.
  */
-const STAGING_HOSTS = ['taskdrop.in', 'www.taskdrop.in', 'admin.taskdrop.in', 'taskdrop-five.vercel.app'];
+const STAGING_HOSTS = ['taskdrop.in', 'www.taskdrop.in', 'admin.taskdrop.in', 'taskdrop-five.vercel.app',
+  'taskdrop-staging.hitendureacts.workers.dev'];
 
 const VARIANTS = {
   'play-testing': { server: 'staging', sentryProject: 'taskdrop', identity: null },
