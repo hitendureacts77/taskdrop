@@ -251,7 +251,7 @@ export function PosterDeskRow({
         <ActionButton kind="outline" label="Post again" onPress={onAgain} a11y={`Post again: ${task.title}`} />
       ) : done ? (
         onNotify ? (
-          <ActionButton label="Notify about a task" onPress={onNotify} a11y={`Notify about a task: ${task.title}`} />
+          <ActionButton label="Notify helper" onPress={onNotify} a11y={`Notify about a task: ${task.title}`} />
         ) : (
           <ActionButton kind="outline" label="Post again" onPress={onAgain} a11y={`Post again: ${task.title}`} />
         )
