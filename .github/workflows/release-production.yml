@@ -1,0 +1,174 @@
+name: Release to production
+
+# Plan decision 57 (27 Nov 2026, docs/ULTIMATE_PLAN.md "The 3-day finish"): production moves as ONE release.
+# Until that day the production websites rebuilt on every merge while the production database waited for an
+# Approve click; a run that sat waiting from 23 Nov left the database 33 migrations behind its own website.
+#
+# This is the only way a change reaches production. Run it by hand: Actions -> Release to production ->
+# Run workflow, branch redesigned-2.0. In order:
+#
+#   1. guard     the branch is redesigned-2.0, and staging already runs this commit: the last green
+#                "Deploy (staging backend + web)" run is this commit, or differs from it only in docs.
+#   2. database  production-database.yml: migrations, first-day safety, Edge Functions, function secrets,
+#                Inngest sync, first-day checks. It still waits for the owner's Approve on the environment
+#                `production-database` while the repository is public (docs/RELEASE.md section 4).
+#   3. web       the production website, built for production and uploaded to the Cloudflare Worker
+#                `taskdrop-production` (web-deploy.yml). Skips with a notice until the Cloudflare secrets are set
+#                (plan 5.12 step 2); until then the production website is still built by Vercel on each merge.
+#   4. check     the production server and the production website both answer.
+#   5. record    a tag production-<date>-<time> on the released commit, so "what is in production" has one answer.
+#
+# A failure in a step stops every step after it. The admin has its own repository and its own release.
+
+on:
+  workflow_dispatch:
+
+# One release at a time. A second click waits for the first; it never cuts a migration run in half.
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: staging already runs this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: redesigned-2.0 only
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/redesigned-2.0" ]; then echo "::error::Releases run from redesigned-2.0 only."; exit 1; fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: the last green staging deploy is this commit (docs aside)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          staged=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/deploy-staging.yml/runs?branch=redesigned-2.0&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // ""')
+          if [ -z "$staged" ]; then echo "::error::No green staging deploy found. Staging must run a commit before production gets it."; exit 1; fi
+          echo "last green staging deploy: $staged"
+          echo "this release:              $GITHUB_SHA"
+          if [ "$staged" = "$GITHUB_SHA" ]; then exit 0; fi
+          if ! git cat-file -e "$staged^{commit}" 2>/dev/null; then echo "::error::The staging commit is not in this branch's history."; exit 1; fi
+          if ! git merge-base --is-ancestor "$staged" "$GITHUB_SHA"; then echo "::error::This commit is older than what staging runs. Release the branch tip."; exit 1; fi
+          # deploy-staging.yml ignores pushes that only touch docs, so those may differ.
+          if ! git diff --quiet "$staged" "$GITHUB_SHA" -- . ':(exclude)docs' ':(exclude,glob)**/*.md'; then
+            echo "::error::Staging has not finished deploying this commit. Wait for 'Deploy (staging backend + web)' to go green, then run this again."
+            git diff --stat "$staged" "$GITHUB_SHA" -- . ':(exclude)docs' ':(exclude,glob)**/*.md' | tail -15
+            exit 1
+          fi
+          echo "Only docs differ from the staging commit."
+
+  database:
+    name: database and server code
+    needs: guard
+    uses: ./.github/workflows/production-database.yml
+    # Each secret by name, never `secrets: inherit`. The values are the environment secrets of production-database:
+    # GitHub resolves a passed name in the called job's environment.
+    secrets:
+      PROD_SUPABASE_DB_PASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
+      PROD_SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+      PROD_INNGEST_EVENT_KEY: ${{ secrets.PROD_INNGEST_EVENT_KEY }}
+      PROD_INNGEST_SIGNING_KEY: ${{ secrets.PROD_INNGEST_SIGNING_KEY }}
+      PROD_INNGEST_PUSH_RECEIPT_WAIT: ${{ secrets.PROD_INNGEST_PUSH_RECEIPT_WAIT }}
+      PROD_IMAGEKIT_PUBLIC_KEY: ${{ secrets.PROD_IMAGEKIT_PUBLIC_KEY }}
+      PROD_IMAGEKIT_PRIVATE_KEY: ${{ secrets.PROD_IMAGEKIT_PRIVATE_KEY }}
+      PROD_IMAGEKIT_URL_ENDPOINT: ${{ secrets.PROD_IMAGEKIT_URL_ENDPOINT }}
+      PROD_IMAGEKIT_ENV: ${{ secrets.PROD_IMAGEKIT_ENV }}
+      PROD_SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN }}
+      PROD_SENTRY_ENVIRONMENT: ${{ secrets.PROD_SENTRY_ENVIRONMENT }}
+      PROD_EXPO_BUILDS_TOKEN: ${{ secrets.PROD_EXPO_BUILDS_TOKEN }}
+      PROD_GOOGLE_MAPS_API_KEY: ${{ secrets.PROD_GOOGLE_MAPS_API_KEY }}
+      PROD_FIREBASE_PROJECT_NUMBER: ${{ secrets.PROD_FIREBASE_PROJECT_NUMBER }}
+      PROD_ALLOWED_ORIGINS: ${{ secrets.PROD_ALLOWED_ORIGINS }}
+      PROD_MSG91_AUTHKEY: ${{ secrets.PROD_MSG91_AUTHKEY }}
+      PROD_MSG91_TEMPLATE_ID: ${{ secrets.PROD_MSG91_TEMPLATE_ID }}
+
+  web:
+    name: website
+    needs: database
+    uses: ./.github/workflows/web-deploy.yml
+    with:
+      target: production
+    # Each secret by name (no `secrets: inherit`): the two Cloudflare repository secrets, and the build values,
+    # which are environment secrets of web-production.
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      APP_VARIANT: ${{ secrets.APP_VARIANT }}
+      EXPO_PUBLIC_APP_ENV: ${{ secrets.EXPO_PUBLIC_APP_ENV }}
+      EXPO_PUBLIC_APP_URL: ${{ secrets.EXPO_PUBLIC_APP_URL }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+      EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+      EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+      EXPO_PUBLIC_FIREBASE_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_SENDER_ID }}
+      EXPO_PUBLIC_RECAPTCHA_SITE_KEY: ${{ secrets.EXPO_PUBLIC_RECAPTCHA_SITE_KEY }}
+      EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+      EXPO_PUBLIC_SENTRY_ENVIRONMENT: ${{ secrets.EXPO_PUBLIC_SENTRY_ENVIRONMENT }}
+      EXPO_PUBLIC_SENTRY_REPLAY_RATE: ${{ secrets.EXPO_PUBLIC_SENTRY_REPLAY_RATE }}
+      EXPO_PUBLIC_LEGAL_ENTITY: ${{ secrets.EXPO_PUBLIC_LEGAL_ENTITY }}
+      EXPO_PUBLIC_LEGAL_ADDRESS: ${{ secrets.EXPO_PUBLIC_LEGAL_ADDRESS }}
+      EXPO_PUBLIC_LEGAL_EMAIL: ${{ secrets.EXPO_PUBLIC_LEGAL_EMAIL }}
+      EXPO_PUBLIC_LEGAL_JURISDICTION: ${{ secrets.EXPO_PUBLIC_LEGAL_JURISDICTION }}
+      EXPO_PUBLIC_LEGAL_REVIEWED: ${{ secrets.EXPO_PUBLIC_LEGAL_REVIEWED }}
+      EXPO_PUBLIC_GRIEVANCE_OFFICER_NAME: ${{ secrets.EXPO_PUBLIC_GRIEVANCE_OFFICER_NAME }}
+      EXPO_PUBLIC_GRIEVANCE_OFFICER_EMAIL: ${{ secrets.EXPO_PUBLIC_GRIEVANCE_OFFICER_EMAIL }}
+      EXPO_PUBLIC_COPYRIGHT_AGENT_NAME: ${{ secrets.EXPO_PUBLIC_COPYRIGHT_AGENT_NAME }}
+      EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL: ${{ secrets.EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL }}
+      EXPO_PUBLIC_COPYRIGHT_AGENT_ADDRESS: ${{ secrets.EXPO_PUBLIC_COPYRIGHT_AGENT_ADDRESS }}
+      EXPO_PUBLIC_COPYRIGHT_AGENT_PHONE: ${{ secrets.EXPO_PUBLIC_COPYRIGHT_AGENT_PHONE }}
+      SENTRY_AUTH_TOKEN_TASKDROP_USERAPP: ${{ secrets.SENTRY_AUTH_TOKEN_TASKDROP_USERAPP }}
+
+  check:
+    name: production answers
+    needs: [database, web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Repository variable PRODUCTION_WEB_URL: the production website's address. Set it to the Cloudflare
+      # address once the Worker is live (plan 5.12), and to https://taskdrop.in at launch (decision 28).
+      WEB_URL: ${{ vars.PRODUCTION_WEB_URL || 'https://taskdrop-production.vercel.app' }}
+      SERVER_URL: https://dyzskuzqcqbexssyrrxc.supabase.co/functions/v1/app-config
+    steps:
+      - name: the production server and website answer
+        run: |
+          fail=0
+          for url in "$SERVER_URL" "$WEB_URL"; do
+            code=000
+            for i in 1 2 3; do
+              code=$(curl -sS -o /dev/null --max-time 30 -w '%{http_code}' "$url" || true)
+              if [ "$code" = "200" ]; then break; fi
+              sleep $((10 * i))
+            done
+            echo "$url -> $code"
+            if [ "$code" != "200" ]; then echo "::error::$url answered $code"; fail=1; fi
+          done
+          exit $fail
+
+  record:
+    name: tag the release
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: tag production-<date>-<time>
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="production-$(date -u +%Y%m%d-%H%M)"
+          if gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$GITHUB_SHA" --silent; then
+            echo "Released $GITHUB_SHA as $tag" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::Production was released, but the tag $tag could not be written."
+          fi

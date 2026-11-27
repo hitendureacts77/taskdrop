@@ -9,6 +9,8 @@ import { StagingRibbon } from './StagingRibbon';
 import { AppBanner } from './AppBanner';
 import { GetApp } from './GetApp';
 import { isGetPath } from '../lib/appDownload';
+import { isKnownPath } from '../navigation/webAddress';
+import { NotFound } from './NotFound';
 import { TopInsetUsedCtx } from './topInsetUsed';
 import { tx } from './primitives';
 
@@ -32,8 +34,12 @@ export function AppGate({ children }: { children: ReactNode }) {
 
   // taskdrop.in/get is public: it opens before maintenance, sign-in or anything else (web only).
   const onGetPage = Platform.OS === 'web' && typeof window !== 'undefined' && isGetPath(window.location.pathname);
+  // Any other address the website does not answer is "Page not found" (plan 3.6, T13 #8), also before everything else.
+  const notFound = Platform.OS === 'web' && typeof window !== 'undefined' && !onGetPage && !isKnownPath(window.location.pathname);
   const page = onGetPage ? (
     <GetApp />
+  ) : notFound ? (
+    <NotFound />
   ) : cfg.maintenance.on ? (
     <Maintenance message={cfg.maintenance.message} />
   ) : cfg.update.required ? (

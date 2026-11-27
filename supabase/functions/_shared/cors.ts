@@ -20,6 +20,7 @@ export const STAGING_ORIGINS = [
   "https://www.taskdrop.in",
   "https://taskdrop-five.vercel.app",
   "https://taskdrop-git-redesigned-20-hitenduteam.vercel.app",
+  "https://taskdrop-staging.hitendureacts.workers.dev", // Cloudflare Worker taskdrop-staging (plan 5.12, decision 56)
 ];
 
 /** `http://localhost:8081`, `http://127.0.0.1:8099`: any port, staging only. */

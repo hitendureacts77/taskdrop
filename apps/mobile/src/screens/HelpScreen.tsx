@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text as RNText, Pressable, TextInput, KeyboardAvoidingView } from 'react-native';
 import { Screen } from '../components/ui';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
 import { KeyboardSafe } from '../components/KeyboardSafe';
-import { Badge, EmptyState, Field, LoadFailed, Pill, PrimaryButton, Shimmer, TopBar, timeAgo } from '../components/kit';
-import { FeedbackSheet } from '../components/FeedbackSheet';
+import { Badge, Field, LoadFailed, Pill, PrimaryButton, Shimmer, TopBar, timeAgo } from '../components/kit';
 import { bugReportsOn, showBugReport } from '../lib/monitoring';
 import { lengthHint } from '../lib/fieldHint';
 import { FadeIn, tx } from '../components/primitives';
@@ -47,7 +46,7 @@ export function HelpScreen() {
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
-  const [feedback, setFeedback] = useState(false);
+  const [more, setMore] = useState(false);
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
@@ -84,20 +83,15 @@ export function HelpScreen() {
   const open = (tickets ?? []).filter((x) => x.status !== 'resolved');
   const done = (tickets ?? []).filter((x) => x.status === 'resolved');
 
+  const groupStyle = { borderRadius: 14, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface, overflow: 'hidden' } as const;
   const sendButton = (
     <PrimaryButton label="Send message" onPress={() => void send()} busy={busy} disabled={body.trim().length < 5} style={{ marginTop: desktop ? 0 : 14 }} />
   );
-  const feedbackLink = (
-    <Pressable onPress={() => setFeedback(true)} style={{ marginTop: desktop ? 0 : 12 }} accessibilityRole="button">
-      <RNText style={tx('400', 12, t.colors.muted, { lineHeight: 18 })}>
-        Not stuck, just have an idea or found a bug? <RNText style={tx('700', 12, t.colors.accentDeep)}>Send feedback</RNText> instead — it goes to the team that builds TaskDrop. Or <RNText onPress={() => go('ideas')} style={tx('700', 12, t.colors.accentDeep)}>vote on ideas</RNText> other people have suggested.
-      </RNText>
-    </Pressable>
-  );
   const composer = (
     <>
-      {desktop ? null : <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>WHAT DO YOU NEED HELP WITH?</RNText>}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: desktop ? 0 : 9 }}>
+      {desktop ? null : <RNText accessibilityRole="header" style={tx('800', 20, t.colors.ink, { letterSpacing: -0.4 })}>Get help</RNText>}
+      <RNText style={tx('600', 12, t.colors.muted, { marginTop: desktop ? 0 : 14 })}>What is it about?</RNText>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
         {TICKET_CATEGORIES.map((c) => (
           <Pill key={c.key} label={c.label} active={category === c.key} onPress={() => setCategory(c.key)} />
         ))}
@@ -111,107 +105,38 @@ export function HelpScreen() {
         placeholder="Tell us what happened"
         hint={lengthHint(body, 5, 'your message') ?? 'Include the task name or amount if it is about a payment.'}
       />
-      {desktop ? null : (
-        <>
-          {sendButton}
-          {feedbackLink}
-        </>
-      )}
+      {desktop ? null : sendButton}
     </>
   );
   const links = (
     <>
-      <Pressable
-        onPress={() => go('pricing')}
-        accessibilityRole="button"
-        style={({ pressed }) => ({
-          marginTop: desktop ? 0 : 18,
-          padding: 13,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: t.colors.line,
-          backgroundColor: t.colors.surface,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 10,
-          opacity: pressed ? 0.8 : 1,
-        })}
-      >
-        <Icon name="card" size={18} color={t.colors.accentDeep} />
-        <View style={{ flex: 1 }}>
-          <RNText style={tx('700', 13, t.colors.ink)}>How fees work</RNText>
-          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>What TaskDrop takes, and when</RNText>
-        </View>
-        <RNText style={tx('600', 16, t.colors.muted)}>›</RNText>
-      </Pressable>
-
-      <Pressable
-        onPress={() => go('copyright')}
-        accessibilityRole="button"
-        style={({ pressed }) => ({
-          marginTop: 10,
-          padding: 13,
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: t.colors.line,
-          backgroundColor: t.colors.surface,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 10,
-          opacity: pressed ? 0.8 : 1,
-        })}
-      >
-        <Icon name="flag" size={18} color={t.colors.accentDeep} />
-        <View style={{ flex: 1 }}>
-          <RNText style={tx('700', 13, t.colors.ink)}>Copyright & takedowns</RNText>
-          <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Report work posted without permission</RNText>
-        </View>
-        <RNText style={tx('600', 16, t.colors.muted)}>›</RNText>
-      </Pressable>
-      {bugReportsOn() && (
-        <Pressable
-          onPress={showBugReport}
-          accessibilityRole="button"
-          style={({ pressed }) => ({
-            marginTop: 10,
-            padding: 13,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            backgroundColor: t.colors.surface,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 10,
-            opacity: pressed ? 0.8 : 1,
-          })}
-        >
-          <Icon name="help" size={18} color={t.colors.accentDeep} />
-          <View style={{ flex: 1 }}>
-            <RNText style={tx('700', 13, t.colors.ink)}>Report a bug</RNText>
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 2 })}>Something broken in the app? Tell the developers</RNText>
+      <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginBottom: 8, marginTop: desktop ? 0 : 24 })}>MORE WAYS TO HELP</RNText>
+      <View style={groupStyle}>
+        <LinkRow icon="card" label="How fees work" sub="What TaskDrop takes, and when" onPress={() => go('pricing')} />
+        <LinkRow icon="sparkle" label="How TaskDrop works" sub="A short animated tour" onPress={() => go('intro', { replay: true })} divider />
+        <LinkRow icon="send" label="Ideas and feedback" sub="Suggest a feature, or vote" onPress={() => go('ideas')} divider />
+        <LinkRow icon="dots" label="More" sub={more ? 'Legal pages and reports' : 'Legal pages, bugs, takedowns'} onPress={() => setMore((v) => !v)} divider expanded={more} />
+        {more ? (
+          <View style={{ backgroundColor: t.colors.surface2 }}>
+            <LinkRow icon="flag" label="Copyright and takedowns" onPress={() => go('copyright')} />
+            <LinkRow icon="lock" label="Security reports and contact" onPress={() => go('support')} divider />
+            {bugReportsOn() ? <LinkRow icon="help" label="Report a bug" onPress={showBugReport} divider /> : null}
+            <LinkRow icon="file" label="Terms of Service" onPress={() => go('terms')} divider />
+            <LinkRow icon="shield" label="Privacy Policy" onPress={() => go('privacy')} divider />
           </View>
-          <RNText style={tx('600', 16, t.colors.muted)}>›</RNText>
-        </Pressable>
-      )}
-      <View style={{ flexDirection: 'row', gap: 18, marginTop: 12, paddingHorizontal: 4 }}>
-        <Pressable onPress={() => go('terms')} hitSlop={8} accessibilityRole="link">
-          <RNText style={tx('700', 13, t.colors.accentDeep)}>Terms of Service</RNText>
-        </Pressable>
-        <Pressable onPress={() => go('privacy')} hitSlop={8} accessibilityRole="link">
-          <RNText style={tx('700', 13, t.colors.accentDeep)}>Privacy Policy</RNText>
-        </Pressable>
+        ) : null}
       </View>
     </>
   );
   const convos = (
     <>
-      {desktop ? null : <RNText style={tx('800', 16, t.colors.ink, { marginTop: 26 })}>Your conversations</RNText>}
+      {desktop ? null : <RNText style={tx('800', 16, t.colors.ink, { marginTop: 28 })}>Your conversations</RNText>}
       {tickets === null ? (
         <Shimmer height={64} style={{ marginTop: 12 }} />
       ) : tickets.length === 0 && failed ? (
         <LoadFailed title="Couldn’t load your conversations" onRetry={() => void loadOrFail()} style={{ paddingVertical: 24 }} />
       ) : tickets.length === 0 ? (
-        <EmptyState icon="help" title="No conversations yet" body="Anything you send the support team shows up here." style={{ paddingVertical: 24 }} />
+        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 8 })}>Nothing yet. Your messages to the team show up here.</RNText>
       ) : (
         <>
           {open.length ? <RNText style={tx('600', 12, t.colors.muted, { marginTop: 12 })}>In progress ({open.length})</RNText> : null}
@@ -232,14 +157,14 @@ export function HelpScreen() {
         actions={
           desktop ? (
             <>
-              <ActionBar hint={feedbackLink}>{sendButton}</ActionBar>
+              <ActionBar>{sendButton}</ActionBar>
               <FormSection title="Your conversations">{convos}</FormSection>
             </>
           ) : undefined
         }
       >
         {desktop ? (
-          <FormSection first title="What do you need help with?">
+          <FormSection first title="Get help">
             {composer}
           </FormSection>
         ) : (
@@ -250,8 +175,38 @@ export function HelpScreen() {
           </>
         )}
       </FormPage>
-      <FeedbackSheet visible={feedback} onClose={() => setFeedback(false)} />
     </Screen>
+  );
+}
+
+/** One row in the help list: icon, a short name, at most one line under it. */
+function LinkRow({ icon, label, sub, onPress, divider, expanded }: { icon: IconName; label: string; sub?: string; onPress: () => void; divider?: boolean; expanded?: boolean }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={expanded === undefined ? undefined : { expanded }}
+      style={({ pressed }) => ({
+        paddingVertical: 13,
+        paddingHorizontal: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        borderTopWidth: divider ? 1 : 0,
+        borderTopColor: t.colors.line,
+        opacity: pressed ? 0.8 : 1,
+      })}
+    >
+      <Icon name={icon} size={18} color={t.colors.accentDeep} />
+      <View style={{ flex: 1 }}>
+        <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>{label}</RNText>
+        {sub ? <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>{sub}</RNText> : null}
+      </View>
+      <View style={expanded ? { transform: [{ rotate: '90deg' }] } : undefined}>
+        <Icon name="chevronRight" size={16} color={t.colors.muted} />
+      </View>
+    </Pressable>
   );
 }
 

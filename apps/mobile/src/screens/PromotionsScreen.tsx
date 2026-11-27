@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text as RNText, Pressable, Switch } from 'react-native';
 import { Screen, cardSurface } from '../components/ui';
-import { EmptyState, LoadFailed, Shimmer, TopBar } from '../components/kit';
+import { LoadFailed, Shimmer, TopBar } from '../components/kit';
 import { tx } from '../components/primitives';
 import { useTheme, PersonTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
+import { PromotePicker } from '../components/PromotePicker';
 import { listPromotions, promotionResults, setPromoAlerts, type Promotion, type PromotionResults } from '../data/api';
 import { messageOf, reportError } from '../lib/errors';
 import { moneyText, promoState, type PromoState } from '../lib/promoteText';
@@ -25,7 +26,10 @@ const STATE_WORDS: Record<PromoState, string> = {
   ended: 'ENDED',
 };
 
-/** Every promotion the person has bought: tap one to open its results. */
+/**
+ * The one Promotions screen: pick a task to promote at the top, and below it every promotion the person has
+ * bought, current and past (tap one to open its results).
+ */
 export function PromotionsScreen() {
   const t = useTheme();
   const { back, go } = useNav();
@@ -75,6 +79,16 @@ export function PromotionsScreen() {
     <Screen scroll padded={false} onRefresh={() => void load()}>
       <TopBar title="Promotions" onBack={back} />
       <View style={{ paddingHorizontal: 20, paddingBottom: 30 }}>
+        <PersonTheme role={worker ? 'worker' : 'poster'}>
+          {sectionLabel(t, worker ? 'PROMOTE A SERVICE' : 'PROMOTE A TASK')}
+          <PromotePicker
+            kind={worker ? 'service' : 'request'}
+            onPick={(p) => go('promote', { taskId: p.id })}
+            onPost={() => go('create')}
+          />
+        </PersonTheme>
+
+        <View style={{ marginTop: 26 }}>{sectionLabel(t, 'YOUR PROMOTIONS')}</View>
         {failed && !rows ? (
           <LoadFailed title="Couldn’t load your promotions" onRetry={() => void load()} />
         ) : !rows ? (
@@ -83,17 +97,9 @@ export function PromotionsScreen() {
             <Shimmer height={64} />
           </View>
         ) : sorted.length === 0 ? (
-          <EmptyState
-            icon="bolt"
-            title="No promotions yet"
-            body={
-              worker
-                ? "Promote your service to show it on top for customers nearby. You choose the daily budget and pay only for the times it's shown."
-                : "Promote an open task to show it on top for workers nearby. You choose the daily budget and pay only for the times it's shown."
-            }
-            actionLabel={worker ? 'Choose a service to promote' : 'Choose a task to promote'}
-            onAction={() => go('promote')}
-          />
+          <RNText style={tx('400', 13, t.colors.muted, { lineHeight: 19 })}>
+            Nothing yet. A promotion you start shows up here with how it did.
+          </RNText>
         ) : (
           sorted.map((p) => (
             <PromotionRow key={p.id} p={p} r={results[p.id]} onOpen={() => go('promote', { taskId: p.task_id, results: true })} />
@@ -120,6 +126,10 @@ export function PromotionsScreen() {
       </View>
     </Screen>
   );
+}
+
+function sectionLabel(t: ReturnType<typeof useTheme>, text: string) {
+  return <RNText style={tx('800', 11, t.colors.muted, { letterSpacing: 1.3, marginTop: 14, marginBottom: 10 })}>{text}</RNText>;
 }
 
 /** Tasks in jade and services in blue, so a person who does both can tell them apart. */

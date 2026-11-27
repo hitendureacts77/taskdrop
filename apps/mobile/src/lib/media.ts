@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { MEDIA } from '@taskdrop/rules';
 import { readBytes } from './readBytes';
+import { isLocationStrippable, stripVideoLocation } from './videoMeta';
 import { feedbackTooBig } from './feedbackLimits';
 import { currentUserId } from './supabase';
 import { callApi } from './gateway';
@@ -74,6 +75,16 @@ async function storeFile(
   const body = await readBytes(picked.uri);
   if (body.byteLength > MAX_BYTES) {
     throw new MediaError(`That file is too big. The limit is ${MAX_BYTES / 1024 / 1024} MB.`);
+  }
+  if (kind === 'video' && isLocationStrippable(picked.mimeType)) {
+    // H38: remove the GPS location the phone saved inside the video. Never upload it with the location.
+    let clean: Uint8Array;
+    try {
+      clean = stripVideoLocation(body);
+    } catch {
+      throw new MediaError('That video could not be read. Try another one.');
+    }
+    return putToStorage(target, clean, picked.mimeType);
   }
   return putToStorage(target, body, picked.mimeType);
 }
