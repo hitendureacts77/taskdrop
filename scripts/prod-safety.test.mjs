@@ -255,6 +255,43 @@ test('the production deploy waits for the approval environment, runs from redesi
   // the plan job holds no secret
   const plan = y.slice(y.indexOf('\n  plan:'), y.indexOf('\n  deploy:'));
   assert.ok(!plan.includes('${{ secrets.'));
+  // it never starts by itself: a merge must not queue a production run (plan decision 57)
+  const on = y.slice(y.indexOf('\non:'), y.indexOf('\npermissions:'));
+  assert.ok(!/\n\s+push:|\n\s+schedule:|\n\s+pull_request/.test(on), 'production-database must not start on push');
+  assert.match(on, /workflow_call:/);
+});
+
+test('production moves as one release: guard, then database, then website, then a check; staging never deploys production', () => {
+  const y = wf('release-production.yml');
+  const on = y.slice(y.indexOf('\non:'), y.indexOf('\nconcurrency:'));
+  assert.match(on, /workflow_dispatch:/);
+  assert.ok(!/\n\s+push:|\n\s+schedule:|\n\s+pull_request|workflow_call/.test(on), 'the release starts by hand only');
+  assert.match(y, /refs\/heads\/redesigned-2\.0/);
+  assert.match(y, /database:\r?\n(?:.*\n)*?    needs: guard\r?\n    uses: \.\/\.github\/workflows\/production-database\.yml/);
+  assert.match(y, /web:\r?\n(?:.*\n)*?    needs: database\r?\n    uses: \.\/\.github\/workflows\/web-deploy\.yml/);
+  assert.match(y, /needs: \[database, web\]/);
+  assert.ok(!/^\s*secrets:\s*inherit\s*$/m.test(y), 'pass named secrets, never all of them');
+  assert.match(y, /cancel-in-progress: false/);
+  // only the tagging job may write, and only tags
+  assert.equal((y.match(/contents: write/g) || []).length, 1);
+  const staging = wf('deploy-staging.yml');
+  assert.ok(!staging.includes('target: production'), 'deploy-staging must not deploy production');
+  // A called job that sets `environment` only sees a secret its caller passed by name (the first release run,
+  // 27 Nov, stopped with an empty database password). Every secret a called workflow reads must be declared by
+  // it and passed by each caller.
+  const read = (text) => [...new Set([...text.matchAll(/\$\{\{ secrets\.([A-Z0-9_]+) \}\}/g)].map((m) => m[1]))];
+  const declared = (text, name) => new RegExp(`\\n      ${name}:\\r?\\n        required: false`).test(text);
+  const db = wf('production-database.yml');
+  const web = wf('web-deploy.yml');
+  for (const name of read(db)) {
+    assert.ok(declared(db, name), `production-database.yml must declare ${name}`);
+    assert.ok(y.includes(`      ${name}: \${{ secrets.${name} }}`), `the release must pass ${name}`);
+  }
+  for (const name of read(web)) {
+    assert.ok(declared(web, name), `web-deploy.yml must declare ${name}`);
+    assert.ok(y.includes(`      ${name}: \${{ secrets.${name} }}`), `the release must pass ${name}`);
+    assert.ok(staging.includes(`      ${name}: \${{ secrets.${name} }}`), `deploy-staging must pass ${name}`);
+  }
 });
 
 test('the hourly alarm and the nightly copy run from redesigned-2.0 in their own environment', () => {

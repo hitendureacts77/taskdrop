@@ -17,6 +17,7 @@ export const DEFAULT_ADDRESSES = [
   'https://www.taskdrop.in',
   'https://taskdrop-five.vercel.app',
   'https://taskdrop-git-redesigned-20-hitenduteam.vercel.app',
+  'https://taskdrop-staging.hitendureacts.workers.dev',
 ];
 
 export const PATHS = [

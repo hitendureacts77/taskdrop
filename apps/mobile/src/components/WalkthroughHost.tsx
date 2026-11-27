@@ -46,7 +46,7 @@ export function WalkthroughHost() {
     if (!show) return;
     setSeen(true);
     void saveIntroSeen();
-    go('intro', { replay: true, walk: true });
+    go('intro', { replay: true });
   }, [show, go]);
 
   return null;
