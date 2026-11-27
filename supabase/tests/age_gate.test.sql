@@ -104,7 +104,7 @@ begin
     raise exception 'FAIL: the adult cannot read their own age check';
   end if;
   -- A second, under-age answer changes nothing.
-  v_out := public.record_birth_date((current_date - interval '5 years')::date);
+  v_out := public.record_birth_date(((now() at time zone 'Asia/Kolkata')::date - interval '5 years')::date);
   if v_out <> 'ok' then raise exception 'FAIL: a second answer overrode the first (%)', v_out; end if;
   perform pg_temp.as_owner();
 end;
@@ -117,7 +117,7 @@ declare
   v_out text;
 begin
   perform pg_temp.become(v_child);
-  v_out := public.record_birth_date((current_date - interval '10 years')::date);
+  v_out := public.record_birth_date(((now() at time zone 'Asia/Kolkata')::date - interval '10 years')::date);
   perform pg_temp.as_owner();
   if v_out <> 'blocked' then raise exception 'FAIL: a ten-year-old got %', v_out; end if;
   if exists (select 1 from auth.users where id = v_child) then
@@ -136,7 +136,7 @@ declare
   v_out text;
 begin
   perform pg_temp.become(v_kid);
-  v_out := public.record_birth_date((current_date - interval '12 years')::date);
+  v_out := public.record_birth_date(((now() at time zone 'Asia/Kolkata')::date - interval '12 years')::date);
   perform pg_temp.as_owner();
   if v_out <> 'blocked' then raise exception 'FAIL: a twelve-year-old got %', v_out; end if;
   if not exists (select 1 from auth.users where id = v_kid and banned_until > now() + interval '1 year') then
@@ -157,7 +157,7 @@ declare v_adult uuid := (select v::uuid from fx where k = 'adult');
 begin
   perform pg_temp.become(v_adult);
   begin
-    perform public.record_birth_date((current_date + 1)::date);
+    perform public.record_birth_date(((now() at time zone 'Asia/Kolkata')::date + 1)::date);
     raise exception 'FAIL: a birth date in the future was accepted';
   exception when others then
     if sqlerrm like 'FAIL:%' then raise; end if;
@@ -173,7 +173,7 @@ declare
   v_out text;
 begin
   perform pg_temp.become(v_teen);
-  v_out := public.record_birth_date((current_date - interval '17 years' - interval '11 months')::date);
+  v_out := public.record_birth_date(((now() at time zone 'Asia/Kolkata')::date - interval '17 years' - interval '11 months')::date);
   perform pg_temp.as_owner();
   if v_out <> 'blocked' then raise exception 'FAIL: a seventeen-year-old got %', v_out; end if;
   if exists (select 1 from auth.users where id = v_teen) then
