@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useLayout } from '../lib/layout';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen } from '../components/ui';
 import { Walkthrough } from '../components/Walkthrough';
@@ -10,7 +11,7 @@ import { useMode } from '../providers/ModeProvider';
 import { FROM_GUEST } from '../lib/guest';
 import { saveIntroSeen } from '../lib/intro';
 import { introMode } from '../lib/introRoute';
-import { walkSideFor, type WalkSide } from '../lib/walkthrough';
+import { walkSideFor, WALK_COPY, type WalkSide } from '../lib/walkthrough';
 
 /**
  * "How TaskDrop works" (plan 1.19 row N): the one walkthrough, five real app
@@ -23,6 +24,8 @@ import { walkSideFor, type WalkSide } from '../lib/walkthrough';
  */
 export function IntroScreen() {
   const t = useTheme();
+  const layout = useLayout();
+  const wide = layout.desktop || layout.tablet;
   const { reset, back, go, params } = useNav();
   const { session, continueAsGuest } = useAuth();
   const { mode: appMode, setMode } = useMode();
@@ -71,17 +74,16 @@ export function IntroScreen() {
       </View>
     );
 
-  return (
-    <Screen scroll>
-      <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', paddingTop: 12, paddingBottom: 160 }}>
-        <Walkthrough
-          side={side}
-          onSkip={skip}
-          onFinish={finish}
-          skipLabel={mode === 'first' ? 'Skip' : 'Close'}
-          extra={account}
-        />
-      </View>
-    </Screen>
+  const walk = (
+    <Walkthrough
+      side={side}
+      onSkip={skip}
+      onFinish={finish}
+      skipLabel={mode === 'first' ? WALK_COPY.skip : WALK_COPY.backHome}
+      extra={account}
+    />
   );
+  // Desktop and tablet: the page draws itself full width (no sign-in frame, no menu). Phone: story mode on a plain screen.
+  if (wide) return walk;
+  return <Screen padded={false}>{walk}</Screen>;
 }

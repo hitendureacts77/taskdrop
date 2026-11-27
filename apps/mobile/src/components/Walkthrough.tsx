@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Image, Linking, PanResponder, Pressable, View, Text as RNText, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Linking, PanResponder, Platform, Pressable, View, Text as RNText, useWindowDimensions } from 'react-native';
 import { Icon } from './Icon';
-import { PrimaryButton } from './kit';
+import { HeroBackground } from './Hero';
 import { tx } from './primitives';
 import { PersonTheme, useTheme } from '../providers/ThemeProvider';
+import { useLayout } from '../lib/layout';
+import { useReducedMotion } from '../lib/motion';
 import {
+  swipeDirection,
+  tapHalf,
   videoUrl,
   walkAnnouncement,
-  walkCard,
+  walkStepClamp,
+  WALK_AUTOPLAY_MS,
   WALK_COPY,
-  WALK_LAST,
+  WALK_STEP_LAST,
+  WALK_STEPS,
   WALKTHROUGH_VIDEO_LABEL,
   WALKTHROUGH_VIDEO_NOTE,
   type WalkSide,
@@ -28,7 +34,10 @@ const SHOTS: Record<string, number> = {
   e4: require('../../assets/walkthrough/e4.jpg'),
   e5: require('../../assets/walkthrough/e5.jpg'),
 };
+/** Width / height of every screenshot. The screen box of a phone mock always has exactly this shape. */
 const SHOT_RATIO = 488 / 835;
+const NATIVE = Platform.OS !== 'web';
+const HOLD_MS = 250;
 
 function openVideo(url: string) {
   Linking.openURL(url).catch(() => {
@@ -36,52 +45,235 @@ function openVideo(url: string) {
   });
 }
 
+/** Props that only react-native-web understands (hover). Typed loosely on purpose. */
+function hoverProps(on: () => void, off: () => void): object {
+  return Platform.OS === 'web' ? { onMouseEnter: on, onMouseLeave: off } : {};
+}
+
+/** The five screens plus the clock that moves them along. */
+function useWalk(startSide: WalkSide) {
+  const [side, setSide] = useState<WalkSide>(startSide);
+  const [i, setI] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [hover, setHover] = useState(false);
+  const [hold, setHold] = useState(false);
+  const progress = useRef(new Animated.Value(0)).current;
+  const at = useRef(0);
+  const lastKey = useRef('');
+  const paused = !playing || hover || hold;
+  const key = `${side}:${i}`;
+
+  useEffect(() => {
+    const id = progress.addListener(({ value }) => {
+      at.current = value;
+    });
+    return () => progress.removeListener(id);
+  }, [progress]);
+
+  // Announce the step to screen readers (not the very first one).
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    AccessibilityInfo.announceForAccessibility(walkAnnouncement(side, i + 1));
+  }, [side, i]);
+
+  // One step plays WALK_AUTOPLAY_MS; pausing keeps the part already played. The last step stops.
+  useEffect(() => {
+    if (lastKey.current !== key) {
+      lastKey.current = key;
+      progress.setValue(0);
+      at.current = 0;
+    }
+    if (paused) return;
+    const anim = Animated.timing(progress, {
+      toValue: 1,
+      duration: Math.max(0, (1 - at.current) * WALK_AUTOPLAY_MS),
+      easing: Easing.linear,
+      useNativeDriver: false,
+    });
+    anim.start(({ finished }) => {
+      if (finished && i < WALK_STEP_LAST) setI((n) => walkStepClamp(n, 1));
+    });
+    return () => anim.stop();
+  }, [key, paused, progress, i]);
+
+  const step = useCallback((d: number) => setI((n) => walkStepClamp(n, d)), []);
+  const jump = useCallback((n: number) => setI(walkStepClamp(n, 0)), []);
+  const pick = useCallback((s: WalkSide) => {
+    setSide(s);
+    setI(0);
+    setPlaying(true);
+  }, []);
+  return { side, i, playing, setPlaying, setHover, setHold, progress, step, jump, pick };
+}
+
+type Walk = ReturnType<typeof useWalk>;
+
 /** Hire (jade) and Earn (royal blue): each pill wears its own person's colour. */
-function SideSwitch({ side, onChange }: { side: WalkSide; onChange: (s: WalkSide) => void }) {
+function SideSwitch({ side, onChange, labels, compact }: { side: WalkSide; onChange: (s: WalkSide) => void; labels: [string, string]; compact?: boolean }) {
   const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', padding: 4, borderRadius: 999, backgroundColor: t.colors.surface2 }}>
-      {(['hire', 'earn'] as const).map((k) => (
+      {(['hire', 'earn'] as const).map((k, n) => (
         <PersonTheme key={k} role={k === 'hire' ? 'poster' : 'worker'}>
-          <SidePill on={side === k} label={k === 'hire' ? 'Hire' : 'Earn'} onPress={() => onChange(k)} />
+          <SidePill on={side === k} label={labels[n]} short={k === 'hire' ? 'Hire' : 'Earn'} onPress={() => onChange(k)} compact={compact} />
         </PersonTheme>
       ))}
     </View>
   );
 }
 
-function SidePill({ on, label, onPress }: { on: boolean; label: string; onPress: () => void }) {
+function SidePill({ on, label, short, onPress, compact }: { on: boolean; label: string; short: string; onPress: () => void; compact?: boolean }) {
   const t = useTheme();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="tab"
       accessibilityState={{ selected: on }}
-      accessibilityLabel={`${label} side`}
-      style={{ flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 999, backgroundColor: on ? t.colors.btn : 'transparent' }}
+      accessibilityLabel={`${short} side`}
+      style={{ alignItems: 'center', paddingVertical: compact ? 7 : 9, paddingHorizontal: compact ? 14 : 18, borderRadius: 999, backgroundColor: on ? t.colors.btn : 'transparent' }}
     >
       <RNText style={tx('800', 13.5, on ? t.colors.onBtn : t.colors.muted)}>{label}</RNText>
     </Pressable>
   );
 }
 
-function Dots({ at }: { at: number }) {
+/** Five bars; finished steps are full, the current one fills as it plays. */
+function Segments({ i, progress, reduced, height = 4 }: { i: number; progress: Animated.Value; reduced: boolean; height?: number }) {
   const t = useTheme();
+  const fill = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   return (
-    <View style={{ flexDirection: 'row', gap: 5 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <View key={n} style={{ width: n === at ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: n === at ? t.colors.accent : t.colors.line }} />
+    <View style={{ flexDirection: 'row', gap: 6 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {[0, 1, 2, 3, 4].map((n) => (
+        <View key={n} style={{ flex: 1, height, borderRadius: height / 2, overflow: 'hidden', backgroundColor: t.colors.line }}>
+          {n < i ? (
+            <View style={{ width: '100%', height: '100%', backgroundColor: t.colors.accent }} />
+          ) : n === i ? (
+            reduced ? (
+              <View style={{ width: '100%', height: '100%', backgroundColor: t.colors.accent }} />
+            ) : (
+              <Animated.View style={{ width: fill, height: '100%', backgroundColor: t.colors.accent }} />
+            )
+          ) : null}
+        </View>
       ))}
     </View>
   );
 }
 
 /**
- * "How TaskDrop works": the first card (the video and "Show me the app"), five
- * real screens with one line each, and the last card. Skip is always at the
- * top. Swipe left and right, or use Next and Back. `extra` sits under every
- * card (the first-run intro puts "Create my account" there, so a returning
- * person can always reach sign-in).
+ * One real screenshot, drawn whole: the box has exactly the picture's shape, `contain`, and only the opacity
+ * changes between steps (no zoom, no crop, owner rule).
+ */
+function Shot({ shot, label, width, reduced }: { shot: string; label: string; width: number | string; reduced: boolean }) {
+  const [cur, setCur] = useState(shot);
+  const [prev, setPrev] = useState<string | null>(null);
+  const op = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (shot === cur) return;
+    if (reduced) {
+      setCur(shot);
+      setPrev(null);
+      return;
+    }
+    setPrev(cur);
+    setCur(shot);
+    op.setValue(0);
+    Animated.timing(op, { toValue: 1, duration: 320, easing: Easing.out(Easing.quad), useNativeDriver: NATIVE }).start(() => setPrev(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new picture starts a fade
+  }, [shot, reduced]);
+  const fill = { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' } as const;
+  return (
+    <View style={{ width: width as number, aspectRatio: SHOT_RATIO, backgroundColor: '#FFFFFF', overflow: 'hidden' }}>
+      {prev ? <Animated.Image source={SHOTS[prev]} resizeMode="contain" style={fill} /> : null}
+      <Animated.Image source={SHOTS[cur]} accessibilityLabel={label} resizeMode="contain" style={[fill, { opacity: op }]} />
+    </View>
+  );
+}
+
+/** Soft rings spreading from the phone. Static when the person asked for reduced motion. */
+function Ripples({ reduced }: { reduced: boolean }) {
+  const vals = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
+  useEffect(() => {
+    if (reduced) return;
+    const loops = vals.map((v, n) => {
+      const l = Animated.loop(Animated.timing(v, { toValue: 1, duration: 4200, delay: n * 1400, easing: Easing.out(Easing.quad), useNativeDriver: NATIVE }));
+      l.start();
+      return l;
+    });
+    return () => loops.forEach((l) => l.stop());
+  }, [reduced, vals]);
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+      {vals.map((v, n) => (
+        <Animated.View
+          key={n}
+          style={{
+            position: 'absolute',
+            width: 420,
+            height: 420,
+            borderRadius: 210,
+            borderWidth: 2,
+            borderColor: 'rgba(255,255,255,0.5)',
+            opacity: reduced ? 0.18 - n * 0.04 : v.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] }),
+            transform: [{ scale: reduced ? 0.8 + n * 0.3 : v.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.6] }) }],
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+function VideoButton({ url, label = WALKTHROUGH_VIDEO_LABEL, dark }: { url: string; label?: string; dark?: boolean }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={() => openVideo(url)}
+      accessibilityRole="link"
+      accessibilityLabel={`${label}, ${WALKTHROUGH_VIDEO_NOTE}`}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 40, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1.5, borderColor: dark ? t.colors.line : t.colors.accent }}
+    >
+      <Icon name="play" size={14} color={t.colors.accentDeep} />
+      <RNText style={tx('800', 13.5, t.colors.accentDeep)}>{label}</RNText>
+    </Pressable>
+  );
+}
+
+type CtaRef = { current: unknown };
+
+function Cta({ side, onFinish, ctaRef, grow }: { side: WalkSide; onFinish: (s: WalkSide) => void; ctaRef?: CtaRef; grow?: boolean }) {
+  const t = useTheme();
+  const label = side === 'hire' ? WALK_COPY.goHire : WALK_COPY.goEarn;
+  return (
+    <Pressable
+      ref={ctaRef as never}
+      onPress={() => onFinish(side)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => ({
+        minHeight: 52,
+        paddingHorizontal: 28,
+        borderRadius: 999,
+        backgroundColor: t.colors.btn,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexGrow: grow ? 1 : 0,
+        transform: [{ scale: pressed ? t.motion.pressScale : 1 }],
+      })}
+    >
+      <RNText style={tx('800', 15.5, t.colors.onBtn)}>{label}</RNText>
+    </Pressable>
+  );
+}
+
+/**
+ * "How TaskDrop works": its own full page (task 1.21 row X). Five real screens per side that play by
+ * themselves, 5 seconds each. Desktop and tablet: a big phone on a coloured panel and the steps beside it.
+ * Phone: story mode (tap right = next, tap left = back, swipe, hold to pause, no buttons).
+ * `extra` sits under the call to action (the first-run intro puts "Create my account" there).
  */
 export function Walkthrough({
   side: startSide,
@@ -91,204 +283,298 @@ export function Walkthrough({
   extra,
 }: {
   side: WalkSide;
+  /** Skip (first run) or close (replay). */
   onSkip: () => void;
-  /** The last card's button: "Post a request" on Hire, "Find work" on Earn. */
+  /** The call to action: "Post a request" on Hire, "Find work" on Earn. */
   onFinish: (side: WalkSide) => void;
+  /** Left top label on wide screens: "Skip" on first run, "Back to Home" on a replay. */
   skipLabel?: string;
   extra?: React.ReactNode;
 }) {
-  const [side, setSide] = useState<WalkSide>(startSide);
-  const [i, setI] = useState(0);
-  const first = useRef(true);
-  useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
-    AccessibilityInfo.announceForAccessibility(walkAnnouncement(side, i));
-  }, [side, i]);
+  const layout = useLayout();
+  const reduced = useReducedMotion();
+  const w = useWalk(startSide);
+  const wide = layout.desktop || layout.tablet;
 
-  const step = useCallback((d: number) => setI((n) => Math.max(0, Math.min(WALK_LAST, n + d))), []);
-  const swipe = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 18 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-        onPanResponderRelease: (_e, g) => {
-          if (g.dx < -40) step(1);
-          else if (g.dx > 40) step(-1);
-        },
-      }),
-    [step],
-  );
-  const pick = (s: WalkSide) => {
-    setSide(s);
-    setI(0);
-  };
+  // Arrow keys on the web, both layouts.
+  const { step } = w;
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const on = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') step(1);
+      else if (e.key === 'ArrowLeft') step(-1);
+    };
+    document.addEventListener('keydown', on);
+    return () => document.removeEventListener('keydown', on);
+  }, [step]);
 
   return (
-    <PersonTheme role={side === 'hire' ? 'poster' : 'worker'}>
-      <Inner side={side} i={i} pick={pick} step={step} swipe={swipe.panHandlers} onSkip={onSkip} onFinish={onFinish} skipLabel={skipLabel} extra={extra} />
+    <PersonTheme role={w.side === 'hire' ? 'poster' : 'worker'}>
+      {wide ? (
+        <WideView w={w} reduced={reduced} onSkip={onSkip} onFinish={onFinish} leftLabel={skipLabel} extra={extra} layoutW={layout.width} layoutH={layout.height} tablet={!layout.desktop} />
+      ) : (
+        <PhoneView w={w} reduced={reduced} onSkip={onSkip} onFinish={onFinish} extra={extra} />
+      )}
     </PersonTheme>
   );
 }
 
-function Inner({
-  side,
-  i,
-  pick,
-  step,
-  swipe,
+function WideView({
+  w,
+  reduced,
   onSkip,
   onFinish,
-  skipLabel,
+  leftLabel,
   extra,
+  layoutW,
+  layoutH,
+  tablet,
 }: {
-  side: WalkSide;
-  i: number;
-  pick: (s: WalkSide) => void;
-  step: (d: number) => void;
-  swipe: object;
+  w: Walk;
+  reduced: boolean;
   onSkip: () => void;
-  onFinish: (side: WalkSide) => void;
-  skipLabel: string;
+  onFinish: (s: WalkSide) => void;
+  leftLabel: string;
   extra?: React.ReactNode;
+  layoutW: number;
+  layoutH: number;
+  tablet: boolean;
 }) {
   const t = useTheme();
-  const { width, height } = useWindowDimensions();
-  const card = walkCard(side, i);
+  const { side, i } = w;
+  const steps = WALK_STEPS[side];
+  const cur = steps[i];
   const video = videoUrl();
-  // The screen picture takes what height is left, so a card fits a phone without scrolling.
-  // Wide screens show it inside the sign-in page's card, which has less height to spare.
-  const shotH = Math.max(260, Math.min(500, height - (width >= 768 ? 520 : 400)));
+  const last = i === WALK_STEP_LAST;
+  const cta = useRef<{ focus?: () => void } | null>(null);
+  // On the last step the call to action takes the focus (web).
+  useEffect(() => {
+    if (last && Platform.OS === 'web') cta.current?.focus?.();
+  }, [last, side]);
 
-  let body: React.ReactNode;
-  if (card.kind === 'intro') {
-    body = (
-      <View style={{ borderRadius: 24, backgroundColor: t.colors.btn, padding: 22, gap: 18, minHeight: video ? Math.min(shotH + 120, 600) : undefined, justifyContent: 'space-between' }}>
-        <View style={{ gap: 10 }}>
-          <RNText style={tx('800', 26, t.colors.onBtn, { letterSpacing: -0.8 })}>taskdrop.</RNText>
-          <RNText style={tx('600', 17, t.colors.onBtn, { lineHeight: 24 })}>{side === 'hire' ? WALK_COPY.introHire : WALK_COPY.introEarn}</RNText>
-        </View>
-        {video ? (
-          <Pressable
-            onPress={() => openVideo(video)}
-            accessibilityRole="link"
-            accessibilityLabel={`${WALKTHROUGH_VIDEO_LABEL}, ${WALKTHROUGH_VIDEO_NOTE}`}
-            style={{ aspectRatio: 16 / 10, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-          >
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="play" size={22} color="#111111" />
-            </View>
-            <RNText style={tx('600', 12, t.colors.onBtn)}>{WALKTHROUGH_VIDEO_NOTE}</RNText>
+  const topH = 68;
+  const bodyH = Math.max(480, layoutH - topH);
+  const panelW = layoutW / 2 - 40;
+  // The phone's screen: exactly the screenshot's shape, as big as the panel allows.
+  const screenH = Math.max(340, Math.min(bodyH - 120, (panelW - 70) / SHOT_RATIO, 760));
+  const screenW = screenH * SHOT_RATIO;
+
+  return (
+    <View style={{ width: '100%', height: layoutH, backgroundColor: t.colors.bg }} {...hoverProps(() => w.setHover(true), () => w.setHover(false))}>
+      <View style={{ height: topH, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 28, borderBottomWidth: 1, borderBottomColor: t.colors.line }}>
+        <View style={{ flex: 1, alignItems: 'flex-start' }}>
+          <Pressable onPress={onSkip} accessibilityRole="button" accessibilityLabel={leftLabel} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 }}>
+            {leftLabel === WALK_COPY.backHome ? <Icon name="back" size={18} color={t.colors.muted} /> : null}
+            <RNText style={tx('700', 14.5, t.colors.muted)}>{leftLabel}</RNText>
           </Pressable>
-        ) : null}
-        <View style={{ gap: 10 }}>
-          {video ? (
-            <Pressable
-              onPress={() => openVideo(video)}
-              accessibilityRole="link"
-              accessibilityLabel={WALKTHROUGH_VIDEO_LABEL}
-              style={{ minHeight: 52, borderRadius: 999, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}
-            >
-              <Icon name="play" size={16} color="#111111" />
-              <RNText style={tx('800', 15, '#111111')}>{WALKTHROUGH_VIDEO_LABEL}</RNText>
-            </Pressable>
-          ) : null}
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 22 }}>
+          {tablet ? null : (
+            <RNText accessibilityRole="header" style={tx('800', 18, t.colors.ink, { letterSpacing: -0.3 })}>{WALK_COPY.header}</RNText>
+          )}
+          <SideSwitch side={side} onChange={w.pick} labels={[WALK_COPY.wantHire, WALK_COPY.wantEarn]} compact />
+        </View>
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
+          {video ? <VideoButton url={video} dark /> : null}
           <Pressable
-            onPress={() => step(1)}
+            onPress={onSkip}
             accessibilityRole="button"
-            accessibilityLabel={WALK_COPY.showApp}
-            style={{ minHeight: 52, borderRadius: 999, borderWidth: 1.5, borderColor: t.colors.onBtn, alignItems: 'center', justifyContent: 'center' }}
+            accessibilityLabel={WALK_COPY.close}
+            hitSlop={8}
+            style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}
           >
-            <RNText style={tx('800', 15, t.colors.onBtn)}>{WALK_COPY.showApp}</RNText>
+            <Icon name="close" size={18} color={t.colors.ink} />
           </Pressable>
         </View>
       </View>
-    );
-  } else if (card.kind === 'done') {
-    body = (
-      <View style={{ alignItems: 'center', gap: 12, paddingTop: 40, paddingHorizontal: 8 }}>
-        <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="check" size={30} color={t.colors.accentDeep} />
+      {tablet ? <RNText accessibilityRole="header" style={{ height: 0, width: 0, opacity: 0 }}>{WALK_COPY.header}</RNText> : null}
+
+      <View style={{ flex: 1, flexDirection: 'row', padding: 16, gap: 16 }}>
+        <View style={{ flex: 1, borderRadius: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+          <HeroBackground radius={28} />
+          <Ripples reduced={reduced} />
+          <View style={{ padding: 10, borderRadius: 46, backgroundColor: '#0E1110', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 30, shadowOffset: { width: 0, height: 18 } }}>
+            <View style={{ borderRadius: 36, overflow: 'hidden', width: screenW }}>
+              <Shot shot={cur.shot} width={screenW} label={`TaskDrop screen: ${cur.title}`} reduced={reduced} />
+            </View>
+          </View>
         </View>
-        <RNText accessibilityRole="header" style={tx('800', 24, t.colors.ink, { letterSpacing: -0.5 })}>{WALK_COPY.doneTitle}</RNText>
-        <RNText style={tx('400', 14.5, t.colors.muted, { textAlign: 'center', lineHeight: 21 })}>
-          {side === 'hire' ? WALK_COPY.doneHire : WALK_COPY.doneEarn}
-        </RNText>
-        <PrimaryButton label={side === 'hire' ? WALK_COPY.goHire : WALK_COPY.goEarn} onPress={() => onFinish(side)} style={{ alignSelf: 'stretch', marginTop: 10 }} />
-        {video ? (
-          <Pressable onPress={() => openVideo(video)} accessibilityRole="link" hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, padding: 8 }}>
-            <Icon name="play" size={14} color={t.colors.accentDeep} />
-            <RNText style={tx('700', 14, t.colors.accentDeep)}>{WALK_COPY.videoAgain}</RNText>
-          </Pressable>
-        ) : null}
-      </View>
-    );
-  } else {
-    body = (
-      <View>
-        <View
-          style={{
-            alignSelf: 'center',
-            height: shotH,
-            width: shotH * SHOT_RATIO,
-            maxWidth: '100%',
-            borderRadius: 20,
-            overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            backgroundColor: t.colors.surface,
-          }}
-        >
-          <Image
-            source={SHOTS[card.step.shot]}
-            accessibilityLabel={`TaskDrop screen: ${card.step.title}`}
-            resizeMode="cover"
-            style={{ width: '100%', height: '100%' }}
-          />
-        </View>
-        <RNText style={tx('800', 11.5, t.colors.accent, { letterSpacing: 0.8, marginTop: 14 })}>{`STEP ${card.n} OF 5`}</RNText>
-        <RNText accessibilityRole="header" style={tx('800', 20, t.colors.ink, { letterSpacing: -0.3, marginTop: 2 })}>{card.step.title}</RNText>
-        <RNText style={tx('400', 14.5, t.colors.muted, { marginTop: 4, lineHeight: 21, minHeight: 42 })}>{card.step.body}</RNText>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
-          <Dots at={card.n} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Pressable onPress={() => step(-1)} accessibilityRole="button" accessibilityLabel={WALK_COPY.back} hitSlop={6} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
-              <RNText style={tx('700', 14, t.colors.muted)}>{WALK_COPY.back}</RNText>
-            </Pressable>
-            <Pressable
-              onPress={() => step(1)}
-              accessibilityRole="button"
-              accessibilityLabel={card.n === 5 ? WALK_COPY.finish : WALK_COPY.next}
-              style={({ pressed }) => ({
-                minHeight: 46,
-                paddingHorizontal: 22,
-                borderRadius: 999,
-                backgroundColor: t.colors.btn,
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ scale: pressed ? t.motion.pressScale : 1 }],
-              })}
-            >
-              <RNText style={tx('800', 14.5, t.colors.onBtn)}>{card.n === 5 ? WALK_COPY.finish : WALK_COPY.next}</RNText>
-            </Pressable>
+
+        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: tablet ? 20 : 48, maxWidth: 700 }}>
+          <Segments i={i} progress={w.progress} reduced={reduced} />
+          <RNText style={tx('800', 12.5, t.colors.accent, { letterSpacing: 1, marginTop: 22, textTransform: 'uppercase' })}>{`Step ${i + 1} of 5`}</RNText>
+          <RNText accessibilityRole="header" style={tx('800', tablet ? 34 : 44, t.colors.ink, { letterSpacing: -1.4, lineHeight: tablet ? 40 : 50, marginTop: 6 })}>{cur.title}</RNText>
+          <RNText style={tx('400', 18, t.colors.muted, { lineHeight: 27, marginTop: 12, minHeight: 54 })}>{cur.body}</RNText>
+
+          <View style={{ marginTop: 20, gap: 4 }}>
+            {steps.map((s, n) => {
+              const on = n === i;
+              return (
+                <Pressable
+                  key={s.shot}
+                  onPress={() => w.jump(n)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Step ${n + 1}: ${s.title}`}
+                  accessibilityState={{ selected: on }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9, paddingHorizontal: 12, borderRadius: 14, backgroundColor: on ? t.colors.accentSoft : 'transparent' }}
+                >
+                  <View style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.colors.btn : t.colors.surface2 }}>
+                    <RNText style={tx('800', 12.5, on ? t.colors.onBtn : t.colors.muted)}>{n + 1}</RNText>
+                  </View>
+                  <RNText style={tx(on ? '800' : '600', 15.5, on ? t.colors.accentDeep : t.colors.ink)}>{s.title}</RNText>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20, flexWrap: 'wrap' }}>
+            <RoundBtn label={WALK_COPY.prev} onPress={() => w.step(-1)} disabled={i === 0}>
+              <Icon name="back" size={18} color={t.colors.ink} />
+            </RoundBtn>
+            <RoundBtn label={w.playing ? WALK_COPY.pause : WALK_COPY.play} onPress={() => w.setPlaying(!w.playing)}>
+              {w.playing ? (
+                <View style={{ flexDirection: 'row', gap: 4 }}>
+                  <View style={{ width: 4, height: 15, borderRadius: 2, backgroundColor: t.colors.ink }} />
+                  <View style={{ width: 4, height: 15, borderRadius: 2, backgroundColor: t.colors.ink }} />
+                </View>
+              ) : (
+                <Icon name="play" size={16} color={t.colors.ink} />
+              )}
+            </RoundBtn>
+            <RoundBtn label={WALK_COPY.nextStep} onPress={() => w.step(1)} disabled={last}>
+              <Icon name="chevronRight" size={18} color={t.colors.ink} />
+            </RoundBtn>
+            <RNText style={tx('600', 13, t.colors.muted)}>{WALK_COPY.hintAuto}</RNText>
+          </View>
+          <View style={{ marginTop: 18, alignItems: 'flex-start', gap: 8 }}>
+            <Cta side={side} onFinish={onFinish} ctaRef={cta} />
+            {extra}
           </View>
         </View>
       </View>
-    );
-  }
+    </View>
+  );
+}
+
+function RoundBtn({ label, onPress, disabled, children }: { label: string; onPress: () => void; disabled?: boolean; children: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={disabled ? undefined : onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+      style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: t.colors.line, backgroundColor: t.colors.surface, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.4 : 1 }}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
+function PhoneView({ w, reduced, onSkip, onFinish, extra }: { w: Walk; reduced: boolean; onSkip: () => void; onFinish: (s: WalkSide) => void; extra?: React.ReactNode }) {
+  const t = useTheme();
+  const { width: winW } = useWindowDimensions();
+  const { side, i } = w;
+  const cur = WALK_STEPS[side][i];
+  const video = videoUrl();
+  const [touched, setTouched] = useState(false);
+  const hint = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (touched) Animated.timing(hint, { toValue: 0, duration: reduced ? 0 : 400, useNativeDriver: NATIVE }).start();
+  }, [touched, hint, reduced]);
+
+  const stepRef = useRef(w.step);
+  stepRef.current = w.step;
+  const widthRef = useRef(winW);
+  widthRef.current = winW;
+  const setHold = w.setHold;
+  const pan = useMemo(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let held = false;
+    const clear = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      if (held) setHold(false);
+    };
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        held = false;
+        timer = setTimeout(() => {
+          held = true;
+          setHold(true);
+        }, HOLD_MS);
+      },
+      onPanResponderRelease: (_e, g) => {
+        const wasHeld = held;
+        clear();
+        setTouched(true);
+        const dir = swipeDirection(g.dx);
+        if (dir) stepRef.current(dir === 'next' ? 1 : -1);
+        else if (!wasHeld && Math.abs(g.dx) < 14 && Math.abs(g.dy) < 14) stepRef.current(tapHalf(g.x0, widthRef.current) === 'next' ? 1 : -1);
+      },
+      onPanResponderTerminate: clear,
+    });
+  }, [setHold]);
+
+  const pill = (
+    <SideSwitch side={side} onChange={w.pick} labels={['Hire', 'Earn']} compact />
+  );
 
   return (
-    <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', gap: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 6 }}>
-        <RNText accessibilityRole="header" style={tx('800', 17, t.colors.ink)}>{WALK_COPY.header}</RNText>
-        <Pressable onPress={onSkip} accessibilityRole="button" accessibilityLabel={skipLabel} hitSlop={10} style={{ paddingVertical: 8, paddingLeft: 12 }}>
-          <RNText style={tx('700', 14, t.colors.muted)}>{skipLabel}</RNText>
-        </Pressable>
+    <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, gap: 10 }}>
+        <Segments i={i} progress={w.progress} reduced={reduced} height={3} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <RNText accessibilityRole="header" numberOfLines={1} style={[tx('800', 15, t.colors.ink), { flexShrink: 1 }]}>{WALK_COPY.header}</RNText>
+          {pill}
+          <Pressable
+            onPress={onSkip}
+            accessibilityRole="button"
+            accessibilityLabel={WALK_COPY.close}
+            hitSlop={8}
+            style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: t.colors.surface2, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Icon name="close" size={16} color={t.colors.ink} />
+          </Pressable>
+        </View>
       </View>
-      <SideSwitch side={side} onChange={pick} />
-      <View {...swipe}>{body}</View>
-      {extra}
+      <View style={{ flex: 1 }} {...pan.panHandlers}>
+        <View style={{ width: '100%', alignItems: 'flex-start' }}>
+          <Shot shot={cur.shot} width="100%" label={`TaskDrop screen: ${cur.title}`} reduced={reduced} />
+        </View>
+        <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 270, alignItems: 'center', opacity: hint }}>
+          <View style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.65)' }}>
+            <RNText style={tx('700', 12.5, '#FFFFFF')}>{WALK_COPY.hintSwipe}</RNText>
+          </View>
+        </Animated.View>
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            paddingHorizontal: 20,
+            paddingTop: 18,
+            paddingBottom: 22,
+            gap: 6,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            backgroundColor: t.colors.surface,
+            borderTopWidth: 1,
+            borderColor: t.colors.line,
+          }}
+        >
+          <RNText style={tx('800', 11.5, t.colors.accent, { letterSpacing: 1, textTransform: 'uppercase' })}>{`Step ${i + 1} of 5`}</RNText>
+          <RNText accessibilityRole="header" style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6, lineHeight: 29 })}>{cur.title}</RNText>
+          <RNText style={tx('400', 14.5, t.colors.muted, { lineHeight: 21, minHeight: 42 })}>{cur.body}</RNText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
+            {video ? <VideoButton url={video} label="Video" /> : null}
+            <Cta side={side} onFinish={onFinish} grow />
+          </View>
+          {extra}
+        </View>
+      </View>
     </View>
   );
 }
