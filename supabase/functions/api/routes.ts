@@ -45,7 +45,7 @@ export const API_GROUPS = {
     "listPayoutDestinations", "addPayoutDestination", "removePayoutDestination", "setDefaultPayoutDestination",
   ],
   promotions: [
-    "promotableTasks", "promotionTiers", "listPromotions", "adAuctionRanks", "startPromotion", "activatePromotion",
+    "promotableTasks", "promotableTasksPage", "promotionTiers", "listPromotions", "adAuctionRanks", "startPromotion", "activatePromotion",
     "cancelPromotion", "recordAdImpression", "recordAdClick",
     "promotionQuote", "promotedLive", "promotionResults", "recordPromoView",
     "setPromoAlerts",
