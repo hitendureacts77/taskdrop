@@ -902,13 +902,14 @@ export function AiPostScreen() {
     sub: string,
     urgent = false,
     neutral = false,
+    badge?: string,
   ) => (
     <FadeIn key={key} translateY={10} delay={Math.min(index, t.motion.staggerMax) * t.motion.stagger}>
       <Pressable
         onPress={onPress}
         accessibilityRole="radio"
         accessibilityState={{ selected: on }}
-        accessibilityLabel={`${head}. ${sub}`}
+        accessibilityLabel={`${head}.${badge ? ` ${badge}.` : ''} ${sub}`}
         style={({ pressed }) => ({
           flexDirection: 'row',
           alignItems: 'center',
@@ -939,7 +940,14 @@ export function AiPostScreen() {
           <Icon name={icon} size={21} color={urgent ? t.colors.signalDeep : neutral ? t.colors.ink : t.colors.accentDeep} strokeWidth={2} />
         </View>
         <View style={{ flex: 1 }}>
-          <RNText style={tx('700', 16, t.colors.ink)}>{head}</RNText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <RNText style={tx('700', 16, t.colors.ink)}>{head}</RNText>
+            {badge ? (
+              <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: t.colors.btn }}>
+                <RNText style={tx('700', 11, t.colors.onAccent)}>{badge}</RNText>
+              </View>
+            ) : null}
+          </View>
           <RNText style={tx('400', 13, t.colors.muted, { marginTop: 2 })}>{sub}</RNText>
         </View>
         <View
@@ -1249,6 +1257,7 @@ export function AiPostScreen() {
             'An open task: it stays open until you pick someone',
             false,
             true,
+            'Recommended',
           )}
           {WHEN_OPTIONS.map((o, i) =>
             whenRow(
