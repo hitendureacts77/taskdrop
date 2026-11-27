@@ -5,6 +5,8 @@
 // Cloudflare limits (developers.cloudflare.com/workers/platform/limits): 100 `_headers` rules, 2,000 characters per
 // `_headers` line, 2,000 static `_redirects` rules. A rule over a limit throws here, so a bad file is never published.
 
+import { ROUTE_PAGES } from '../../apps/mobile/scripts/web-route-pages.mjs';
+
 export const TARGETS = ['staging', 'production'];
 
 /** CSP sources that only the Vercel toolbar (vercel.live comments) needed. They are dropped on Cloudflare. */
@@ -73,8 +75,9 @@ export function headersFor(config, target) {
 }
 
 /**
- * Rewrites and redirects. The Vercel catch-all rewrite `/(.*)` -> `/index.html` is the single-page-app fallback in
- * wrangler.*.jsonc (assets.not_found_handling), so it needs no file. A redirect becomes a `_redirects` line; anything
+ * Rewrites and redirects. The Vercel catch-all rewrite `/(.*)` -> `/index.html` needs no file on Cloudflare: every
+ * address the site answers is its own file and anything else gets 404.html (wrangler.*.jsonc, not_found_handling
+ * "404-page", plan 3.6), where the app shows "Page not found". A redirect becomes a `_redirects` line; anything
  * else is listed in `untranslated` for the build to print.
  */
 export function routesFor(config) {
@@ -105,6 +108,9 @@ export function renderHeadersFile(config, target) {
   // The page itself is never cached for long: a new deploy must be picked up at once. Hashed files below are immutable.
   block('/', { 'Cache-Control': NO_CACHE });
   block('/index.html', { 'Cache-Control': NO_CACHE });
+  // The other pages (terms.html, ... and 404.html; plan 3.6) are copies of index.html, so they are never cached either.
+  for (const p of ROUTE_PAGES) if (p.path !== '/') block(p.path, { 'Cache-Control': NO_CACHE });
+  block('/404.html', { 'Cache-Control': NO_CACHE });
   for (const p of perPath) block(p.pattern, p.headers);
   if (blocks.length > MAX_RULES) throw new Error(`_headers has ${blocks.length} rules; Cloudflare allows ${MAX_RULES}.`);
   const text = blocks.join('\n\n') + '\n';

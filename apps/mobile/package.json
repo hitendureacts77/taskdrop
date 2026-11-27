@@ -8,7 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "node scripts/copy-map-worker.mjs && node scripts/web.mjs",
-    "web:export": "node scripts/copy-map-worker.mjs && expo export -p web --source-maps && node scripts/web-env-guard.mjs",
+    "web:export": "node scripts/copy-map-worker.mjs && expo export -p web --source-maps && node scripts/web-env-guard.mjs && node scripts/web-route-pages.mjs",
     "typecheck": "tsc --noEmit",
     "build:apk": "npx eas-cli build --platform android --profile preview",
     "build:staging-apk": "npx eas-cli build --platform android --profile staging-apk",

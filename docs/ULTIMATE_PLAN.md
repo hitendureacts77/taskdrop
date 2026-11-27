@@ -19,13 +19,14 @@ Everything below those four is detail. You open it only when a task sends you th
 
 **What was checked, the same day:** this whole plan (108 tasks), the live setup (the four websites, both databases, GitHub, the open pull requests) and today's prices and terms, read on each company's own pages. **Where this section and an older one differ, this section wins.**
 
-**Where it stands (27 Nov, end of day 1)**
+**Where it stands (27 Nov, end of day; updated late 27 Nov)**
 
 | | |
 |---|---|
 | **Done today** | (1) This pass, with decisions 56 to 60 (PR 574). (2) Production's database is level with staging: 202 of 202 changes. (3) The staging server code deploys by itself from GitHub Actions on every merge (5.12 step 3, PR 481). (4) The Cloudflare build of the user website is merged, as a dry run only (steps 4 and 5, PR 575). (5) The admin was tested on Cloudflare and works on the $5 plan (step 6, admin draft pull request 76, not merged); it waits for money day, and the admin stays on Vercel Hobby (free) until then. (6) DNSSEC is off at Spaceship since 15:36, so the nameserver move is allowed from 15:45 on Saturday 28 Nov. (7) The "Release to production" button is built (decision 57, PRs 577 and 578) and ran green once: run 45985440027, tagged `production-20261127-1053` |
 | **Waiting on you** | (1) SAY "approve 1.21" or "drop 1.21" (draft pull requests 566 to 570 and 572). (2) Decision 59: your one word on the free pilot. (3) Send the S.4 question to Razorpay and book the CA (S.2) |
-| **Not done yet** | No website runs on Cloudflare yet: that needs your token. Until then Vercel still rebuilds the two production websites on every merge, so Claude runs the release after any merge that changes the database or server code. The admin has no release button yet (it comes with step 6) |
+| **Done later on 27 Nov** | (8) Both user websites run on Cloudflare Workers Free: staging `https://taskdrop-staging.hitendureacts.workers.dev` (deployed on every merge to `redesigned-2.0`) and production `https://taskdrop-production.hitendureacts.workers.dev` (only from the release button). 5.12 steps 7 and 8 are done (PRs 584 and 586: the sign-in allow-lists, then the full test there). (9) The first full production release, run 46025653216, finished green on 27 Nov. (10) Gate 2a is ticked (checked against the code). (11) The website finish list's 404 page and page titles (3.6) |
+| **Not done yet** | The admin stays on Vercel Hobby (free) until money day; then Workers Paid, admin pull request 76 and the move. `taskdrop.in` still points at Vercel until the nameserver move (5.12 step 9, day 3). The admin has no release button yet (it comes with step 6) |
 | **Seen and parked** | Vercel refuses new website builds until Saturday afternoon ("Deployment rate limited"), so `taskdrop.in` does not rebuild before then. Expo's free Android builds return on 1 December; until then the apps are built on this PC |
 | **Next for Claude** | Day 2 in the table below. It starts on your word: SAY "start day 2" |
 
@@ -196,7 +197,7 @@ Launch day is about **two weeks after the last of these three clocks finishes** 
 | | You (about 4 hours this week) | Claude |
 |---|---|---|
 | 1 | **Book the CA** (S.2). It is the most important task in the plan: S.6, S.8 and decisions 10 and 17 all wait for it | Finish 1.13 (order 1 and 2), then 1.14 level 1 |
-| 2 | Send the Plan B questions to Razorpay (S.4) and the brief to two lawyers (S.3) | Check Gate 2a and tick it (its four tasks show as done; Claude checks its holes list) |
+| 2 | Send the Plan B questions to Razorpay (S.4) and the brief to two lawyers (S.3) | Check Gate 2a and tick it (its four tasks show as done; Claude checks its holes list) · Done 27 Nov |
 | 3 | **Name your 2 or 3 launch areas** (decision 38). The other defaults are recorded: you said "Use the CEO defaults" on 11 Nov | Get one store file built (3.2). Expo's free builds are used up until 1 December, so first a free build on this PC from a folder with no spaces in its name |
 | 4 | Message **20** people for the Google Play test (3.3). Finding them takes days, so start before the store file is ready | Run the audit prompt (2.20, read-only) and fix the six holes from 2.18 |
 | 5 | Your clicks: 2.2, 2.3 and 2.4 (about 1.5 hours), and look at the new map on your laptop ("done 1.12") | The Plan B design is written (18 Nov, docs/design/plan-b-money/DESIGN.md) and the build is under way on staging (2.21) |
@@ -1796,7 +1797,7 @@ A search cannot prove that nobody has a feature; these are the closest things fo
 </details>
 
 <details id="t1-13" data-short="Useful in the first minute (D22)">
-<summary>[CLAUDE] <b>1.13</b> Useful in the first minute: posters get it done, helpers see money, everyone comes back (D22) <small>· Approved 9 Nov (v4) · decision 39: yes · building from 10 Nov</small></summary>
+<summary>[CLAUDE] <b>1.13</b> Useful in the first minute: posters get it done, helpers see money, everyone comes back (D22) <small>· Approved 9 Nov (v4) · decision 39: yes · order 1 and 2 built and live (D22 Home, Profile, My tasks, Wallet) · waiting for your 5-person test (checked 27 Nov)</small></summary>
 
 **What you said (9 Nov):** you gave the app to a few people and, on opening it, they did not find it useful. Your goal: the moment someone opens TaskDrop, it should make their life easier, whether they want a task done or want to earn, and they should keep using it for a long time. You like the map (what work, where, when, for how much, who pays most) and want it to help both sides.
 
@@ -2427,7 +2428,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.20 The audit prompt for vibe-coded apps (added 10 Nov) | Not run | Say "start 2.20"; then your "fix" or "accept" on the Medium and Low finds. Does not block Gate 2b unless it finds a Critical or High |
 | 2.21 The money flow, Plan B (added 11 Nov, final pass) | Design done 18 Nov; code built 19 Nov; **on main 21 Nov** (PR 455 + admin PR 69, migration 195), switched off (`money_flow` = wallet) | Next: CI green, merge, look on staging with the simulated provider ([HANDOVER.md](../docs/design/plan-b-money/HANDOVER.md)); real money waits for Razorpay's written answer (S.4), the lawyer's yes (S.3) and test keys |
 
-**On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gates 2a and 2b are not ticked yet.
+**On hold:** `ADMIN_SESSION_SECRET` is too short, but lengthening it is a key change. Razorpay says the account cannot be activated (you said "Later"). 2.1b is deferred by your choice. Gate 2a passed 27 Nov; Gate 2b is not ticked yet.
 
 **Two gates, so the tester clock starts sooner.** Google's 12-tester, 14-day test (Step 3) is the longest fixed wait in this plan, and testers only touch fake money. So **Gate 2a** (after 2.7) lets Step 3 start once the core protection is in place. Tasks 2.8 to 2.11 then run during the 14 days, and **Gate 2b** must pass before Step 5 (production).
 
@@ -2576,7 +2577,7 @@ start key protection
 </details>
 
 <details id="t2-6" data-short="Close the holes">
-<summary>[BOTH] <b>2.6</b> Close the holes found on 30 October <small>· your time: 20 minutes · H9 closed 4 Nov</small></summary>
+<summary>[BOTH] <b>2.6</b> Close the holes found on 30 October <small>· your time: 20 minutes · H9 closed 4 Nov · Done 27 Nov</small></summary>
 
 **What Claude fixes (one pull request):**
 
@@ -2606,6 +2607,8 @@ close the holes found on 30 October
 **Done when:** the pull request is merged, `npm audit` shows 0 high warnings (or each is explained), and Claude has shown you the exposed-file check passing.
 
 **Part done 1 Nov (PR 156, merged):** H8 closed (the Edge Functions answer CORS only for listed origins; production sets `ALLOWED_ORIGINS`, 5.9), the exposed-files check passes on all four staging addresses and the admin (`npm run check:exposed`), and the security-review-before-merge rule is in both agent guides. **H7:** the 6 accepted advisories (2 high) are unchanged and explained, review by 13 Dec; the Expo SDK upgrade that removes them is still to plan. **H12:** `OMNIROUTE_API_KEY` was not found in Vercel (both projects), Supabase function secrets or the Vault, so there is nothing to delete; check Expo's variables once. **Done 4 Nov (PR 233, merged): H9 closed.** The website's content policy now blocks bad scripts instead of only reporting them; the report address stays on, so Sentry still hears about anything blocked. H9 is the last open hole of this task. Still waiting on its own date: the accepted warnings (review by 13 Dec).
+
+**Done 27 Nov (checked for Gate 2a):** the pull requests are merged, the exposed-file check passes, and every high audit warning left is explained in `audit-exceptions.json` (only picomatch, which has no fixed version yet; the `decode-uri-component` one went with the Expo 58 upgrade, PR 184). The accepted warnings keep their own review dates.
 </details>
 
 <details id="t2-7" data-short="Stop-ship tests">
@@ -2641,9 +2644,11 @@ run stop-ship tests
 
 > **GATE 2a: Step 3 (testers) may start when all of these are true**
 
-- [ ] Tasks 2.1, 2.5, 2.6 and 2.7 are ticked
-- [ ] No Critical or High problem from 2.7 is open
-- [ ] Holes H4 to H9 and H12 are closed
+- [x] Tasks 2.1, 2.5, 2.6 and 2.7 are ticked
+- [x] No Critical or High problem from 2.7 is open
+- [x] Holes H4 to H9 and H12 are closed
+
+**Gate 2a passed · Done 27 Nov (checked against the code and the live setup):** 2.1, 2.5 and 2.7 were done 1 Nov and 2.6 is done (below). 2.7 left no Critical or High problem (`docs/SECURITY_ROUND1.md`). H4: the admin's session check reads `ADMIN_SESSION_SECRET` only, with no fallback to the master key (`src/middleware.ts`). H5: gitleaks runs on every change (`.github/workflows/secret-scan.yml`) and the commit guard (`scripts/secret-guard.mjs`) is on. H6: `.env.all-secrets` sits in the project folder, and no secrets or keystore file is in OneDrive. H7: accepted by you, each warning explained in `audit-exceptions.json` (review dates 2 and 13 Dec). H8, H9 and H12 were closed 1 to 4 Nov. Step 3 (testers) may start.
 
 Tasks 2.2 to 2.4 and 2.8 to 2.11 carry on while the testers use the app. They must all be done by Gate 2b.
 
@@ -2711,7 +2716,7 @@ start Supabase sign-in limits
 </details>
 
 <details id="t2-9" data-short="Security tests round 2">
-<summary>[CLAUDE] <b>2.9</b> Security tests, round 2: attacks on forms, sign-in, the app and privacy <small>· your time: 20 minutes · T4, T6, T13 done 1 Nov; T11 done 4 Nov</small></summary>
+<summary>[CLAUDE] <b>2.9</b> Security tests, round 2: attacks on forms, sign-in, the app and privacy <small>· your time: 20 minutes · T4, T6, T13 done 1 Nov; T11 done 4 Nov · waiting for your "fix" or "accept" on the sign-in screen saying whether a number has an account (checked 27 Nov: the one open Medium)</small></summary>
 
 **What Claude tries on staging, like an attacker would:**
 
@@ -3672,7 +3677,7 @@ start 2.20
 
 > **GATE 2b: do not start Step 5 (production) until all of these are true**
 
-- [ ] Gate 2a has passed
+- [x] Gate 2a has passed (27 Nov)
 - [ ] Tasks 2.1 to 2.16, 2.18 and 2.21 are ticked (2.13 part E may follow, by decision 15, before 6.5; 2.18 parts G and J follow the next Android build and decision 30, before 6.5)
 - [ ] The six proofs in task 2.10 are all true
 - [ ] Holes H2 to H10, H12, H17 and H22 to H34, H71 to H76, H77 and H78 are closed (H79 and H80, the admin's refusal test and smoke, before 6.5) (H3 closes in 3.9 for staging and is never open in production; H11 closes in 5.2; H1, H15 and H16 in 5.9)
@@ -4176,7 +4181,7 @@ start 3.5c
 Each moved job used one or two Inngest steps per run, so steps fall by about the same share. The database gains about 1,300 pg_cron runs a day, each a few milliseconds, at no cost.
 
 <details id="t3-6" data-short="Quality tests round 3">
-<summary>[CLAUDE] <b>3.6</b> Quality tests, round 3: speed, every screen, outages <small>· Website and server parts run 2 Nov (PR 200); phone parts and T12 still open · your time: 20 minutes</small></summary>
+<summary>[CLAUDE] <b>3.6</b> Quality tests, round 3: speed, every screen, outages <small>· Website and server parts run 2 Nov (PR 200) · website finish (404 page, page titles) · Done 27 Nov · phone parts, T12, F1 and the rest of the 20-point walk still open · your time: 20 minutes</small></summary>
 
 **What Claude checks:**
 
@@ -4219,6 +4224,11 @@ Each moved job used one or two Inngest steps per run, so steps fall by about the
 - **No sitemap yet:** `/sitemap.xml` returns the app page, not a sitemap (fine on staging, which is `noindex` by design; production needs one in 4.3).
 - **#4 favicon: present** (`/favicon.ico`); **#7 footer: Terms, Privacy, Copyright, Support are shown**, each link still to be clicked in the width walk; **#14 staging banner** ("Staging: fake money and fake data") shows only on staging.
 - Not yet checked: #1-3, #9-13, #15-20 (need the browser walk).
+
+**Website finish, done 27 Nov (the 3-day finish, day 2): #5, #6 and #8 fixed.**
+- **#8 a real 404 page.** Any address the website does not answer (`isKnownPath` in `src/navigation/webAddress.ts`: `/`, `/get`, `/terms`, `/privacy`, `/support`, `/copyright`) shows a "Page not found" page in the brand (`src/components/NotFound.tsx`): the clickable logo and "Go to Home" go to `/`, a second link opens Help and support. It opens before sign-in, so a wrong link never lands on the sign-in screen. On Cloudflare the answer is a real **404 status** (`not_found_handling: "404-page"` in both `wrangler.*.jsonc`, with `dist/404.html`), so Google no longer sees a soft 404; the page is never indexed.
+- **#5 and #6 titles and descriptions in the raw page.** `apps/mobile/scripts/web-route-pages.mjs` (part of `web:export`) writes one file per address (`terms.html`, `privacy.html`, `support.html`, `copyright.html`, `get.html`, `404.html`), each with its own title and description; Home gets "TaskDrop · Ask for anything. Someone gets it done for you." In the app every screen now names the browser tab (about 30 screens used to say plain "TaskDrop"); a test fails if a new screen has no title.
+- Still open in 3.6: the 390 and 1440 width walk for the other 20-point items, the phone parts, T12 and F1.
 
 1. SAY:
 
@@ -6956,6 +6966,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 - **2026-11-27 (task 1.21 row W, third pass):** you said the old landing page and the old Home look better than the rebuilt ones, and asked for the design to be drawn from a written prompt before any build. The design prompt was written from your requirements and run: the design canvas https://claude.ai/artifact/VWn2rYCGhigkv81f1JrFyo shows six computer boards and two phone boards. Old landing half and side menu kept; sign-in is a website form; the walkthrough opens once after sign-in or Continue as guest. Nothing built or merged; waiting for your design OK.
 - **2026-11-27 (task 1.21 row W, second pass):** you said the desktop still looked like the mobile view and asked why a demo showed during sign-in. Row W was rebuilt on draft PR 572: sign-in only on the first page, no walkthrough by itself, a website top bar instead of the side menu, pages centred and no longer stretched. Shown on the design page; nothing merged, waiting for your design OK.
 - **2026-11-27 (task 1.21 row W, desktop):** you asked for sign-in first and the demo second on Chrome desktop, and no desktop page that looks like the phone layout. Built on draft PR 572 and shown as row W on the design page; nothing merged, waiting for your design OK.
+- **2026-11-27 (website finish and stale lines, day 2 work):** 3.6's 404 page and page titles built: unknown addresses show a branded "Page not found" page and answer 404 on Cloudflare; each public page has its own title and description in the raw page; every app screen names the browser tab. Stale lines checked against the code: Gate 2a ticked (2.6 ticked with it); 2.9 waits for your fix-or-accept on the "account exists" message; 1.13 waits for your 5-person test. "Where it stands" updated: both user websites on Cloudflare Workers, 5.12 steps 7-8 done (PRs 584, 586), the first full production release (run 46025653216) green, the admin on Vercel Hobby until money day.
 - **2026-11-27 (plan made true for staging and production):** older staging/production text now matches The 3-day finish: Cloudflare not Vercel, release button not main, free plans until money day, real account names.
 - **2026-11-27 (progress stored, end of day 1):** you asked to store the progress in this plan. Added the block "Where it stands (27 Nov, end of day 1)" at the top of "The 3-day finish": what is done, what waits on you, what is not done yet, what is parked and what comes next. No task changed state: each item was already ticked on its own line the same day.
 - **2026-11-27 (first release through the button):** "Release to production" ran green (run 45985440027, tag `production-20261127-1053`). The first try had stopped at its first database step with an empty password, changing nothing: a called workflow only receives the secrets its caller passes by name. PR 578 passes each one by name, in the release and in the Cloudflare website deploy, and a test now keeps the lists together.

@@ -7,7 +7,9 @@
   "compatibility_date": "2026-11-01",
   "assets": {
     "directory": "./apps/mobile/dist",
-    // Any path that is not a file (a deep link such as /explore) gets /index.html with status 200, like the Vercel rewrite did.
-    "not_found_handling": "single-page-application"
+    // Plan 3.6 (T13 #8): every address the site answers is a file (index.html, terms.html, privacy.html, support.html,
+    // copyright.html, get.html: apps/mobile/scripts/web-route-pages.mjs), so any other path gets 404.html with status 404.
+    // 404.html is the same app, which shows its "Page not found" screen (src/components/NotFound.tsx).
+    "not_found_handling": "404-page"
   }
 }

@@ -38,6 +38,10 @@ test('cache rules: hashed files long, the page never', () => {
   assert.match(text, /^\/assets\/\*\n  Cache-Control: public, max-age=31536000, immutable$/m);
   assert.match(text, /^\/\n  Cache-Control: no-cache$/m);
   assert.match(text, /^\/index\.html\n  Cache-Control: no-cache$/m);
+  // Plan 3.6: the per-address pages and the 404 page are copies of index.html, never cached either.
+  for (const p of ['/terms', '/privacy', '/support', '/copyright', '/get', '/404.html']) {
+    assert.ok(text.includes(`\n${p}\n  Cache-Control: no-cache\n`), p);
+  }
 });
 
 test('the file stays inside the Cloudflare limits', () => {
