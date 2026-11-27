@@ -852,7 +852,7 @@ const JS = `
     return { n: '', text: t.split(/[:(]/)[0].trim() };
   }
   function groupOf(t) {
-    if (/^(The plan on one page|Start here|The CEO review|Your app in one page|The playbook|Staging and production, step by step|The map)/.test(t)) return 0;
+    if (/^(The 3-day finish|The plan on one page|Start here|The CEO review|Your app in one page|The playbook|Staging and production, step by step|The map)/.test(t)) return 0;
     if (/^(START NOW|STEP \\d)/.test(t)) return 1;
     if (/^(FUTURE SCOPE|Snapshot|Changelog)/.test(t)) return 3;
     return 2;
