@@ -46,7 +46,7 @@ Everything below those four is detail. You open it only when a task sends you th
 | All four websites on Cloudflare (allowed for business, user web free) | S.4 and S.8: Razorpay's written answer and its account check |
 | Production level with staging, and proven separate (5.11) | S.3: the lawyer's written answer |
 | The staging Android app and a production rehearsal app (5.0c, 5.0d) | S.6: SMS registration (needs S.2 first) |
-| The last security finds closed and one AI scan on the final code (2.14, 2.25) | 3.3: Google's 12 testers for 14 days in a row |
+| The last security finds closed and one AI scan on the final code (2.14, 2.25). 2.14 leftovers done 27 Nov; 2.25 is waiting for your yes to start the scan (you answered No on 27 Nov) | 3.3: Google's 12 testers for 14 days in a row |
 | Task 1.21 merged or parked, then the freeze really holds | 4.6: 20 workers lined up in your launch areas |
 | This plan true again: stale lines ticked, the Vercel tasks replaced | 5.12 step 10: 7 quiet days before Vercel is switched off |
 
@@ -135,7 +135,7 @@ The best practice everywhere is the same: **one owner login with 2-step sign-in,
 | 5.8, 5.8b (Vercel Pro, its firewall and spending stop) | Replaced by 5.12. The free-plan projects stay only until step 10 |
 | 5.10 (production web addresses) | Now done inside 5.12 steps 7 and 9, with Cloudflare's addresses |
 | 3.3c (PostHog on staging) | Dropped. PostHog watches production only (5.6b) |
-| 2.16 (Strix) | Replaced by 2.25, the Claude Security scan |
+| 2.16 (Strix) | Replaced by 2.25, the Claude Security scan (not run yet: waiting for your yes to start it) |
 | 2.22 (e), decision 53 (`auth.taskdrop.in`) | Not at launch. Look again in Step 7 |
 | 4.5 (smart alerts), 4.10 (email sequences) | After launch, as features |
 | Gate 5, first line | Reads "5.0a to 5.0e, 5.1 to 5.7, 5.9, 5.11 and 5.12 steps 1 to 9" |
@@ -1023,7 +1023,7 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H77 | The admin's rate limiter lets every call through when its counter cannot be reached (`src/lib/rate-limit.ts` returns "allowed" on an error), so the 10-a-minute admin sign-in limit and the authenticator limit vanish during a database hiccup (found 13 Nov) | Medium | **Closed** (admin PR 53, 15 Nov; rechecked 27 Nov): every limit but the live strip refuses when the counter is down and sends a `rate_limiter_unavailable` security event (`rate-decide.ts`, tested) |
 | H78 | The admin sends no security events to Sentry: failed staff sign-ins, wrong authenticator codes and calls refused for the wrong role are not tagged `security_event`, so the "Security spike" alert (2.10) cannot see an attack on the admin (found 13 Nov) | Medium | **Closed** (rechecked 27 Nov): failed password sign-ins, wrong authenticator codes, refused Google sign-ins, non-admin and wrong-role refusals and rate-limited actions all go to Sentry tagged `security_event` (`lib/security-event.ts`, only safe fields) |
 | H79 | The admin's door check (`scripts/check-endpoints.mjs`) proves every route has a role check and a limit, but not that a plain person or a lower staff role is actually refused; only `live/token` is tested that way (`docs/SECURITY_ROLES.md` F3) | Low | 2.18 part B |
-| H80 | The admin has no browser tests: no Playwright smoke on `admin.taskdrop.in`, so a broken page or a lost role gate ships unseen, and the debug loop's "admin golden path" is not written down (found 13 Nov) | Low | 2.14 part G, 2.19 |
+| H80 | The admin has no browser tests: no Playwright smoke on `admin.taskdrop.in`, so a broken page or a lost role gate ships unseen, and the debug loop's "admin golden path" is not written down (found 13 Nov) | Low | **Closed 27 Nov (admin PR 77).** Playwright smoke in the admin folder (`npm run test:e2e`, `e2e/README.md`): signed out, every side-menu page goes to the login page, the Google start sets an HttpOnly cookie (5 of 5 pass on localhost); per staff role, every allowed page loads clean and hidden pages are refused. The per-role part skips until one test login per staff role exists on staging (Claude, next debug round) |
 | H81 | The website keeps the sign-in session in `localStorage` (`lib/secureStorage.ts:63`), so a script injected into the page could read it (found 23 Nov, audit F1) | Medium | 2.20 |
 | H82 | `ALLOW_ANY_OTP` is still on in staging (`phone-auth/index.ts:76-82`): any phone number signs in with any code. It must be off before launch (found 23 Nov, audit F2) | Medium | 2.20, 5.9 |
 | H83 | The gateway lockdown is not on yet, so the database can still be reached outside the `api` door (found 23 Nov, audit F3) | Medium | 3.9 |
@@ -2389,7 +2389,7 @@ A new idea for a check becomes one round ("charter") of the debug loop. It does 
 | 2 | **The six holes from the outside testers** (2.18, H71 to H76): SAY "start 2.18". Decision 30 is decided | Claude | 30 minutes of yours | Gate 2b |
 | 3 | **Your clicks:** spending alerts (2.2), lock the key stores (2.3), read the emergency guide (2.4, also proof 6 of 2.10) | You | about 1.5 hours | Gate 2b |
 | 4 | **The rest of 2.13:** make both code folders private (part H), invite 2 or 3 free testers (part E), the spend-stop clicks (part F) | You | 30 minutes | Gate 2b (part E may follow, before 6.5) |
-| 5 | **The rest of the hunt** (2.14): H34 wallet record list, H37 admin idle limit and Google button, H38 location inside videos, the admin round 3 (F: H77, H78; G: H80, the admin smoke), your "fix" or "accept" on the Low finds, part G on the phone | Both | 45 minutes of yours | Gate 2b |
+| 5 | **The rest of the hunt** (2.14): **Done 27 Nov** (PRs 588 and admin 77): H34, H37, H38, H77, H78, H80. Left: your "fix" or "accept" on the Low finds, part G on the phone | Both | 45 minutes of yours | Gate 2b |
 | 6 | **Your OK on the Google-first sign-in screen** (2.8) | You | 2 minutes | Gate 2b |
 | 7 | **The money flow, Plan B** (2.21): locked 18 Nov, design written, build under way; real money after Razorpay's written answer and the lawyer's yes | Claude, then you | see 2.21 | Gate 2b, then Step 5 |
 | 8 | **The AI attacker** (2.16), on the finished Plan B code, then one small paid tester (decision 30) | Both | 45 minutes of yours | Gate 2b |
@@ -2419,7 +2419,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
 | 2.13 The WhatsApp advice (added 3 Nov) | Built 4 Nov | H30 waits for the CA (decision 17); H31 was built 6 Nov (decision 18). Yours: the Make-private click (part H), invite the testers (part E), the spend-stop clicks in the part F table |
-| 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov (staging) | H52 (direct database access) closes in 3.9; H34 wallet record list (design done); H37 database-side idle limit and Google button, with a manual Google sign-in check; H38 location inside videos; your "fix" or "accept" on the Low finds (H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30, B32); part G (needs the phone); admin round 3 (H77, H78, H80), added 13 Nov. Decisions 17 and 25 were decided 11 Nov (CEO defaults) |
+| 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov (staging) | H52 (direct database access) closes in 3.9. **Done 27 Nov (PRs 588, admin 77):** H34, H37, H38, H77, H78, H80; one Google sign-in on the staging admin to see H37 work. Your "fix" or "accept" on the Low finds (H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30, B32); part G (needs the phone). Decisions 17 and 25 were decided 11 Nov (CEO defaults) |
 | 2.15 The secrets audit (added 4 Nov) | Done 4 Nov | H56 before launch (5.9); make the code folders private (2.13 H) |
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
 | 2.17 One home per secret (added 5 Nov) | Done 5 Nov | Nothing of yours. `push-payment-secrets.sh` now reads the master file too. Does not block Gate 2b; production (Step 5) uses `--production` |
@@ -3052,7 +3052,7 @@ start 2.13
 </details>
 
 <details id="t2-14" data-short="Bug and security hunt">
-<summary>[CLAUDE] <b>2.14</b> The bug and security hunt: read the whole app end to end and attack it, to find the mistakes the tests do not know about <small>· your time: 45 minutes · rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov; parts B, C, D, E, F, H, and a new part J: guest mode</small></summary>
+<summary>[CLAUDE] <b>2.14</b> The bug and security hunt: read the whole app end to end and attack it, to find the mistakes the tests do not know about <small>· your time: 45 minutes · rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov; parts B, C, D, E, F, H, and a new part J: guest mode · Leftovers H34, H37, H38, H77, H78, H80 Done 27 Nov</small></summary>
 
 **Why:** on 3 November you asked Claude to find the bugs and security problems in the app. The rounds so far (2.7 and 2.9 on 1 Nov, 3.6 on 2 Nov) test attacks we already knew to look for, and most bugs so far were found by you on the phone (B1 to B14). Since 1 November about 60 changes and 10 database changes (migrations 132 to 141) have landed: top-ups, poster options, helper streaks, the Ideas board, task questions, the nearby pulse, marketplace numbers, repeat keys, the sign-up guard, three map redesigns and the desktop layout. None of that has been through a security round. Nobody has yet read the whole app from start to finish asking "what could go wrong here?". This task does that, in nine parts (a tenth, J, the guest door, was added on 4 Nov), on staging only.
 
@@ -3388,14 +3388,14 @@ start 2.17
 |---|---|---|
 | Test sign-in shortcuts off, production build settings right | H1, H15 | Claude, 5.9 |
 | Direct database door shut | H3, H52 | Claude: production from day one (5.9), staging in 3.9 |
-| Wallet record list built and balancing | H34 | Claude, after your "start H34" |
+| Wallet record list built and balancing | H34 | **Done 27 Nov** (Plan B ledger + migration 229 nightly check) |
 | Backups outside Supabase, and one real restore | H16 | 5.9, 6.5 |
 | Webhooks and function settings right in production | H73, H76 | Claude, part E |
 | New doors start closed; what ships is scanned; columns decided | H71, H72, H74 | Claude, parts A, C, D |
 | Android build inspected, debug token gone | H75, H56 | Claude, part G and 5.9 |
-| Admin time limits in the database, Google button | H37 | Claude |
-| Admin limits fail closed, admin security events reach Sentry, every admin door refuses a lower role, admin smoke passes | H77, H78, H79, H80 | Claude, 2.14 F and G, 2.18 B |
-| Location inside videos stripped, or the notice accepted | H38 | Claude, or your "accept" |
+| Admin time limits in the database, Google button | H37 | **Done 27 Nov** (migration 229, admin PR 77) |
+| Admin limits fail closed, admin security events reach Sentry, every admin door refuses a lower role, admin smoke passes | H77, H78, H79, H80 | H77, H78, H80 **Done 27 Nov**; H79 in 2.18 B |
+| Location inside videos stripped, or the notice accepted | H38 | **Done 27 Nov** (stripped in the app, PR 588) |
 | Spending stops, firewall, leaked-password protection | H19, H11 | 5.8b, 5.2 |
 | Both code folders private | H27 | Your click |
 | Rush and spammer test passed | H29 | Claude, 2.13 J |
@@ -6992,6 +6992,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-27 (2.14 leftovers closed; 2.25 waiting):** Opus closed the six 2.14 leftovers. User PR 588 (migration 229, on staging): the database now checks an admin token's own session (live, under 12 hours, used within 90 minutes) (H37); the nightly money check proves every Plan B hold's ledger adds up (H34; all 71 staging holds balance); the app strips the location from videos before upload (H38). Admin PR 77: Google sign-in starts on the server, so its one-time cookie is HttpOnly (H37); a Playwright admin smoke (H80); a test-script typo that skipped two tests. H77 and H78 were already fixed (admin PR 53 and later), rechecked. The admin staging site picks up PR 77 once Vercel's 24-hour build limit resets. The Claude Security scan (2.25) was not started: you answered No to its start question; it is waiting for your yes.
 - **2026-11-27 (5.0c staging APK):** 5.0c: staging APK built on this PC; key, Firebase, App Check registration and Supabase link already in place; waiting for phone checks and the debug token.
 - **2026-11-27 (21st.dev for every app, added as F.17):** you asked to use 21st.dev later to improve the look of all the apps, not only the user app (user app, admin site and landing pages). **Added:** future task **F.17**. A Home design (Hire and Earn) restyled with 21st.dev components was drawn today as a design page only (https://claude.ai/artifact/WJ6awFUdEox7gWjkQzDcdc), and it is waiting for your approval; to start building say "approve 21st Home". Plan only: nothing in the app changed.
 - **2026-11-27 (5.12 steps 7 and 8, the user websites live on Cloudflare):** the staging website runs at `https://taskdrop-staging.hitendureacts.workers.dev` and the production website at `https://taskdrop-production.hitendureacts.workers.dev` (release run 46025653216, tagged by the release button). Allow-lists added next to the old Vercel addresses (PR 584, Supabase, reCAPTCHA, CORS); GitHub environments filled for both code folders. Staging passed sign-in, map and posting a task; production passed the page, guest mode and the map. Waiting for you: one sign-in and one task on production, and one production admin sign-in.
