@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clampReach, parseReachKm, parseSavedReach, peopleReach, postedToday, reachChoices, reachWords, withinReach, zoomToFit } from './mapReach.ts';
+import { clampReach, parseReachKm, parseSavedReach, postedToday, reachChoices, reachWords, withinReach, zoomToFit } from './mapReach.ts';
 
 test('a wider reach never zooms in further', () => {
   const z5 = zoomToFit(5, 17.4, 700);
@@ -74,11 +74,6 @@ test('reachChoices lists the presets, the saved and the used distance once, in o
   assert.deepEqual(reachChoices(10, 45).map((c) => `${c.km}${c.on ? '*' : ''}`), ['5', '10*', '25', '45']);
   assert.deepEqual(reachChoices(7, 45).map((c) => c.km), [5, 7, 10, 25, 45]);
   assert.equal(reachChoices(25, 10).filter((c) => c.km === 10).length, 1);
-});
-
-test('the people layer is capped at the server limit', () => {
-  assert.equal(peopleReach(25), 25);
-  assert.equal(peopleReach(80), 50);
 });
 
 test('postedToday counts the same calendar day', () => {

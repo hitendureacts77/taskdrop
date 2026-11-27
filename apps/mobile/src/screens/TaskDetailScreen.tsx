@@ -372,13 +372,12 @@ function TaskDetailBody() {
     formatDistance(
       distanceKm(
         { lat: me?.loc_lat ?? null, lng: me?.loc_lng ?? null },
-        // The job's own place. The poster's saved home is only a fallback for a task with no place
-        // (it said "2368 km" for a job round the corner when the poster's profile was elsewhere).
-        live ? { lat: live.lat, lng: live.lng } : { lat: other?.locLat ?? null, lng: other?.locLng ?? null },
+        // Only the job's own place, never the poster's saved home (it said "2368 km" for a job round the
+        // corner when the poster's profile was elsewhere; task 1.21 row A: a task is where the work is).
+        { lat: live?.lat ?? null, lng: live?.lng ?? null },
       ),
     ) ??
     (live && live.lat === null ? 'Remote / online' : null) ??
-    other?.locLabel ??
     sampleDistance ??
     'Not shared';
 

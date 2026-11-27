@@ -88,8 +88,6 @@ export const REACH_PRESETS = [5, 10, 25];
 /** A custom distance is a whole number of km in this range. */
 export const MIN_REACH_KM = 1;
 export const MAX_REACH_KM = 100;
-/** The server's own limit for the "My people" call. */
-export const PEOPLE_MAX_KM = 50;
 /** Where the last custom distance is kept on the device. */
 export const CUSTOM_REACH_KEY = 'taskdrop.map.customReachKm';
 
@@ -129,11 +127,6 @@ export function reachChoices(radius: number, saved: number | null): { km: number
   if (saved !== null) all.add(saved);
   all.add(radius);
   return [...all].sort((a, b) => a - b).map((km) => ({ km, on: km === radius }));
-}
-
-/** The "My people" call never reaches past its server limit. */
-export function peopleReach(radius: number): number {
-  return Math.min(radius, PEOPLE_MAX_KM);
 }
 
 /** How many of these were posted on the same calendar day as `now`. */
