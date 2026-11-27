@@ -16,6 +16,57 @@ on:
         required: false
       CLOUDFLARE_ACCOUNT_ID:
         required: false
+      # The build values live in the environment web-<target>; the caller passes each by name.
+      APP_VARIANT:
+        required: false
+      EXPO_PUBLIC_APP_ENV:
+        required: false
+      EXPO_PUBLIC_APP_URL:
+        required: false
+      EXPO_PUBLIC_SUPABASE_URL:
+        required: false
+      EXPO_PUBLIC_SUPABASE_ANON_KEY:
+        required: false
+      EXPO_PUBLIC_FIREBASE_API_KEY:
+        required: false
+      EXPO_PUBLIC_FIREBASE_APP_ID:
+        required: false
+      EXPO_PUBLIC_FIREBASE_PROJECT_ID:
+        required: false
+      EXPO_PUBLIC_FIREBASE_SENDER_ID:
+        required: false
+      EXPO_PUBLIC_RECAPTCHA_SITE_KEY:
+        required: false
+      EXPO_PUBLIC_SENTRY_DSN:
+        required: false
+      EXPO_PUBLIC_SENTRY_ENVIRONMENT:
+        required: false
+      EXPO_PUBLIC_SENTRY_REPLAY_RATE:
+        required: false
+      EXPO_PUBLIC_LEGAL_ENTITY:
+        required: false
+      EXPO_PUBLIC_LEGAL_ADDRESS:
+        required: false
+      EXPO_PUBLIC_LEGAL_EMAIL:
+        required: false
+      EXPO_PUBLIC_LEGAL_JURISDICTION:
+        required: false
+      EXPO_PUBLIC_LEGAL_REVIEWED:
+        required: false
+      EXPO_PUBLIC_GRIEVANCE_OFFICER_NAME:
+        required: false
+      EXPO_PUBLIC_GRIEVANCE_OFFICER_EMAIL:
+        required: false
+      EXPO_PUBLIC_COPYRIGHT_AGENT_NAME:
+        required: false
+      EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL:
+        required: false
+      EXPO_PUBLIC_COPYRIGHT_AGENT_ADDRESS:
+        required: false
+      EXPO_PUBLIC_COPYRIGHT_AGENT_PHONE:
+        required: false
+      SENTRY_AUTH_TOKEN_TASKDROP_USERAPP:
+        required: false
 
 concurrency:
   group: web-deploy-${{ inputs.target }}
