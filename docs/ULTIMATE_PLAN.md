@@ -4876,11 +4876,21 @@ Add admin.taskdrop.in to the staging allow-lists.
 </details>
 
 <details id="t5-0c" data-short="Staging Android app">
-<summary>[BOTH] <b>5.0c</b> Staging Android app: TaskDrop Staging (an APK) <small>· your time: about 1 hour · one build</small></summary>
+<summary>[BOTH] <b>5.0c</b> Staging Android app: TaskDrop Staging (an APK) <small>· your time: about 20 minutes · APK built 27 Nov on this PC · waiting for your phone checks (step 8) and the App Check debug token (step 4)</small></summary>
 
 **Why a new app and not the old one:** Android allows only one app per package on a phone. If staging and production both used `com.taskdrop.app`, you could never have both on one phone, and a sign-in, push token or link from one could land in the other. A separate package keeps them apart for good. The price is one more install for your testers. Their accounts and data live on the server, so nothing is lost.
 
 **Needs:** 5.0a merged. Everything below touches staging only (the Google project **Taskdrop** and the Expo project `@hitendureacts/taskdrop`). Sign in to Google as **hitendureacts@gmail.com** (`/u/2`). Claude checks each Google and Expo screen against the current documentation first; if a screen looks different, send Claude a screenshot.
+
+**Progress 27 Nov (Claude):**
+
+- Step 2 done: the signing key for `com.taskdrop.app.staging` already existed (made in the staging Expo project on 8 Nov; names in `.env.all-secrets`). Backed up to `C:\TaskDrop-safe\staging\` with the google-services.json. SHA-1 `44:4D:11:BC:72:5D:30:3B:86:CD:4D:9A:9E:D1:F5:34:CC:20:A4:2E`, SHA-256 `DB:47:74:C3:6D:82:A1:F1:37:67:6A:DD:8D:77:1F:03:86:71:47:89:1C:31:C9:75:2B:2B:3C:8B:DF:33:7F:95`.
+- Step 3 done: Firebase app "TaskDrop Staging" is registered with both fingerprints; the `GOOGLE_SERVICES_JSON` file in the staging Expo project (preview) lists both apps.
+- Step 4 part done: the app is registered in App Check (Play Integrity). Waiting for your debug token: Firebase → App Check → Apps → TaskDrop Staging → ⋮ → Manage debug tokens → Add debug token → paste `EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN` from `.env.all-secrets` → Save. Staging App Check is in monitor mode, so the app works without it; the token only makes the checks show "valid".
+- Step 5 not needed: the phone map is MapLibre since D33 (1.20), so there is no Android maps key to restrict.
+- Step 6 done: `taskdrop-staging://**` is in the staging Supabase Redirect URLs.
+- Step 7 done differently: Expo's free cloud builds are used up until 1 Dec, so the APK was built on this PC (`C:\td-tools\taskdrop-staging-r27.apk`, package `com.taskdrop.app.staging`, "TaskDrop Staging", channel `staging`, staging server only). Install over USB: `adb install C:\td-tools\taskdrop-staging-r27.apk` (it sits beside the current TaskDrop app).
+- Steps 8-10: waiting for your phone checks. Step 10 (moving the staging workflow live) waits for them too.
 
 1. SAY:
 
@@ -6974,6 +6984,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-27 (5.0c staging APK):** 5.0c: staging APK built on this PC; key, Firebase, App Check registration and Supabase link already in place; waiting for phone checks and the debug token.
 - **2026-11-27 (21st.dev for every app, added as F.17):** you asked to use 21st.dev later to improve the look of all the apps, not only the user app (user app, admin site and landing pages). **Added:** future task **F.17**. A Home design (Hire and Earn) restyled with 21st.dev components was drawn today as a design page only (https://claude.ai/artifact/WJ6awFUdEox7gWjkQzDcdc), and it is waiting for your approval; to start building say "approve 21st Home". Plan only: nothing in the app changed.
 - **2026-11-27 (5.12 steps 7 and 8, the user websites live on Cloudflare):** the staging website runs at `https://taskdrop-staging.hitendureacts.workers.dev` and the production website at `https://taskdrop-production.hitendureacts.workers.dev` (release run 46025653216, tagged by the release button). Allow-lists added next to the old Vercel addresses (PR 584, Supabase, reCAPTCHA, CORS); GitHub environments filled for both code folders. Staging passed sign-in, map and posting a task; production passed the page, guest mode and the map. Waiting for you: one sign-in and one task on production, and one production admin sign-in.
 - **2026-11-27 (free until money day):** you decided everything stays on free plans until money day, so Workers Paid ($5) is not turned on now. The user websites go on Cloudflare Workers Free; the admin stays on Vercel Hobby until money day, when Workers Paid is turned on, admin PR 76 is merged and Vercel is retired. 5.12 step 2 is done (the existing token got the Workers permissions); the bill is $0 now and about $34 from money day.
