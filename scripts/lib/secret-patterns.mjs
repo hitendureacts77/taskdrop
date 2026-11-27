@@ -25,7 +25,12 @@ export const RULES = [
     // Nor is a long letters-only run: Hermes packs strings side by side, and on 26 Nov (PR 556) the bundle held
     // private_ + 57 letters, no digit and no + / = (names joined together, with an acronym). A real ImageKit private
     // key is about 28 base64 characters after private_ and, at that length, all but certainly has a digit or + / =.
-    verify: (v) => !/^private_[a-z]+(?:[A-Z][a-z]+)+$/.test(v) && !(/^private_[A-Za-z]+$/.test(v) && v.length - 8 > 40),
+    // On 27 Nov (PR 589) it held private_connectivityBLACKeep: "...information private" + "connectivity" + "BLACK..."
+    // side by side. Letters only with a lowercase word of 8+ letters in it is joined words, not base64: a random
+    // 20-28 character key has such a run far less than once in a thousand, and one with a digit or + / = is still flagged.
+    verify: (v) =>
+      !/^private_[a-z]+(?:[A-Z][a-z]+)+$/.test(v) &&
+      !(/^private_[A-Za-z]+$/.test(v) && (v.length - 8 > 40 || /[a-z]{8,}/.test(v.slice(8)))),
   },
   { id: 'google-service-account', re: /"type"\s*:\s*"service_account"/ },
   {
