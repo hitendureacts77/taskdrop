@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { ASHA, accessToken, apiAs, expectSignedIn, must, tidyE2eTasks } from "./helpers";
 
 /**
- * Notify a helper (task 1.21 row C, migration 231): "Book again" and the 10-minute "Offer to Ravi first" are gone.
+ * Notify a helper (task 1.21 row C, migration 230): "Book again" and the 10-minute "Offer to Ravi first" are gone.
  * My regulars shows "Notify about a task"; the sheet lists the poster's open tasks and "Post a new task", and says
  * the task stays open to everyone. The server sends one notice per helper per task. Uses Asha's regulars on the test
  * project and skips when she has none (a fresh database).

@@ -6,7 +6,7 @@
 --   * the same worker can still offer on a different task;
 --   * TaskDrop's own side (owner) can still delete a task, which removes its offers;
 --   * the unique rule on (task_id, worker_id) exists;
---   * hire side: a worker with an open service listing can be notified about a task (no hold, migration 231) by a poster
+--   * hire side: a worker with an open service listing can be notified about a task (no hold, migration 230) by a poster
 --     who never hired them, unless they are blocked; a stranger with no listing is dropped quietly.
 --
 -- Fresh made-up people (Asha poster, Ravi and Meera workers, Kiran a stranger) so no seed rows are needed.
@@ -141,7 +141,7 @@ begin
     raise exception 'FAIL: the owner must still be able to delete an offer';
   end if;
 
-  -- ---- hire side: notify a worker with an open service listing (migration 231: no first look) -----
+  -- ---- hire side: notify a worker with an open service listing (migration 230: no first look) -----
   -- Asha has never hired Meera or Kiran. Kiran has no listing.
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, kind)
   values (v_meera, 'services', 'Tap and pipe repairs', 30000, 60, 'service') returning id into v_listing;

@@ -1094,7 +1094,7 @@ export const sendCrewMessage = (crewId: string, body: string) => act<CrewMessage
 export type Regular = { profile: Profile; jobs: number; categories: string[]; lastAt: string | null };
 export const myRegulars = () => quietly<Regular[]>('myRegulars', {}, []);
 /**
- * Tell a regular about one of your open tasks (migration 231): one notification with the link, once per
+ * Tell a regular about one of your open tasks (migration 230): one notification with the link, once per
  * helper per task. Nothing is reserved; the task stays open to everyone. `already` = they were told before.
  */
 export const notifyHelperAboutTask = (taskId: string, workerId: string) =>

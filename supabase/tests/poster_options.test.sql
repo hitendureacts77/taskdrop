@@ -110,7 +110,7 @@ begin
     raise exception 'FAIL: a repeating crew should be refused';
   end if;
 
-  -- Notify a helper (migration 231): someone never hired is dropped quietly, the task still posts open to all.
+  -- Notify a helper (migration 230): someone never hired is dropped quietly, the task still posts open to all.
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, preferred_worker_id)
   values (v_poster, 'services', 'Notify a stranger', 20000, 60, v_worker)
   returning * into v_next;

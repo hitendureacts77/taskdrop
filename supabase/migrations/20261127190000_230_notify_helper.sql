@@ -1,4 +1,4 @@
--- 231: "Offer to Ravi first and wait 10 minutes" becomes "also notify Ravi" (task 1.21 row C, owner 27 Nov 2026).
+-- 230: "Offer to Ravi first and wait 10 minutes" becomes "also notify Ravi" (task 1.21 row C, owner 27 Nov 2026).
 --
 -- Before: a task posted with preferred_worker_id was closed to everyone else for 10 minutes
 -- (tasks.preferred_until + the bids_wait_for_regular trigger). Now every task is open to everyone at once;
@@ -25,7 +25,7 @@ alter table public.task_helper_notices enable row level security;
 revoke all on public.task_helper_notices from public, anon, authenticated;
 create index if not exists task_helper_notices_poster_idx on public.task_helper_notices (poster_id, created_at desc);
 comment on table public.task_helper_notices is
-  'Helpers a poster notified about a task ("Also notify Ravi", migration 231). One row per helper per task, so nobody is told twice.';
+  'Helpers a poster notified about a task ("Also notify Ravi", migration 230). One row per helper per task, so nobody is told twice.';
 
 -- ---- 2. who a poster may notify -----------------------------------------------------------------
 
@@ -146,7 +146,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  -- Kept as a no-op (migration 231): the 10-minute first look was removed.
+  -- Kept as a no-op (migration 230): the 10-minute first look was removed.
   return new;
 end;
 $$;
@@ -196,8 +196,8 @@ revoke all on function private.tell_about_poster_options() from public, anon, au
 -- Tasks inside a window when this ships open to everyone now.
 update public.tasks set preferred_until = null where preferred_until > now();
 
-comment on column public.tasks.preferred_worker_id is 'The helper the poster chose to notify when posting (migration 231). The task is open to everyone; this person only got a notification.';
-comment on column public.tasks.preferred_until is 'Unused since migration 231 (no first look any more). Always null for new tasks.';
+comment on column public.tasks.preferred_worker_id is 'The helper the poster chose to notify when posting (migration 230). The task is open to everyone; this person only got a notification.';
+comment on column public.tasks.preferred_until is 'Unused since migration 230 (no first look any more). Always null for new tasks.';
 
 -- ---- 4. notify a regular about a task that is already open ---------------------------------------
 

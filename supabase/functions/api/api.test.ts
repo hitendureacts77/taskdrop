@@ -1684,7 +1684,7 @@ await t("a device is recorded from the headers, and registering a push token nev
   assert.ok((await runOp("registerPushToken", { token, platform: "android", installId: "install-abcdef12" }, ctx(j, { client }))).ok);
 });
 
-await t("notifyHelperAboutTask passes the task and the helper to its SQL function and is a write (migration 231)", async () => {
+await t("notifyHelperAboutTask passes the task and the helper to its SQL function and is a write (migration 230)", async () => {
   const f = fake(() => ({ data: { sent: true, already: false }, error: null }));
   const r = await runOp("notifyHelperAboutTask", { taskId: TASK, workerId: OTHER }, ctx(f));
   assert.ok(r.ok);
