@@ -2196,6 +2196,26 @@ done 1.18
 **Notes:** Mapbox (`@rnmapbox/maps`) is the paid upgrade path if ever wanted (free up to 25,000 phone users a month, then about $4 per 1,000); the code shape is close to MapLibre. You asked for this on 26 Nov as an upgrade to an existing feature, so it is not a new feature under the feature freeze (decision 37).
 </details>
 
+<details id="t1-21" data-short="Your 27 Nov voice notes">
+<summary>[CLAUDE] <b>1.21</b> Your 27 Nov voice notes: 12 changes in 7 parallel pieces <small>· added 27 Nov, from 13 voice notes · you asked for these past the freeze, so they go in · row G is design only and waits for your pick</small></summary>
+
+**What you said (27 Nov):** 13 voice notes, written out below as rows. Claude runs the rows in parallel (Opus for the map, the server change and the app review; Sonnet for the regular builds; Fable for the hero-feature designs). Each piece ticks its own row here when its "done" is true.
+
+| # | What you asked | Who | Done when | Status |
+|---|---|---|---|---|
+| A | Earn map: a pin shows the service logo and the price, not the poster's photo and name; poster and post details only after a tap. Remove the People layer. A task sits where the work is to be done (the service location), not where the poster is. Remote tasks are not on the map | Opus | Pins are service icon + price on web and Android; People layer gone; pin position is the task's own place; remote tasks only under Remote; tests green | In progress 27 Nov |
+| B | Setting a time: a clock face instead of the long list of time entries. "No fixed date" tagged Recommended and shown first, when posting and when editing | Sonnet | Clock picker everywhere a time is picked; "No fixed date" first with a Recommended tag in post and edit; tests green | In progress 27 Nov |
+| C | No "offer to Ravi first and wait 10 minutes". The task is open to everyone; the chosen helper is only notified with the task link. My regulars: "notify them", not "Book again" | Opus | No exclusive window on the server or in the app; "Also notify" sends one notification; Regulars has a notify action; tests green | In progress 27 Nov |
+| D | Promote: pick a task by tapping a small card (only tasks with no worker yet, or not full), 10 latest then "Show more" for the next 10. Promote and Promotions become one screen | Sonnet | One Promotions screen; tap-to-pick cards with true paging; pay step unchanged; tests green | In progress 27 Nov |
+| E | Less clutter, starting with Help & support, so a new user understands the app. "How TaskDrop works" plays the animations straight away, with no "Show me the app" question | Sonnet | Help & support in a few clear groups with nothing lost; How TaskDrop works opens the Welcome story directly; list of the next five cluttered screens | In progress 27 Nov |
+| F | Use the app and fill Ideas & feedback with ideas and feedback you can act on | Opus | 15 to 20 real entries on the staging board, posted from a "TaskDrop review" test account | In progress 27 Nov |
+| G | Suggest hero features (selling points like the map), each with a picture of the UI. Do not build them | Fable · **your pick** | A design page with 6 to 8 hero features, a phone mockup for each, and a top three | In progress 27 Nov |
+
+**Read as (say if wrong):** "people in the map" means the My people layer; the Hire map of helpers stays.
+
+**Done when:** every row is Done, or has your written "drop".
+</details>
+
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
 
 - [-] Every decision has an answer (1.1). **Future scope (your decision, 1 Nov 2026):** no gate waits on it; each open decision is answered when the task that needs it comes up.
@@ -6764,6 +6784,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-27 (task 1.21 added):** your 13 voice notes of 27 Nov written out as task 1.21, rows A-G (map pins and task location, clock time picker, notify instead of offer-first, one Promotions screen, simpler Help & support, Ideas & feedback filled, hero-feature designs), started as 7 parallel pieces.
 - **2026-11-27 (staging rebuild + D33 follow-up app):** taskdrop.in rebuilt from the latest `redesigned-2.0` (PRs 551-557); migrations 227 (hire checks due) and 228 (own skills server side) applied on staging. The D33 follow-up Android app installed on your phone over USB; uploaded as the beta on 27 Nov (the site's Download button serves it); waiting for your look at the map on the phone.
 - **2026-11-26 (1.20 follow-ups, PR 557):** zoomed in, no price bubble sits on another across neighbouring spread areas (Gachibowli on the web: 77 overlapping pairs before, 0 after); helper stacks step their name back near the "Your area" pill; the helper sheet, Home helper row and full-map helper list are Hire jade. Web and phone share the code; the new Android app is built locally, not put on the site.
 - **2026-11-26 (plan page diff-friendly):** Plan page: each list item and table row on its own line, so the page only conflicts where the .md does (CI rebuild blocked by branch protection).
