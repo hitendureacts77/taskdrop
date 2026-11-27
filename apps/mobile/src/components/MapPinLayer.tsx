@@ -12,8 +12,9 @@ import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMoti
 
 /**
  * One thing on the map. Jobs carry their price as `label` and in rupees as
- * `amount` (an area shows its biggest offer), plus, once known, who posted it
- * and what it is. People (a poster's map of helpers) carry `face` (a service
+ * `amount` (an area shows its biggest offer), their service icon as `face.icon`
+ * and the service's name as `what`; never the poster (task 1.21 row A: who
+ * posted it shows only after a tap). People (a poster's map of helpers) carry `face` (a service
  * icon), what they offer as `label`, its starting `price` (none when they only
  * list skills) and `more`, their other services; never a name (plan D13).
  * `area` is the place's name ("Madhapur"). `fresh` marks a task posted in the
@@ -30,6 +31,8 @@ export type JobPin = {
   price?: string | null;
   more?: number;
   amount?: number;
+  /** A job's service, for screen readers ("Repairs & Maintenance"). */
+  what?: string;
   who?: string;
   title?: string;
   area?: string;
@@ -66,6 +69,11 @@ export function helperSays(pin: JobPin): string {
   const what = pin.price ? `${pin.label}, from ${pin.price}` : pin.label;
   const more = pin.more ? `, ${pin.more} more ${pin.more === 1 ? 'service' : 'services'}` : '';
   return `${what}${more}${pin.face?.live ? ', active now' : ''}, ${pin.area ?? 'nearby'} area. Tap to see who`;
+}
+
+/** What a screen reader says for a task's pin: the service and price, never the poster (task 1.21 row A). */
+export function jobSays(pin: JobPin): string {
+  return `${pin.what ? pin.what + ', ' : ''}${pin.label}, ${pin.area ?? 'nearby'} area. Tap to see the job`;
 }
 
 /**
@@ -362,7 +370,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
               style={[{ position: 'absolute', left: p.x - PRICE_PIN.w / 2, top: p.y - PRICE_PIN.anchor, zIndex: best ? 2 : 1 }, drop]}
             >
               <PinMotion box={PRICE_PIN} enter={enter}>
-                <PricePin price={topPin.label} best={best} on={false} place={placeOf(it.ids, byId)} count={`${it.ids.length} ${words.many}`} hidePlace={!tagShown(it)} />
+                <PricePin price={topPin.label} icon={topPin.face?.icon} best={best} on={false} place={placeOf(it.ids, byId)} count={`${it.ids.length} ${words.many}`} hidePlace={!tagShown(it)} />
               </PinMotion>
             </Pressable>
           );
@@ -410,12 +418,12 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
               <Pressable
                 onPress={pick}
                 accessibilityRole="button"
-                accessibilityLabel={`Promoted. ${pin.label}${pin.title ? ', ' + pin.title : ''}, ${pin.area ?? 'nearby'} area`}
+                accessibilityLabel={`Promoted. ${jobSays(pin)}`}
                 accessibilityState={{ selected: on }}
                 style={[{ position: 'absolute', left: p.x - PROMO_PIN.w / 2, top: p.y - PROMO_PIN.anchor }, drop]}
               >
                 <PinMotion box={PROMO_PIN} enter={enter}>
-                  <PromotedPin side="earn" price={pin.label} on={on} />
+                  <PromotedPin side="earn" price={pin.label} on={on} icon={pin.face?.icon} />
                 </PinMotion>
               </Pressable>
             </View>
@@ -428,7 +436,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
             <Pressable
               onPress={pick}
               accessibilityRole="button"
-              accessibilityLabel={`${pin.label}${pin.title ? ', ' + pin.title : ''}${pin.who ? ', posted by ' + pin.who : ''}, ${pin.area ?? 'nearby'} area`}
+              accessibilityLabel={jobSays(pin)}
               accessibilityState={{ selected: on }}
               style={[{ position: 'absolute', left: p.x - (spread ? TASK_PIN.w : PRICE_PIN.w) / 2, top: p.y - (spread ? TASK_PIN.anchor : PRICE_PIN.anchor) }, drop]}
             >
@@ -436,7 +444,7 @@ export function MapPinLayer({ pins, tone, selectedId, onSelect, dim, callout, le
                 {spread ? (
                   <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} compact={!tagShown(it)} />
                 ) : (
-                  <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={!tagShown(it)} />
+                  <PricePin price={pin.label} icon={pin.face?.icon} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={!tagShown(it)} />
                 )}
               </PinMotion>
             </Pressable>

@@ -19,9 +19,10 @@ import { PULSE_MS, RING_OPACITY, RING_R1, RING_SCALE0, rippleDelay } from '../li
  * with a white rim and their main service and price under it; several in one
  * area become a stack of icons with "+N" and the area name. The name and face
  * show only once a poster taps one (the helper sheet).
- * Tasks: a price pin with a small pointer and dot; zoomed in, the poster's face
- * sits in the pin and their name and the task show underneath. The best offer
- * on screen takes the mode's button colour.
+ * Tasks: what the work is and what it pays, never who posted it (task 1.21 row A):
+ * the task's service icon and its price in a pin with a small pointer and dot.
+ * The poster and the post's details show only once a worker taps one (the job
+ * card). The best offer on screen takes the mode's button colour.
  */
 
 /** A person's disc: photo or initials, or with `icon` a service icon in their place (helpers on the map). */
@@ -419,6 +420,16 @@ export function FaceStack({
   );
 }
 
+/** A task's service icon on a white disc, in the Earn blue (task pins never wear the Hire jade). */
+function ServiceDot({ icon, size }: { icon: IconName; size: number }) {
+  const t = useTheme();
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: RIM, alignItems: 'center', justifyContent: 'center' }}>
+      <Icon name={icon} size={Math.round(size * 0.58)} color={sideHue(t, false)} strokeWidth={2.1} />
+    </View>
+  );
+}
+
 /** The pointer and dot under a pin; the dot is the area's point. */
 function Pointer({ color }: { color: string }) {
   const t = useTheme();
@@ -430,9 +441,10 @@ function Pointer({ color }: { color: string }) {
   );
 }
 
-/** An area's biggest offer (or one task far from the rest), with the area's name under it. */
+/** An area's biggest offer (or one task far from the rest): its service icon and price, with the area's name under it. */
 function PricePinImpl({
   price,
+  icon,
   best,
   on,
   place,
@@ -440,6 +452,8 @@ function PricePinImpl({
   hidePlace = false,
 }: {
   price: string;
+  /** The task's service icon (the biggest offer's, for a group). */
+  icon?: IconName;
   best: boolean;
   on: boolean;
   place: string;
@@ -454,11 +468,11 @@ function PricePinImpl({
     <View style={{ width: PRICE_PIN.w, height: PRICE_PIN.h, alignItems: 'center' }} collapsable={false}>
       <View
         style={[
-          { height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: bg, borderWidth: on ? 2 : 0, borderColor: RIM, flexDirection: 'row', alignItems: 'center', gap: 5 },
+          { height: 34, paddingLeft: icon ? 5 : 12, paddingRight: 12, borderRadius: 17, backgroundColor: bg, borderWidth: on ? 2 : 0, borderColor: RIM, flexDirection: 'row', alignItems: 'center', gap: 5 },
           lift,
         ]}
       >
-        {best ? <Icon name="trending" size={13} color={fg} /> : null}
+        {icon ? <ServiceDot icon={icon} size={24} /> : best ? <Icon name="trending" size={13} color={fg} /> : null}
         <RNText style={tx('800', 15, fg, { fontVariant: ['tabular-nums'], letterSpacing: -0.2 })}>{price}</RNText>
       </View>
       <Pointer color={bg} />
@@ -474,7 +488,11 @@ function PricePinImpl({
   );
 }
 
-/** One task, zoomed in: the poster's face and price, then their name, then the task. */
+/**
+ * One task, zoomed in: its service icon and price. `who` and `title` make a tag under it; the Earn map no longer
+ * passes them (task 1.21 row A: the poster and the post show only after a tap). A `face` with an `icon` is a
+ * service icon, never a person.
+ */
 function TaskPinImpl({
   price,
   face,
@@ -519,7 +537,7 @@ function TaskPinImpl({
           lift,
         ]}
       >
-        {face ? <FaceDisc face={face} seed={seed} size={26} rimWidth={0} rim={bg} onImage={onImage} /> : null}
+        {face?.icon ? <ServiceDot icon={face.icon} size={26} /> : face ? <FaceDisc face={face} seed={seed} size={26} rimWidth={0} rim={bg} onImage={onImage} /> : null}
         <RNText style={tx('800', 15, fg, { fontVariant: ['tabular-nums'], letterSpacing: -0.2 })}>{price}</RNText>
       </View>
       <Pointer color={bg} />
@@ -546,7 +564,7 @@ function TaskPinImpl({
  * colour (Earn royal blue, Hire jade) with a white border, a soft ring round it and a bolt above the price.
  * Drawn above the other pins by its caller.
  */
-function PromotedPinImpl({ price, side, on }: { price: string | null; side: 'earn' | 'hire'; on: boolean }) {
+function PromotedPinImpl({ price, side, on, icon }: { price: string | null; side: 'earn' | 'hire'; on: boolean; /** A task's service icon, in place of the bolt. */ icon?: IconName }) {
   const t = useTheme();
   const fill = side === 'earn' ? t.colors.purple : hireColours(t.isDark).fill;
   return (
@@ -559,7 +577,7 @@ function PromotedPinImpl({ price, side, on }: { price: string | null; side: 'ear
             lift,
           ]}
         >
-          <Icon name="bolt" size={price ? 12 : 20} color={RIM} strokeWidth={2.2} />
+          <Icon name={icon ?? 'bolt'} size={price ? (icon ? 14 : 12) : 20} color={RIM} strokeWidth={2.2} />
           {price ? <RNText style={tx('800', 11, RIM, { fontVariant: ['tabular-nums'], letterSpacing: -0.2, marginTop: -1 })}>{price}</RNText> : null}
         </View>
       </View>

@@ -36,8 +36,24 @@ test.describe("signed in as the seed poster", () => {
     await expect(layerChip(page, "Jobs").first().or(chooseArea(page))).toBeVisible();
     if (await chooseArea(page).isHidden()) {
       await expect(layerChip(page, "Helpers")).toBeVisible();
-      await expect(layerChip(page, "People")).toBeVisible();
+      // The People layer was removed (task 1.21 row A, owner 27 Nov): the map is for work and helpers only.
+      await expect(layerChip(page, "People")).toHaveCount(0);
     }
+  });
+
+  // Task 1.21 row A: a job pin says what the work is and what it pays, never who posted it. The poster shows on the
+  // card a tap opens.
+  test("job pins name the service and price, never the poster", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto("/");
+    await expectSignedIn(page);
+    await page.getByLabel("Earn mode").first().click();
+    await openFeedTab(page);
+    await expect(showList(page)).toBeVisible();
+    test.skip(await chooseArea(page).isVisible(), "this account has no area yet");
+    const pins = page.getByRole("button", { name: /Tap to see the job$/ });
+    await expect(pins.first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /posted by/ })).toHaveCount(0);
   });
 
   test("the List and Map pills switch between the two views, both ways", async ({ page }) => {
@@ -70,7 +86,7 @@ test.describe("signed in as the seed poster", () => {
     await expect(showList(page)).toBeVisible();
     // Without an area there is no panel to hide.
     test.skip(await chooseArea(page).isVisible(), "this account has no area yet");
-    const heading = page.getByRole("heading", { name: /near you|people nearby/ });
+    const heading = page.getByRole("heading", { name: /near you/ });
     await expect(heading).toBeVisible();
     await page.getByRole("button", { name: "Hide the panel" }).click();
     await expect(page.getByRole("button", { name: "Show the panel" })).toBeVisible();
@@ -127,7 +143,7 @@ test.describe("signed in as the seed poster", () => {
 test.describe("as a guest", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("a guest sees the map but no People chip", async ({ page }) => {
+  test("a guest sees the map and no People chip", async ({ page }) => {
     await page.goto("/");
     await continueAsGuest(page);
     await openFeedTab(page);

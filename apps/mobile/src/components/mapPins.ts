@@ -1,21 +1,31 @@
-import type { Profile, Task } from '../data/api';
-import type { MapPerson, NearbyWorker } from '../data/extras';
+import type { Task } from '../data/api';
+import type { NearbyWorker } from '../data/extras';
 import { isFresh } from '../lib/mapMotion';
 import { presenceOf } from '../lib/presence';
 import { roughPlace } from '../lib/place';
 import { rupees } from './kit';
 import type { JobPin } from './JobsMap';
 import type { IconName } from './Icon';
-import { categoryIcon } from './WorkCard';
+import { categoryIcon, categoryLabel } from './WorkCard';
 
 /**
- * A task on the map: its price (as text and in rupees, so an area can show its
- * biggest offer), its area and title, whether it was posted a few minutes ago,
- * and, when the poster is known, their first name and face for the zoomed-in pin.
+ * The icon for what a task is: its category's icon, or for a task with no known category (a custom skill, an
+ * older post) one that fits its kind: products a tag, local checks a pin, everything else a briefcase.
  */
-export function jobPin(task: Task & { poster?: Profile | null }, now: number, label?: string): JobPin | null {
+export function taskIcon(task: Pick<Task, 'category' | 'pillar'>): IconName {
+  if (task.category && categoryIcon(task.category) !== 'sparkle') return categoryIcon(task.category);
+  return task.pillar === 'procurement' ? 'tag' : task.pillar === 'local_intel' ? 'pin' : 'briefcase';
+}
+
+/**
+ * A task on the map (task 1.21 row A): what the work is (its service icon) and what it pays (as text and in
+ * rupees, so an area can show its biggest offer), its area, and whether it was posted a few minutes ago. Never
+ * the poster's name or face, and not the post's title: those show once a worker taps it (the job card).
+ * It sits at the task's own place (the one the poster chose for the work, published rounded); a remote task
+ * has no place and no pin.
+ */
+export function jobPin(task: Task, now: number, label?: string): JobPin | null {
   if (task.loc_lat == null || task.loc_lng == null) return null;
-  const p = task.poster;
   return {
     id: task.id,
     lat: task.loc_lat,
@@ -25,11 +35,8 @@ export function jobPin(task: Task & { poster?: Profile | null }, now: number, la
     amount: task.benchmark_minor / 100,
     fresh: isFresh(task.created_at, now),
     area: areaName(task.loc_label),
-    title: task.title,
-    who: p ? firstName(p.display_name || p.username) : undefined,
-    face: p
-      ? { initials: initialsOf(p.display_name || p.username), live: presenceOf(p.last_seen_at, now).online, photo: p.avatar_url }
-      : undefined,
+    what: categoryLabel(task),
+    face: { initials: '', live: false, icon: taskIcon(task) },
   };
 }
 
@@ -98,41 +105,10 @@ export function personPin(w: NearbyWorker, now: number): JobPin | null {
   };
 }
 
-/**
- * A person on the people layer (plan D20): a face with their initials and their first name.
- * My people come with a photo; someone who chose "Everyone nearby" comes with a first name only and no photo
- * (the server sends none). No area and no price: the spot is a rounded cell, never a place name.
- */
-export function minePin(p: MapPerson, now: number): JobPin {
-  return {
-    id: p.id,
-    lat: p.lat,
-    lng: p.lng,
-    label: firstName(p.display_name),
-    price: null,
-    face: { initials: initialsOf(p.display_name), live: presenceOf(p.last_seen_at, now).online, photo: p.avatar_url },
-  };
-}
-
 /** People with TaskDrop open come first, then nearest. */
 export function activeFirst<T extends { last_seen_at: string | null; km: number }>(list: T[], now: number): T[] {
   const live = (w: T) => (presenceOf(w.last_seen_at, now).online ? 0 : 1);
   return [...list].sort((a, b) => live(a) - live(b) || a.km - b.km);
-}
-
-/** "2 jobs together" / "1 job together". */
-export function togetherText(jobs: number): string {
-  return `${jobs} ${jobs === 1 ? 'job' : 'jobs'} together`;
-}
-
-/** A person who chose "Everyone nearby" and whom I have not worked with (they come back with less detail). */
-export function isNearby(p: { kind?: string }): boolean {
-  return p.kind === 'nearby';
-}
-
-/** What to say about how I know them: "2 jobs together" for my people, "Nearby" for everyone else. */
-export function personMeta(p: { kind?: string; jobs: number }): string {
-  return isNearby(p) ? 'Nearby' : togetherText(p.jobs);
 }
 
 /** "Madhapur" from a saved place, never a street. */
