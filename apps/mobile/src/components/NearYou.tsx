@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text as RNText, Pressable, ScrollView } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
@@ -10,11 +10,15 @@ import { SectionTitle, Shimmer } from './kit';
 import { JobsMap, type JobPin } from './JobsMap';
 import { activeFirst, areaName, farText, offerOf, personPin, ratingOf } from './mapPins';
 import { HelperSheet } from './HelperSheet';
+import { hireColours } from './MapMarkers';
 import type { IconName } from './Icon';
 import { LocationSheet } from './LocationSheet';
 import { ModeLockSheet } from './ModeLockSheet';
 import { cardSurface } from './ui';
 import { Pressy, tx } from './primitives';
+import { PromotedPill, promotedBorder } from './PromotedPill';
+import { auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
+import { usePromotedLive } from '../lib/usePromotedLive';
 
 /** The reach of the poster's "Near you" map, in km. */
 const NEAR_KM = 5;
@@ -95,13 +99,14 @@ export function NearYou({ first = false }: { active?: boolean; first?: boolean }
 /** A helper's service icon, with a green dot when they have TaskDrop open. */
 function OfferDot({ icon, live, size }: { icon: IconName; live: boolean; size: number }) {
   const t = useTheme();
+  const hire = hireColours(t.isDark);
   return (
     <View>
-      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: t.colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={icon} size={Math.round(size * 0.45)} color={t.colors.purpleDeep} />
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: hire.soft, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name={icon} size={Math.round(size * 0.45)} color={hire.deep} />
       </View>
       {live ? (
-        <View style={{ position: 'absolute', right: -1, bottom: -1, width: 11, height: 11, borderRadius: 999, backgroundColor: '#22C55E', borderWidth: 2, borderColor: t.colors.surface }} />
+        <View style={{ position: 'absolute', right: -1, bottom: -1, width: 11, height: 11, borderRadius: 999, backgroundColor: t.colors.online, borderWidth: 2, borderColor: t.colors.surface }} />
       ) : null}
     </View>
   );
@@ -116,6 +121,8 @@ function OfferDot({ icon, live, size }: { icon: IconName; live: boolean; size: n
  */
 function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number }; onOpenMap: () => void }) {
   const t = useTheme();
+  // Helpers are the Hire side: always jade (owner rule).
+  const hire = hireColours(t.isDark);
   const [list, setList] = useState<NearbyWorker[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -132,6 +139,15 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
     };
   }, [centre]);
 
+  // Promoted services (task 1.19 row C): the server's auction picks at most 2 of the helpers here (by their
+  // service) for the front of the strip; every promoted one carries the pill.
+  const serviceIds = useMemo(() => auctionIds((list ?? []).map((w) => w.top_service?.id)), [list]);
+  const promoLive = usePromotedLive('service', centre, { surface: 'list', taskIds: serviceIds, enabled: list !== null });
+  const promo = useMemo(
+    () => pickPromotedItems({ items: list ?? [], live: promoLive, keyOf: (w) => w.top_service?.id ?? w.id }),
+    [list, promoLive],
+  );
+  const strip = useMemo(() => liftPromoted(list ?? [], promo.top), [list, promo]);
   if (list === null) return <Shimmer height={260} style={{ marginTop: 12 }} />;
   const pins = list.map((w) => personPin(w, now)).filter((p): p is JobPin => p !== null);
   const live = list.filter((w) => presenceOf(w.last_seen_at, now).online).length;
@@ -158,9 +174,12 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
             <RNText style={tx('600', 11.5, t.colors.muted)}>active now first</RNText>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8, marginHorizontal: -4 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}>
-            {list.map((w) => {
+            {strip.map((w) => {
               const live = presenceOf(w.last_seen_at, now).online;
               const on = w.id === picked;
+              const key = w.top_service?.id ?? w.id;
+              const promoted = promo.badged.has(key);
+              const onTop = promo.top.includes(w);
               const o = offerOf(w);
               return (
                 <Pressable
@@ -168,7 +187,7 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
                   onPress={() => setPicked(on ? null : w.id)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: on }}
-                  accessibilityLabel={`${o.what}${o.price ? `, from ${o.price}` : ''}${live ? ', active now' : ''}, ${areaName(w.loc_label)} area`}
+                  accessibilityLabel={`${promoted ? 'Promoted. ' : ''}${o.what}${o.price ? `, from ${o.price}` : ''}${live ? ', active now' : ''}, ${areaName(w.loc_label)} area`}
                   style={({ pressed }) => ({
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -178,13 +197,15 @@ function HelpersNear({ centre, onOpenMap }: { centre: { lat: number; lng: number
                     paddingRight: 12,
                     borderRadius: 16,
                     borderWidth: 1.5,
-                    borderColor: on ? t.colors.purple : t.colors.line,
+                    borderColor: on ? hire.side : t.colors.line,
+                    ...(on ? null : promotedBorder(t, 'hire', onTop)),
                     backgroundColor: t.colors.surface,
                     opacity: pressed ? 0.75 : 1,
                   })}
                 >
                   <OfferDot icon={o.icon} live={live} size={30} />
                   <View>
+                    {promoted ? <PromotedPill side="hire" style={{ marginBottom: 3 }} /> : null}
                     <RNText style={tx('800', 12.5, t.colors.ink, { maxWidth: 170 })} numberOfLines={1}>
                       {o.what}
                     </RNText>

@@ -11,7 +11,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { isNeedsAccount, needAccount } from '../lib/guest';
 import { useActions } from '../providers/AppStateProvider';
 import { createListing, getTask, removeListing, updateListing, type Task } from '../data/api';
-import { CATEGORIES } from '../lib/taskBrief';
+import { SkillPicker } from '../components/SkillPicker';
 import { findContactIssue, contactIssueMessage } from '../lib/mask';
 import { roughPlace } from '../lib/place';
 import { LocationSheet } from '../components/LocationSheet';
@@ -166,7 +166,7 @@ export function ListingEditScreen() {
       }
     >
       <Icon name="close" size={14} color={t.colors.signal} />
-      <RNText style={tx('700', 13, t.colors.signal)}>Take this service down</RNText>
+      <RNText style={tx('700', 13, t.colors.signalDeep)}>Take this service down</RNText>
     </Pressable>
   ) : null;
 
@@ -290,10 +290,8 @@ export function ListingEditScreen() {
 
         <FormSection title="Category">
           {desktop ? null : label('CATEGORY')}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: gap(9) }}>
-            {CATEGORIES.map((c) => (
-              <Pill key={c} label={c} active={category === c} onPress={() => setCategory(category === c ? null : c)} />
-            ))}
+          <View style={{ marginTop: gap(9) }}>
+            <SkillPicker kind="category" value={category ? [category] : []} onChange={(v) => setCategory(v[0] ?? null)} max={1} />
           </View>
         </FormSection>
 

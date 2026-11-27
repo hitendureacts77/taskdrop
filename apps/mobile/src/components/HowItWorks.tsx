@@ -51,7 +51,7 @@ export function HowItWorks({
   steps: custom,
   tone: toneOverride,
   soft: softOverride,
-  onTone = '#FFFFFF',
+  onTone: onToneOverride,
 }: {
   side?: 'hire' | 'earn';
   steps?: Step[];
@@ -60,6 +60,8 @@ export function HowItWorks({
   onTone?: string;
 }) {
   const t = useTheme();
+  // Text on the tone circle: white on the deep light-mode shade, dark on the light dark-mode shade.
+  const onTone = onToneOverride ?? t.colors.onBtn;
   const { clearingDays } = useFees();
   const steps = custom ?? (side === 'earn' ? earnSteps(TIMING.REVIEW_WINDOW_DAYS, clearingDays) : HIRE);
   const tone = toneOverride ?? (side === 'earn' ? t.colors.purpleDeep : t.colors.accentDeep);

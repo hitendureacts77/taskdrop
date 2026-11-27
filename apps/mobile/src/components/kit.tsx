@@ -55,8 +55,8 @@ export function BottomSheet({
   maxHeight?: `${number}%`;
 }) {
   const t = useTheme();
-  const { desktop, tablet } = useLayout();
-  const dialog = desktop || tablet;
+  const { desktop, tablet, nativeWide } = useLayout();
+  const dialog = desktop || tablet || nativeWide;
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!visible) {
@@ -496,7 +496,7 @@ export function ConfirmDialog({
   }, [visible]);
   const tone = danger ? t.colors.signalDeep : t.colors.btn;
   const toneIcon = danger ? t.colors.signal : t.colors.accent;
-  const onTone = danger ? (t.isDark ? '#1A0C06' : '#FFFFFF') : t.colors.onBtn;
+  const onTone = danger ? t.colors.onSignal : t.colors.onBtn;
   const toneSoft = danger ? t.colors.signalSoft : t.colors.accentSoft;
 
   return (
@@ -737,7 +737,8 @@ export function SectionTitle({
   );
 }
 
-export type Tone = 'accent' | 'gold' | 'signal' | 'blue' | 'purple' | 'neutral';
+/** `you` = waiting on you: the mode colour with a ring (gold now means verified only). */
+export type Tone = 'accent' | 'you' | 'gold' | 'signal' | 'blue' | 'purple' | 'neutral';
 
 export function toneColors(t: ReturnType<typeof useTheme>, tone: Tone) {
   switch (tone) {
@@ -745,10 +746,12 @@ export function toneColors(t: ReturnType<typeof useTheme>, tone: Tone) {
       return { fg: t.colors.goldInk, bg: t.colors.goldSoft };
     case 'signal':
       return { fg: t.colors.signalDeep, bg: t.colors.signalSoft };
+    case 'you':
+      return { fg: t.colors.accentDeep, bg: t.colors.accentSoft };
     case 'blue':
-      return { fg: t.isDark ? t.colors.blue : '#2A6CB8', bg: t.colors.purpleSoft };
+      return { fg: t.colors.blueDeep, bg: t.colors.purpleSoft };
     case 'purple':
-      return { fg: t.isDark ? '#9DB4FF' : t.colors.purple, bg: t.colors.purpleSoft };
+      return { fg: t.isDark ? t.colors.purpleDeep : t.colors.purple, bg: t.colors.purpleSoft };
     case 'neutral':
       return { fg: t.colors.text, bg: t.colors.surface2 };
     default:
@@ -803,8 +806,8 @@ export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }
         alignItems: 'center',
         gap: 5,
         backgroundColor: c.bg,
-        borderWidth: 1,
-        borderColor: `${c.fg}33`,
+        borderWidth: tone === 'you' ? 1.5 : 1,
+        borderColor: tone === 'you' ? c.fg : `${c.fg}33`,
         borderRadius: 999,
         minHeight: 22,
         paddingLeft: 7,
@@ -813,7 +816,7 @@ export function Badge({ label, tone = 'accent' }: { label: string; tone?: Tone }
         alignSelf: 'flex-start',
       }}
     >
-      <HaloDot color={c.fg} pulse={tone === 'gold' || tone === 'signal'} />
+      <HaloDot color={c.fg} pulse={tone === 'you' || tone === 'signal'} />
       <RNText style={tx('800', 10, c.fg, { letterSpacing: 0.5 })}>{label.toUpperCase()}</RNText>
     </View>
   );
@@ -933,7 +936,7 @@ export function PrimaryButton({
   // v2: a 52-tall pill on the deep shade (white text 4.5:1+), lifted by a
   // soft shadow of its own colour in light.
   const bg = tone === 'signal' ? t.colors.signalDeep : tone === 'quiet' ? t.colors.surface : t.colors.btn;
-  const fg = tone === 'quiet' ? t.colors.ink : tone === 'signal' ? (t.isDark ? '#1A0C06' : '#FFFFFF') : t.colors.onBtn;
+  const fg = tone === 'quiet' ? t.colors.ink : tone === 'signal' ? t.colors.onSignal : t.colors.onBtn;
   return (
     <Pressable
       onPress={off ? undefined : onPress}

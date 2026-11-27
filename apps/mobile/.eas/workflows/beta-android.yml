@@ -38,8 +38,8 @@ concurrency:
 
 jobs:
   # 1. Hash of the native side of the app for Android.
-  #    environment preview: app.config.js reads EXPO_GOOGLE_MAPS_API_KEY and
-  #    GOOGLE_SERVICES_JSON, which change the native config, so the hash must be
+  #    environment preview: app.config.js reads GOOGLE_SERVICES_JSON,
+  #    which changes the native config, so the hash must be
   #    computed with the same variables the beta build uses.
   fingerprint:
     name: Fingerprint

@@ -6,13 +6,21 @@ import {
   dueIn,
   elapsed,
   firstName,
+  posterDateBits,
+  posterHint,
+  lapsedDay,
+  openDatePassed,
   posterNeeds,
   posterNextStep,
+  posterPill,
   posterStage,
   posterTabOf,
+  statusBadge,
+  whereLine,
   workerButton,
   workerNeeds,
   workerNextStep,
+  workerPill,
   workerStage,
 } from './myTasksBoard.ts';
 
@@ -40,7 +48,7 @@ test('poster needs: review first, then pay, then offers, then a passed date with
   assert.equal(needs[0]!.hint, 'Auto-releases Wed 25 Nov, 5:25 pm');
   assert.equal(needs[1]!.lead, 'Pay ₹463.50 so the worker can start');
   assert.equal(needs[2]!.lead, '3 offers to choose from');
-  assert.equal(needs[3]!.action, 'Post again');
+  assert.equal(needs[3]!.action, 'Set a new date');
 });
 
 test('a funded locked task, a started one and a quiet open post need nothing', () => {
@@ -118,4 +126,89 @@ test('small words', () => {
   assert.equal(dueIn(new Date(NOW + 3 * 86_400_000).toISOString(), NOW), 'in 3 days');
   assert.equal(dueIn(new Date(NOW - 1).toISOString(), NOW), 'passed');
   assert.equal(elapsed(new Date(NOW - (3600 + 24 * 60 + 10) * 1000).toISOString(), NOW), '01:24:10');
+});
+
+// ---- new task cards (1.19 row G) ----
+
+test('status pill tones: moving, ringed (waiting on you), coral, grey; gold is never used', () => {
+  assert.deepEqual(statusBadge({ status: 'LOCKED', funded_at: null }), { label: 'Waiting for payment', tone: 'you' });
+  assert.equal(statusBadge({ status: 'WORK_DONE' }).tone, 'you');
+  assert.equal(statusBadge({ status: 'TASK_STARTED' }).tone, 'accent');
+  assert.equal(statusBadge({ status: 'OVERDUE' }).tone, 'signal');
+  assert.equal(statusBadge({ status: 'DISPUTED' }).tone, 'signal');
+  assert.equal(statusBadge({ status: 'REVISION_REQUESTED' }).tone, 'neutral');
+  for (const s of ['OPEN', 'LOCKED', 'TASK_STARTED', 'OVERDUE', 'WORK_DONE', 'REVISION_REQUESTED', 'COMPLETED', 'DISPUTED', 'CANCELLED']) {
+    for (const funded of [null, 'x']) {
+      const tone = statusBadge({ status: s, funded_at: funded }).tone;
+      assert.ok(tone !== 'gold' && tone !== 'blue', s);
+    }
+  }
+});
+
+test('poster pill: an open post says how its offers stand', () => {
+  const future = new Date(NOW + 86_400_000).toISOString();
+  const past = new Date(NOW - 86_400_000).toISOString();
+  assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 3, NOW), { label: '3 offers in', tone: 'you' });
+  assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 1, NOW), { label: '1 offer in', tone: 'you' });
+  assert.deepEqual(posterPill({ status: 'OPEN', due_at: future }, 0, NOW), { label: 'Waiting for offers', tone: 'wait' });
+  assert.deepEqual(posterPill({ status: 'OPEN', due_at: past }, 0, NOW), { label: 'No fixed date', tone: 'wait' });
+  assert.deepEqual(posterPill({ status: 'OPEN', due_at: null, due_lapsed_at: past }, 0, NOW), { label: 'No fixed date', tone: 'wait' });
+  assert.deepEqual(posterPill({ status: 'LOCKED', funded_at: null }, 0, NOW), { label: 'Waiting for payment', tone: 'you' });
+  assert.deepEqual(posterPill({ status: 'WORK_DONE' }, 0, NOW), { label: 'Review work', tone: 'you' });
+  assert.equal(posterPill({ status: 'DISPUTED' }, 0, NOW).tone, 'problem');
+  assert.equal(posterPill({ status: 'CANCELLED' }, 0, NOW).tone, 'closed');
+  assert.equal(posterPill({ status: 'COMPLETED' }, 0, NOW).tone, 'moving');
+});
+
+test('where line says Nearby with the area, or Remote', () => {
+  assert.equal(whereLine('Home Services', 'Kondapur'), 'Home Services · Nearby · Kondapur');
+  assert.equal(whereLine('Design', 'Remote'), 'Design · Remote');
+  assert.equal(whereLine('Design', null), 'Design');
+});
+
+test('poster date line', () => {
+  const due = new Date(2026, 10, 30, 12, 0).toISOString();
+  assert.deepEqual(posterDateBits(task('OPEN', { due_at: due }), NOW, '2h ago'), [
+    { t: 'Posted ' },
+    { t: '2h ago', b: true },
+    { t: ' · due ' },
+    { t: 'Mon 30 Nov', b: true },
+  ]);
+  assert.deepEqual(posterDateBits(task('WORK_DONE', { auto_complete_at: new Date(2026, 10, 27, 9, 0).toISOString() }), NOW), [
+    { t: 'Approve or report by ' },
+    { t: 'Fri 27 Nov', b: true },
+  ]);
+  assert.deepEqual(posterDateBits(task('COMPLETED', { completed_at: new Date(2026, 10, 22, 9, 0).toISOString() }), NOW), [{ t: 'Finished ' }, { t: '22 Nov', b: true }]);
+  assert.deepEqual(posterDateBits(task('CANCELLED'), NOW), [{ t: 'Closed' }]);
+});
+
+test('poster hint: only where it helps', () => {
+  const x = { offers: 0, name: 'Farhan Ali', now: NOW };
+  assert.equal(posterHint(task('LOCKED'), x)!.text, 'Farhan starts once you pay. TaskDrop holds the money until you approve.');
+  assert.equal(posterHint(task('LOCKED', { funded_at: 'x' }), x), null);
+  assert.equal(posterHint(task('TASK_STARTED'), x), null);
+  assert.equal(posterHint(task('DISPUTED'), x)!.tone, 'coral');
+  assert.equal(posterHint(task('OPEN', { due_at: new Date(NOW + 1000).toISOString() }), x), null);
+  assert.equal(posterHint(task('OPEN', { due_at: new Date(NOW - 1000).toISOString() }), x)!.tone, 'mut');
+});
+
+test('worker pill words and tones', () => {
+  assert.deepEqual(workerPill('PENDING'), { label: 'Offer sent', tone: 'wait' });
+  assert.deepEqual(workerPill('ACCEPTED · SWIPE TO START'), { label: 'You’re picked', tone: 'moving' });
+  assert.deepEqual(workerPill('ACTIVE · TIMER RUNNING', 'TASK_STARTED'), { label: 'Working', tone: 'moving' });
+  assert.deepEqual(workerPill('ACTIVE · TIMER RUNNING', 'OVERDUE'), { label: 'Overdue', tone: 'problem' });
+  assert.deepEqual(workerPill('WORK DONE · WAITING FOR CUSTOMER', 'WORK_DONE'), { label: 'Waiting for approval', tone: 'wait' });
+  assert.deepEqual(workerPill('WORK DONE · WAITING FOR CUSTOMER', 'REVISION_REQUESTED'), { label: 'Changes asked', tone: 'you' });
+  assert.deepEqual(workerPill('DONE · PAID'), { label: '✓ Paid', tone: 'moving' });
+  assert.deepEqual(workerPill('NOT SELECTED'), { label: 'Not picked', tone: 'closed' });
+});
+
+test('a post that switched to no fixed date still reads as a passed date (plan 1.19 J)', () => {
+  const now = Date.parse('2026-11-25T10:00:00Z');
+  assert.equal(openDatePassed({ status: 'OPEN', due_at: null, due_lapsed_at: '2026-11-22T12:30:00Z' }, now), true);
+  assert.equal(openDatePassed({ status: 'OPEN', due_at: '2026-11-25T09:00:00Z' }, now), true);
+  assert.equal(openDatePassed({ status: 'OPEN', due_at: null }, now), false);
+  assert.equal(openDatePassed({ status: 'OPEN', due_at: '2026-11-26T09:00:00Z', due_lapsed_at: null }, now), false);
+  assert.equal(openDatePassed({ status: 'LOCKED', due_at: null, due_lapsed_at: '2026-11-22T12:30:00Z' }, now), false);
+  assert.equal(lapsedDay({ due_at: null, due_lapsed_at: '2026-11-22T12:30:00Z' }), '22 Nov');
 });

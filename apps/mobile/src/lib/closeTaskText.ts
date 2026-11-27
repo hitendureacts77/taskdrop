@@ -16,6 +16,8 @@ export type CloseTaskInput = {
   finePct: number;
   /** "₹47.50": how money is written on screen. */
   money: (minor: number) => string;
+  /** Where a refund lands: the card or UPI paid with (Plan B, or a task paid that way) or the wallet. */
+  refundTo: 'source' | 'wallet';
 };
 
 /**
@@ -29,6 +31,7 @@ export function hireFineNote(x: { fineMinor: number; finePct: number; money: (mi
 }
 
 export function closeTaskText(x: CloseTaskInput): { sub: string; message: string } {
+  const dest = x.refundTo === 'source' ? 'the card or UPI you paid with' : 'your wallet';
   if (!x.funded) {
     return {
       sub: 'Take it down; no more offers',
@@ -39,11 +42,11 @@ export function closeTaskText(x: CloseTaskInput): { sub: string; message: string
     const fine = x.money(x.fineMinor);
     return {
       sub: `The worker has started: a ${x.finePct}% fine (${fine}) goes to them`,
-      message: `“${x.title}” will be cancelled and the worker taken off it. The worker has already started, so ${fine} (${x.finePct}% of the price) goes to them as a cancellation fine; the rest of what you paid, service fee included, goes back to your wallet. This can’t be undone.`,
+      message: `“${x.title}” will be cancelled and the worker taken off it. The worker has already started, so ${fine} (${x.finePct}% of the price) goes to them as a cancellation fine; the rest of what you paid, service fee included, goes back to ${dest}. This can’t be undone.`,
     };
   }
   return {
     sub: 'Everything you paid comes back, fee included',
-    message: `“${x.title}” will be cancelled and the worker taken off it. Everything you paid, service fee included, goes back to your wallet. This can’t be undone.`,
+    message: `“${x.title}” will be cancelled and the worker taken off it. Everything you paid, service fee included, goes back to ${dest}. This can’t be undone.`,
   };
 }

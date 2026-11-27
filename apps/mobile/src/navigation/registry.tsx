@@ -28,6 +28,7 @@ import { OrdersScreen } from '../screens/OrdersScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { AnalyticsScreen } from '../screens/AnalyticsScreen';
 import { PromoteScreen } from '../screens/PromoteScreen';
+import { PromotionsScreen } from '../screens/PromotionsScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 // Second wave: AI posting, explore, my tasks and the account surfaces
 import { AiPostScreen } from '../screens/AiPostScreen';
@@ -55,6 +56,7 @@ import { StreaksScreen } from '../screens/StreaksScreen';
 import { IdeasScreen } from '../screens/IdeasScreen';
 import { IdeaDetailScreen } from '../screens/IdeaDetailScreen';
 import { BigDayScreen } from '../screens/BigDayScreen';
+import { PickUsernameScreen } from '../screens/PickUsernameScreen';
 
 
 // Registry. A name with no screen falls back to Placeholder (none today; registry.test.ts keeps it so).
@@ -66,6 +68,7 @@ export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   welcome: AccessScreen,
   signup: AccessScreen,
   setup: OnboardingScreen,
+  pickUsername: PickUsernameScreen,
   taskDetail: TaskDetailScreen,
   detailSheet: DetailSheetScreen,
   create: CreateScreen,
@@ -85,6 +88,7 @@ export const REGISTRY: Partial<Record<ScreenName, ComponentType>> = {
   analytics: AnalyticsScreen,
   spending: SpendingScreen,
   promote: PromoteScreen,
+  promotions: PromotionsScreen,
   search: SearchScreen,
   aiPost: AiPostScreen,
   explore: ExploreScreen,

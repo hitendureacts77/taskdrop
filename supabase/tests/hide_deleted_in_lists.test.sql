@@ -25,7 +25,7 @@ begin
 
   v_before := (private.platform_highlights_live() ->> 'openTasks')::bigint;
 
-  -- B32: one post people can see, and four they cannot.
+  -- B32: two posts people can see (a passed date stays open, plan 1.19 J), and three they cannot.
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, category, due_at)
   values (v_live, 'services', 'hdl visible', 100000, 240, 'Plumbing', now() + interval '2 days');
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, category, due_at)
@@ -42,8 +42,8 @@ begin
   update public.profiles set deleted_at = now() where id = v_gone;
 
   v_after := (private.platform_highlights_live() ->> 'openTasks')::bigint;
-  assert v_after - v_before = 1,
-    format('FAIL: openTasks counts only what the feed shows (went up by %s, expected 1)', v_after - v_before);
+  assert v_after - v_before = 2,
+    format('FAIL: openTasks counts only what the feed shows (went up by %s, expected 2)', v_after - v_before);
 
   assert exists (select 1 from private.top_earners_live('new_talent', 30) e where e.id = v_live),
     'FAIL: a new, live helper is in New talent';

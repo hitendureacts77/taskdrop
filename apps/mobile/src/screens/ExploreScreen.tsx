@@ -4,12 +4,16 @@ import { noteFirstAction } from '../lib/appPrompt';
 import { View, Text as RNText, ScrollView, TextInput, Pressable, Animated, Platform, type TextInputInstance, type StyleProp, type ViewStyle } from 'react-native';
 import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
+import { TabTitle } from '../components/TabTitle';
 import { Icon } from '../components/Icon';
 import { BottomSheet, EmptyState, LoadFailed, Pill, SectionTitle, Shimmer, UnderlineTabs } from '../components/kit';
 import { reportError } from '../lib/errors';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
+import { FairRulesNote } from '../components/PromotedPill';
+import { FAIR_RULES_TASKS, auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
+import { usePromotedLive } from '../lib/usePromotedLive';
 import { HowItWorks } from '../components/HowItWorks';
 import { FadeIn, Pressy, tx } from '../components/primitives';
 import { useTheme, ring } from '../providers/ThemeProvider';
@@ -20,7 +24,11 @@ import { useAuth } from '../providers/AuthProvider';
 import {
   attachPosters,
   searchTasksWithPosters,
+  searchFallbacks,
+  type SearchFallbacks,
   listMyTasks,
+  recordAdClick,
+  recordPromoView,
   type Task,
   type TaskWithPoster,
 } from '../data/api';
@@ -34,9 +42,12 @@ import { NearYou } from '../components/NearYou';
 import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, QuickChip, WorkSwitch } from '../components/MapFilterParts';
-import { FIND_WORK_LIMIT, REMOTE_LIMIT, capped, findWorkSearches, joinFindWork, matchesQuery } from '../lib/findWorkRead';
+import { FIND_WORK_LIMIT, REMOTE_LIMIT, capped, findWorkSearches, joinFindWork } from '../lib/findWorkRead';
 import { changedFilters, clearJobFilters, filterList, jobsSummary, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
+import { LooksLikeYouMean, SearchEmpty, SearchLoading, SearchUnderstood, TypoNote } from '../components/SmartSearch';
+import { useRecentSearches, useSearchUnderstood, useTypingSuggestions } from '../lib/useSmartSearch';
+import { WIDER_KM } from '../lib/smartSearch';
 import { LocationSheet } from '../components/LocationSheet';
 import { LocationPrompt } from '../components/LocationPrompt';
 import { useMyArea } from '../lib/useMyArea';
@@ -100,7 +111,7 @@ export function ExploreScreen() {
   const [pickFor, setPickFor] = useState<'mine' | 'look' | null>(null);
   const [lookAt, setLookAt] = useState<{ lat: number; lng: number; label: string } | null>(null);
   // What the list is filtered by, so the map opens with the same jobs.
-  const [listFilter, setListFilter] = useState<{ query: string }>({ query: '' });
+  const [listFilter, setListFilter] = useState<{ query: string; ids?: ReadonlySet<string> | null }>({ query: '' });
 
   // The tab stays mounted while another tab or a job is in front (R4), so the view is steered by where
   // the person came from. The focus tick is no help: it does not move when the tab was seen under 30 s ago.
@@ -198,6 +209,12 @@ export function ExploreScreen() {
               placeIsMine={!lookAt}
               onChangePlace={() => setPickFor(area ? 'look' : 'mine')}
               onUseMyPlace={() => setLookAt(null)}
+              tabHeader={desktop || tablet ? undefined : (live) => (
+                <>
+                  <AppHeader />
+                  <TabTitle title={mode === 'worker' ? 'Find work' : 'Explore'} live={live} dot action={<ViewSwitch view="map" onList={() => setView('list')} />} />
+                </>
+              )}
               onChooseArea={() => setPrompt('type')}
               onUseLocation={() => {
                 void locate().then((p) => {
@@ -277,9 +294,10 @@ export function ExploreScreen() {
  * The header of the list pages. The map fills the whole area beside the menu,
  * so the screen host draws no page header here; the lists bring their own.
  */
-function ExploreHeader() {
+function ExploreHeader({ title = true }: { title?: boolean }) {
   const { desktop } = useLayout();
-  return desktop ? <DesktopPageHeader screen="explore" /> : <AppHeader />;
+  // `title={false}` when the page draws its own TabTitle, so desktop does not say "Explore" twice.
+  return desktop ? <DesktopPageHeader screen="explore" showDefaultTitle={title} /> : <AppHeader />;
 }
 
 /** Desktop Find work: draws its title, search bar and List / Map switch into the page header (D31 board). */
@@ -317,7 +335,7 @@ function ViewSwap({ on, reduced, style, children }: { on: boolean; reduced: bool
 }
 
 /** The one List / Map switch (design D21): List is where you are, Map opens the full map. */
-function ViewSwitch({ onMap }: { onMap: () => void }) {
+function ViewSwitch({ onMap, view = 'list', onList }: { onMap?: () => void; view?: 'list' | 'map'; onList?: () => void }) {
   const t = useTheme();
   const seg = (label: string, on: boolean, onPress?: () => void) => (
     <Pressy
@@ -341,8 +359,8 @@ function ViewSwitch({ onMap }: { onMap: () => void }) {
       accessibilityRole="tablist"
       style={{ flexDirection: 'row', padding: 3, borderRadius: 14, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line }}
     >
-      {seg('List', true)}
-      {seg('Map', false, onMap)}
+      {seg('List', view === 'list', view === 'list' ? undefined : onList)}
+      {seg('Map', view === 'map', view === 'map' ? undefined : onMap)}
     </View>
   );
 }
@@ -354,6 +372,7 @@ function ExploreIdeas({ onMap }: { onMap: () => void }) {
   const { go } = useNav();
   const { flash } = useActions();
   const { userId } = useAuth();
+  const { desktop } = useLayout();
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState('');
   const [tag, setTag] = useState<TemplateTag | null>(null);
@@ -388,10 +407,8 @@ function ExploreIdeas({ onMap }: { onMap: () => void }) {
 
   return (
     <Screen padded={false}>
-      <ExploreHeader />
-      <View style={{ alignItems: 'flex-end', paddingHorizontal: 20, paddingBottom: 2 }}>
-        <ViewSwitch onMap={onMap} />
-      </View>
+      <ExploreHeader title={false} />
+      <TabTitle title="Explore" live="Ideas, helpers and tasks near you" action={<ViewSwitch onMap={onMap} />} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {/* The hero: who can help near you, and what tasks round here pay. */}
         <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
@@ -467,7 +484,7 @@ function ExploreIdeas({ onMap }: { onMap: () => void }) {
               <SectionTitle title="People often ask for" icon="users" action="Shuffle" onAction={() => setSeed((s) => s + 1)} />
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
                 {ideas.map((idea, i) => (
-                  <FadeIn key={idea.title + seed} duration={300} delay={i * 40} style={{ width: '47.5%' }}>
+                  <FadeIn key={idea.title + seed} duration={300} delay={i * 40} style={{ width: desktop ? '32.5%' : '47.5%' }}>
                     <Pressy
                       onPress={() => go('aiPost', { prompt: idea.prompt })}
                       scaleTo={0.98}
@@ -513,45 +530,72 @@ export function TemplateGrid({
   limit?: number;
 }) {
   const t = useTheme();
+  const { desktop } = useLayout();
+  const [open, setOpen] = useState(false);
+  // Desktop: three columns and only the first six until asked, so the page stays calm.
+  const fold = desktop && !limit;
+  const shown = limit ? items.slice(0, limit) : fold && !open ? items.slice(0, 6) : items;
+  const extra = fold ? items.length - 6 : 0;
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
-      {(limit ? items.slice(0, limit) : items).map((x, i) => (
-        <FadeIn key={x.key} duration={300} delay={Math.min(i, 8) * 35} style={{ width: '47.5%' }}>
-          <Pressy
-            onPress={() => onPick(x.prompt)}
-            scaleTo={0.98}
-            label={x.title}
-            style={{
-              ...cardSurface(t, 18),
-              padding: 12,
-              minHeight: 112,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={x.icon} size={16} color={t.colors.accentDeep} strokeWidth={1.9} />
-              </View>
-              {x.hot ? <Icon name="bolt" size={13} color={t.colors.signal} strokeWidth={2} /> : null}
-            </View>
-            <RNText style={tx('700', 13, t.colors.ink, { marginTop: 8 })} numberOfLines={2}>{x.title}</RNText>
-            <RNText style={tx('400', 11, t.colors.muted, { marginTop: 3, lineHeight: 15 })} numberOfLines={2}>{x.sub}</RNText>
-            <RNText
-              style={tx('600', 10, t.colors.text, {
-                marginTop: 7,
-                alignSelf: 'flex-start',
-                backgroundColor: t.colors.surface2,
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-                borderRadius: 5,
-                overflow: 'hidden',
-              })}
+    <>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
+        {shown.map((x, i) => (
+          <FadeIn key={x.key} duration={300} delay={Math.min(i, 8) * 35} style={{ width: desktop ? '32.5%' : '47.5%' }}>
+            <Pressy
+              onPress={() => onPick(x.prompt)}
+              scaleTo={0.98}
+              label={x.title}
+              style={{
+                ...cardSurface(t, 18),
+                padding: 12,
+                minHeight: 112,
+              }}
             >
-              {x.tag}
-            </RNText>
-          </Pressy>
-        </FadeIn>
-      ))}
-    </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name={x.icon} size={16} color={t.colors.accentDeep} strokeWidth={1.9} />
+                </View>
+                {x.hot ? <Icon name="bolt" size={13} color={t.colors.signal} strokeWidth={2} /> : null}
+              </View>
+              <RNText style={tx('700', 13, t.colors.ink, { marginTop: 8 })} numberOfLines={2}>{x.title}</RNText>
+              <RNText style={tx('400', 11, t.colors.muted, { marginTop: 3, lineHeight: 15 })} numberOfLines={2}>{x.sub}</RNText>
+              <RNText
+                style={tx('600', 10, t.colors.text, {
+                  marginTop: 7,
+                  alignSelf: 'flex-start',
+                  backgroundColor: t.colors.surface2,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 5,
+                  overflow: 'hidden',
+                })}
+              >
+                {x.tag}
+              </RNText>
+            </Pressy>
+          </FadeIn>
+        ))}
+      </View>
+      {extra > 0 ? (
+        <Pressable
+          onPress={() => setOpen((v) => !v)}
+          accessibilityRole="button"
+          style={({ pressed }) => ({
+            marginTop: 10,
+            alignSelf: 'center',
+            paddingVertical: 8,
+            paddingHorizontal: 16,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: t.colors.line,
+            backgroundColor: t.colors.surface,
+            opacity: pressed ? 0.7 : 1,
+          })}
+        >
+          <RNText style={tx('700', 12.5, t.colors.accentDeep)}>{open ? 'Show less' : `Show ${extra} more`}</RNText>
+        </Pressable>
+      ) : null}
+    </>
   );
 }
 
@@ -565,6 +609,7 @@ export function SearchBox({
   tone = 'accent',
   right,
   inputRef,
+  onFocusChange,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -575,6 +620,8 @@ export function SearchBox({
   tone?: 'accent' | 'purple';
   right?: React.ReactNode;
   inputRef?: React.RefObject<TextInputInstance | null>;
+  /** True while the box has the cursor (smart search shows "looks like you mean" then). */
+  onFocusChange?: (focused: boolean) => void;
 }) {
   const t = useTheme();
   const color = tone === 'purple' ? t.colors.purpleDeep : t.colors.accent;
@@ -598,6 +645,8 @@ export function SearchBox({
           value={value}
           onChangeText={onChange}
           onSubmitEditing={onSubmit}
+          onFocus={onFocusChange ? () => onFocusChange(true) : undefined}
+          onBlur={onFocusChange ? () => onFocusChange(false) : undefined}
           returnKeyType="search"
           placeholder={placeholder}
           placeholderTextColor={t.colors.muted}
@@ -614,7 +663,7 @@ export function SearchBox({
           accessibilityLabel="Go"
           style={{ width: 34, height: 34, borderRadius: 999, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Icon name={submitIcon} size={16} color="#FFFFFF" strokeWidth={2} />
+          <Icon name={submitIcon} size={16} color={t.colors.onBtn} strokeWidth={2} />
         </Pressable>
       </View>
       {right}
@@ -635,7 +684,7 @@ function FindWork({
   place,
 }: {
   onMap: () => void;
-  onFilter: (f: { query: string }) => void;
+  onFilter: (f: { query: string; ids?: ReadonlySet<string> | null }) => void;
   /** The place the map is around (your area, or one you picked); null = none yet. */
   at: { lat: number; lng: number } | null;
   place: { label: string; mine: boolean; onChange: () => void; onUseMine: () => void };
@@ -647,7 +696,25 @@ function FindWork({
   const { desktop } = useLayout();
   const [tab, setTab] = useState(0);
   const [q, setQ] = useState(typeof params.q === 'string' ? params.q : '');
-  const [query, setQuery] = useState(typeof params.q === 'string' ? params.q : '');
+  const [query, setQueryRaw] = useState(typeof params.q === 'string' ? params.q : '');
+  // Smart search: what was dropped from "Searching for", and "keep my spelling". New words start both over.
+  const [drop, setDrop] = useState<string[]>([]);
+  const [exact, setExact] = useState(false);
+  const setQuery = (v: string) => {
+    setQueryRaw(v);
+    setDrop([]);
+    setExact(false);
+  };
+  const [focused, setFocused] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A tap on a suggestion blurs the box first: hide the list a moment later so the tap still lands.
+  const onFocusChange = (f: boolean) => {
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    if (f) setFocused(true);
+    else blurTimer.current = setTimeout(() => setFocused(false), 200);
+  };
+  const [fallbacks, setFallbacks] = useState<SearchFallbacks | null>(null);
+  const { recent, remember } = useRecentSearches('earn');
   const filters = useJobFilters();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
@@ -657,9 +724,18 @@ function FindWork({
   // "could not load", not "no tasks match".
   const [failed, setFailed] = useState(false);
   const focusTick = useFocusTick();
-  // Tell the screen what is searched, so the map view shows the same jobs.
-  useEffect(() => onFilter({ query }), [query]); // eslint-disable-line react-hooks/exhaustive-deps
   const searchRef = useRef<TextInputInstance>(null);
+  const runSearch = (word: string) => {
+    const w = word.trim();
+    setQ(word);
+    setQuery(w);
+    setFocused(false);
+    searchRef.current?.blur();
+    if (w) {
+      noteFirstAction();
+      remember(w);
+    }
+  };
   const applyFilters = (f: MapFilters) => {
     setJobFilters(f);
     setFiltersOpen(false);
@@ -711,16 +787,18 @@ function FindWork({
     // "Nearest" / "Best pay" only sorted that slice), and remote jobs, which a radius search leaves out, come
     // from a second read.
     // B170: the remote ones come from the map's own read (remoteTasks), so both say the same number.
-    const { near, wide } = findWorkSearches(atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters.km, query);
+    // Smart search: with words typed, the remote jobs come from the same meaning search (no pin filter), so they
+    // are found by meaning too; the rows are never filtered by exact words here (they would lose their matches).
+    const { near, wide } = findWorkSearches(atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters.km, query, { drop, exact });
     const [nearRows, wideRows] = await Promise.all([
       near ? searchTasksWithPosters(near) : null,
-      near ? remoteTasks(REMOTE_LIMIT).then(attachPosters) : searchTasksWithPosters(wide),
+      near && !query ? remoteTasks(REMOTE_LIMIT).then(attachPosters) : searchTasksWithPosters(wide),
     ]);
     // A read that came back full means "at least" that many; the count then says "200+".
     const wideFull = capped(wideRows.length, near ? REMOTE_LIMIT : FIND_WORK_LIMIT);
     setCaps({ near: nearRows ? capped(nearRows.length, FIND_WORK_LIMIT) : wideFull, home: wideFull });
-    return joinFindWork(nearRows, near ? wideRows.filter((r) => matchesQuery(r, query)) : wideRows);
-  }, [query, focusTick, atLat, atLng, filters.km]);
+    return joinFindWork(nearRows, wideRows);
+  }, [query, drop, exact, focusTick, atLat, atLng, filters.km]);
 
   useEffect(() => {
     let alive = true;
@@ -755,10 +833,58 @@ function FindWork({
     }
   };
 
+  // Tell the screen what is searched (and which jobs the search found), so the map view shows the same jobs.
+  useEffect(() => {
+    onFilter({ query, ids: query && rows ? new Set(rows.map((r) => r.id)) : null });
+  }, [query, rows]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nearArg = atLat != null && atLng != null ? { lat: atLat, lng: atLng, radiusKm: filters.km } : null;
+  const understood = useSearchUnderstood({ q: query, role: 'earn', near: nearArg, drop, exact });
+  const typing = useTypingSuggestions(q, focused && q.trim().length >= 2, 'earn', nearArg);
+  // Nothing found: ask what to try instead (wider area, remote jobs, close matches).
+  const nothing = query !== '' && rows !== null && rows.length === 0 && !failed;
+  useEffect(() => {
+    setFallbacks(null);
+    if (!nothing) return;
+    let alive = true;
+    searchFallbacks({ q: query, kind: 'request', near: nearArg, drop })
+      .then((r) => alive && setFallbacks(r))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [nothing, query, drop, filters.km, atLat, atLng]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = useMemo(
     () => (rows ? filterList(rows, atLat != null && atLng != null ? { lat: atLat, lng: atLng } : null, filters) : null),
     [rows, atLat, atLng, filters],
   );
+  // Promoted tasks (task 1.19 row C): the server runs the auction for the posts in this filtered list and says
+  // which 2 won the top places; the app lifts exactly those and badges every live promoted post.
+  const promoIds = useMemo(() => auctionIds((shown ?? []).map((r) => r.id)), [shown]);
+  const promoLive = usePromotedLive(
+    'request',
+    atLat != null && atLng != null ? { lat: atLat, lng: atLng, radiusKm: filters.km } : null,
+    { surface: 'list', taskIds: promoIds, enabled: shown !== null },
+  );
+  const promo = useMemo(
+    () => (shown ? pickPromotedItems({ items: shown, live: promoLive, keyOf: (r) => r.id }) : null),
+    [shown, promoLive],
+  );
+  const ordered = useMemo(() => (shown && promo ? liftPromoted(shown, promo.top) : shown), [shown, promo]);
+  const topIds = useMemo(() => new Set((promo?.top ?? []).map((r) => r.id)), [promo]);
+  const promoState = (id: string): 'top' | 'badge' | undefined =>
+    topIds.has(id) ? 'top' : promo?.badged.has(id) ? 'badge' : undefined;
+  // Showings below the top: one view per promoted task per screen open (the auction already counts the top ones).
+  const viewed = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!promo) return;
+    for (const id of promo.badged) {
+      if (topIds.has(id) || viewed.current.has(id)) continue;
+      viewed.current.add(id);
+      void recordPromoView(id, 'list', false).catch(() => {});
+    }
+  }, [promo, topIds]);
+  const fairRules = promo && promo.badged.size > 0 ? <FairRulesNote side="earn" text={FAIR_RULES_TASKS} /> : null;
+
   // How many a draft of the filters would show, for the sheet's button and the one-tap ways out.
   const countFor = (f: MapFilters) => (rows ? filterList(rows, at, f).length : 0);
   const narrowed = narrowsJobs(filters);
@@ -781,6 +907,8 @@ function FindWork({
   };
 
   const open = (task: TaskWithPoster) => {
+    // Opening a promoted post counts as "opened it" for whoever promoted it.
+    if (promo?.badged.has(task.id)) void recordAdClick(task.id).catch(() => {});
     setOpenTask({ title: task.title, price: '₹' + Math.round(task.benchmark_minor / 100) });
     go('taskDetail', { row: taskToFeedRow(task) });
   };
@@ -800,26 +928,17 @@ function FindWork({
       onOpen={() => open(task)}
       onApply={() => setBidTask(task)}
       onToggleSave={() => void toggleSave(task.id)}
+      promoted={promoState(task.id)}
     />
   );
-  const titleRow = (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: desktop ? 4 : 10 }}>
-      <View style={{ flex: 1 }}>
-        {/* On a desktop the page header already says "Find work". */}
-        {desktop ? null : <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>Find work</RNText>}
-        <RNText style={tx('500', 13, t.colors.muted, { marginTop: desktop ? 0 : 2 })} numberOfLines={1}>Every open job, near you and online</RNText>
-      </View>
-      <ViewSwitch onMap={onMap} />
-    </View>
-  );
+  // On a desktop the page header already says "Find work" (and the title row is not drawn there).
+  const titleRow = <TabTitle title="Find work" live="Every open job, near you and online" action={<ViewSwitch onMap={onMap} />} />;
   const searchBox = (
     <SearchBox
       value={q}
       onChange={setQ}
-      onSubmit={() => {
-        setQuery(q.trim());
-        if (q.trim()) noteFirstAction();
-      }}
+      onSubmit={() => runSearch(q)}
+      onFocusChange={onFocusChange}
       inputRef={searchRef}
       placeholder="E.g. data entry, logo design, home tutoring…"
       voice={voice}
@@ -845,10 +964,37 @@ function FindWork({
         Set your area on the map to see jobs within {filters.km} km.
       </RNText>
     ) : null;
-  const loadingCards = [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />);
+  const plainLoading = [0, 1, 2].map((i) => <Shimmer key={i} height={120} style={{ marginTop: 12 }} />);
+  const loadingCards = query ? <SearchLoading role="earn" /> : plainLoading;
+  // Under the search box: the spelling note and "Searching for" pills once a search ran; "looks like you mean" while typing.
+  // Only while still typing something new, and only with something to show: once the words are searched (the box
+  // keeps focus after Enter) the spelling note and pills take this place.
+  const stillTyping = focused && q.trim().length >= 2 && q.trim() !== query.trim();
+  const looksLike =
+    stillTyping && (typing.length > 0 || recent.length > 0) ? (
+      <LooksLikeYouMean role="earn" suggestions={typing} hasArea={at != null} recent={recent} onPick={runSearch} />
+    ) : null;
+  const understoodRows =
+    query && !looksLike ? (
+      <View>
+        <TypoNote role="earn" typed={query} corrected={understood.corrected} onExact={() => setExact(true)} />
+        <SearchUnderstood role="earn" chips={understood.chips} onDrop={(id) => setDrop((d) => [...d, id])} />
+      </View>
+    ) : null;
   const noResults =
     shown === null || shown.length > 0 ? null : failed ? (
       <LoadFailed onRetry={() => void refresh()} />
+    ) : nothing ? (
+      <SearchEmpty
+        role="earn"
+        query={query}
+        chipLabel={understood.chips[0]?.label}
+        km={at && filters.work !== 'remote' ? filters.km : null}
+        fallbacks={fallbacks}
+        onWider={(km) => setJobFilters({ ...filters, km: km || WIDER_KM })}
+        onRemote={filters.work === 'local' ? () => setJobFilters({ ...filters, work: 'all' }) : undefined}
+        onRelated={runSearch}
+      />
     ) : (
       <View style={{ gap: 12 }}>
         <EmptyState
@@ -887,10 +1033,7 @@ function FindWork({
     </>
   );
 
-  const submitSearch = () => {
-    setQuery(q.trim());
-    if (q.trim()) noteFirstAction();
-  };
+  const submitSearch = () => runSearch(q);
 
   // Desktop (D31 board WebFindWork): the title, search and List / Map switch live in the page header, the filters
   // are a column on the left, the jobs are rows of one list card. Same data, filters and actions as the phone list.
@@ -900,7 +1043,7 @@ function FindWork({
         <DesktopPageScope active>
           <FindWorkHeader
             search={
-              <FindWorkSearch value={q} onChange={setQ} onSubmit={submitSearch} inputRef={searchRef} placeholder="E.g. data entry, logo design, home tutoring…" voice={voice} />
+              <FindWorkSearch value={q} onChange={setQ} onSubmit={submitSearch} onFocusChange={onFocusChange} inputRef={searchRef} placeholder="E.g. data entry, logo design, home tutoring…" voice={voice} />
             }
             onMap={onMap}
           />
@@ -920,6 +1063,7 @@ function FindWork({
             <View style={{ marginBottom: 20 }}>
               <JobsNearHero onOpenMap={onMap} />
             </View>
+            {tab === 0 && (looksLike || understoodRows) ? <View style={{ marginBottom: 16 }}>{looksLike ?? understoodRows}</View> : null}
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap', marginBottom: 16 }}>
               <View style={{ flex: 1, minWidth: 280 }}>
                 <UnderTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
@@ -944,7 +1088,7 @@ function FindWork({
               </>
             ) : (
               <View style={{ borderRadius: t.radius.lg, borderWidth: 1, borderColor: t.colors.line, backgroundColor: t.colors.surface, overflow: 'hidden' }}>
-                {shown.map((task, i) => (
+                {(ordered ?? shown).map((task, i) => (
                   <WorkCard
                     key={task.id}
                     row
@@ -955,6 +1099,7 @@ function FindWork({
                     onOpen={() => open(task)}
                     onApply={() => setBidTask(task)}
                     onToggleSave={() => void toggleSave(task.id)}
+                    promoted={promoState(task.id)}
                   />
                 ))}
                 <View style={{ borderTopWidth: 1, borderTopColor: t.colors.line, paddingVertical: 14, paddingHorizontal: 20 }}>
@@ -965,6 +1110,7 @@ function FindWork({
                 </View>
               </View>
             )}
+            {tab === 0 && shown !== null && !noResults ? fairRules : null}
           </ListPage>
           {sheets}
         </DesktopPageScope>
@@ -976,7 +1122,8 @@ function FindWork({
     <ScreenList
       above={<ExploreHeader />}
       tint={t.colors.purple}
-      data={tab === 0 && shown ? shown : []}
+      data={tab === 0 && ordered ? ordered : []}
+      footer={tab === 0 && fairRules ? <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>{fairRules}</View> : null}
       keyExtractor={(task) => task.id}
       renderItem={({ item: task, index: i }) => card(task, i)}
       onRefresh={() => void refresh()}
@@ -989,6 +1136,7 @@ function FindWork({
           <JobsNearHero onOpenMap={onMap} />
         </View>
         {searchBox}
+        {looksLike || understoodRows ? <View style={{ paddingHorizontal: 20 }}>{looksLike ?? understoodRows}</View> : null}
         <View style={{ marginTop: 16 }}>
           <UnderlineTabs tabs={['Jobs', 'Busy now', 'How it works']} active={tab} onPick={setTab} />
         </View>

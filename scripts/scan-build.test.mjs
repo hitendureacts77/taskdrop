@@ -102,3 +102,16 @@ test('a camelCase identifier after private_ is not a key, a random one is', () =
   assert.deepEqual(scanBuffer(Buffer.from('x=private_' + 'connectionPoolManagerHandlerFactory')), []);
   assert.deepEqual(scanBuffer(Buffer.from('x=private_' + long(28))).map((h) => h.rule), ['imagekit-private-key']);
 });
+
+test('Hermes joined strings (private_ + 40+ letters, an acronym, no digit) are not a key; key-sized ones still are', () => {
+  // The 26 Nov Android bundle shape: lowercase words, a few capitals, three capitals in a row, no digit or + / =.
+  const joined = 'xmapscreenviewlayernamesourceidSourceURLfilterzoomstyleidLayerkey';
+  assert.deepEqual(scanBuffer(Buffer.from('\0private_' + joined + '\0')), []);
+  // Letters only but key length (28): still flagged, as is a long one with a digit or base64 symbol in it.
+  assert.equal(scanBuffer(Buffer.from('x=private_' + 'QwErTyUiOpAsDfGhJkLzXcVbNmQw')).length, 1);
+  assert.equal(scanBuffer(Buffer.from('x=private_' + joined.slice(0, 40) + '7' + joined.slice(40))).length, 1);
+  assert.equal(scanBuffer(Buffer.from('x=private_' + joined.slice(0, 40) + '+' + joined.slice(40))).length, 1);
+  // The finding carries a masked shape, never the value.
+  const [hit] = scanBuffer(Buffer.from('x=private_' + long(28)));
+  assert.ok(!hit.shape.includes(long(28)) && /^\d+ chars, [aA9_]+$/.test(hit.shape));
+});

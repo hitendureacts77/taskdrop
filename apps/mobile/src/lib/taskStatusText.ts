@@ -38,7 +38,8 @@ export function showAssignmentChip(status: string): boolean {
  * it fits a card in the two- and three-column layouts (B165: it was cut to "THE DATE HAS P...").
  */
 export function datePassedLine(status: string, offers: number): string {
-  if (status === 'OPEN' && offers === 0) return 'DATE PASSED · NO OFFERS';
+  // An open post switches to no fixed date when its date passes (plan 1.19 J).
+  if (status === 'OPEN') return offers > 0 ? `NO FIXED DATE · ${offers} ${offers === 1 ? 'OFFER' : 'OFFERS'}` : 'NO FIXED DATE';
   return 'DATE PASSED';
 }
 

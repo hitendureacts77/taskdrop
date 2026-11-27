@@ -24,7 +24,8 @@ import { type Args, type Ctx, type Db, GENERIC, MONEY_MAX, OpError, type Op, bad
 import { MEDIA_OPS } from "./media.ts";
 import { MAX_BATCH, type Reply, batchCalls } from "./ops.ts";
 import { sharedAnswer } from "./publicMemo.ts";
-import { type Near, type NearBox, READ_OPS, inReach, nearArgOf, nearBox, nearFetch, newestFirst, soonestDue } from "./reads.ts";
+import { type Near, type NearBox, READ_OPS, inReach, nearArgOf, nearBox, nearFetch, newestFirst, orderRanked, searchHintOps, soonestDue } from "./reads.ts";
+import { rankedSearch } from "./search.ts";
 
 /** What a guest is told when they try something that needs an account. The app shows its own pop-up instead. */
 export const NEEDS_ACCOUNT = "Make your account first.";
@@ -76,6 +77,9 @@ export const GUEST_COST: Readonly<Record<string, number>> = {
   tasksNear: 3,
   searchTasks: 2,
   searchTasksWithPosters: 2,
+  // One count per suggestion (up to 3), or per next step (up to 4).
+  searchSuggest: 3,
+  searchFallbacks: 4,
   attachPosters: 2,
   recommendedTasks: 2,
   // With `near` it is two reads, the pinned ones in a box and the remote ones (B156).
@@ -270,15 +274,32 @@ async function search(ctx: Ctx, a: Args): Promise<Post[]> {
   const near = nearArgOf(a);
   const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
   const n = limit(a, "limit", 30, GUEST_LIMIT_MAX);
+  const pillar = a.pillar != null ? str(a, "pillar", 40) : null;
+  const minMinor = typeof a.minMinor === "number" ? int(a, "minMinor", 0, MONEY_MAX) : null;
+  const maxMinor = typeof a.maxMinor === "number" ? int(a, "maxMinor", 0, MONEY_MAX) : null;
+  const box = near ? nearBox(near, near.radius) : null;
+  if (text) {
+    // Smart search (./search.ts): ranked ids first, then the rows through guest_open_posts, which decides what a guest may see.
+    const drop = Array.isArray(a.drop) ? a.drop.filter((x): x is string => typeof x === "string" && /^[a-z]{2,20}$/.test(x)).slice(0, 10) : [];
+    const ranked = await rankedSearch(ctx.db as never, {
+      kind: kindArg(a), text, drop, exact: a.exact === true, pillar, minMinor, maxMinor, box, limit: near ? nearFetch(n) : Math.max(n, 60),
+    });
+    if (ranked) {
+      ctx.searchFill?.();
+      if (ranked.ids.length === 0) return [];
+      const found = await posts(ctx, { kind: kindArg(a), limit: ranked.ids.length, ids: ranked.ids.map((r) => r.id) });
+      return orderRanked(found, ranked, near).slice(0, n);
+    }
+  }
   // With a point: a box in SQL and more than a page read, then the exact distance, then the page (B34, as signed in).
   const found = await posts(ctx, {
     kind: kindArg(a),
     limit: near ? nearFetch(n) : n,
     q: text || null,
-    pillar: a.pillar != null ? str(a, "pillar", 40) : null,
-    minMinor: typeof a.minMinor === "number" ? int(a, "minMinor", 0, MONEY_MAX) : null,
-    maxMinor: typeof a.maxMinor === "number" ? int(a, "maxMinor", 0, MONEY_MAX) : null,
-    box: near ? nearBox(near, near.radius) : null,
+    pillar,
+    minMinor,
+    maxMinor,
+    box,
   });
   if (!near) return found;
   return found.filter((t) => {
@@ -319,6 +340,8 @@ export const GUEST_OPS: Record<string, Op> = {
   listOpenTasks: async (ctx, a) => (await posts(ctx, { kind: kindArg(a), limit: limit(a, "limit", 30, GUEST_LIMIT_MAX) })).map(bare),
   searchTasks: async (ctx, a) => (await search(ctx, a)).map(bare),
   searchTasksWithPosters: async (ctx, a) => (await search(ctx, a)).map((p) => ({ ...p, poster: p.poster ?? null })),
+  // Smart search hints, counted over what guest_open_posts lets a guest see.
+  ...searchHintOps((ctx, kind, ids) => posts(ctx, { kind, ids, limit: ids.length }), () => null),
 
   attachPosters: async (ctx, a) => {
     const ids = uuids(a, "taskIds", GUEST_MAX_IDS);

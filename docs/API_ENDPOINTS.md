@@ -31,7 +31,7 @@ endpoint (`/api/wallet/listOpenTasks`, `/api/tasks/noSuchOp`) answers **404 UNKN
 
 | Endpoint group | Reads | Writes |
 |---|---|---|
-| `/api/tasks/…` | `listOpenTasks`, `listMyTasks`, `searchTasks`, `searchTasksWithPosters`, `attachPosters`, `getTask`, `getTaskDetail`, `getPosterStats`, `recommendedTasks`, `remoteTasks`, `tasksNear`, `urgentTasks`, `nearbyPulse`, `countNeedsAttention`, `taskContactPhone`, `listSavedTaskIds`, `listSavedTasks` | `createTask`, `updateListing`, `removeListing`, `cancelTask`, `setRepeat`, `raiseTopUp`, `setSaved` |
+| `/api/tasks/…` | `listOpenTasks`, `listMyTasks`, `searchTasks`, `searchTasksWithPosters`, `attachPosters`, `getTask`, `getTaskDetail`, `getPosterStats`, `recommendedTasks`, `remoteTasks`, `tasksNear`, `urgentTasks`, `nearbyPulse`, `countNeedsAttention`, `taskContactPhone`, `listSavedTaskIds`, `listSavedTasks` | `createTask`, `updateListing`, `removeListing`, `cancelTask`, `setRepeat`, `setTaskDue`, `raiseTopUp`, `setSaved` |
 | `/api/questions/…` | `listTaskQuestions` | `askTaskQuestion`, `answerTaskQuestion` |
 | `/api/bids/…` | `listMyBids`, `listBidsForTask`, `countBidsByTask`, `myBidTaskIds`, `getMyBid`, `canQuoteOn` | `placeBid`, `updateBid`, `lockBid` |
 | `/api/jobs/…` | `listMyAssignments`, `getProof` | `startTask`, `markWorkDone`, `submitProof`, `requestRevision`, `confirmRelease` |
@@ -43,7 +43,7 @@ endpoint (`/api/wallet/listOpenTasks`, `/api/tasks/noSuchOp`) answers **404 UNKN
 | `/api/crew/…` | `crewOverview`, `listCrewMessages` | `sendCrewMessage` |
 | `/api/hunt/…` | `huntFinds`, `huntCounts` | `huntLook`, `huntSendFind`, `huntAcceptFind`, `huntDeclineFind`, `huntAskPart` |
 | `/api/wallet/…` | `getWallet`, `getEscrowHeld`, `listWalletActivity`, `feesSince`, `listPayouts`, `listPayoutDestinations` | `settleClearedEarnings`, `payTaskFromWallet`, `requestWithdrawal`, `cancelWithdrawal`, `addPayoutDestination`, `removePayoutDestination`, `setDefaultPayoutDestination` |
-| `/api/promotions/…` | `promotableTasks`, `promotionTiers`, `listPromotions`, `adAuctionRanks` | `startPromotion`, `activatePromotion`, `cancelPromotion`, `recordAdImpression`, `recordAdClick` |
+| `/api/promotions/…` | `promotableTasks`, `promotionTiers`, `listPromotions`, `adAuctionRanks`, `promotionQuote`, `promotedLive`, `promotionResults` | `startPromotion`, `activatePromotion`, `cancelPromotion`, `recordAdImpression`, `recordAdClick`, `recordPromoView`, `setPromoAlerts` |
 | `/api/platform/…` | `platformFees`, `platformStats`, `platformHighlights`, `trendingCategories` | – |
 | `/api/messages/…` | `listThreads`, `listMessages` | `sendMessage` |
 | `/api/notifications/…` | `listNotifications`, `getNotification`, `countUnreadNotifications`, `countUnreadFor`, `notificationSides` | `markNotificationsRead`, `registerPushToken`, `forgetPushToken` |
@@ -52,6 +52,7 @@ endpoint (`/api/wallet/listOpenTasks`, `/api/tasks/noSuchOp`) answers **404 UNKN
 | `/api/feedback/…` | `listFeedbackBoard`, `getFeedbackPost` | `sendFeedback`, `postFeedbackIdea`, `voteFeedbackIdea`, `commentFeedbackIdea` |
 | `/api/support/…` | `listTickets`, `getTicket` | `openTicket`, `replyTicket`, `resolveTicket` |
 | `/api/referrals/…` | `countMyReferrals` | `applyReferralCode` |
+| `/api/catalog/…` | `listCatalog`, `checkCatalogTerm` | `addCatalogTerm` |
 | `/api/media/…` | `signMedia` | `createUpload`, `attachMedia`, `removeMedia` |
 
 The table lives in one file, [`supabase/functions/api/routes.ts`](../supabase/functions/api/routes.ts). The

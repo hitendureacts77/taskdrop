@@ -135,7 +135,8 @@ export function matchesJob(j: FilterableJob, f: MapFilters, now: number = Date.n
   }
   if (f.dueSoon) {
     const due = j.due_at ? Date.parse(j.due_at) : NaN;
-    if (j.flag !== 'urgent' && !(Number.isFinite(due) && due <= now + DUE_SOON_MS)) return false;
+    // A date already gone by is not "due soon" (the task stays open after it, plan 1.19 J).
+    if (j.flag !== 'urgent' && !(Number.isFinite(due) && due > now && due <= now + DUE_SOON_MS)) return false;
   }
   return true;
 }

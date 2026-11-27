@@ -3,6 +3,7 @@ import { View, Text as RNText, TextInput, Pressable, KeyboardAvoidingView } from
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { VoteBox } from '../components/IdeaRow';
+import { FeedbackFileList } from '../components/FeedbackFiles';
 import { KeyboardSafe } from '../components/KeyboardSafe';
 import { KeyboardScrollView } from '../components/KeyboardScrollView';
 import { Badge, EmptyState, LoadFailed, Shimmer, TopBar, timeAgo } from '../components/kit';
@@ -107,6 +108,7 @@ export function IdeaDetailScreen() {
                 {idea.mine ? 'You' : idea.author} · {timeAgo(idea.createdAt)}
               </RNText>
               {idea.body ? <RNText style={tx('400', 15, t.colors.ink, { marginTop: 14, lineHeight: 23 })}>{idea.body}</RNText> : null}
+              <FeedbackFileList files={idea.attachments ?? []} />
 
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 18 }}>
                 <VoteBox idea={idea} onVote={(x) => void vote(x)} wide />

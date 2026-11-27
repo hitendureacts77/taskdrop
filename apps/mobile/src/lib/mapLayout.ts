@@ -50,26 +50,135 @@ export function ringSpots(n: number, gap: SpreadGap): { dx: number; dy: number }
 }
 
 /**
+ * The part of a pin that must never sit under another pin's: its price bubble (for a helper, the icon and price),
+ * as a box round the pin's point (x and y are offsets from the point). The words under it step back instead
+ * (mapLabels.ts). `spread` says whether the pin is one of a spread group or stands alone.
+ */
+export type PinBox = { x: number; y: number; w: number; h: number };
+
+/** Clear space kept between two bubbles, in pixels, so their shadows never touch. */
+export const BUBBLE_PAD = 4;
+/** How far a bubble may move to find room; past this it keeps its ring spot (hundreds of pins on one spot). */
+const SEARCH_MAX = 600;
+/** Rows tried above and below a taken spot: 4 px apart close to it, then 15% further each row (a far move need not be exact). */
+const ROW_STEP = 4;
+/** Placed bubbles are kept in horizontal bands this tall, so a row only looks at its neighbours. */
+const BAND = 32;
+
+let rows: number[] | null = null;
+function rowOffsets(): number[] {
+  if (rows) return rows;
+  rows = [0];
+  for (let d = ROW_STEP; d <= SEARCH_MAX; d += Math.max(ROW_STEP, Math.round(d * 0.15))) rows.push(d, -d);
+  return rows;
+}
+
+/**
+ * The bubbles already placed, and the nearest spot to `want` where bubble `b` (plus BUBBLE_PAD all round) touches
+ * none of them. Rows are tried outwards from `want` (0, +4, -4, +8 ... px); in each, the nearest free x is found
+ * exactly from the blocked stretches, and the search stops once a row is further away than the best spot found.
+ */
+function bubbleField() {
+  const bands = new Map<number, PinBox[]>();
+  return {
+    add(r: PinBox) {
+      for (let k = Math.floor(r.y / BAND); k <= Math.floor((r.y + r.h) / BAND); k++) {
+        const list = bands.get(k);
+        if (list) list.push(r);
+        else bands.set(k, [r]);
+      }
+    },
+    nearestFree(want: { x: number; y: number }, b: PinBox): { x: number; y: number } | null {
+      let best: { x: number; y: number } | null = null;
+      let bestD = Infinity;
+      for (const dy of rowOffsets()) {
+        if (Math.abs(dy) >= bestD) break;
+        const top = want.y + dy + b.y - BUBBLE_PAD;
+        const bottom = top + b.h + 2 * BUBBLE_PAD;
+        // Centre x values where this row's bubble would touch a placed one (open stretches: the ends are free).
+        const blocked: [number, number][] = [];
+        for (let band = Math.floor(top / BAND); band <= Math.floor(bottom / BAND); band++)
+          for (const o of bands.get(band) ?? []) if (o.y < bottom && top < o.y + o.h) blocked.push([o.x - b.x - b.w - BUBBLE_PAD, o.x + o.w - b.x + BUBBLE_PAD]);
+        // Join the stretches that run into each other (left to right); the joined one round want.x has the nearest free x at its ends.
+        blocked.sort((p, q) => p[0] - q[0]);
+        let x = want.x;
+        let lo = -Infinity;
+        let hi = -Infinity;
+        for (let i = 0; i <= blocked.length; i++) {
+          const s = blocked[i];
+          if (s && s[0] < hi) {
+            hi = Math.max(hi, s[1]);
+            continue;
+          }
+          if (lo < want.x && want.x < hi) {
+            x = want.x - lo <= hi - want.x ? lo : hi;
+            break;
+          }
+          if (!s || s[0] >= want.x) break;
+          [lo, hi] = s;
+        }
+        const d = Math.hypot(x - want.x, dy);
+        if (Math.abs(x - want.x) <= SEARCH_MAX && d < bestD) {
+          best = { x, y: want.y + dy };
+          bestD = d;
+          if (d === 0) break;
+        }
+      }
+      return best;
+    },
+  };
+}
+
+/**
  * Takes the pins already grouped (groupPins in mapCluster.ts) and spreads every
  * group out once the map is zoomed in to `spreadZoom`. Order is kept: put the
  * first one to show (the best offer, or someone active now) first.
+ *
+ * Spread out, two neighbouring areas' rings can reach into each other (D33 follow-up: one area's "₹2,500"
+ * bubble sat on another's). So the bubbles (`box`) are then placed in turn, every area's first pin before any
+ * area's second: a pin whose ring spot is already taken moves to the nearest free spot. No pin is ever
+ * dropped, and each area's soft circle grows to hold its own pins.
  */
-export function layoutPins(groups: PinGroup[], opts: { zoom: number; gap: SpreadGap; spreadZoom?: number }): MapItem[] {
+export function layoutPins(
+  groups: PinGroup[],
+  opts: { zoom: number; gap: SpreadGap; spreadZoom?: number; box?: (id: string, spread: boolean) => PinBox },
+): MapItem[] {
   const spread = opts.zoom >= (opts.spreadZoom ?? SPREAD_ZOOM);
-  const out: MapItem[] = [];
-  for (const g of groups) {
-    if (g.ids.length === 1) {
-      out.push({ kind: 'one', id: g.ids[0]!, x: g.x, y: g.y, area: null });
-    } else if (!spread) {
-      out.push({ kind: 'group', ids: g.ids, x: g.x, y: g.y });
-    } else {
-      const spots = ringSpots(g.ids.length, opts.gap);
-      const rx = Math.max(...spots.map((s) => Math.abs(s.dx))) + opts.gap.x * 0.6;
-      const ry = Math.max(...spots.map((s) => Math.abs(s.dy))) + opts.gap.y * 0.6;
-      const area = { x: g.x, y: g.y, rx, ry };
-      g.ids.forEach((id, i) => out.push({ kind: 'one', id, x: g.x + spots[i]!.dx, y: g.y + spots[i]!.dy, area }));
-    }
+  if (!spread) {
+    return groups.map((g): MapItem => (g.ids.length === 1 ? { kind: 'one', id: g.ids[0]!, x: g.x, y: g.y, area: null } : { kind: 'group', ids: g.ids, x: g.x, y: g.y }));
   }
+
+  const box = opts.box ?? (() => ({ x: -opts.gap.x * 0.36, y: -48, w: opts.gap.x * 0.72, h: 36 }));
+  // Where each pin would sit on its area's ring (a lone pin on its own point).
+  const at = groups.map((g) => {
+    const spots = ringSpots(g.ids.length, opts.gap);
+    return g.ids.map((_, i) => ({ x: g.x + spots[i]!.dx, y: g.y + spots[i]!.dy }));
+  });
+  const field = bubbleField();
+  const longest = Math.max(0, ...groups.map((g) => g.ids.length));
+  for (let k = 0; k < longest; k++) {
+    groups.forEach((g, gi) => {
+      if (k >= g.ids.length) return;
+      const b = box(g.ids[k]!, g.ids.length > 1);
+      // Nothing free within reach (hundreds of pins on one spot): keep the ring spot rather than lose the pin.
+      const spot = field.nearestFree(at[gi]![k]!, b) ?? at[gi]![k]!;
+      at[gi]![k] = spot;
+      field.add({ x: spot.x + b.x, y: spot.y + b.y, w: b.w, h: b.h });
+    });
+  }
+
+  const out: MapItem[] = [];
+  groups.forEach((g, gi) => {
+    const pts = at[gi]!;
+    if (g.ids.length === 1) {
+      out.push({ kind: 'one', id: g.ids[0]!, x: pts[0]!.x, y: pts[0]!.y, area: null });
+      return;
+    }
+    const rx = Math.max(...pts.map((p) => Math.abs(p.x - g.x))) + opts.gap.x * 0.6;
+    const ry = Math.max(...pts.map((p) => Math.abs(p.y - g.y))) + opts.gap.y * 0.6;
+    const area = { x: g.x, y: g.y, rx, ry };
+    g.ids.forEach((id, i) => out.push({ kind: 'one', id, x: pts[i]!.x, y: pts[i]!.y, area }));
+  });
   return out;
 }
 

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { GUEST_AREA_KEY } from './guestArea.ts';
-import { GUEST_AREA_STORAGE_KEY, PLACE_KEYS, RECENT_PLACES_KEY, forgetPlaces } from './placeMemory.ts';
+import { GUEST_AREA_STORAGE_KEY, PLACE_KEYS, RECENT_PLACES_KEY, RECENT_SEARCH_KEYS, forgetPlaces } from './placeMemory.ts';
 
 /** A storage like AsyncStorage / localStorage, held in a map. */
 function fakeStorage(start: Record<string, string>, failOn?: string) {
@@ -36,7 +36,11 @@ test('B147 one key that cannot be removed does not keep the other', async () => 
 
 test('B147 the keys are the ones the stores write', () => {
   assert.equal(GUEST_AREA_STORAGE_KEY, GUEST_AREA_KEY);
-  assert.deepEqual([...PLACE_KEYS].sort(), [GUEST_AREA_KEY, RECENT_PLACES_KEY].sort());
+  assert.deepEqual([...PLACE_KEYS].sort(), [GUEST_AREA_KEY, RECENT_PLACES_KEY, ...RECENT_SEARCH_KEYS].sort());
+  // Recent searches (smart search) are written under the same text, one key per side.
+  const searches = readFileSync(new URL('./recentSearches.ts', import.meta.url), 'utf8');
+  assert.match(searches, /`taskdrop\.recentSearches\.\$\{side\}\.v1`/);
+  assert.deepEqual([...RECENT_SEARCH_KEYS], ['earn', 'hire'].map((side) => `taskdrop.recentSearches.${side}.v1`));
   const recent = readFileSync(new URL('./recentPlaces.ts', import.meta.url), 'utf8');
   assert.match(recent, /const KEY = RECENT_PLACES_KEY/);
 });

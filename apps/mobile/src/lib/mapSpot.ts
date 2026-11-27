@@ -81,3 +81,14 @@ export function isSpotFresh(spotAt: string | number | Date | null | undefined, n
   const age = now - t;
   return age >= -SKEW_MS && age < SPOT_TTL_MS;
 }
+
+/**
+ * Should a person the server sent back still be drawn at `now`? The server returns only spots that have not
+ * expired (map_people_around checks expires_at), so a row stays live while the answer it came in is fresh, even
+ * when its own stamp is older (the fake test city keeps its spots alive for 30 days under an old stamp; checking
+ * only the stamp hid every one of them: plan 1.19 row M, 25 Nov). Nothing from an answer 15 minutes old is drawn.
+ */
+export function isPersonLive(spotAt: string | number | Date | null | undefined, answeredAt: number | null, now: number): boolean {
+  if (answeredAt !== null && isSpotFresh(answeredAt, now)) return true;
+  return isSpotFresh(spotAt, now);
+}

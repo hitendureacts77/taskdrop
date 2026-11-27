@@ -156,7 +156,7 @@ await t("writes take the caller from the session, never from the request", async
 
   f = fake();
   await runOp("sendMessage", { taskId: TASK, senderId: OTHER, body: "yo" }, ctx(f));
-  assert.equal(inserted(f.calls[0]).sender_id, UID);
+  assert.equal(inserted(f.calls.find((c) => c.table === "messages")!).sender_id, UID);
 
   f = fake();
   await runOp("addPayoutDestination", { kind: "bank", accountName: "A B", accountNumber: "123", ifsc: " hdfc0001234 ", user_id: OTHER }, ctx(f));
@@ -237,17 +237,142 @@ await t("chat: contact details are refused until the work starts, and allowed af
   const ok = await runOp("sendMessage", { taskId: TASK, body: "my number is 98765 43210" }, ctx(started));
   assert.equal(ok.ok, true);
 
-  // Plain chat does not even look the task up.
+  // Plain chat does not even look the task up: only the chat-window check (1.19 row B) and the insert.
   const plain = fake(() => ({ data: { id: "m" }, error: null }));
   await runOp("sendMessage", { taskId: TASK, body: "On my way" }, ctx(plain));
-  assert.deepEqual(plain.calls.map((c) => c.table), ["messages"]);
+  assert.deepEqual(plain.calls.map((c) => c.table ?? c.rpc), ["task_chat_states", "messages"]);
 });
 
-await t("the feed never offers the caller their own posts, nor expired ones", async () => {
+// ------------------------------------------------- chat window (1.19 row B, migration 215) --
+
+/** The database's answer for TASK: one task_chat_states row. */
+const chatRow = (state: string, can_send: boolean, reason: string | null, closes_at: string | null = null, delete_after: string | null = null) =>
+  ({ task_id: TASK, state, can_send, reason, closes_at, delete_after });
+const chatDb = (row: ReturnType<typeof chatRow> | null) =>
+  fake((c) => (c.rpc === "task_chat_states" ? { data: row ? [row] : [], error: null } : { data: { id: "m1" }, error: null }));
+
+await t("chat window: a send before the task is locked is refused with CHAT_CLOSED and never inserted", async () => {
+  const f = chatDb(chatRow("closed", false, "not_locked"));
+  const r = await runOp("sendMessage", { taskId: TASK, body: "Hi, are you free?" }, ctx(f));
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.error.code, "CHAT_CLOSED");
+    assert.equal(r.error.details, "not_locked");
+    assert.match(r.error.message, /once this task is locked/);
+  }
+  assert.ok(!f.calls.some((c) => c.table === "messages"), "nothing reaches messages");
+  const ask = f.calls.find((c) => c.rpc === "task_chat_states")!;
+  assert.deepEqual(ask.args, { p_task_ids: [TASK] });
+});
+
+await t("chat window: a send while the task is live goes through", async () => {
+  const f = chatDb(chatRow("open", true, null));
+  const r = await runOp("sendMessage", { taskId: TASK, body: "On my way" }, ctx(f));
+  assert.ok(r.ok);
+  assert.equal(inserted(f.calls.find((c) => c.table === "messages")!).task_id, TASK);
+});
+
+await t("chat window: a send inside the 48 hours after completion goes through", async () => {
+  const f = chatDb(chatRow("closing", true, null, "2026-10-06T09:00:00Z", "2026-10-06T09:00:00Z"));
+  const r = await runOp("sendMessage", { taskId: TASK, body: "Thanks, all good" }, ctx(f));
+  assert.ok(r.ok);
+  assert.ok(f.calls.some((c) => c.table === "messages"));
+});
+
+await t("chat window: a send after the 48 hours, or on a cancelled task, is refused with its reason", async () => {
+  for (const [reason, words] of [["window_ended", /closed 2 days after the task was completed/], ["cancelled", /cancelled/], ["not_participant", /Only the poster and the hired helper/]] as const) {
+    const f = chatDb(chatRow("closed", false, reason, "2026-10-04T09:00:00Z", "2026-10-04T09:00:00Z"));
+    const r = await runOp("sendMessage", { taskId: TASK, body: "one more thing" }, ctx(f));
+    assert.equal(r.ok, false, reason);
+    if (!r.ok) {
+      assert.equal(r.error.code, "CHAT_CLOSED", reason);
+      assert.equal(r.error.details, reason);
+      assert.match(r.error.message, words);
+    }
+    assert.ok(!f.calls.some((c) => c.table === "messages"), `${reason} reached messages`);
+  }
+});
+
+await t("chat window: chatState gives the app open/closing/closed, the reason, a sentence and the times", async () => {
+  const closing = await runOp("chatState", { taskId: TASK }, ctx(chatDb(chatRow("closing", true, null, "2026-10-06T09:00:00Z", "2026-10-06T09:00:00Z"))));
+  assert.ok(closing.ok);
+  assert.deepEqual(closing.ok && closing.data, {
+    taskId: TASK, open: true, state: "closing", reason: null,
+    message: "Task completed. You can keep chatting for 2 days after completion, then the chat closes and its messages are deleted.",
+    closesAt: "2026-10-06T09:00:00Z", deleteAfter: "2026-10-06T09:00:00Z",
+  });
+  const live = await runOp("chatState", { taskId: TASK }, ctx(chatDb(chatRow("open", true, null))));
+  assert.deepEqual(live.ok && live.data, { taskId: TASK, open: true, state: "open", reason: null, message: null, closesAt: null, deleteAfter: null });
+  const ended = await runOp("chatState", { taskId: TASK }, ctx(chatDb(chatRow("closed", false, "window_ended", "2026-10-04T09:00:00Z", "2026-10-04T09:00:00Z"))));
+  assert.ok(ended.ok);
+  const e = ended.ok ? (ended.data as Record<string, unknown>) : {};
+  assert.equal(e.open, false);
+  assert.equal(e.state, "closed");
+  assert.equal(e.reason, "window_ended");
+  assert.equal(e.closesAt, "2026-10-04T09:00:00Z");
+  // No answer from the database (someone else's task, or unknown) reads as closed, not a participant.
+  const none = await runOp("chatState", { taskId: TASK }, ctx(chatDb(null)));
+  assert.equal(none.ok && (none.data as { reason: string }).reason, "not_participant");
+  assert.equal(none.ok && (none.data as { open: boolean }).open, false);
+  // A bad id never reaches the database.
+  const badId = fake();
+  const b = await runOp("chatState", { taskId: "nope" }, ctx(badId));
+  assert.ok(!b.ok && b.error.code === "BAD_ARGS");
+  assert.equal(badId.calls.length, 0);
+});
+
+await t("chat window: every listThreads row carries its chat state, and a failed check leaves it null", async () => {
+  const answer = (failChat: boolean) => (c: Call): Reply =>
+    c.rpc === "my_thread_latest"
+      ? { data: [{ task_id: TASK, body: "see you", created_at: "2026-10-05T08:00:00Z", sender_id: OTHER }], error: null }
+      : c.rpc === "task_chat_states"
+        ? failChat ? { data: null, error: { message: "boom" } } : { data: [chatRow("closing", true, null, "2026-10-06T09:00:00Z", "2026-10-06T09:00:00Z")], error: null }
+        : c.table === "tasks" ? { data: [{ id: TASK, title: "Fix tap", status: "COMPLETED", updated_at: "2026-10-05T08:00:00Z" }], error: null } : { data: [], error: null };
+  const ok = await runOp("listThreads", {}, ctx(fake(answer(false))));
+  assert.ok(ok.ok);
+  const row = (ok.ok ? (ok.data as Record<string, unknown>[]) : [])[0];
+  assert.equal((row.chat as { state: string }).state, "closing");
+  assert.equal((row.chat as { closesAt: string }).closesAt, "2026-10-06T09:00:00Z");
+  const failed = await runOp("listThreads", {}, ctx(fake(answer(true))));
+  assert.ok(failed.ok, "listThreads still answers");
+  assert.equal((failed.ok ? (failed.data as Record<string, unknown>[]) : [])[0].chat, null);
+});
+
+await t("chat window: the migration closes writing outside the window and schedules the purge", () => {
+  const dir = join(import.meta.dirname, "../../migrations");
+  const file = readdirSync(dir).find((f) => /_215_chat_window\.sql$/.test(f));
+  assert.ok(file, "migration 215 exists");
+  const sql = readFileSync(join(dir, file!), "utf8");
+  assert.match(sql, /alter policy messages_insert_participant on public\.messages[\s\S]*private\.can_send_task_message\(task_id/);
+  assert.match(sql, /interval '48 hours'/);
+  assert.match(sql, /when 'chat-purge' then\s+return private\.purge_ended_chats/);
+  assert.match(sql, /cron\.schedule\('chat-purge', '37 \* \* \* \*'/);
+  assert.match(sql, /select private\.run_cron_job\('chat-purge'\)/);
+  // A dispute, an open report and money still moving all pause deletion.
+  assert.match(sql, /v_status = 'DISPUTED'/);
+  assert.match(sql, /r\.status = 'open'/);
+  assert.match(sql, /'held', 'release_asked', 'refund_asked', 'split_asked', 'failed'/);
+  // can_use_task_thread is not redefined: chat photos still read through it.
+  assert.doesNotMatch(sql, /function private\.can_use_task_thread/);
+});
+
+await t("the feed never offers the caller their own posts, and keeps posts whose date passed (plan 1.19 J)", async () => {
   const f = fake(() => ({ data: [], error: null }));
   await runOp("listOpenTasks", { kind: "request" }, ctx(f));
-  assert.deepEqual(steps(f.calls[0], "neq")[0], ["poster_id", UID]);
-  assert.deepEqual(steps(f.calls[0], "or")[0], ["due_at.is.null,due_at.gt.2026-10-05T10:00:00.000Z"]);
+  assert.deepEqual(steps(f.calls.find((c) => c.table === "tasks")!, "neq")[0], ["poster_id", UID]);
+  assert.ok(!steps(f.calls.find((c) => c.table === "tasks")!, "or").some((args) => String(args[0]).includes("due_at")));
+});
+
+await t("an offer can carry the worker's own finish date (plan 1.19 J); a past one is refused", async () => {
+  const at = new Date(Date.now() + 3 * 86_400_000).toISOString();
+  let f = fake();
+  await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "I can do this well", proposedDueAt: at }, ctx(f));
+  assert.equal(inserted(f.calls[0]).proposed_due_at, at);
+  f = fake();
+  await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "I can do this well" }, ctx(f));
+  assert.ok(!("proposed_due_at" in inserted(f.calls[0])));
+  const past = await runOp("placeBid", { taskId: TASK, priceMinor: 5000, timeLimitMinutes: 60, message: "I can do this well", proposedDueAt: new Date(Date.now() - 86_400_000).toISOString() }, ctx(fake()));
+  assert.ok(!past.ok);
 });
 
 // ------------------------------------------------------------- validation --
@@ -269,10 +394,41 @@ await t("bad ids and out-of-range values never reach the database", async () => 
   assert.equal(f.calls.length, 0);
 });
 
-await t("search text cannot break out of the filter grammar", async () => {
-  const f = fake(() => ({ data: [], error: null }));
+await t("smart search: the words go to search_posts as values, and the rows are read back best first with why", async () => {
+  const SINK = "55555555-5555-4555-8555-555555555555";
+  const f = fake((c) => {
+    if (c.rpc === "search_posts") return { data: [{ id: SINK, score: 0.9 }, { id: TASK, score: 0.4 }], error: null };
+    if (c.table === "tasks") {
+      return {
+        data: [
+          { id: TASK, poster_id: OTHER, status: "OPEN", loc_lat: null, loc_lng: null, title: "Fix a leaking bathroom tap" },
+          { id: SINK, poster_id: OTHER, status: "OPEN", loc_lat: null, loc_lng: null, title: "Kitchen sink is leaking, need a plumber today" },
+        ],
+        error: null,
+      };
+    }
+    return { data: null, error: null };
+  });
+  const reply = (await runOp("searchTasks", { q: "fix my tap),status.eq.CANCELLED,(title" }, ctx(f))) as { ok: boolean; data: { id: string; match_why: string | null }[] };
+  assert.ok(reply.ok, JSON.stringify(reply));
+  const out = reply.data;
+  const call = f.calls.find((c) => c.rpc === "search_posts")!;
+  const args = call.args as { p_words: string[]; p_expanded: string[]; p_viewer: string; p_kind: string };
+  assert.equal(args.p_kind, "request");
+  assert.equal(args.p_viewer, UID);
+  assert.ok(args.p_words.includes("tap") && !args.p_words.includes("fix"), String(args.p_words));
+  assert.ok(args.p_expanded.includes("plumber"));
+  // Nothing typed reaches PostgREST's filter grammar on the smart path.
+  const read = f.calls.find((c) => c.table === "tasks")!;
+  assert.equal(steps(read, "or").some(([x]) => String(x).includes("ilike")), false);
+  assert.deepEqual(out.map((r) => r.id), [SINK, TASK]);
+  assert.equal(out[0].match_why, "Same need: plumber, leak");
+});
+
+await t("search text cannot break out of the filter grammar (old word match, before migration 223)", async () => {
+  const f = fake((c) => (c.rpc === "search_posts" ? { data: null, error: { code: "PGRST202", message: "missing" } } : { data: [], error: null }));
   await runOp("searchTasks", { q: "tap),status.eq.CANCELLED,(title" }, ctx(f));
-  const ors = steps(f.calls[0], "or").map(([x]) => String(x));
+  const ors = steps(f.calls.find((c) => c.table === "tasks")!, "or").map(([x]) => String(x));
   const search = ors.find((x) => x.startsWith("title.ilike.%"))!;
   assert.ok(search && !/[(),]/.test(search.replace(/^title\.ilike\.%|,description\.ilike\.%|%$/g, "").replace(/%,description\.ilike\.%/, "")), search);
 });
@@ -288,7 +444,7 @@ await t("searchTasksWithPosters answers what searchTasks then attachPosters woul
   const out = r.data as Array<{ id: string; poster: { id: string } | null }>;
   assert.deepEqual(out.map((x) => [x.id, x.poster?.id]), [[TASK, OTHER], [TASK2, OTHER]]);
   // Same filters as searchTasks (never the caller's own posts), and one profiles read for both tasks.
-  assert.deepEqual(steps(f.calls[0], "neq")[0], ["poster_id", UID]);
+  assert.deepEqual(steps(f.calls.find((c) => c.table === "tasks")!, "neq")[0], ["poster_id", UID]);
   assert.equal(f.calls.filter((c) => c.table === "profiles").length, 1);
   assert.equal(rateBucket("searchTasksWithPosters"), "read");
   // Bad arguments are refused the same way, before the database is asked.
@@ -335,6 +491,34 @@ await t("B53: a changed offer comes back as OFFER_CHANGED in plain words", async
   if (!r.ok) {
     assert.equal(r.error.code, "OFFER_CHANGED");
     assert.equal(r.error.message, "The offer changed. Please review the new price.");
+  }
+});
+
+await t("227: lockBid checks the finish date the poster saw only when the app sends one", async () => {
+  const due = "2026-12-01T10:30:00.000Z";
+  const f = fake(() => ({ data: { id: TASK }, error: null }));
+  assert.ok((await runOp("lockBid", { bidId: BID, expectedPriceMinor: 120000, expectedDueAt: due }, ctx(f))).ok);
+  assert.deepEqual(f.calls[0].args, {
+    p_bid_id: BID, p_payout_mode: "one_time", p_expected_price_minor: 120000, p_check_due: true, p_expected_due_at: due,
+  });
+  // null = the offer the poster saw had no date: still checked.
+  const g = fake(() => ({ data: { id: TASK }, error: null }));
+  assert.ok((await runOp("lockBid", { bidId: BID, expectedDueAt: null }, ctx(g))).ok);
+  assert.deepEqual(g.calls[0].args, {
+    p_bid_id: BID, p_payout_mode: "one_time", p_expected_price_minor: null, p_check_due: true, p_expected_due_at: null,
+  });
+  for (const bad of ["soon", 5, true]) {
+    const h = fake();
+    const r = await runOp("lockBid", { bidId: BID, expectedDueAt: bad }, ctx(h));
+    assert.ok(!r.ok && r.error.code === "BAD_ARGS", String(bad));
+    assert.equal(h.calls.length, 0);
+  }
+  const r = await runOp("lockBid", { bidId: BID, expectedPriceMinor: 100000, expectedDueAt: due },
+    ctx(fake(() => ({ data: null, error: { message: "The helper changed their finish time. Please look again.", code: "P0001" } }))));
+  assert.ok(!r.ok);
+  if (!r.ok) {
+    assert.equal(r.error.code, "OFFER_DUE_CHANGED");
+    assert.equal(r.error.message, "The helper changed their finish time. Please look again.");
   }
 });
 
@@ -1536,6 +1720,13 @@ await t("the feedback board passes clean arguments to its SQL functions and refu
   assert.deepEqual(f.calls[4].args, { p_post: TASK, p_on: false });
   assert.ok((await runOp("commentFeedbackIdea", { postId: TASK, body: " yes " }, ctx(f))).ok);
   assert.deepEqual(f.calls[5].args, { p_post: TASK, p_body: "yes" });
+  // Files (migration 206) go to the four-argument form, trimmed to { path, kind, name }.
+  const files = [{ path: " u/1.pdf ", kind: "file", name: " receipt.pdf ", extra: true }, { path: "media:abc", kind: "image" }];
+  assert.ok((await runOp("postFeedbackIdea", { title: "Receipts", body: "", attachments: files }, ctx(f))).ok);
+  assert.deepEqual(f.calls[6].args, {
+    p_title: "Receipts", p_body: "", p_category: "feature",
+    p_attachments: [{ path: "u/1.pdf", kind: "file", name: "receipt.pdf" }, { path: "media:abc", kind: "image", name: "" }],
+  });
 
   const cases: [string, Record<string, unknown>][] = [
     ["listFeedbackBoard", { sort: "sideways" }],
@@ -1547,6 +1738,10 @@ await t("the feedback board passes clean arguments to its SQL functions and refu
     ["postFeedbackIdea", { title: "x".repeat(121), body: "" }],
     ["postFeedbackIdea", { title: "A fine title", body: "x".repeat(2001) }],
     ["postFeedbackIdea", { title: "A fine title", body: "", category: "gossip" }],
+    ["postFeedbackIdea", { title: "A fine title", body: "", attachments: "file.pdf" }],
+    ["postFeedbackIdea", { title: "A fine title", body: "", attachments: [{ path: "a", kind: "video", name: "x" }] }],
+    ["postFeedbackIdea", { title: "A fine title", body: "", attachments: [1, 2, 3, 4].map((i) => ({ path: `p${i}`, kind: "file", name: "x" })) }],
+    ["sendFeedback", { kind: "idea", body: "Hello there", attachments: [{ kind: "file", name: "x" }] }],
     ["voteFeedbackIdea", { postId: "nope" }],
     ["commentFeedbackIdea", { postId: TASK, body: "" }],
     ["commentFeedbackIdea", { postId: TASK, body: "x".repeat(1001) }],
@@ -1576,6 +1771,38 @@ await t("the verified-phone switch refuses only a known unverified caller, and o
   const res = await runOp("createTask", {}, ctx(f, { controls: on, phoneVerified: false }));
   assert.ok(!res.ok && res.error.code === "PHONE_REQUIRED");
   assert.equal(f.calls.length, 0, "nothing reached the database");
+});
+
+await t("no username, no posting, offers, chat or money; reading and an unknown answer still go ahead (plan 1.18)", async () => {
+  const task = { pillar: "services", title: "Fix tap", benchmarkMinor: 10000, timeLimitMinutes: 30 };
+  const without = () => Promise.resolve(false as boolean | undefined);
+  for (const op of ["createTask", "placeBid", "sendMessage", "sendCrewMessage", "lockBid", "huntSendFind", "requestWithdrawal"]) {
+    const f = fake();
+    const r = await runOp(op, {}, ctx(f, { usernameSet: without }));
+    assert.ok(!r.ok && r.error.code === "USERNAME_REQUIRED" && r.error.message === "Pick a username first.", op);
+    assert.equal(f.calls.length, 0, op + ": nothing reached the database");
+  }
+  // Reading, setting the username itself, and finishing work already under way are never blocked.
+  for (const op of ["listOpenTasks", "updateProfileExtras", "markWorkDone", "confirmRelease", "cancelTask"]) {
+    const r = await runOp(op, {}, ctx(fake(), { usernameSet: without }));
+    assert.ok(r.ok || r.error.code !== "USERNAME_REQUIRED", op + " is not gated");
+  }
+  let asked = 0;
+  const unknown = () => { asked++; return Promise.resolve(undefined); };
+  assert.equal((await runOp("createTask", task, ctx(fake(), { usernameSet: unknown }))).ok, true, "a failed read never refuses");
+  assert.equal((await runOp("createTask", task, ctx(fake(), { usernameSet: () => Promise.resolve(true) }))).ok, true, "with one");
+  await runOp("listOpenTasks", {}, ctx(fake(), { usernameSet: unknown }));
+  assert.equal(asked, 1, "a read does not even ask");
+});
+
+await t("a username can be changed but never emptied (plan 1.18)", async () => {
+  for (const username of [null, "", "   "]) {
+    const f = fake();
+    const r = await runOp("updateProfileExtras", { username }, ctx(f));
+    assert.ok(!r.ok && r.error.code === "USERNAME_REQUIRED", JSON.stringify(username));
+    assert.equal(f.calls.length, 0);
+  }
+  assert.equal((await runOp("updateProfileExtras", { bio: "Plumber" }, ctx(fake()))).ok, true, "other fields alone are fine");
 });
 
 await t("an auto-hire task cannot be posted unless the wallet covers the budget plus the fee", async () => {
@@ -1634,6 +1861,24 @@ await t("Plan B: raising the top-up of an auto-hire task skips the wallet check"
   const raised = await runOp("raiseTopUp", { taskId: TASK, topUpPct: 10 }, ctx(planB));
   assert.ok(raised.ok);
   assert.ok(!planB.calls.some((c) => c.table === "wallets"), "Plan B never reads the wallet");
+});
+
+await t("setTaskDue: a new date or none (open task) goes to set_task_due; a past or far date is refused", async () => {
+  const soon = new Date(Date.now() + 2 * 86_400_000).toISOString();
+  const f = fake(() => ({ data: soon, error: null }));
+  const dated = await runOp("setTaskDue", { taskId: TASK, dueAt: soon }, ctx(f));
+  assert.ok(dated.ok);
+  assert.equal(f.calls[0].rpc, "set_task_due");
+  assert.deepEqual(f.calls[0].args, { p_task_id: TASK, p_due_at: soon });
+  const g = fake(() => ({ data: null, error: null }));
+  const open = await runOp("setTaskDue", { taskId: TASK, dueAt: null }, ctx(g));
+  assert.ok(open.ok);
+  assert.deepEqual(g.calls[0].args, { p_task_id: TASK, p_due_at: null });
+  const past = await runOp("setTaskDue", { taskId: TASK, dueAt: new Date(Date.now() - 86_400_000).toISOString() }, ctx(fake()));
+  assert.ok(!past.ok);
+  const far = await runOp("setTaskDue", { taskId: TASK, dueAt: new Date(Date.now() + 4 * 365 * 86_400_000).toISOString() }, ctx(fake()));
+  assert.ok(!far.ok);
+  assert.ok(!(await runOp("setTaskDue", { taskId: "nope", dueAt: null }, ctx(fake()))).ok);
 });
 
 // ------------------------------------------------------------------- batch --
@@ -2028,6 +2273,8 @@ const guestPosts = () => [
 
 const SHARED_RPCS = new Set([
   "trending_categories", "platform_highlights", "top_earners", "public_profile_stats", "ad_auction",
+  // Smart search (migration 223): ids and scores of open posts only; the rows still come from guest_open_posts.
+  "search_posts",
 ]);
 
 /** A fake whose guest SQL functions answer sensibly; `media` is what guest_public_media lets through. */
@@ -2060,6 +2307,7 @@ const GUEST_ARGS: Record<string, Record<string, unknown>> = {
   platformFees: {}, publicProfileStats: { userId: HELPER1 },
   adAuctionRanks: {},
   listOpenTasks: {}, searchTasks: { q: "clean", near: { ...HERE, radiusKm: 10 } }, searchTasksWithPosters: { q: "clean" },
+  searchSuggest: { q: "fix my tap", near: { ...HERE, radiusKm: 10 } }, searchFallbacks: { q: "wedding mehndi", near: { ...HERE, radiusKm: 5 } },
   attachPosters: { taskIds: [G1, G2] }, getTask: { taskId: G1 }, getTaskDetail: { taskId: G1 },
   countBidsByTask: { taskIds: [G1] }, getPosterStats: { posterId: HELPER1 }, recommendedTasks: { skills: ["clean"] },
   remoteTasks: {}, tasksNear: { ...HERE, radiusKm: 10 }, urgentTasks: {}, workerServices: { userId: HELPER1 },
@@ -2555,7 +2803,8 @@ await t("a person's own profile adds only the referral code and the weekly goal"
 });
 
 await t("the open feed and every list of other people's tasks ask for no funding or hiring column", async () => {
-  const f = fake(() => ({ data: [], error: null }));
+  // search_posts finds one post, so the smart search reads its row back too.
+  const f = fake((c) => (c.rpc === "search_posts" ? { data: [{ id: TASK, score: 1 }], error: null } : { data: [], error: null }));
   await runOp("listOpenTasks", {}, ctx(f));
   await runOp("searchTasks", { q: "tap" }, ctx(f));
   await runOp("recommendedTasks", { skills: ["tap"] }, ctx(f));

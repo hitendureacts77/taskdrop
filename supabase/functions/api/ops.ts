@@ -11,7 +11,7 @@
  */
 
 import { refusalFor } from "../_shared/controls.ts";
-import { type Ctx, type Db, type DbResult, GENERIC, OpError, type Op } from "./core.ts";
+import { type Ctx, type Db, type DbResult, GENERIC, OpError, type Op, USERNAME_OPS, USERNAME_REQUIRED_MESSAGE } from "./core.ts";
 import { MEDIA_OPS } from "./media.ts";
 import { sharedAnswer } from "./publicMemo.ts";
 import { READ_OPS } from "./reads.ts";
@@ -139,6 +139,10 @@ export async function runOp(name: unknown, args: unknown, ctx: Ctx, onUnexpected
   // decided here on the server whatever the app shows.
   const off = refusalFor(name, ctx.controls ?? null, a, { phoneVerified: ctx.phoneVerified });
   if (off) return { ok: false, error: off };
+  // Plan 1.18: no posting, offers, chat or money until the caller has a username. Only a known "no" refuses.
+  if (USERNAME_OPS.has(name as string) && ctx.usernameSet && (await ctx.usernameSet()) === false) {
+    return { ok: false, error: { message: USERNAME_REQUIRED_MESSAGE, code: "USERNAME_REQUIRED", details: null } };
+  }
   const started = performance.now();
   try {
     // Only the same-for-everyone reads, and only while the admin switch is on, may share one answer (3.5b layer D).

@@ -4,7 +4,7 @@ import { View, Text as RNText, Pressable, Animated, ScrollView } from 'react-nat
 import { Image } from 'expo-image';
 import { Avatar, Screen, cardSurface } from '../components/ui';
 import { useTheme, useThemeControls } from '../providers/ThemeProvider';
-import { useNav, type ScreenName, useFocusTick } from '../providers/NavProvider';
+import { useNav, type NavParams, type ScreenName, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useSwitchMode } from '../lib/useSwitchMode';
 import { useAuth } from '../providers/AuthProvider';
@@ -15,14 +15,17 @@ import { HitArea, tx } from '../components/primitives';
 import { Icon, type IconName } from '../components/Icon';
 import { ConfirmDialog } from '../components/kit';
 import { AppHeader } from '../components/AppHeader';
+import { TabTitle } from '../components/TabTitle';
+import { PayoutDestinationSheet } from '../components/PayoutDestinationSheet';
 import { HeroBackground } from '../components/Hero';
 import { Ripples } from '../components/Ripples';
 import { GuestNote } from '../components/GuestBits';
-import { startTour } from '../components/tour/tourStore';
-import { TOUR_COPY } from '../lib/tour';
+import { WALK_COPY } from '../lib/walkthrough';
 import { needAccount } from '../lib/guest';
 import { useLayout } from '../lib/layout';
 import { TwoPane } from '../components/TwoPane';
+import { HomeFeedbackCard } from '../components/HomeFeedbackCard';
+import { onHero } from '../theme';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -46,7 +49,7 @@ function SlideIn({ delay, children }: { delay: number; children: React.ReactNode
 // The account pages both sides share, grouped as one card. Anything already a
 // tab (wallet, my tasks) or a header icon (messages, notifications) is not
 // repeated here. Terms, Privacy and Sign out sit in a line of links below.
-type MenuRow = { icon: IconName; label: string; go: ScreenName; act?: () => void };
+type MenuRow = { icon: IconName; label: string; go: ScreenName; params?: NavParams; act?: () => void };
 
 const SHARED_ROWS: MenuRow[] = [
   { icon: 'edit' as IconName, label: 'Edit my profile', go: 'profileEdit' },
@@ -60,6 +63,7 @@ const WORKER_ROWS: MenuRow[] = [
   { icon: 'briefcase' as IconName, label: 'Work for you', go: 'myQuotes' },
   { icon: 'trophy' as IconName, label: 'Streaks and badges', go: 'streaks' },
   { icon: 'bolt' as IconName, label: 'Promote my service', go: 'promote' },
+  { icon: 'trending' as IconName, label: 'Promotions', go: 'promotions' },
   { icon: 'bookmark' as IconName, label: 'Saved tasks', go: 'saved' },
   ...SHARED_ROWS,
 ];
@@ -67,6 +71,8 @@ const WORKER_ROWS: MenuRow[] = [
 const POSTER_ROWS: MenuRow[] = [
   { icon: 'heart' as IconName, label: 'My regulars', go: 'regulars' },
   { icon: 'bolt' as IconName, label: 'Promote a request', go: 'promote' },
+  { icon: 'bookmark' as IconName, label: 'Saved tasks', go: 'saved' },
+  { icon: 'trending' as IconName, label: 'Promotions', go: 'promotions' },
   ...SHARED_ROWS,
 ];
 
@@ -122,6 +128,7 @@ export function ProfileScreen() {
   // <Image> can load it. Null just means we fall back to the initial.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [accounts, setAccounts] = useState(false);
   // W2-16: names every way this person can sign back in.
   const signOutWords = useSignOutMessage(confirmSignOut, profile?.username);
   const [regulars, setRegulars] = useState<Regular[]>([]);
@@ -133,14 +140,19 @@ export function ProfileScreen() {
   const memberRows: MenuRow[] = worker
     ? [{ icon: 'trending' as IconName, label: 'My earnings and jobs', go: 'analytics' as ScreenName }, ...WORKER_ROWS]
     : POSTER_ROWS;
+  // Rows the account drawer had that no other tab carries: the bank or UPI accounts and How TaskDrop works (decision 2, task 1.19).
+  const accountRows: MenuRow[] = [
+    { icon: 'card' as IconName, label: 'Bank & UPI accounts', go: 'profile', act: () => setAccounts(true) },
+    { icon: 'sparkle' as IconName, label: WALK_COPY.menuLabel, go: 'intro', params: { replay: true } },
+  ];
   // A guest keeps Help, the tour and feedback; the rest is about an account they do not have yet.
   const guestRows: MenuRow[] = [
     { icon: 'edit', label: 'Edit my profile', go: 'profileEdit', act: () => needAccount('profile') },
-    { icon: 'sparkle', label: TOUR_COPY.menuLabel, go: 'profile', act: () => startTour(worker ? 'earn' : 'hire') },
+    { icon: 'sparkle', label: WALK_COPY.menuLabel, go: 'intro', params: { replay: true } },
     { icon: 'trending', label: 'Ideas & feedback', go: 'ideas' },
     { icon: 'help', label: 'Help & support', go: 'help' },
   ];
-  const rows: MenuRow[] = guest ? guestRows : memberRows;
+  const rows: MenuRow[] = guest ? guestRows : [...memberRows, ...accountRows];
 
   // Poster and worker reputations are separate, so re-fetch when the mode flips.
   useEffect(() => {
@@ -263,7 +275,7 @@ export function ProfileScreen() {
             {/* You have the app open, so you're active -- shown the way others see it. */}
             {/* A guest has no presence to show (no heartbeat runs without an account, B175). */}
             {guest ? null : (
-              <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: '#4ADE9A', borderWidth: 2.5, borderColor: band }} />
+              <View style={{ position: 'absolute', left: 50, top: 48, width: 15, height: 15, borderRadius: 999, backgroundColor: onHero.online, borderWidth: 2.5, borderColor: band }} />
             )}
             <View style={{ flex: 1 }}>
               <RNText style={tx('800', 22, '#FFFFFF', { letterSpacing: -0.5 })} numberOfLines={1}>
@@ -273,7 +285,7 @@ export function ProfileScreen() {
                 {ratingLine}
                 {doneLine ? ' · ' + doneLine : ''}
               </RNText>
-              {guest ? null : <RNText style={tx('600', 12, '#86EFAC', { marginTop: 4 })}>● Active now</RNText>}
+              {guest ? null : <RNText style={tx('600', 12, onHero.online, { marginTop: 4 })}>● Active now</RNText>}
             </View>
           </View>
           {chips.length > 0 ? (
@@ -421,12 +433,14 @@ export function ProfileScreen() {
             </View>
           ) : null;
 
+  // Task 1.19 F (decision 4): the "Suggest a feature" vote card sits under the menu, by its Ideas & feedback row.
   const menuCard = (
+        <>
           <View style={{ ...cardSurface(t, 18), marginTop: split || desk ? 0 : 28, paddingHorizontal: 14 }}>
             {rows.map((r, i) => (
               <Pressable
                 key={r.label}
-                onPress={() => (r.act ? r.act() : go(r.go))}
+                onPress={() => (r.act ? r.act() : go(r.go, r.params))}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -454,6 +468,8 @@ export function ProfileScreen() {
               </Pressable>
             ))}
           </View>
+          <HomeFeedbackCard />
+        </>
   );
 
   // Theme, reviews and the line of links: below the menu, in both layouts. On a desktop the theme and the reviews are
@@ -538,12 +554,11 @@ export function ProfileScreen() {
         </>
   );
 
-  const rest = (
-        <>
-          {desk ? <View style={deskCard}>{themeBlock}</View> : themeBlock}
-          {guest ? null : desk ? <View style={deskCard}>{reviewsBlock}</View> : reviewsBlock}
+  const themeCard = desk ? <View style={deskCard}>{themeBlock}</View> : themeBlock;
+  const reviewsCard = guest ? null : desk ? <View style={deskCard}>{reviewsBlock}</View> : reviewsBlock;
 
-          {/* Terms, Privacy and Sign out: one small line of links. */}
+  // Terms, Privacy and Sign out: one small line of links.
+  const links = (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 18, marginTop: desk ? 0 : 32, paddingVertical: 8 }}>
             <Pressable onPress={() => go('terms')} hitSlop={8} accessibilityRole="link">
               <RNText style={tx('600', 12.5, t.colors.muted)}>Terms</RNText>
@@ -557,6 +572,13 @@ export function ProfileScreen() {
               </Pressable>
             )}
           </View>
+  );
+
+  const rest = (
+        <>
+          {themeCard}
+          {reviewsCard}
+          {links}
         </>
   );
 
@@ -566,6 +588,24 @@ export function ProfileScreen() {
   return (
     <Screen padded={false}>
       <AppHeader />
+      {desk ? null : (
+        <TabTitle
+          title="Profile"
+          live={guest ? 'Looking around' : [profile?.username ? `@${profile.username}` : null, profile?.loc_label?.split(',')[0] ?? null, hasRating ? `★ ${Number(ratingAvg ?? 0).toFixed(1)}` : null].filter(Boolean).join(' · ') || null}
+          action={
+            guest ? undefined : (
+              <Pressable
+                onPress={() => go('publicProfile', { userId, role: worker ? 'worker' : 'poster' })}
+                accessibilityRole="button"
+                accessibilityLabel="See as others"
+                style={({ pressed }) => ({ borderWidth: 1.5, borderColor: t.colors.accentBorder, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 14, opacity: pressed ? 0.7 : 1 })}
+              >
+                <RNText style={tx('800', 13.5, t.colors.accentDeep)}>See as others</RNText>
+              </Pressable>
+            )
+          }
+        />
+      )}
       <TwoPane
         width={Math.round(Math.min(480, Math.max(380, contentWidth('feed') * 0.34)))}
         left={
@@ -576,13 +616,16 @@ export function ProfileScreen() {
               {modeBlock}
               {progressCard}
               {regularsBlock}
+              {/* Side by side, theme and reviews sit under you so the two columns end close together. */}
+              {themeCard}
+              {reviewsCard}
             </View>
           </>
         }
         right={
           <View style={{ maxWidth: 720, ...stack }}>
             {menuCard}
-            {rest}
+            {links}
           </View>
         }
         single={
@@ -599,6 +642,7 @@ export function ProfileScreen() {
           </ScrollView>
         }
       />
+      <PayoutDestinationSheet visible={accounts} onClose={() => setAccounts(false)} onChanged={() => {}} />
       <ConfirmDialog
         visible={confirmSignOut}
         danger

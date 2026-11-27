@@ -1,5 +1,8 @@
 -- Cutover: let Inngest run push notifications and the housekeeping prunes.
 --
+-- Plan 3.5c (migration 199): `housekeeping` and `overdue-tasks` moved on to pg_cron
+-- (private.run_cron_job); the push switch below is still valid.
+--
 -- NOT a migration, so nothing applies it by accident. Run it by hand in the
 -- Supabase SQL editor, once, after ALL of these are true:
 --

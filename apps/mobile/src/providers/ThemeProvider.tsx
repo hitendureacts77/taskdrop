@@ -109,7 +109,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
  * button, chip, tab, border and focus ring follows the mode -- nothing on the
  * worker side is left green by a screen that forgot to ask.
  */
-const WORKER_ACCENT = {
+export const WORKER_ACCENT = {
   light: {
     accent: '#2F5BEA',
     accentDeep: '#2448D8',

@@ -236,6 +236,9 @@ test("d. cancel before the work starts: full refund", async () => {
   must(await poster("cancelTask", { taskId: job.taskId, reason: "End-to-end test: cancel before start." }), "cancelTask");
   const h = await holdReaches(poster, job.taskId, ["refunded"], posterToken);
   expect(h.refund_minor).toBe(h.charged_minor);
+  // Row A (1.19): deleting a paid task tells the poster the money is coming back.
+  const notes = must(await poster<{ kind: string; task_id: string | null }[]>("listNotifications", { limit: 50 }), "listNotifications");
+  expect(notes.some((n) => n.kind === "money_refunded" && n.task_id === job.taskId)).toBe(true);
 
   const page = await open(posterAccount, "poster");
   await page.getByText("Wallet", { exact: true }).first().click();

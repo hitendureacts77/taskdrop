@@ -104,14 +104,15 @@ test('post-when-back only within two hours of the press', () => {
   assert.equal(resumable(null, NOW), false);
 });
 
-test('a picked date already gone becomes today', () => {
+test('a picked date already gone becomes No fixed date (the default)', () => {
   const past = normalize(snap({ customDue: '2026-11-03T12:00:00.000Z' }), NOW);
-  assert.equal(past.whenKey, 'today');
+  assert.equal(past.whenKey, 'open');
   assert.equal(past.customDue, null);
   const future = normalize(snap(), NOW);
   assert.equal(future.whenKey, 'custom');
   assert.equal(future.customDue, '2026-11-06T12:00:00.000Z');
-  assert.equal(normalize(snap({ customDue: null }), NOW).whenKey, 'today');
+  assert.equal(normalize(snap({ customDue: null }), NOW).whenKey, 'open');
+  assert.equal(normalize(snap({ whenKey: 'open', customDue: null }), NOW).whenKey, 'open');
   // A preset choice keeps no picked date.
   assert.equal(normalize(snap({ whenKey: 'week' }), NOW).customDue, null);
   // Reached is never behind the step shown.

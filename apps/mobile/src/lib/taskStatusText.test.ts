@@ -33,11 +33,12 @@ test('assignment chip only while open (B158)', () => {
   assert.equal(showAssignmentChip('TASK_STARTED'), false);
 });
 
-test('"No offers" only for an open task with no offers (B154); short enough for a narrow card (B165)', () => {
-  for (const s of ['OPEN', 'OVERDUE']) for (const n of [0, 3]) assert.ok(datePassedLine(s, n).length <= 24);
-  assert.equal(datePassedLine('OPEN', 0), 'DATE PASSED · NO OFFERS');
+test('an open post past its date reads "No fixed date" (plan 1.19 J); short enough for a narrow card (B165)', () => {
+  for (const s of ['OPEN', 'OVERDUE']) for (const n of [0, 1, 3]) assert.ok(datePassedLine(s, n).length <= 24);
+  assert.equal(datePassedLine('OPEN', 0), 'NO FIXED DATE');
   assert.equal(datePassedLine('OVERDUE', 0), 'DATE PASSED');
-  assert.equal(datePassedLine('OPEN', 3), 'DATE PASSED');
+  assert.equal(datePassedLine('OPEN', 1), 'NO FIXED DATE · 1 OFFER');
+  assert.equal(datePassedLine('OPEN', 3), 'NO FIXED DATE · 3 OFFERS');
 });
 
 test('success ignores offers still waiting (B159)', () => {

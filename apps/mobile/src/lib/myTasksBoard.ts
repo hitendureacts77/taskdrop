@@ -12,6 +12,8 @@ export type BoardTask = {
   status: string;
   title: string;
   due_at?: string | null;
+  /** The date an open post had when it passed with nobody picked (migration 216). */
+  due_lapsed_at?: string | null;
   funded_at?: string | null;
   auto_complete_at?: string | null;
   started_at?: string | null;
@@ -19,7 +21,11 @@ export type BoardTask = {
   wallet_refunded_at?: string | null;
 };
 
-export type Tone = 'accent' | 'gold' | 'signal' | 'blue' | 'neutral';
+/**
+ * `accent` = moving (soft mode colour), `you` = waiting on YOU (the mode colour with a ring), `signal` = a problem
+ * (coral), `neutral` = waiting on the other person or closed (grey). Gold means verified only (1.19 row G).
+ */
+export type Tone = 'accent' | 'you' | 'gold' | 'signal' | 'blue' | 'neutral';
 
 /** Status pill of a posted task (shared with Home's sections and the task page). */
 export function statusBadge(task: Pick<BoardTask, 'status' | 'funded_at'>): { label: string; tone: Tone } {
@@ -27,18 +33,18 @@ export function statusBadge(task: Pick<BoardTask, 'status' | 'funded_at'>): { la
     case 'OPEN':
       return { label: 'Open', tone: 'accent' };
     case 'LOCKED':
-      return task.funded_at ? { label: 'Worker to start', tone: 'accent' } : { label: 'Waiting for payment', tone: 'signal' };
+      return task.funded_at ? { label: 'Worker to start', tone: 'accent' } : { label: 'Waiting for payment', tone: 'you' };
     case 'TASK_STARTED':
-      return { label: 'In progress', tone: 'gold' };
+      return { label: 'In progress', tone: 'accent' };
     case 'OVERDUE':
       return { label: 'Overdue', tone: 'signal' };
     case 'WORK_DONE':
-      return { label: 'Review work', tone: 'gold' };
+      return { label: 'Review work', tone: 'you' };
     case 'REVISION_REQUESTED':
-      return { label: 'Revision asked', tone: 'gold' };
+      return { label: 'Revision asked', tone: 'neutral' };
     case 'COMPLETED':
     case 'AUTO_COMPLETED':
-      return { label: 'Completed', tone: 'blue' };
+      return { label: 'Completed', tone: 'accent' };
     case 'DISPUTED':
       return { label: 'Problem reported', tone: 'signal' };
     default:
@@ -94,9 +100,20 @@ export function posterStage(status: string, offers: number): number {
   }
 }
 
-/** An open post whose date is behind us: said calmly, in gold. */
-export function openDatePassed(task: Pick<BoardTask, 'status' | 'due_at'>, now: number): boolean {
-  return task.status === 'OPEN' && !!task.due_at && new Date(task.due_at).getTime() < now;
+/**
+ * An open post whose date passed with nobody picked (plan 1.19 J): the server switches it to no fixed
+ * date within 15 minutes and keeps the old date in due_lapsed_at. Still open; said calmly, in gold.
+ */
+export function openDatePassed(task: Pick<BoardTask, 'status' | 'due_at' | 'due_lapsed_at'>, now: number): boolean {
+  if (task.status !== 'OPEN') return false;
+  if (task.due_at) return new Date(task.due_at).getTime() < now;
+  return !!task.due_lapsed_at;
+}
+
+/** "22 Nov": the date an open post had before it passed (plan 1.19 J). */
+export function lapsedDay(task: Pick<BoardTask, 'due_at' | 'due_lapsed_at'>): string | null {
+  const at = task.due_lapsed_at ?? task.due_at;
+  return at ? dayMonth(at) : null;
 }
 
 /** Top line of an open post card: "GETTING OFFERS" once someone has offered, "WAITING FOR OFFERS" before. */
@@ -244,7 +261,7 @@ export function posterNeeds(
           taskId: task.id,
           lead: `${n} ${n === 1 ? 'offer' : 'offers'} to choose from`,
           rest: task.title,
-          hint: passed ? 'Date passed · choose an offer, or post it again' : 'Compare and pick one',
+          hint: passed ? 'Your date passed · each offer says when they can finish' : 'Compare and pick one',
           tone: 'accent',
           action: 'Choose an offer',
           primary: true,
@@ -254,11 +271,11 @@ export function posterNeeds(
           key: 'repost-' + task.id,
           kind: 'repost',
           taskId: task.id,
-          lead: 'No offers before the date',
+          lead: 'Your date passed: still open',
           rest: task.title,
-          hint: 'Post it again with a new date, or close it',
+          hint: 'No fixed date now. Helpers can still offer',
           tone: 'gold',
-          action: 'Post again',
+          action: 'Set a new date',
           primary: false,
         });
       }
@@ -429,4 +446,133 @@ export function closedLine(
   const paid = task.funded_minor ?? 0;
   if (task.started_at && x.fineMinor > 0) return `${x.money(Math.max(0, paid - x.fineMinor))} refunded to you · less the ${x.finePct}% fine`;
   return `${x.money(paid)} refunded to you`;
+}
+
+// ------------------------------------------------------------ task cards -----
+// The new My tasks / My work cards (1.19 row G): pill, title + where, person + money, track, date, hint, button.
+
+/** How a status pill is drawn: moving = soft, you = ringed (waiting on you), problem = coral, wait / closed = grey. */
+export type PillTone = 'moving' | 'you' | 'problem' | 'wait' | 'closed';
+
+/** A line made of plain and bold parts ("Posted **2 h ago** · due **Sun 30 Nov**"). */
+export type Bit = { t: string; b?: boolean };
+
+/** "Sun 30 Nov". */
+export function dayDate(iso: string): string {
+  const d = new Date(iso);
+  return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** The meta line beside the pill: "Home Services · Nearby · Kondapur" or "Home Services · Remote". */
+export function whereLine(category: string, area: string | null): string {
+  if (area === 'Remote') return `${category} · Remote`;
+  if (area) return `${category} · Nearby · ${area}`;
+  return category;
+}
+
+/** The pill of a posted task: words from statusBadge(), except an open post says how its offers stand. */
+export function posterPill(
+  task: Pick<BoardTask, 'status' | 'funded_at' | 'due_at' | 'due_lapsed_at'>,
+  offers: number,
+  now: number,
+): { label: string; tone: PillTone } {
+  if (task.status === 'OPEN') {
+    if (offers > 0) return { label: `${offers} ${offers === 1 ? 'offer' : 'offers'} in`, tone: 'you' };
+    // A passed date switches the post to no fixed date (plan 1.19 J): still open, waiting for offers.
+    return { label: openDatePassed(task, now) ? 'No fixed date' : 'Waiting for offers', tone: 'wait' };
+  }
+  const b = statusBadge(task);
+  if (b.tone === 'neutral') return { label: b.label, tone: task.status === 'REVISION_REQUESTED' ? 'wait' : 'closed' };
+  return { label: b.label, tone: b.tone === 'you' ? 'you' : b.tone === 'signal' ? 'problem' : 'moving' };
+}
+
+/** The date line of a posted task's card; `postedAgo` is the "2h ago" words for an open post. */
+export function posterDateBits(task: BoardTask, now: number, postedAgo = ''): Bit[] {
+  const due = task.due_at ? dueShort(task.due_at, now) : null;
+  switch (task.status) {
+    case 'OPEN': {
+      const bits: Bit[] = [{ t: 'Posted ' }, { b: true, t: postedAgo || 'just now' }];
+      if (task.due_at && !openDatePassed(task, now)) bits.push({ t: ' · due ' }, { t: dayDate(task.due_at), b: true });
+      else bits.push({ t: ' · ' }, { t: 'No fixed date', b: true });
+      return bits;
+    }
+    case 'WORK_DONE':
+      return task.auto_complete_at
+        ? [{ t: 'Approve or report by ' }, { t: dayDate(task.auto_complete_at), b: true }]
+        : [{ t: 'Approve it, or ask for changes' }];
+    case 'COMPLETED':
+    case 'AUTO_COMPLETED':
+      return task.completed_at ? [{ t: 'Finished ' }, { t: dayMonth(task.completed_at), b: true }] : [{ t: 'Finished' }];
+    case 'OVERDUE':
+      return [{ t: 'Past the agreed time' }];
+    case 'DISPUTED':
+      return [{ t: 'Problem reported' }];
+    case 'LOCKED':
+    case 'TASK_STARTED':
+    case 'REVISION_REQUESTED': {
+      const bits: Bit[] = [];
+      if (task.started_at) bits.push({ t: 'Started ' }, { t: dueShort(task.started_at, now), b: true });
+      if (due) bits.push({ t: bits.length ? ' · due ' : 'Due ' }, { t: due, b: true });
+      return bits.length ? bits : [{ t: task.funded_at ? 'Paid' : 'Hired' }];
+    }
+    default:
+      return [{ t: 'Closed' }];
+  }
+}
+
+export type CardHint = { tone: 'acc' | 'mut' | 'coral'; text: string };
+
+/** The optional hint line of a posted task's card. */
+export function posterHint(task: BoardTask, x: { offers: number; name: string | null; now: number }): CardHint | null {
+  const who = firstName(x.name) ?? 'The worker';
+  switch (task.status) {
+    case 'OPEN':
+      return openDatePassed(task, x.now)
+        ? {
+            tone: 'mut',
+            text:
+              x.offers > 0
+                ? 'Your date passed. Each offer says when the helper can finish.'
+                : `Your date${lapsedDay(task) ? ` (${lapsedDay(task)})` : ''} passed, so it is open with no fixed date. Helpers can still offer.`,
+          }
+        : null;
+    case 'LOCKED':
+      return task.funded_at ? null : { tone: 'acc', text: `${who} starts once you pay. TaskDrop holds the money until you approve.` };
+    case 'WORK_DONE':
+      return { tone: 'acc', text: `If you say nothing by then, it completes and ${who} is paid.` };
+    case 'REVISION_REQUESTED':
+      return { tone: 'mut', text: `You asked for changes. ${who} is fixing it.` };
+    case 'OVERDUE':
+      return { tone: 'coral', text: `Past the agreed time. ${who} is still on it.` };
+    case 'DISPUTED':
+      return { tone: 'coral', text: 'Money stays held until TaskDrop decides.' };
+    default:
+      return null;
+  }
+}
+
+/** The pill of a worker's row (My work): words from the row's state. */
+export function workerPill(state: string, taskStatus?: string | null): { label: string; tone: PillTone } {
+  switch (state) {
+    case 'PENDING':
+      return { label: 'Offer sent', tone: 'wait' };
+    case 'WAITING ON PAYMENT':
+      return { label: 'Waiting for payment', tone: 'wait' };
+    case 'ACCEPTED · SWIPE TO START':
+      return { label: 'You’re picked', tone: 'moving' };
+    case 'ACTIVE · TIMER RUNNING':
+      return taskStatus === 'OVERDUE' ? { label: 'Overdue', tone: 'problem' } : { label: 'Working', tone: 'moving' };
+    case 'WORK DONE · WAITING FOR CUSTOMER':
+      return taskStatus === 'REVISION_REQUESTED' ? { label: 'Changes asked', tone: 'you' } : { label: 'Waiting for approval', tone: 'wait' };
+    case 'DONE · PAID':
+      return { label: '✓ Paid', tone: 'moving' };
+    case 'NOT SELECTED':
+      return { label: 'Not picked', tone: 'closed' };
+    case 'OFFER ACCEPTED':
+      return { label: 'Offer accepted', tone: 'closed' };
+    default: {
+      const s = state.toLowerCase();
+      return { label: s.charAt(0).toUpperCase() + s.slice(1), tone: 'closed' };
+    }
+  }
 }

@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { MEDIA } from '@taskdrop/rules';
 import { readBytes } from './readBytes';
+import { feedbackTooBig } from './feedbackLimits';
 import { currentUserId } from './supabase';
 import { callApi } from './gateway';
 import { makeLinkMemory } from './signedLinks';
@@ -12,7 +13,7 @@ import { onForget, personKey, wipeCount } from './freshness';
 const { cachedLink, joinPending, keeperFor, linkKey } = makeLinkMemory({ personKey, wipeCount, onForget });
 
 /** What a file is for. The server records it and checks it again before the file is attached to anything. */
-export type UploadPurpose = 'task' | 'proof' | 'avatar' | 'chat';
+export type UploadPurpose = 'task' | 'proof' | 'avatar' | 'chat' | 'feedback';
 
 /** Pictures go to ImageKit: the server hands over a signed, one-time upload token. */
 type ImageKitTarget = {
@@ -173,6 +174,9 @@ export type PickedMedia = {
   mimeType: string;
   seconds?: number;
   bytes: number;
+  /** Pixel size, when the picker reports it. */
+  width?: number;
+  height?: number;
 };
 
 export class MediaError extends Error {}
@@ -203,6 +207,7 @@ function extensionFor(mimeType: string, fallback: string): string {
 export async function pickMedia(
   wanted: 'image' | 'video' | 'any',
   source: 'library' | 'camera' = 'library',
+  quality = 0.8,
 ): Promise<PickedMedia | null> {
   // The web picker is a plain <input type=file>, which needs no permission and
   // has none to ask for.
@@ -222,7 +227,7 @@ export async function pickMedia(
 
   const options: ImagePicker.ImagePickerOptions = {
     mediaTypes: wanted === 'any' ? ['images', 'videos'] : wanted === 'video' ? ['videos'] : ['images'],
-    quality: 0.8,
+    quality,
     allowsMultipleSelection: false,
     // The camera stops recording at the cap, so a clip can never be too long.
     videoMaxDuration: MEDIA.MAX_VIDEO_SECONDS,
@@ -259,7 +264,7 @@ export async function pickMedia(
     if (seconds == null) seconds = MEDIA.MAX_VIDEO_SECONDS;
   }
 
-  return { kind, uri: asset.uri, mimeType, seconds, bytes };
+  return { kind, uri: asset.uri, mimeType, seconds, bytes, width: asset.width || undefined, height: asset.height || undefined };
 }
 
 /**
@@ -427,9 +432,9 @@ const DOC_TYPES = [
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 ];
 
-/** Open the document picker (PDF, Word, Excel, PowerPoint, text). Straight off a press. */
-export async function pickDocument(): Promise<PickedDocument | null> {
-  const res = await DocumentPicker.getDocumentAsync({ type: DOC_TYPES, copyToCacheDirectory: true, multiple: false });
+/** Open the document picker (PDF, Word, Excel, PowerPoint, text; or only the types asked for). Straight off a press. */
+export async function pickDocument(types: string[] = DOC_TYPES): Promise<PickedDocument | null> {
+  const res = await DocumentPicker.getDocumentAsync({ type: types, copyToCacheDirectory: true, multiple: false });
   if (res.canceled || !res.assets?.[0]) return null;
   const a = res.assets[0];
   const bytes = a.size ?? 0;
@@ -450,4 +455,55 @@ export async function uploadProofFile(
   const ext = kind === 'file' ? (fromName && fromName.length <= 5 ? fromName : 'pdf') : extensionFor(picked.mimeType, kind === 'video' ? 'mp4' : 'jpg');
   const path = await storeFile('proof', kind, picked, ext);
   return { path, kind, name: picked.name ?? (kind === 'image' ? 'Photo' : kind === 'video' ? 'Video' : 'Document') };
+}
+
+// ---------------------------------------------------------------- feedback --
+
+/**
+ * A photo or a PDF attached to feedback (migration 206): "Send feedback" and
+ * ideas on the board. Up to three. Photos are made smaller before they go up
+ * (lib/photoShrink.ts) and may be 1 MB at most; a PDF may be 2 MB (owner,
+ * 25 Nov: only small files are stored). The server checks all of this again
+ * when the feedback is saved; these checks only spare a wasted upload.
+ */
+export type FeedbackFile = { path: string; kind: 'image' | 'file'; name: string };
+
+export {
+  FEEDBACK_FILES_MAX,
+  FEEDBACK_PHOTO_MAX_BYTES,
+  FEEDBACK_PDF_MAX_BYTES,
+  FEEDBACK_PICK_QUALITY,
+  feedbackTooBig,
+} from './feedbackLimits';
+
+/** Pick a PDF for feedback. Straight off a press. */
+export async function pickFeedbackPdf(): Promise<PickedDocument | null> {
+  const picked = await pickDocument(['application/pdf']);
+  if (!picked) return null;
+  if (picked.mimeType !== 'application/pdf' && !picked.name.toLowerCase().endsWith('.pdf')) {
+    throw new MediaError('Only photos and PDF files can be attached.');
+  }
+  const tooBig = feedbackTooBig('file', picked.bytes, picked.name);
+  if (tooBig) throw new MediaError(tooBig);
+  return { ...picked, mimeType: 'application/pdf' };
+}
+
+/** Upload a picked photo or PDF for feedback and return what the feedback row stores. */
+export async function uploadFeedbackFile(
+  picked: { uri: string; mimeType: string; name?: string; bytes: number },
+  kind: FeedbackFile['kind'],
+): Promise<FeedbackFile> {
+  const userId = await currentUserId();
+  if (!userId) throw new MediaError('Sign in before attaching a file.');
+  const tooBig = feedbackTooBig(kind, picked.bytes, picked.name);
+  if (tooBig) throw new MediaError(tooBig);
+  if (kind === 'image' && !imageMimeFor(picked.mimeType)) {
+    throw new MediaError('Only photos (JPEG, PNG, WebP, HEIC) and PDF files can be attached.');
+  }
+  // The stored type is checked by the server, so 'image/jpg' and the like go up under their proper names.
+  const mimeType = kind === 'file' ? 'application/pdf' : imageMimeFor(picked.mimeType)!;
+  const ext = kind === 'file' ? 'pdf' : extensionFor(mimeType, 'jpg');
+  const path = await storeFile('feedback', kind, { uri: picked.uri, mimeType }, ext);
+  const name = (picked.name ?? '').trim().slice(0, 80) || (kind === 'image' ? 'Photo' : 'PDF');
+  return { path, kind, name };
 }

@@ -51,8 +51,8 @@ export async function answerConsent(page: Page): Promise<void> {
 }
 
 /**
- * Opens the front door at the number box. The front door opens with the story and "Create my account"; the
- * number box comes after it, for a new number and a returning one alike (the number decides the door).
+ * Opens the front door at the number box. Since 26 Nov the front door is the number box itself (sign-in first);
+ * "Create my account" is still handled for a build that opens on the walkthrough. The number decides the door.
  */
 export async function openPhoneBox(page: Page): Promise<void> {
   await page.goto("/");
@@ -202,6 +202,14 @@ export function must<T>(r: ApiResult<T>, what: string): T {
   return r.data;
 }
 
+/** The feed's tab or side-menu item: "Explore" in Hire, "Find work" in Earn (a seed account's mode can be either). */
+export const FEED_TAB = /^(Explore|Find work)$/;
+
+/** Opens the feed (it opens on the map) from the bottom tabs (phone) or the side menu (desktop). */
+export async function openFeedTab(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: FEED_TAB }).or(page.getByRole("link", { name: FEED_TAB })).filter({ visible: true }).first().click();
+}
+
 export async function expectSignedIn(page: Page) {
   await expect(page.getByText("Wallet").first()).toBeVisible();
   await closeStagingCard(page);
@@ -210,7 +218,8 @@ export async function expectSignedIn(page: Page) {
 /**
  * A fresh browser, once signed in, is shown "How staging works" (components/StagingWelcome.tsx), which covers the
  * screen until it is closed. It may open a moment after the page, so wait a little for it. Closing it is kept in
- * the browser's storage: a saved sign-in made after this never shows it again.
+ * the browser's storage: a saved sign-in made after this never shows it again. After it, "How TaskDrop works"
+ * opens once by itself (components/WalkthroughHost.tsx, task 1.19 row N); it is closed here too, and remembered.
  */
 export async function closeStagingCard(page: Page): Promise<void> {
   const staging = page.getByRole("button", { name: "Got it", exact: true });
@@ -219,4 +228,16 @@ export async function closeStagingCard(page: Page): Promise<void> {
     () => undefined,
   );
   await expect(staging).toHaveCount(0);
+  const walk = page.getByRole("button", { name: "Close", exact: true });
+  const opened = await page.getByRole("heading", { name: "How TaskDrop works", exact: true }).waitFor({ timeout: 5_000 }).then(() => true, () => false);
+  if (opened) await walk.click();
+}
+
+/**
+ * A guest's way in since the sign-in-first front door (AccessScreen): the consent bar, then "Continue as guest".
+ * Leaves the page on the guest's Home.
+ */
+export async function continueAsGuest(page: Page): Promise<void> {
+  await answerConsent(page);
+  await page.getByRole("button", { name: "Continue as guest" }).click();
 }

@@ -1,9 +1,10 @@
 import {
   type Args, type Ctx, type DbError, type Op, MONEY_MAX, OpError, RESERVED_USERNAMES, bad, bool, coordOrNull, int, isoOrNull, nowIso, num, numOrNull, oneOf, priceMinor,
-  rows, rpcOp, str, strOrNull, strings, take, toOpError, uuid, uuidOrNull, uuids,
+  rows, rpcOp, str, strOrNull, strings, take, toOpError, USERNAME_REQUIRED_MESSAGE, uuid, uuidOrNull, uuids,
 } from "./core.ts";
 import { assertOwnImage, isMediaRef } from "./media.ts";
-import { planBOn, readFees } from "./reads.ts";
+import { assertChatOpen } from "./chat.ts";
+import { catalogArgs, catalogCall, catalogContactRefusal, catalogKind, catalogRefusal, planBOn, readFees } from "./reads.ts";
 import { roughPlace } from "../_shared/place.ts";
 import { MEDIA, OFFER_LIMITS, PRICE_LIMITS, PROFILE_LIMITS, PROOF_LIMITS, TOP_UP_PCTS } from "../_shared/rules.ts";
 import { contactIssueMessage, findContactIssue, maskContacts, nameCarriesContact, profileIssueMessage } from "../_shared/contacts.ts";
@@ -30,9 +31,13 @@ function quoteRefusal(err: DbError): OpError {
   return toOpError(err);
 }
 
-/** A hire refused because the worker changed the offer's price after the poster looked (B53). */
+/** A hire refused because the worker changed the offer's price (B53) or finish date (227) after the poster looked. */
 function offerChangedRefusal(err: DbError): OpError {
   if (/offer changed/i.test(err.message ?? "")) return new OpError("The offer changed. Please review the new price.", "OFFER_CHANGED");
+  // 227: the same for the worker's finish date.
+  if (/changed their finish time/i.test(err.message ?? "")) {
+    return new OpError("The helper changed their finish time. Please look again.", "OFFER_DUE_CHANGED");
+  }
   return toOpError(err);
 }
 
@@ -159,11 +164,11 @@ async function noteDevice(ctx: Ctx, a: Args, push: boolean) {
 }
 
 /** A deadline, or null. Not already past (a few minutes of clock difference are allowed), and not years away. */
-function dueAtOrNull(a: Args): string | null {
-  const iso = isoOrNull(a, "dueAt");
+function dueAtOrNull(a: Args, key = "dueAt"): string | null {
+  const iso = isoOrNull(a, key);
   if (iso === null) return null;
   const t = Date.parse(iso);
-  if (t < Date.now() - 5 * 60_000 || t > Date.now() + 3 * 365 * 86_400_000) throw bad("dueAt");
+  if (t < Date.now() - 5 * 60_000 || t > Date.now() + 3 * 365 * 86_400_000) throw bad(key);
   return iso;
 }
 
@@ -255,7 +260,43 @@ function spotOf(v: unknown): { lat: number; lng: number } {
   return { lat: num(o, "lat", -90, 90), lng: num(o, "lng", -180, 180) };
 }
 
+/**
+ * Files attached to feedback (migration 206): up to three, each { path, kind, name }, a photo or a
+ * PDF the caller uploaded. Only the shape is checked here; the database checks the files themselves
+ * (owner, finished upload, type, 5 MB) in private.feedback_clean_attachments.
+ */
+const FEEDBACK_FILES_MAX = 3;
+function feedbackFiles(a: Args): { path: string; kind: "image" | "file"; name: string }[] {
+  const raw = a.attachments;
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) throw bad("attachments");
+  if (raw.length > FEEDBACK_FILES_MAX) throw new OpError(`You can attach up to ${FEEDBACK_FILES_MAX} files`, "BAD_ARGS");
+  return raw.map((f) => {
+    if (!f || typeof f !== "object" || Array.isArray(f)) throw bad("attachments");
+    const item = f as Args;
+    return {
+      path: str(item, "path", 300),
+      kind: oneOf(item, "kind", ["image", "file"] as const),
+      name: item.name == null ? "" : str(item, "name", 80, 0),
+    };
+  });
+}
+
 export const WRITE_OPS: Record<string, Op> = {
+  /** Add a skill or category of the caller's own, unless one that means the same already exists. */
+  addCatalogTerm: async (ctx, a) => {
+    const kind = catalogKind(a);
+    const text = str(a, "text", 60);
+    const refused = catalogContactRefusal(kind, text);
+    if (refused) return refused;
+    const res = await catalogCall(ctx, "catalog_add_for", { ...(await catalogArgs(kind, text)), p_force: bool(a, "force") });
+    const out = catalogRefusal(kind, take(res, (e) =>
+      /catalog_daily_limit/i.test(e.message ?? "")
+        ? new OpError("You can add up to 10 new skills or categories a day. Try again tomorrow.", "RATE_LIMITED")
+        : toOpError(e)));
+    void ctx.catalogEmbeddings?.().catch(() => {});
+    return out;
+  },
   // ---- the task lifecycle, where money moves (all decided in SQL) ----
   // The price the poster saw (B53, migration 167): the database refuses when the offer no longer
   // says that. Old app builds send no price and keep the two-argument call.
@@ -265,6 +306,13 @@ export const WRITE_OPS: Record<string, Op> = {
       p_payout_mode: oneOf(a, "payoutMode", ["one_time", "milestones"], "one_time"),
     };
     if (a.expectedPriceMinor != null) args.p_expected_price_minor = int(a, "expectedPriceMinor", 0, MONEY_MAX);
+    // The finish date the poster saw (227). Sent at all (null = "the offer had no date") means
+    // check it; not sent (old builds) keeps the old call, with no date check.
+    if (Object.prototype.hasOwnProperty.call(a, "expectedDueAt")) {
+      args.p_expected_price_minor ??= null;
+      args.p_check_due = true;
+      args.p_expected_due_at = isoOrNull(a, "expectedDueAt");
+    }
     return take(await ctx.db.rpc("lock_bid", args), offerChangedRefusal);
   },
   payTaskFromWallet: rpcOp("pay_task_from_wallet", taskOnly),
@@ -345,6 +393,16 @@ export const WRITE_OPS: Record<string, Op> = {
     await db.rpc("record_ad_click", taskOnly(a));
     return null;
   },
+  /** Free and best-effort (migration 203): one showing of a promoted post that is not a top place, and where. */
+  recordPromoView: async ({ db }, a) => {
+    await db.rpc("record_promo_view", {
+      ...taskOnly(a),
+      p_surface: oneOf(a, "surface", ["list", "home", "map", "search", "alert", "detail", "other"], "other"),
+      p_top: bool(a, "top"),
+    });
+    return null;
+  },
+  setPromoAlerts: rpcOp("set_promo_alerts", (a) => ({ p_on: bool(a, "on", true) })),
 
   // ---- posts, quotes, proof and chat ----
   createTask: async (ctx, a) => {
@@ -426,6 +484,8 @@ export const WRITE_OPS: Record<string, Op> = {
     if (place.address) {
       for (const m of madeRows) await keepAddress(ctx, (m as { id?: unknown }).id, place.address);
     }
+    // Its search fingerprint is made in the background (smart search).
+    ctx.searchFill?.();
     // The first slot stands for the whole crew; the rest share its crew_id.
     return [...madeRows].sort((x, y) => Number(x.crew_slot ?? 0) - Number(y.crew_slot ?? 0))[0] ?? null;
   },
@@ -454,6 +514,7 @@ export const WRITE_OPS: Record<string, Op> = {
     )[0];
     if (!row) throw new OpError("This service can no longer be edited", "NOT_FOUND");
     await keepAddress(ctx, (row as { id?: unknown }).id, place.address);
+    ctx.searchFill?.();
     return row;
   },
 
@@ -469,6 +530,8 @@ export const WRITE_OPS: Record<string, Op> = {
           price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: terms.minutes,
           message: terms.message,
+          // The worker's own finish date (plan 1.19 J, migration 216). Old builds send none.
+          ...(a.proposedDueAt != null ? { proposed_due_at: dueAtOrNull(a, "proposedDueAt") } : {}),
         })
         .select(),
       quoteRefusal,
@@ -485,6 +548,8 @@ export const WRITE_OPS: Record<string, Op> = {
           price_minor: priceMinor(a, "priceMinor", PRICE_LIMITS.MIN_MINOR, PRICE_LIMITS.MAX_MINOR),
           time_limit_minutes: terms.minutes,
           message: terms.message,
+          // Only when sent, so an old build editing its offer keeps the date it had.
+          ...("proposedDueAt" in a ? { proposed_due_at: dueAtOrNull(a, "proposedDueAt") } : {}),
         })
         .eq("id", uuid(a, "bidId"))
         .eq("is_locked", false)
@@ -535,9 +600,13 @@ export const WRITE_OPS: Record<string, Op> = {
     if (body.startsWith("::media::media:")) await assertOwnImage(ctx, body.slice("::media::".length), ["chat"]);
     // Any other chat photo is a plain storage path, and must be in the sender's own folder (B59).
     else if (body.startsWith("::media::")) assertOwnFolder(ctx, body.slice("::media::".length), "body");
+    // 1.19 row B (migration 215): only while the task is locked to the two of them, and for 48 hours after it
+    // is completed. CHAT_CLOSED says why; the insert policy refuses it as well.
+    const taskId = uuid(a, "taskId");
+    await assertChatOpen(ctx, taskId);
     // Until the work starts, contact details stay inside TaskDrop. The task is only looked up when the text needs it.
     if (!body.startsWith("::media::") && findContactIssue(body)) {
-      const t = rows(await db.from("tasks").select("status").eq("id", uuid(a, "taskId")))[0] as { status?: string } | undefined;
+      const t = rows(await db.from("tasks").select("status").eq("id", taskId))[0] as { status?: string } | undefined;
       if (!t?.status || !CONTACTS_OPEN.includes(t.status)) {
         throw new OpError(
           "Phone numbers, emails, links, chat handles and addresses can’t be shared until the work starts. Keep talking here — it keeps your payment protected.",
@@ -548,7 +617,7 @@ export const WRITE_OPS: Record<string, Op> = {
     return take(
       await db
         .from("messages")
-        .insert({ task_id: uuid(a, "taskId"), sender_id: userId, body })
+        .insert({ task_id: taskId, sender_id: userId, body })
         .select()
         .single(),
     );
@@ -569,6 +638,16 @@ export const WRITE_OPS: Record<string, Op> = {
     const taskId = uuid(a, "taskId");
     take(await ctx.db.rpc("set_task_repeat", { p_task_id: taskId, p_every: every }));
     return { id: taskId, repeat_every: every };
+  },
+  /**
+   * A new date on an open post, or none: an open task (plan 1.19 J and K, migration 216). The database
+   * checks it is the poster's own OPEN post and moves a crew's open posts together.
+   */
+  setTaskDue: async (ctx, a) => {
+    const taskId = uuid(a, "taskId");
+    const dueAt = dueAtOrNull(a);
+    take(await ctx.db.rpc("set_task_due", { p_task_id: taskId, p_due_at: dueAt }));
+    return { id: taskId, due_at: dueAt };
   },
   /**
    * "Top up" on an open post (D31, migration 194): raise the top-up to a bigger step. The database decides
@@ -681,6 +760,8 @@ export const WRITE_OPS: Record<string, Op> = {
     const patch: Record<string, unknown> = {};
     if (a.username !== undefined) {
       const u = strOrNull(a, "username", 40);
+      // Everyone signed in keeps a username (plan 1.18, decision 51): it can be changed, never removed.
+      if (!u) throw new OpError(USERNAME_REQUIRED_MESSAGE, "USERNAME_REQUIRED");
       refuseContactInName(u);
       if (u && RESERVED_USERNAMES.has(u.toLowerCase())) throw new OpError("That username is reserved. Pick another.", "DUPLICATE");
       patch.username = u ? u.toLowerCase() : null;
@@ -837,21 +918,29 @@ export const WRITE_OPS: Record<string, Op> = {
   sendFeedback: async ({ db, userId }, a) => {
     const body = str(a, "body", 5000, 0);
     if (body.length < 3) throw new OpError("Write a little more first", "BAD_ARGS");
+    const attachments = feedbackFiles(a);
     take(await db.from("feedback").insert({
       user_id: userId,
       kind: oneOf(a, "kind", ["broken", "idea", "confusing", "praise"]),
       body,
       page: strOrNull(a, "page", 200),
+      // Left out when there are none, so the insert is exactly what it was before migration 206.
+      ...(attachments.length ? { attachments } : {}),
     }));
     return null;
   },
 
   // ---- the public feedback board (migration 136) ----
-  postFeedbackIdea: rpcOp("feedback_board_post", (a) => ({
-    p_title: str(a, "title", 120, 3),
-    p_body: str(a, "body", 2000, 0),
-    p_category: oneOf(a, "category", ["feature", "improvement", "bug", "other"], "feature"),
-  })),
+  postFeedbackIdea: rpcOp("feedback_board_post", (a) => {
+    const attachments = feedbackFiles(a);
+    return {
+      p_title: str(a, "title", 120, 3),
+      p_body: str(a, "body", 2000, 0),
+      p_category: oneOf(a, "category", ["feature", "improvement", "bug", "other"], "feature"),
+      // The four-argument form (migration 206) only when there are files; the older one otherwise.
+      ...(attachments.length ? { p_attachments: attachments } : {}),
+    };
+  }),
   voteFeedbackIdea: rpcOp("feedback_board_vote", (a) => ({ p_post: uuid(a, "postId"), p_on: bool(a, "on", true) })),
   commentFeedbackIdea: rpcOp("feedback_board_comment", (a) => ({ p_post: uuid(a, "postId"), p_body: str(a, "body", 1000) })),
 

@@ -12,7 +12,7 @@ import { ResumePost } from '../components/ResumePost';
 import { Overlays } from '../components/Overlays';
 import { AccountPrompt } from '../components/AccountPrompt';
 import { StagingWelcome } from '../components/StagingWelcome';
-import { TourHost } from '../components/tour/TourHost';
+import { WalkthroughHost } from '../components/WalkthroughHost';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ScreenBoundary } from '../AppProviders';
 import { fontFamilyFor } from '../theme';
@@ -20,7 +20,7 @@ import type { ScreenName } from '../providers/navTypes';
 import { NATIVE_HEADER_SCREENS } from './nativeHeader';
 
 /** Sign-in and welcome screens: no swiping back out of them. */
-const NO_BACK = ['splash', 'welcome', 'signup', 'setup'];
+const NO_BACK = ['splash', 'welcome', 'signup', 'setup', 'pickUsername'];
 const FADE = ['splash', 'intro', 'welcome'];
 
 /**
@@ -91,7 +91,7 @@ export function NativeRoot() {
         <Overlays />
         <AccountPrompt />
         <StagingWelcome />
-        <TourHost />
+        <WalkthroughHost />
       </ErrorBoundary>
     </KeyboardAvoidingView>
   );

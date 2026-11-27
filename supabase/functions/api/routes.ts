@@ -21,9 +21,9 @@
 
 export const API_GROUPS = {
   tasks: [
-    "listOpenTasks", "listMyTasks", "searchTasks", "searchTasksWithPosters", "attachPosters", "getTask", "getTaskDetail",
+    "listOpenTasks", "listMyTasks", "searchTasks", "searchTasksWithPosters", "searchSuggest", "searchFallbacks", "attachPosters", "getTask", "getTaskDetail",
     "getPosterStats", "recommendedTasks", "remoteTasks", "tasksNear", "urgentTasks", "nearbyPulse", "countNeedsAttention",
-    "taskContactPhone", "createTask", "updateListing", "removeListing", "cancelTask", "setRepeat", "raiseTopUp",
+    "taskContactPhone", "createTask", "updateListing", "removeListing", "cancelTask", "setRepeat", "setTaskDue", "raiseTopUp",
     "listSavedTaskIds", "listSavedTasks", "setSaved",
   ],
   questions: ["listTaskQuestions", "askTaskQuestion", "answerTaskQuestion"],
@@ -47,9 +47,11 @@ export const API_GROUPS = {
   promotions: [
     "promotableTasks", "promotionTiers", "listPromotions", "adAuctionRanks", "startPromotion", "activatePromotion",
     "cancelPromotion", "recordAdImpression", "recordAdClick",
+    "promotionQuote", "promotedLive", "promotionResults", "recordPromoView",
+    "setPromoAlerts",
   ],
   platform: ["platformFees", "platformStats", "platformHighlights", "trendingCategories"],
-  messages: ["listThreads", "listMessages", "sendMessage"],
+  messages: ["listThreads", "listMessages", "chatState", "sendMessage"],
   notifications: [
     "listNotifications", "getNotification", "countUnreadNotifications", "countUnreadFor", "notificationSides",
     "markNotificationsRead", "registerPushToken", "forgetPushToken",
@@ -59,6 +61,7 @@ export const API_GROUPS = {
   feedback: ["listFeedbackBoard", "getFeedbackPost", "sendFeedback", "postFeedbackIdea", "voteFeedbackIdea", "commentFeedbackIdea"],
   support: ["listTickets", "getTicket", "openTicket", "replyTicket", "resolveTicket"],
   referrals: ["countMyReferrals", "applyReferralCode"],
+  catalog: ["listCatalog", "checkCatalogTerm", "addCatalogTerm"],
   media: ["createUpload", "attachMedia", "signMedia", "removeMedia"],
 } as const satisfies Record<string, readonly string[]>;
 

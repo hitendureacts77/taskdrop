@@ -59,10 +59,21 @@ const detail = async (who: Call, taskId: string) => must(await who<Detail>("getT
 
 test.describe.configure({ mode: "serial" });
 
+let walletFlow = true;
+test.beforeEach(() => {
+  test.skip(!walletFlow, "The server is on Plan B (money_flow = plan_b): the wallet money path does not apply (planB.spec.ts).");
+});
+
 test.beforeAll(async ({ browser, playwright }) => {
   const request = await playwright.request.newContext();
   const asha = await session(browser, ASHA.state, request);
   const ravi = await session(browser, RAVI.state, request);
+  // Every test here is the wallet flow (money paid from the wallet, withdrawals). On a server with
+  // money_flow = plan_b nothing is taken from the wallet, so these do not apply; planB.spec.ts covers that flow
+  // and skips itself the other way round.
+  const mode = must(await asha<{ flow: "wallet" | "plan_b" }>("getMoneyMode"), "getMoneyMode");
+  walletFlow = mode.flow === "wallet";
+  if (!walletFlow) return;
   // Every run moves fake money from the poster to the worker, and a test cannot add any (Add funds is the
   // Razorpay page). Both seed accounts can post and work, so one of them pays this run (chosen below) and the
   // other one works: the money goes back and forth instead of draining one wallet (it ran Asha's down to ₹23 by

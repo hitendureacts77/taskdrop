@@ -65,7 +65,7 @@ function PinArt() {
       {ring(b, 0.5, 1)}
       {ring(a, 0.9, 0.72)}
       <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: t.colors.accent, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name="pin" size={28} color="#FFFFFF" />
+        <Icon name="pin" size={28} color={t.colors.onAccent} />
       </View>
     </View>
   );

@@ -8,6 +8,8 @@ export type ScreenName =
   | 'welcome'
   | 'signup'
   | 'setup'
+  // Plan 1.18: an account with no username sees only this until it picks one.
+  | 'pickUsername'
   | 'home'
   | 'search'
   | 'create'
@@ -25,6 +27,7 @@ export type ScreenName =
   | 'wallet'
   | 'withdraw'
   | 'promote'
+  | 'promotions'
   | 'review'
   | 'profile'
   | 'analytics'

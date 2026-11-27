@@ -400,3 +400,52 @@ export function ageOn(birth: Date, today: Date = new Date()): number {
 export function isoDay(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
+
+/**
+ * Promote with bidding (migration 203, plan task 1.19 row C). The payer picks a daily budget and a length and
+ * pays upfront; an auction on the server decides the top places each time a list opens. The server holds the
+ * real numbers (setting promotion_bidding) and refuses anything else; these are what the app shows before it
+ * answers.
+ */
+export const PROMOTE_DEFAULTS = {
+  MIN_DAY_MINOR: 2000,
+  MAX_DAY_MINOR: 100000,
+  /** Budgets are whole rupees. */
+  DAY_STEP_MINOR: 100,
+  /** The least a top show can cost. */
+  FLOOR_MINOR: 20,
+  /** Quick daily budgets offered on the Promote screen, and the one picked first. */
+  BUDGET_PRESETS_MINOR: [3000, 8000, 15000] as readonly number[],
+  DEFAULT_DAY_MINOR: 8000,
+  /** An area counts as busy when a top show costs at least this, or this many others promote there. */
+  BUSY_PRICE_MINOR: 90,
+  BUSY_OTHERS: 15,
+  /** Price of a top show assumed when the area has none yet. */
+  PRICE_GUESS_MINOR: 60,
+  DAYS: [1, 3, 7] as readonly number[],
+  TOP_SLOTS: 2,
+  VIEWER_TOP_PER_DAY: 3,
+  /** With money left at the end, the promotion runs on for at most this many days. */
+  RUN_ON_DAYS: 2,
+} as const;
+
+/** A daily budget the server accepts: whole rupees within the limits. */
+export function isPromoteBudget(dayMinor: number, min: number = PROMOTE_DEFAULTS.MIN_DAY_MINOR, max: number = PROMOTE_DEFAULTS.MAX_DAY_MINOR): boolean {
+  return Number.isInteger(dayMinor) && dayMinor % PROMOTE_DEFAULTS.DAY_STEP_MINOR === 0 && dayMinor >= min && dayMinor <= max;
+}
+
+/** Busy enough to warn the payer that a top show costs more here (nothing is ever blocked). */
+export function isBusyArea(others: number, areaPriceMinor: number | null | undefined): boolean {
+  return (areaPriceMinor ?? 0) >= PROMOTE_DEFAULTS.BUSY_PRICE_MINOR || others >= PROMOTE_DEFAULTS.BUSY_OTHERS;
+}
+
+/**
+ * About how many top shows a day a budget buys, as a range rounded to tens: the budget over the area's average
+ * price of a top show (or the guess when there is none yet), from 70% to 105% of that.
+ */
+export function estimateTopShows(dayMinor: number, areaPriceMinor: number | null | undefined): { low: number; high: number } {
+  const price = Math.max(areaPriceMinor && areaPriceMinor > 0 ? areaPriceMinor : PROMOTE_DEFAULTS.PRICE_GUESS_MINOR, PROMOTE_DEFAULTS.FLOOR_MINOR);
+  const mid = Math.max(dayMinor, 0) / price;
+  const ten = (n: number) => Math.max(0, Math.round(n / 10) * 10);
+  return { low: ten(mid * 0.7), high: Math.max(ten(mid * 1.05), ten(mid * 0.7)) };
+}

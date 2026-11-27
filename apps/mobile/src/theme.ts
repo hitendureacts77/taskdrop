@@ -40,6 +40,12 @@ export type Palette = {
   aiSoft: string;
   aiInk: string;
   blue: string;
+  /** Blue text on purpleSoft in the blue Badge tone: deeper than blue in light, same as blue in dark. */
+  blueDeep: string;
+  /** Text and icons on coral (signalDeep) fills. */
+  onSignal: string;
+  /** Text and icons on gold fills. */
+  onGold: string;
   onAccent: string;
   /** Background for big cards with white text (balances, summaries): dark enough in both themes. */
   hero: string;
@@ -84,6 +90,9 @@ export const light: Palette = {
   aiSoft: '#F0EFFC',
   aiInk: '#5148C2',
   blue: '#4A90D9',
+  blueDeep: '#2A6CB8',
+  onSignal: '#FFFFFF',
+  onGold: '#FFFFFF',
   onAccent: '#FFFFFF',
   hero: '#0A6F58',
   heroFrom: '#0D8A6F',
@@ -122,6 +131,9 @@ export const dark: Palette = {
   aiSoft: '#1E1C33',
   aiInk: '#A9A3F2',
   blue: '#5AA0E6',
+  blueDeep: '#5AA0E6',
+  onSignal: '#1A0C06',
+  onGold: '#1A0C06',
   onAccent: '#04140D',
   hero: '#0B5E4B',
   heroFrom: '#0E8F72',
@@ -144,6 +156,8 @@ export const onHero = {
   chipHover: 'rgba(0,0,0,0.24)',
   /** Letters on the white circles of the hero art: the deep Earn blue, the same in both themes. */
   letter: light.purpleDeep,
+  /** Presence ("Active now") on a hero band: the band is deep in both themes, so the light green reads on both. */
+  online: dark.online,
 } as const;
 
 /** Plus Jakarta Sans families (from @expo-google-fonts/plus-jakarta-sans).
@@ -204,6 +218,12 @@ export const motion = {
   stagger: 60,
   staggerMax: 6,
   celebrate: 1200,
+  /** Task 1.19 I, "Alive, gently": a soft ring round a live dot, once every this many ms. */
+  liveRing: 2200,
+  /** The Just posted ticker's speed, in px a second (still under Reduce Motion). */
+  tickerPxPerSec: 40,
+  /** A "1 new" badge pops once (scale 0.7 to 1) in this many ms when it appears. */
+  pop: 500,
   /** Spring for chips, toggles and selected cards (≈ cubic-bezier(.34,1.56,.64,1)). */
   spring: { friction: 6, tension: 160 },
 } as const;

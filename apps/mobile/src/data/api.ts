@@ -1,3 +1,4 @@
+import type { ChatState } from '../lib/chatWindow';
 import { ApiError, friendlyMessage, reportError } from '../lib/errors';
 import { callApi } from '../lib/gateway';
 import { ACCOUNT_WRITES, NeedsAccountError, isGuestOp, needAccount } from '../lib/guest';
@@ -7,6 +8,7 @@ import { subscribeLive } from '../lib/live';
 import { count, log } from '../lib/monitoring';
 import { noteChange, reusePublic, reuseWhileFresh } from '../lib/freshness';
 import { isPlanB } from '../lib/moneyFlow';
+import { signInRouteFor, type SignInRoute } from '../lib/username';
 import type { Database, Tables, Enums } from '@taskdrop/db-types';
 
 /**
@@ -63,6 +65,19 @@ async function act<T>(op: string, args: Record<string, unknown> = {}): Promise<T
   }
 }
 
+/**
+ * Smart search hints (chips, suggestions, next steps): never the account pop-up and never an error. A server that
+ * does not know the op yet, or refuses it, just means no hints; the search itself still runs.
+ */
+async function hint<T>(op: string, args: Record<string, unknown>, fallback: T): Promise<T> {
+  if (!(await myId()) && !isGuestOp(op)) return fallback;
+  try {
+    return await callApi<T>(op, args);
+  } catch {
+    return fallback;
+  }
+}
+
 /** Same, but signed out simply means "nothing" rather than an error. */
 async function ask<T>(op: string, args: Record<string, unknown>, signedOut: T): Promise<T> {
   if (!(await myId()) && !isGuestOp(op)) return signedOut;
@@ -114,11 +129,49 @@ export type TaskSearch = {
   limit?: number;
   kind?: TaskKind;
   near?: { lat: number; lng: number; radiusKm: number } | null;
+  /** Smart search: chip ids the person removed ("Searching for" pills). */
+  drop?: string[];
+  /** Smart search: keep the spelling as typed (no correction). */
+  exact?: boolean;
 };
 
 export const searchTasks = (input: TaskSearch = {}) => act<Task[]>('searchTasks', { ...input });
 
-export type TaskWithPoster = Task & { poster: Profile | null };
+/** A search result row: the post plus why it matched ("Same need: plumber, leak"), when the server says. */
+export type TaskWithPoster = Task & { poster: Profile | null; match_why?: string | null };
+
+export type SearchChip = { id: string; label: string };
+export type SearchSuggestion = { id: string; label: string; count: number | null };
+export type SearchSuggestResult = { corrected: string | null; chips: SearchChip[]; suggestions: SearchSuggestion[] };
+export type SearchSuggestInput = {
+  q: string;
+  kind: 'request' | 'service';
+  near?: { lat: number; lng: number; radiusKm: number } | null;
+  drop?: string[];
+  exact?: boolean;
+  /** false skips the counts (fast; use while typing). */
+  counts?: boolean;
+};
+
+/** What the search understood (chips), a spelling fix, and what the person may mean. */
+export const searchSuggest = (input: SearchSuggestInput) =>
+  hint<SearchSuggestResult>('searchSuggest', { ...input }, { corrected: null, chips: [], suggestions: [] });
+
+export type SearchFallbacks = {
+  wider: { km: number; count: number } | null;
+  remote: number;
+  related: { labels: string[]; q: string; count: number } | null;
+};
+export type SearchFallbacksInput = {
+  q: string;
+  kind: 'request' | 'service';
+  near?: { lat: number; lng: number; radiusKm: number } | null;
+  drop?: string[];
+};
+
+/** For an empty result: a wider area, remote jobs, close matches. */
+export const searchFallbacks = (input: SearchFallbacksInput) =>
+  hint<SearchFallbacks>('searchFallbacks', { ...input }, { wider: null, remote: 0, related: null });
 
 export async function attachPosters(tasks: Task[]): Promise<TaskWithPoster[]> {
   if (tasks.length === 0) return [];
@@ -254,10 +307,13 @@ export function forgetProfile(userId: string): void {
   profileCache.delete(userId);
 }
 
-/** Where a freshly-signed-in user should land: setup for a first run, home otherwise. */
-export async function postSignInRoute(userId: string): Promise<'home' | 'setup'> {
+/**
+ * Where a freshly-signed-in user should land: setup for a first run, the "Pick a username" page for a finished
+ * setup with no username (plan 1.18), home otherwise.
+ */
+export async function postSignInRoute(userId: string): Promise<SignInRoute> {
   try {
-    return (await getProfile(userId))?.onboarded_at ? 'home' : 'setup';
+    return signInRouteFor(await getProfile(userId));
   } catch (e) {
     // Reads already retry on a blip (lib/retry.ts). If the profile still cannot be read, a returning
     // person is far more likely than a new one, and putting them through onboarding again risks
@@ -303,6 +359,8 @@ export type Message = {
   body: string;
   created_at: string;
 };
+
+export const chatState = (taskId: string) => act<ChatState>('chatState', { taskId });
 
 export const listMessages = (taskId: string) => act<Message[]>('listMessages', { taskId });
 
@@ -404,6 +462,8 @@ export async function placeBid(input: {
   priceMinor: number;
   timeLimitMinutes: number;
   message?: string;
+  /** The worker's own finish date (plan 1.19 J); asked for when the task's date has passed. */
+  proposedDueAt?: string | null;
 }): Promise<Bid> {
   const { workerId: _worker, ...rest } = input;
   return act<Bid>('placeBid', { ...rest });
@@ -413,7 +473,7 @@ export const getMyBid = (taskId: string, _userId: string) => act<Bid | null>('ge
 
 export const updateBid = (
   bidId: string,
-  edits: { priceMinor: number; timeLimitMinutes: number; message: string | null },
+  edits: { priceMinor: number; timeLimitMinutes: number; message: string | null; proposedDueAt?: string | null },
 ) => act<Bid>('updateBid', { bidId, ...edits });
 
 export type QuoteVerdict =
@@ -452,13 +512,30 @@ export async function updateProfile(_userId: string, edits: ProfileEdits): Promi
 /**
  * Choose an offer. `expectedPriceMinor` is the price the poster saw: the server refuses with
  * OFFER_CHANGED when the worker changed it since (isOfferChanged), so nobody is charged a price
- * they did not see.
+ * they did not see. `expectedDueAt` is the offer's finish date the poster saw (null when it showed
+ * none): the server refuses with OFFER_DUE_CHANGED when the worker changed it since (227).
  */
-export const lockBid = (bidId: string, payoutMode: Enums<'payout_mode'> = 'one_time', expectedPriceMinor?: number) =>
-  act<Task>('lockBid', expectedPriceMinor == null ? { bidId, payoutMode } : { bidId, payoutMode, expectedPriceMinor });
+export const lockBid = (
+  bidId: string,
+  payoutMode: Enums<'payout_mode'> = 'one_time',
+  expectedPriceMinor?: number,
+  expectedDueAt?: string | null,
+) =>
+  act<Task>('lockBid', {
+    bidId,
+    payoutMode,
+    ...(expectedPriceMinor == null ? null : { expectedPriceMinor }),
+    ...(expectedDueAt === undefined ? null : { expectedDueAt }),
+  });
 
-/** The worker changed the offer's price after the poster looked; reload and show the new one. */
-export const isOfferChanged = (e: unknown) => e instanceof ApiError && e.code === 'OFFER_CHANGED';
+/** The worker changed the offer's price or finish date after the poster looked; reload and show the new one. */
+export const isOfferChanged = (e: unknown) =>
+  e instanceof ApiError && (e.code === 'OFFER_CHANGED' || e.code === 'OFFER_DUE_CHANGED');
+/** The message to show for a changed offer: which part changed. */
+export const offerChangedMessage = (e: unknown) =>
+  e instanceof ApiError && e.code === 'OFFER_DUE_CHANGED'
+    ? 'The helper changed their finish time. Please look again.'
+    : 'The offer changed. Please review the new price.';
 export const payTaskFromWallet = (taskId: string) => act<Task>('payTaskFromWallet', { taskId });
 export const startTask = (taskId: string) => act<Task>('startTask', { taskId });
 export const markWorkDone = (taskId: string) => act<Task>('markWorkDone', { taskId });
@@ -643,6 +720,11 @@ export type Promotion = {
   starts_at: string | null;
   ends_at: string | null;
   created_at: string;
+  /** listPromotions only (migration 203). */
+  day_budget_minor?: number | null;
+  spent_minor?: number;
+  alerted_count?: number;
+  task?: { title: string; kind: 'request' | 'service'; status: string } | null;
 };
 
 export const startPromotion = (taskId: string, days: number, amountMinor: number) =>
@@ -671,6 +753,99 @@ export async function recordAdImpression(taskId: string): Promise<void> {
 export async function recordAdClick(taskId: string): Promise<void> {
   await quietly('recordAdClick', { taskId }, null);
 }
+
+// ------------------------------------------------- promotions: bidding (migration 203) ---
+
+/** Everything the Promote screen needs for one post: budget limits, lengths, how busy the area is, its campaign. */
+export type PromotionQuote = {
+  kind: 'request' | 'service';
+  remote: boolean;
+  days: number[];
+  minDayMinor: number;
+  maxDayMinor: number;
+  floorMinor: number;
+  topSlots: number;
+  viewerTopPerDay: number;
+  areaKm: number;
+  /** Other live promotions of the same kind in the area. */
+  others: number;
+  /** Average price of a top show in the area over the last 7 days; null when there is none yet. */
+  areaPriceMinor: number | null;
+  areaTopShowsDay: number | null;
+  nearbyActive: number;
+  promotion: {
+    id: string; status: Promotion['status']; days: number; amountMinor: number; dayBudgetMinor: number | null;
+    startsAt: string | null; endsAt: string | null;
+  } | null;
+};
+
+export const promotionQuote = (taskId: string) => act<PromotionQuote>('promotionQuote', { taskId });
+export const setPromoAlerts = (on: boolean) => act<boolean>('setPromoAlerts', { on });
+
+/** A live promotion near the viewer; `top` when it won a top place in this auction (place 1 or 2). */
+export type PromotedLive = {
+  task_id: string;
+  promotion_id: string;
+  /** Who posted it: for a service, the helper to lift in Hire-side lists and the helpers map. */
+  poster_id: string;
+  top: boolean;
+  place: number | null;
+};
+
+/**
+ * Runs the auction for the top places when a list opens: live promoted tasks (kind 'request', for people
+ * earning) or services (for people hiring) near a point. `taskIds` is the list the viewer is looking at after
+ * their filters; only those can win. The server charges the winners, once per few minutes per viewer.
+ */
+export async function promotedLive(
+  kind: 'request' | 'service',
+  near: { lat: number; lng: number; radiusKm?: number } | null,
+  opts: { surface?: 'list' | 'home' | 'map' | 'search'; taskIds?: string[] } = {},
+): Promise<PromotedLive[]> {
+  if (!(await myId())) return [];
+  return quietly<PromotedLive[]>('promotedLive', {
+    kind, lat: near?.lat ?? null, lng: near?.lng ?? null, radiusKm: Math.round(near?.radiusKm ?? 10),
+    surface: opts.surface ?? 'list',
+    ...(opts.taskIds ? { taskIds: opts.taskIds.slice(0, 500) } : {}),
+  }, []);
+}
+
+export type PromoSurface = 'list' | 'home' | 'map' | 'search' | 'alert' | 'detail';
+
+/** One showing of a promoted post that is not a top place (labels, map pins, alerts). Free; never fails the screen. */
+export async function recordPromoView(taskId: string, surface: PromoSurface, top: boolean): Promise<void> {
+  await quietly('recordPromoView', { taskId, surface, top }, null);
+}
+
+/** What the payer of a promotion sees. */
+export type PromotionResults = {
+  promotionId: string;
+  taskId: string;
+  kind: 'request' | 'service';
+  status: Promotion['status'];
+  days: number;
+  amountMinor: number;
+  dayBudgetMinor: number;
+  spentMinor: number;
+  todaySpentMinor: number;
+  todayBudgetMinor: number;
+  startsAt: string | null;
+  endsAt: string | null;
+  /** When it stops spending: the end, or up to 2 days later while money is left. */
+  lastEndAt: string | null;
+  topShows: number;
+  avgPriceMinor: number | null;
+  areaPriceMinor: number | null;
+  saw: number;
+  onTop: number;
+  opened: number;
+  bySurface: Partial<Record<PromoSurface | 'other', number>>;
+  offersSince: number;
+  offersBefore: number;
+  alerted: number;
+};
+
+export const promotionResults = (promotionId: string) => act<PromotionResults>('promotionResults', { promotionId });
 
 // -------------------------------------------------------------- payments ---
 
@@ -921,6 +1096,9 @@ export const myRegulars = () => quietly<Regular[]>('myRegulars', {}, []);
 
 export const setRepeat = (taskId: string, every: 'week' | 'month' | null) =>
   act<{ id: string; repeat_every: string | null }>('setRepeat', { taskId, every });
+/** A new date on an open post, or null to make it open-ended (plan 1.19 J). A crew's posts move together. */
+export const setTaskDue = (taskId: string, dueAt: string | null) =>
+  act<{ id: string; due_at: string | null }>('setTaskDue', { taskId, dueAt });
 /** Raise the top-up on an open post to a bigger step (migration 194). The server works out the new price. */
 export const raiseTopUp = (taskId: string, topUpPct: number) =>
   act<{ id: string; topup_pct: number; benchmark_minor: number } | null>('raiseTopUp', { taskId, topUpPct });

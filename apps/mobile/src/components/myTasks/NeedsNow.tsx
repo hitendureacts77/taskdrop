@@ -23,7 +23,7 @@ const ICON: Record<NeedKind, IconName> = {
  * Desktop: full width, each row with its live button on the right. Nothing waiting: nothing drawn. A long list
  * shows the most pressing few and a "Show N more" row, so the tasks below stay in reach.
  */
-const FIRST = { phone: 3, desktop: 4 };
+const FIRST = { phone: 3, desktop: 3 };
 
 export function NeedsNow({ items, onPick, desktop, side }: { items: Need[]; onPick: (n: Need) => void; desktop: boolean; side: 'hire' | 'earn' }) {
   const t = useTheme();
@@ -68,7 +68,28 @@ export function NeedsNow({ items, onPick, desktop, side }: { items: Need[]; onPi
       {shown.map((n, i) => (
         <NeedRow key={n.key} need={n} first={i === 0} desktop={desktop} onPress={() => onPick(n)} />
       ))}
-      {hidden > 0 || all ? (
+      {(hidden > 0 || all) && desktop ? (
+        // Desktop: a pill sized to its words, centred under the rows (like Home's "Show N more"), never a full-width bar.
+        <View style={{ borderTopWidth: 1, borderTopColor: t.colors.line, paddingVertical: 10, alignItems: 'center' }}>
+          <Pressable
+            onPress={() => setAll((v) => !v)}
+            accessibilityRole="button"
+            hitSlop={4}
+            style={({ pressed }) => ({
+              alignSelf: 'center',
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: t.colors.line,
+              backgroundColor: t.colors.surface,
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <RNText style={tx('700', 12.5, t.colors.accentDeep)}>{all ? 'Show fewer' : `Show ${hidden} more`}</RNText>
+          </Pressable>
+        </View>
+      ) : hidden > 0 || all ? (
         <Pressable
           onPress={() => setAll((v) => !v)}
           accessibilityRole="button"

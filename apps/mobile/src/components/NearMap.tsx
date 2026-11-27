@@ -34,7 +34,10 @@ import {
 } from './NearMapParts';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, PlaceRow, QuickChip, WorkSwitch } from './MapFilterParts';
 import { distanceKm, peopleReach, postedToday, withinReach } from '../lib/mapReach';
-import { REMOTE_LIMIT, capped, matchesQuery } from '../lib/findWorkRead';
+import { FAIR_RULES_HELPERS, auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
+import { usePromotedLive } from '../lib/usePromotedLive';
+import { FairRulesNote } from './PromotedPill';
+import { REMOTE_LIMIT, capped, matchesSearch } from '../lib/findWorkRead';
 import { DEFAULT_FILTERS, KM_STEPS, changedFilters, clearJobFilters, filterJobs, jobsSummary, mapPillText, matchesJob, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { REFRESH_DEBOUNCE_MS, createRefreshCache, refreshKey, shouldRefresh } from '../lib/mapRefresh';
@@ -47,10 +50,15 @@ import { taskToFeedRow } from '../lib/openTask';
 import { isFresh } from '../lib/mapMotion';
 import { presenceOf } from '../lib/presence';
 import { useLayout } from '../lib/layout';
+import { mapLine } from '../lib/tabLines';
 import { browserInfo } from '../lib/appDownload';
 import { inFront, onBackInFront } from '../lib/inFront';
-import { PEOPLE_POLL_MS, isSpotFresh } from '../lib/mapSpot';
+import { fakePinCount, makeFakePins } from '../lib/fakePins';
+import { PEOPLE_POLL_MS, isPersonLive } from '../lib/mapSpot';
 import { useMapSharing } from '../lib/useMapSpot';
+
+// Read once, from the address the page was opened with (the router drops the query on its first move).
+const BOOT_FAKE_PINS = fakePinCount(Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.search : undefined);
 
 /** The desktop side panel. */
 const PANEL_W = 400;
@@ -106,7 +114,11 @@ function once<T>(key: string, make: () => Promise<T>): Promise<T> {
 export type NearMapLayer = 'jobs' | 'people' | 'mine';
 
 /** The Explore list's search, applied to the jobs on the map too (Jobs layer only). The filters are shared (lib/jobFiltersStore). */
-export type NearMapListFilter = { query: string };
+export type NearMapListFilter = {
+  query: string;
+  /** The ids the list's smart search found (by meaning); the map keeps exactly these, not a words match. Null while unknown. */
+  ids?: ReadonlySet<string> | null;
+};
 
 /**
  * Is this screen the one being looked at? Phones: the tab or pushed screen is focused (expo-router, the
@@ -197,6 +209,7 @@ export function NearMap({
   placeIsMine = true,
   onChangePlace,
   onUseMyPlace,
+  tabHeader,
 }: {
   layer: NearMapLayer;
   /** Given: show the layer switch (Jobs, Helpers). Undefined: no switch (route use). */
@@ -226,6 +239,9 @@ export function NearMap({
   onChangePlace?: () => void;
   /** "My area" on the place row, shown while looking around another place. */
   onUseMyPlace?: () => void;
+  /** Phone tab only: the header drawn over the map (AppHeader + TabTitle), given the live counts line. It replaces the
+   *  floating title pill and the List pill; the distance button stays. */
+  tabHeader?: (live: string) => React.ReactNode;
 }) {
   const t = useTheme();
   const { go, screen } = useNav();
@@ -245,7 +261,7 @@ export function NearMap({
   // The other side's locked option was tapped: the switch sheet.
   const [lockWant, setLockWant] = useState<'jobs' | 'helpers' | null>(null);
   const mine = kind === 'mine';
-  // The look: 'mine' wears the helpers' blue faces.
+  // The look: 'mine' wears the helpers' look (jade, as on the map).
   const mode: 'jobs' | 'people' = kind === 'jobs' ? 'jobs' : 'people';
   const home = centre;
   const words = mine ? { ...mapWords('people'), ...MINE_WORDS } : mapWords(mode);
@@ -274,6 +290,8 @@ export function NearMap({
   const [people, setPeople] = useState<NearbyWorker[] | null>(null);
   // My people (layer 'mine'): rounded spots only, kept in memory just while that layer is showing.
   const [peopleMine, setPeopleMine] = useState<MapPerson[] | null>(null);
+  // When that answer came back: the server sends only live spots, so its rows count as live while it is fresh.
+  const [mineAt, setMineAt] = useState<number | null>(null);
   // Goes up when the poll (or a finished "Share my spot") says look again.
   const [beat, setBeat] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
@@ -375,7 +393,7 @@ export function NearMap({
       setBusy(true);
       // Never logs the result: it holds names and rounded spots. The server caps this call at 50 km.
       void mapPeople(searchAt, peopleReach(radius))
-        .then((r) => alive && (setNow(at), setPeopleMine(r.map((p) => ({ ...p, km: from(p.lat, p.lng, p.km) })))))
+        .then((r) => alive && (setNow(at), setMineAt(at), setPeopleMine(r.map((p) => ({ ...p, km: from(p.lat, p.lng, p.km) })))))
         .finally(done)
         .catch(() => {});
     } else if (mode === 'jobs') {
@@ -472,9 +490,10 @@ export function NearMap({
 
   // The Explore list's search narrows the jobs too.
   const filterQuery = (listFilter?.query ?? '').trim().toLowerCase();
+  const filterIds = listFilter?.ids ?? null;
   const matchesList = useMemo(
-    () => (j: MapJob) => matchesQuery(j, filterQuery),
-    [filterQuery],
+    () => (j: MapJob) => matchesSearch(j, filterQuery, filterIds),
+    [filterQuery, filterIds],
   );
   const pinnedPool = useMemo(() => (jobs ?? []).filter(matchesList), [jobs, matchesList]);
   const homePool = useMemo(() => (remoteJobs ?? []).filter(matchesList), [remoteJobs, matchesList]);
@@ -487,8 +506,8 @@ export function NearMap({
     () => (kind === 'people' ? (people ?? []) : []).filter((w) => (!narrow || presenceOf(w.last_seen_at, now).online) && (!served || Boolean(w.top_service))),
     [kind, people, narrow, served, now],
   );
-  // Spots older than 15 minutes are never drawn, even if the last answer is still on screen.
-  const allMine = useMemo(() => activeFirst((peopleMine ?? []).filter((p) => isSpotFresh(p.spot_at, now)), now), [peopleMine, now]);
+  // The server sends only live spots; nothing from an answer older than 15 minutes is drawn.
+  const allMine = useMemo(() => activeFirst((peopleMine ?? []).filter((p) => isPersonLive(p.spot_at, mineAt, now)), now), [peopleMine, mineAt, now]);
   const shownMine = useMemo(() => allMine.filter((p) => !narrow || presenceOf(p.last_seen_at, now).online), [allMine, narrow, now]);
   // The map shows what the last search found, wherever it was dragged. The list, cards, counts and the ring are
   // always around the place (your area, or the one you picked), never around where the map was dragged to:
@@ -502,10 +521,29 @@ export function NearMap({
   // A read that came back full: its count is "at least", said as "200+" (B170).
   const mapCaps = { near: capped(jobs?.length ?? 0, ITEMS), home: capped(remoteJobs?.length ?? 0, REMOTE_ITEMS) };
   // Nearest first, so the list agrees with the "nearest person" card above it (the server's order is active-first).
-  const listPeople = useMemo(
+  const sortedPeople = useMemo(
     () => (reachAt ? [...withinReach(shownPeople, reachAt, radius)].sort((a, b) => a.km - b.km) : []),
     [shownPeople, reachAt, radius],
   );
+  // Promoted (task 1.19 row C). Hire side: a helper whose newest service is promoted is lifted by the server's
+  // auction (service ids of the helpers in this list after the search and reach filters). Earn side: promoted
+  // jobs get the bigger pin on the map; the auction is asked only for the jobs the map shows.
+  const promoNear = reachAt ? { lat: reachAt.lat, lng: reachAt.lng, radiusKm: radius } : null;
+  const peopleServiceIds = useMemo(() => auctionIds(sortedPeople.map((w) => w.top_service?.id)), [sortedPeople]);
+  const jobIds = useMemo(() => auctionIds(shownJobs.map((j) => j.id)), [shownJobs]);
+  const promoPeopleLive = usePromotedLive('service', promoNear, {
+    surface: 'list',
+    taskIds: peopleServiceIds,
+    enabled: mode === 'people' && !mine,
+  });
+  const promoJobsLive = usePromotedLive('request', promoNear, { surface: 'map', taskIds: jobIds, enabled: mode === 'jobs' });
+  const peoplePromo = useMemo(
+    () => pickPromotedItems({ items: sortedPeople, live: promoPeopleLive, keyOf: (w) => w.top_service?.id ?? w.id }),
+    [sortedPeople, promoPeopleLive],
+  );
+  const promotedJobIds = useMemo(() => new Set(promoJobsLive.map((r) => r.task_id)), [promoJobsLive]);
+  const listPeople = useMemo(() => liftPromoted(sortedPeople, peoplePromo.top), [sortedPeople, peoplePromo]);
+  const promotedPeople = peoplePromo.badged;
   const listMine = useMemo(
     () => (reachAt ? [...withinReach(shownMine, reachAt, radius, (p) => p)].sort((a, b) => a.km - b.km) : []),
     [shownMine, reachAt, radius],
@@ -518,15 +556,27 @@ export function NearMap({
     () => (mode === 'jobs' ? listJobs.map((j) => j.id) : mine ? listMine.map((p) => p.id) : listPeople.map((p) => p.id)),
     [mode, mine, listJobs, listMine, listPeople],
   );
-  const pins = useMemo<JobPin[]>(
+  const realPins = useMemo<JobPin[]>(
     () =>
       mode === 'jobs'
-        ? shownJobs.map((j) => jobPin(j, now)).filter((p): p is JobPin => p !== null)
+        ? shownJobs
+            .map((j) => jobPin(j, now))
+            .filter((p): p is JobPin => p !== null)
+            .map((p) => (promotedJobIds.has(p.id) ? { ...p, promoted: true } : p))
         : mine
           ? shownMine.map((p) => minePin(p, now))
-          : shownPeople.map((w) => personPin(w, now)).filter((p): p is JobPin => p !== null),
-    [mode, mine, shownJobs, shownMine, shownPeople, now],
+          : shownPeople
+              .map((w) => {
+                const p = personPin(w, now);
+                return p && w.top_service && promotedPeople.has(w.top_service.id) ? { ...p, promoted: true } : p;
+              })
+              .filter((p): p is JobPin => p !== null),
+    [mode, mine, shownJobs, shownMine, shownPeople, now, promotedJobIds, promotedPeople],
   );
+  // Dev/e2e only: ?fakepins=2000 on a build made with EXPO_PUBLIC_E2E_FAKE_PINS=1 swaps the pins for made-up ones (lib/fakePins.ts).
+  const fakeCount = BOOT_FAKE_PINS;
+  const fakePins = useMemo(() => (fakeCount ? makeFakePins(fakeCount) : null), [fakeCount]);
+  const pins = fakePins ?? realPins;
   const loading = mode === 'jobs' ? jobs === null && remoteJobs === null : mine ? peopleMine === null : people === null;
   const count = ids.length;
   // On the map, inside the reach or not.
@@ -596,6 +646,14 @@ export function NearMap({
   const swipe = useSwipe(() => stepBy(1), () => stepBy(-1));
 
   const glass = { backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line };
+  // Height of the tab header above the map, so the pulled-up list stops below it.
+  const [tabHeaderH, setTabHeaderH] = useState(0);
+  const tabHeaderBox = (live: string) =>
+    tabHeader ? (
+      <View onLayout={(e) => setTabHeaderH(e.nativeEvent.layout.height)} style={{ paddingTop: insets.top, backgroundColor: t.colors.bg }}>
+        {tabHeader(live)}
+      </View>
+    ) : null;
 
   // The control where the close X sits: a close button on the route, a "List" pill in the tab.
   const leadingControl = (size: number) =>
@@ -618,6 +676,7 @@ export function NearMap({
   if (!home) {
     return (
       <View style={{ flex: 1, backgroundColor: t.colors.surface2 }}>
+        {tabHeaderBox('Choose your area')}
         <View style={{ flex: 1, marginBottom: bottomInset }}>
           <JobsMap
             me={null}
@@ -628,9 +687,9 @@ export function NearMap({
             startAt={INDIA_CENTRE}
             startZoom={INDIA_ZOOM}
             // Keeps the country in the part the "List" pill above and the card below leave uncovered.
-            fill={{ top: insets.top + 70, bottom: 190 + insets.bottom }}
+            fill={{ top: (tabHeader ? 0 : insets.top) + (tabHeader ? 16 : 70), bottom: 190 + insets.bottom }}
           />
-          <View style={{ position: 'absolute', left: 16, top: insets.top + 10 }}>{leadingControl(44)}</View>
+          {tabHeader ? null : <View style={{ position: 'absolute', left: 16, top: insets.top + 10 }}>{leadingControl(44)}</View>}
           <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom: insets.bottom + 24, alignItems: 'center' }}>
             <FadeIn {...(reduced ? { duration: 120 } : { duration: 280, translateY: 24 })} style={{ width: '100%', maxWidth: 360 }}>
               <View
@@ -831,7 +890,9 @@ export function NearMap({
         // Nobody shows yet: either you are not sharing (offer to), or nobody around is.
         <View style={{ padding: 16, gap: 12, alignItems: 'flex-start' }}>
           <RNText style={tx('600', 13, t.colors.muted)}>
-            {sharing ? 'Nobody is sharing their spot nearby right now.' : 'People show up here when they share their spot. Share yours?'}
+            {sharing
+              ? `Nobody is sharing their spot within ${radius} km right now. People you’ve finished a task with show here while they share their spot, and so do members who share with everyone nearby.`
+              : 'People you’ve finished a task with show here while they share their spot, and so do members who share with everyone nearby. Share yours so they can see you too.'}
           </RNText>
           {sharing ? null : (
             <Pressy onPress={() => setShareOpen(true)} label="Share my spot" style={{ height: 40, paddingHorizontal: 18, borderRadius: 20, backgroundColor: t.colors.btn, alignItems: 'center', justifyContent: 'center' }}>
@@ -876,7 +937,12 @@ export function NearMap({
     (mine ? (
       listMine.map((p) => <PersonRow key={p.id} person={p} now={now} on={picked === p.id} onPress={() => pick(p.id)} />)
     ) : mode === 'people' ? (
-      listPeople.map((w) => <HelperRow key={w.id} worker={w} now={now} on={picked === w.id} onPress={() => pick(w.id)} />)
+      <>
+        {listPeople.map((w) => (
+          <HelperRow key={w.id} worker={w} now={now} on={picked === w.id} promoted={Boolean(w.top_service && promotedPeople.has(w.top_service.id))} onPress={() => pick(w.id)} />
+        ))}
+        {promotedPeople.size > 0 ? <FairRulesNote side="hire" text={FAIR_RULES_HELPERS} /> : null}
+      </>
     ) : tab === 'areas' ? (
       areas.map((a, i) => <AreaRow key={a.name} area={a} best={areas[0]!.top.benchmark_minor} first={i === 0} onPress={() => pick(a.top.id)} />)
     ) : (
@@ -1114,11 +1180,13 @@ export function NearMap({
   }
 
   // Phones: the map fills the screen; one sheet holds the hero card and the list, a picked job becomes one card.
-  const topBar = insets.top + TOP_BAR_H;
+  // With the tab header above, the map starts under it and only the distance button floats over the map.
+  const topInset = tabHeader ? 0 : insets.top;
+  const topBar = topInset + (tabHeader ? 56 : TOP_BAR_H);
   // The low sheet is a slim bar; everything else (hero card, controls, list, footer) is one pull away.
   const sheetLow = PEEK_H;
   // Pulled up, the list takes nearly all the screen; a strip of map stays above it to show where it went.
-  const sheetHigh = Math.max(sheetLow + 120, screenH - bottomInset - topBar - 90);
+  const sheetHigh = Math.max(sheetLow + 120, screenH - bottomInset - topBar - 90 - tabHeaderH);
   const bottom = (pickedHelper ? HELPER_H : pickedJob ? CARD_H : sheetLow) + insets.bottom;
   // The low bar's line: the best offer or nearest person, else why there is nothing yet.
   const peekTitle = hero
@@ -1136,13 +1204,28 @@ export function NearMap({
   return (
     <View ref={root} collapsable={false} style={{ flex: 1, backgroundColor: t.colors.surface2 }}>
       {modals}
+      {tabHeaderBox(loading ? 'Looking around…' : mapLine(countWords, placeName, withinTail))}
       {/* Everything is laid out inside this box, so a bar under the map is never drawn over. */}
       <View style={{ flex: 1, marginBottom: bottomInset }}>
         {map({ top: topBar, bottom: bottom + 16 })}
 
         {/* Top bar: what this map shows, where, how many; the distance button opens the Filters sheet. */}
-        <View style={{ position: 'absolute', left: 12, right: 12, top: insets.top + 10, gap: 10 }}>
+        <View style={{ position: 'absolute', left: 12, right: 12, top: topInset + 10, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {tabHeader && !here ? (
+              <>
+                {away && !busy ? <StatusPill text={`Back to ${placeName}`} busy={false} onPress={backToPlace} /> : busy && !loading ? <StatusPill text="Looking around…" busy /> : null}
+                <View style={{ flex: 1 }} />
+                <Pressy
+                  onPress={openFilters}
+                  label={fromHome ? 'Filters' : `How far: ${radius} km. Change`}
+                  style={{ height: 40, paddingHorizontal: 14, borderRadius: 20, ...glass, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                >
+                  <Icon name="filter" size={13} color={t.colors.ink} />
+                  <RNText style={tx('700', 12.5, t.colors.ink)}>{fromHome ? 'Filters' : `${radius} km`}</RNText>
+                </Pressy>
+              </>
+            ) : (
             <View style={{ flex: 1, height: 46, borderRadius: 23, ...glass, flexDirection: 'row', alignItems: 'center', paddingLeft: 16, paddingRight: 6, gap: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 }}>
               <View style={{ flex: 1 }}>
                 <RNText style={tx('800', 14, t.colors.ink)} numberOfLines={1}>
@@ -1163,9 +1246,10 @@ export function NearMap({
                 </Pressy>
               )}
             </View>
-            {leadingControl(46)}
+            )}
+            {tabHeader ? null : leadingControl(46)}
           </View>
-          {away && !busy ? (
+          {tabHeader && !here ? null : away && !busy ? (
             <View style={{ alignItems: 'center' }}>
               <StatusPill text={`Back to ${placeName}`} busy={false} onPress={backToPlace} />
             </View>

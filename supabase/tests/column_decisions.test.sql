@@ -37,11 +37,13 @@ declare
   -- tasks: the poster and the hired worker only.
   v_tasks_parties text[] := array[
     'funded_minor', 'funded_credits_minor', 'funded_via', 'funding_payment_id',
-    'locked_minor', 'locked_bid_id', 'payout_mode', 'wallet_refunded_at', 'preferred_worker_id'];
+    'locked_minor', 'locked_bid_id', 'payout_mode', 'wallet_refunded_at', 'preferred_worker_id',
+    'due_lapsed_at'];
   -- Tables whose rows people other than the owner can read, as parties of a task, thread or crew (every column
   -- parties only), or public by design (reviews). One decided list each.
   v_other jsonb := jsonb_build_object(
-    'bids', array['id', 'task_id', 'worker_id', 'price_minor', 'time_limit_minutes', 'message', 'is_locked', 'created_at'],
+    'bids', array['id', 'task_id', 'worker_id', 'price_minor', 'time_limit_minutes', 'message', 'is_locked', 'created_at',
+      'proposed_due_at'],
     'assignments', array['id', 'task_id', 'bid_id', 'worker_id', 'status', 'escrow_minor', 'payout_mode', 'created_at', 'updated_at'],
     'task_proofs', array['id', 'task_id', 'worker_id', 'summary', 'files', 'created_at'],
     'reviews', array['id', 'task_id', 'author_id', 'subject_id', 'about_role', 'rating', 'comment', 'created_at'],

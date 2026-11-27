@@ -8,6 +8,8 @@ import { BottomSheet, Field, Pill, PrimaryButton } from './kit';
 import { lengthHint } from '../lib/fieldHint';
 import { tx } from './primitives';
 import { isNeedsAccount, useAccountHold } from '../lib/guest';
+import { FeedbackAttach } from './FeedbackFiles';
+import type { FeedbackFile } from '../lib/media';
 
 const KINDS: { key: FeedbackKind; label: string }[] = [
   { key: 'broken', label: 'Something is broken' },
@@ -26,12 +28,15 @@ export function FeedbackSheet({ visible, onClose }: { visible: boolean; onClose:
   const [kind, setKind] = useState<FeedbackKind>('idea');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const [files, setFiles] = useState<FeedbackFile[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const send = async () => {
     setBusy(true);
     try {
-      await sendFeedback(kind, body, screen);
+      await sendFeedback(kind, body, screen, files);
       setBody('');
+      setFiles([]);
       onClose();
       celebrate('Thanks — the team will read it');
     } catch (e) {
@@ -48,7 +53,7 @@ export function FeedbackSheet({ visible, onClose }: { visible: boolean; onClose:
       onClose={onClose}
       title="Send feedback"
       subtitle="Goes straight to the team that builds TaskDrop. For help with a payment or a task, use Help & support instead."
-      footer={<PrimaryButton label="Send feedback" onPress={() => void send()} busy={busy} disabled={body.trim().length < 3} />}
+      footer={<PrimaryButton label="Send feedback" onPress={() => void send()} busy={busy} disabled={body.trim().length < 3 || uploading} />}
     >
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {KINDS.map((k) => (
@@ -64,6 +69,7 @@ export function FeedbackSheet({ visible, onClose }: { visible: boolean; onClose:
         placeholder="Tell us what happened or what you’d like"
         hint={lengthHint(body, 3, 'your feedback') ?? undefined}
       />
+      <FeedbackAttach files={files} onChange={setFiles} onBusy={setUploading} note="Only you and the team can see them." />
       <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8 })}>
         We attach the screen you were on, so you don’t have to describe where you were.
       </RNText>

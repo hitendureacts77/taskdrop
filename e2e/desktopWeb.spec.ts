@@ -52,9 +52,13 @@ async function headerButton(page: Page, label: string) {
 }
 
 async function openFeedList(page: Page) {
-  await tab(page, "Explore");
-  const list = page.getByRole("button", { name: "Show the list" });
-  if (await list.isVisible({ timeout: 4000 }).catch(() => false)) await list.click();
+  await tab(page, "(Explore|Find work)");
+  // The phone and tablet open on the map (switch in the header); wait for the switch, then the list.
+  const list = page.getByRole("button", { name: "Show the list" }).filter({ visible: true }).first();
+  const inList = page.getByRole("button", { name: "List view, selected" }).filter({ visible: true }).first();
+  await list.or(inList).waitFor({ timeout: 15_000 }).catch(() => {});
+  if (await list.isVisible().catch(() => false)) await list.click();
+
 }
 
 const SCREENS: Screen[] = [
@@ -95,8 +99,11 @@ const SCREENS: Screen[] = [
       // The desktop menu and the tablet rail list Settings; the phone has it in the account menu.
       const item = page.getByRole("link", { name: /^Settings/ }).first();
       if (await item.isVisible().catch(() => false)) return item.click();
-      await page.getByRole("button", { name: "Account menu" }).click();
-      await page.getByText("Settings", { exact: true }).first().click();
+      // Phone: the face opens the Profile tab, which has the Settings row. Tablet+desktop: the account menu.
+      const face = page.getByRole("button", { name: "Account menu" });
+      if (await face.isVisible().catch(() => false)) await face.click();
+      else await tab(page, "Profile");
+      await page.getByText(/^(Settings|Account & settings)$/).filter({ visible: true }).first().click();
     },
   },
   { id: "inbox", hire: true, phone: { hire: true }, open: ({ page }) => headerButton(page, "Messages") },
@@ -154,6 +161,10 @@ async function run(page: Page, p: Plan, wide: boolean) {
 const live = (page: Page) => [
   // The map behind the Explore list: tiles load at their own pace.
   page.locator(".maplibregl-map"),
+  // The face in the top bar: its letter comes from the name read live ("M" or the saved name), so it differs between runs.
+  page.getByRole("button", { name: /^(Profile|Account menu)$/ }).filter({ visible: true }),
+  // A running work timer (WorkerCard "Timer running 470:18:45") ticks every second while the picture is taken.
+  page.getByText(/^\d+:\d{2}:\d{2}$/).filter({ visible: true }),
 ];
 
 for (const p of plans(true)) {

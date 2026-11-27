@@ -106,7 +106,7 @@ begin
   v_err := pg_temp.try(format('select public.admin_cancel_task_with_refund(%L, ''again'')', v_task));
   if coalesce(v_err, '') not like '%already closed%' then raise exception 'FAIL: cancelled twice (%)', v_err; end if;
 
-  -- ---- stop a promotion: unspent budget back to the wallet ---------------------------
+  -- ---- stop a promotion: no refund since 203 ------------------------------------------
   perform pg_temp.as_owner();
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes)
   values (v_poster, 'services', 'promoted job', 10000, 60) returning id into v_task;
@@ -127,7 +127,8 @@ begin
   if v_prow.status <> 'cancelled' then raise exception 'FAIL: promotion is % after stopping', v_prow.status; end if;
   perform pg_temp.as_owner();
   select balance_minor into v_after from public.wallets where user_id = v_poster;
-  if v_after - v_before <= 0 then raise exception 'FAIL: nothing was refunded for an unused promotion'; end if;
+  -- Since 203 (owner, 25 Nov: 'if it is paid, it is done') a paid promotion is never refunded, even when staff stop it.
+  if v_after <> v_before then raise exception 'FAIL: a stopped promotion was refunded (%)', v_after - v_before; end if;
   if not exists (select 1 from public.admin_audit_log where action = 'pause_promotion' and target_id = v_promo::text) then
     raise exception 'FAIL: stopping left no audit row';
   end if;

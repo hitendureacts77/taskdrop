@@ -7,6 +7,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { clientHeaders, installId } from '../lib/appInfo';
 import { postSignInRoute } from '../data/api';
+import type { SignInRoute } from '../lib/username';
 import { GUEST_DRAFTS_OWNER, clearGuestHandoff, clearStaleGuestHandoff, dropGuestHandoffMark, guestHandoffLive, loadGuestChoice, saveGuestChoice, saveGuestHandoffMark, takeGuestHandoff } from '../lib/guest';
 import { clearDrafts, moveGuestDrafts } from '../lib/drafts';
 import { clearBigDays, moveGuestBigDays } from '../lib/bigDayStore';
@@ -38,7 +39,7 @@ type AuthCtx = {
    * onward the way verifyCode's caller does. Consumed once by Routes(); a
    * restored session on a normal cold start leaves this null.
    */
-  postAuthRoute: 'home' | 'setup' | null;
+  postAuthRoute: SignInRoute | null;
   /**
    * Ask for a code. `mode` lets the server stop at the wrong door before any
    * code is made: 'signup' with a number that has an account, or 'signin'
@@ -280,7 +281,7 @@ async function redeemAuthUrl(url: string): Promise<{ createdAt: string | undefin
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  const [postAuthRoute, setPostAuthRoute] = useState<'home' | 'setup' | null>(null);
+  const [postAuthRoute, setPostAuthRoute] = useState<SignInRoute | null>(null);
   const [guestChosen, setGuestChosen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const clearNotice = useCallback(() => setNotice(null), []);

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text as RNText, Pressable, Platform, type LayoutChangeEvent } from 'react-native';
-import MapView, { Circle, Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { View, Text as RNText, Pressable, type LayoutChangeEvent } from 'react-native';
+import type { CameraRef, LayerProps } from '@maplibre/maplibre-react-native';
+import { ML, type MapLibre } from '../lib/mapLibreNative';
 import { useTheme } from '../providers/ThemeProvider';
 import { tx } from './primitives';
 import { Icon } from './Icon';
-import { TILE, project, unproject } from './MapPicker.tiles';
+import { project, unproject } from './MapPicker.tiles';
 import {
   CLUSTER_PX,
   CLUSTER_PX_PEOPLE,
@@ -25,54 +25,67 @@ import { groupPins, metresPerPixel } from '../lib/mapCluster';
 import { zoomToFit } from '../lib/mapReach';
 import { useReducedMotion } from '../lib/motion';
 import { SPREAD_ZOOM, layoutPins } from '../lib/mapLayout';
-import { MAX_FRESH, areaAt, introDelays, introEnd, rippleAt, tagAt } from '../lib/mapMotion';
 import { youRect } from '../lib/mapLabels';
-import { controlsRect, itemKey, pinLabels } from './MapPinLayer';
-import { useMapClock } from './useMapClock';
-import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PricePin, TASK_PIN, TaskPin } from './MapMarkers';
+import { SRC, buildingLayer, glToTile, sceneShapes, shapeLayers, tileToGl, tiltAfterZoom } from '../lib/mapLayers';
+import { glStyleUrl } from '../lib/mapStyle';
+import { SPREAD_MS, controlsRect, itemKey, pinBox, pinLabels, stackLabel } from './MapPinLayer';
+import { MAX_FRESH, TAG_MS, introDelays, introEnd } from '../lib/mapMotion';
+import { RIPPLE_ROOM } from '../lib/mapMotion';
+import { usePinEpoch } from './usePinEpoch';
+import { FACE_PIN, FACE_STACK, FacePin, FaceStack, PRICE_PIN, PROMO_PIN, PinMotion, PricePin, PromotedPin, TASK_PIN, TaskPin, hireColours, sideHue, type PinEnter } from './MapMarkers';
 
 export type { JobPin, MapTone, JobsMapProps } from './JobsMap.tiles';
 export { mapWords } from './JobsMap.tiles';
 
 /**
- * Inside Expo Go the Google map comes up blank on Android (our Maps key is not
- * part of Expo Go), so there the tile map is used, as in MapPicker.native.tsx.
- * Installed builds get Google's map, with the key from app.config.js.
+ * Plan 1.20 (design D33): the phone map is MapLibre Native, the engine the web
+ * map already uses, with the same OpenFreeMap styles. Pins are real native
+ * views the engine moves itself (no bitmap snapshots); the ring, spread areas,
+ * heat glow and "Approximate area" circle are engine-drawn layers
+ * (lib/mapLayers.ts). The grouping rules are unchanged. Expo Go and builds
+ * without the native module get the tile map (lib/mapLibreNative.ts).
  */
-const IN_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+// Only read inside components that render when ML is not null.
+const { Map: MLMap, Camera, GeoJSONSource, Layer, Marker } = (ML ?? {}) as MapLibre;
 
-/** Out to the whole world (owner video, 9 Nov). */
+/** Out to the whole world (owner video, 9 Nov). App zoom (256 px tiles); the engine's is one lower. */
 const MIN_ZOOM = 2;
 const START_ZOOM = 12;
 const RING_KM = 10;
 const DEFAULT_CENTRE = { lat: 12.9716, lng: 77.5946 };
+/** How long the camera takes to fly into a tapped group. */
+const FLY_MS = 600;
 
 type Props = JobsMapProps;
 
 export function JobsMap(props: Props) {
-  return IN_EXPO_GO ? <TileJobsMap {...props} /> : <GoogleJobsMap {...props} />;
+  return ML ? <NativeJobsMap {...props} /> : <TileJobsMap {...props} />;
 }
 
-/** Map zoom level -> the degrees of longitude the screen width shows. */
-function deltaFor(zoom: number): number {
-  return 360 / 2 ** zoom;
-}
-
-/**
- * A native view drawn into a marker is a snapshot. Let it redraw for a moment
- * when what it shows changes (or a face photo arrives), then stop tracking:
- * tracking forever is slow.
- */
-function useSnapshot(...deps: unknown[]): [boolean, () => void] {
-  const [tracking, setTracking] = useState(true);
-  const [poked, setPoked] = useState(0);
+/** The id of the base style's first label layer, so the shapes can slide in underneath it. null = none found. */
+const firstSymbol = new globalThis.Map<string, string | null>();
+function useFirstSymbolLayer(isDark: boolean): string | null | undefined {
+  const url = glStyleUrl(isDark);
+  const [id, setId] = useState<string | null | undefined>(firstSymbol.get(url));
   useEffect(() => {
-    setTracking(true);
-    const id = setTimeout(() => setTracking(false), 600);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, poked]);
-  return [tracking, () => setPoked((n) => n + 1)];
+    if (firstSymbol.has(url)) {
+      setId(firstSymbol.get(url));
+      return;
+    }
+    let live = true;
+    fetch(url)
+      .then((r) => r.json())
+      .then((j: { layers?: { id: string; type: string }[] }) => j.layers?.find((l) => l.type === 'symbol')?.id ?? null)
+      .catch(() => null)
+      .then((found) => {
+        firstSymbol.set(url, found);
+        if (live) setId(found);
+      });
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  return id;
 }
 
 /** One marker holding a pin from MapMarkers, lined up so the pin's point sits on the place. */
@@ -82,8 +95,10 @@ function PinMarker({
   z,
   label,
   onPress,
-  deps,
   faded = false,
+  enter = null,
+  ripple = null,
+  hue,
   children,
 }: {
   at: { lat: number; lng: number };
@@ -91,23 +106,22 @@ function PinMarker({
   z: number;
   label: string;
   onPress: () => void;
-  deps: unknown[];
   faded?: boolean;
-  children: (redraw: () => void) => React.ReactNode;
+  /** Intro or burst, played once inside the pin (PinMotion). */
+  enter?: PinEnter | null;
+  /** Turn of a just-posted task's ripple; its marker box gets room so the ring is never clipped. */
+  ripple?: number | null;
+  hue?: string;
+  children: React.ReactNode;
 }) {
-  const t = useTheme();
-  const [tracking, redraw] = useSnapshot(t.isDark, faded, ...deps);
+  // The offset stays the same when the box grows evenly on every side, so the pin's point still sits on the place.
+  const room = ripple !== null ? RIPPLE_ROOM : 0;
   return (
-    <Marker
-      coordinate={{ latitude: at.lat, longitude: at.lng }}
-      anchor={{ x: 0.5, y: box.anchor / box.h }}
-      zIndex={z}
-      tracksViewChanges={tracking}
-      onPress={onPress}
-      accessibilityLabel={label}
-    >
-      <View style={{ width: box.w, height: box.h, opacity: faded ? 0.45 : 1 }} collapsable={false}>
-        {children(redraw)}
+    <Marker lngLat={[at.lng, at.lat]} anchor="center" offset={[0, box.h / 2 - box.anchor]} style={{ zIndex: z }} onPress={onPress} accessibilityLabel={label}>
+      <View style={{ width: box.w + room * 2, height: box.h + room * 2, padding: room, opacity: faded ? 0.45 : 1 }} collapsable={false}>
+        <PinMotion box={box} enter={enter} ripple={ripple} hue={hue}>
+          {children}
+        </PinMotion>
       </View>
     </Marker>
   );
@@ -116,19 +130,11 @@ function PinMarker({
 /** The "you" marker box: the dot's centre is 22 px down, the "You" pill hangs below it. */
 const YOU_BOX = { w: 80, h: 64, dotY: 22 };
 
-/** Static halo here (an animated view would not survive the marker snapshot); above every pin. */
+/** Above every pin; not tappable. */
 function YouDot({ at, color, kind }: { at: { lat: number; lng: number }; color: string; kind: 'live' | 'area' }) {
   const t = useTheme();
-  const [tracking] = useSnapshot(t.isDark, color, kind);
   return (
-    <Marker
-      coordinate={{ latitude: at.lat, longitude: at.lng }}
-      anchor={{ x: 0.5, y: YOU_BOX.dotY / YOU_BOX.h }}
-      zIndex={1000}
-      tracksViewChanges={tracking}
-      tappable={false}
-      accessibilityLabel={kind === 'live' ? 'Your location' : 'Your area'}
-    >
+    <Marker lngLat={[at.lng, at.lat]} anchor="center" offset={[0, YOU_BOX.h / 2 - YOU_BOX.dotY]} style={{ zIndex: 1000 }} pointerEvents="none" accessibilityLabel={kind === 'live' ? 'Your location' : 'Your area'}>
       <View style={{ width: YOU_BOX.w, height: YOU_BOX.h, alignItems: 'center' }} collapsable={false}>
         <View style={{ position: 'absolute', top: YOU_BOX.dotY - 22, width: 44, height: 44, borderRadius: 999, backgroundColor: color + '2E' }} />
         <View style={{ position: 'absolute', top: YOU_BOX.dotY - 9, width: 18, height: 18, borderRadius: 999, backgroundColor: color, borderWidth: 3, borderColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 3 }} />
@@ -143,81 +149,77 @@ function YouDot({ at, color, kind }: { at: { lat: number; lng: number }; color: 
   );
 }
 
-function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd, startAt, startZoom = START_ZOOM, fit = null, ringAt, bare = false, meKind = 'area' }: Props) {
+type ViewNow = { lat: number; lng: number; glZoom: number; pitch: number };
+type ChangeEvent = { nativeEvent: { center: [number, number]; zoom: number; pitch: number; userInteraction: boolean } };
+
+function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = RING_KM, tone = 'jobs', focusId = null, onExpand, fill, dim = false, onMoveEnd, startAt, startZoom = START_ZOOM, fit = null, ringAt, bare = false, meKind = 'area' }: Props) {
   const t = useTheme();
   const reduced = useReducedMotion();
-  const mapRef = useRef<MapView>(null);
+  const camera = useRef<CameraRef>(null);
   const start = me ?? startAt ?? (pins[0] ? { lat: pins[0].lat, lng: pins[0].lng } : DEFAULT_CENTRE);
   const [size, setSize] = useState({ w: 0, h: height });
-  const [region, setRegion] = useState<Region>({
-    latitude: start.lat,
-    longitude: start.lng,
-    latitudeDelta: deltaFor(startZoom),
-    longitudeDelta: deltaFor(startZoom),
-  });
-
+  const [view, setView] = useState<ViewNow>({ lat: start.lat, lng: start.lng, glZoom: tileToGl(startZoom), pitch: 0 });
+  const below = useFirstSymbolLayer(t.isDark);
   // Once the first location arrives, start there; after that the map is the person's to move.
   const moved = useRef(false);
+
+  const padTop = fill ? fill.top : 0;
+  const padBottom = fill ? fill.bottom : 0;
+  const padLeft = fill?.left ?? 0;
+
+  /** A camera move. `app` is an app (256 px tile) zoom, or null to keep the zoom. Reduced motion makes it instant. */
+  const move = (center: { lat: number; lng: number }, app: number | null, ms: number) => {
+    moved.current = true;
+    camera.current?.easeTo({
+      center: [center.lng, center.lat],
+      ...(app === null ? null : { zoom: tileToGl(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, app))) }),
+      duration: reduced ? 0 : ms,
+    });
+  };
+
   useEffect(() => {
     if (!moved.current && me) {
-      mapRef.current?.animateCamera({ center: { latitude: me.lat, longitude: me.lng }, zoom: START_ZOOM }, { duration: 400 });
+      camera.current?.easeTo({ center: [me.lng, me.lat], zoom: tileToGl(START_ZOOM), duration: reduced ? 0 : 400 });
     }
     // The numbers, not the object: a new object with the same place must not pull the camera back.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me?.lat, me?.lng]);
 
-  // The reach buttons: fly to fit the circle. The camera follows, but onRegionChangeComplete only
-  // reports the person's own gestures, so "Search this area" does not appear by itself.
+  // The reach buttons: fly to fit the circle. The camera follows, but only the person's own
+  // gestures reach onMoveEnd, so "Search this area" does not appear by itself.
   useEffect(() => {
     if (!fit || size.w === 0) return;
-    moved.current = true;
-    const w = size.w - (fill?.left ?? 0);
-    const h = size.h - (fill ? fill.top + fill.bottom : 0);
-    const z = zoomToFit(fit.km, fit.at.lat, Math.min(w, h));
-    if (Platform.OS === 'ios') {
-      // iOS may ignore the camera's zoom, so fit the circle's four edges instead.
-      const dLat = fit.km / 111.32;
-      const dLng = fit.km / (111.32 * Math.max(0.05, Math.cos((fit.at.lat * Math.PI) / 180)));
-      mapRef.current?.fitToCoordinates(
-        [
-          { latitude: fit.at.lat + dLat, longitude: fit.at.lng },
-          { latitude: fit.at.lat - dLat, longitude: fit.at.lng },
-          { latitude: fit.at.lat, longitude: fit.at.lng + dLng },
-          { latitude: fit.at.lat, longitude: fit.at.lng - dLng },
-        ],
-        { edgePadding: { top: 24, right: 24, bottom: 24, left: 24 }, animated: !reduced },
-      );
-    } else {
-      mapRef.current?.animateCamera(
-        { center: { latitude: fit.at.lat, longitude: fit.at.lng }, zoom: z },
-        { duration: reduced ? 0 : 400 },
-      );
-    }
+    const w = size.w - padLeft;
+    const h = size.h - padTop - padBottom;
+    move(fit.at, zoomToFit(fit.km, fit.at.lat, Math.min(w, h)), 400);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fit?.key, size.w > 0]);
 
   const onLayout = (e: LayoutChangeEvent) =>
     setSize({ w: Math.round(e.nativeEvent.layout.width), h: Math.round(e.nativeEvent.layout.height) });
 
-  // What the screen shows, as a web-mercator zoom, so the same pixel layout as
-  // the tile map can run on top of the native camera.
-  const zoom = size.w > 0 ? Math.log2((360 * size.w) / (TILE * region.longitudeDelta)) : START_ZOOM;
-  const c = project(region.latitude, region.longitude, zoom);
-  const left = c.x - size.w / 2;
-  const top = c.y - size.h / 2;
+  // What the screen shows, as the app's 256 px zoom, so the same pixel layout as the tile map
+  // runs on top of the native camera. The camera centre sits in the middle of the part the
+  // sheets leave uncovered (contentInset), so the layout's origin is moved there.
+  const zoom = glToTile(view.glZoom);
+  const cx = padLeft + (size.w - padLeft) / 2;
+  const cy = padTop + (size.h - padTop - padBottom) / 2;
+  const c = project(view.lat, view.lng, zoom);
+  const left = c.x - cx;
+  const top = c.y - cy;
   const toPlace = (x: number, y: number) => unproject(x + left, y + top, zoom);
 
   // The full map's card rail picks a pin: bring it into the middle, close enough to see it on its own.
   useEffect(() => {
     const hit = focusId ? pins.find((p) => p.id === focusId) : null;
     if (!hit) return;
-    moved.current = true;
-    mapRef.current?.animateCamera({ center: { latitude: hit.lat, longitude: hit.lng }, zoom: Math.max(Math.round(zoom), SPREAD_ZOOM) }, { duration: 350 });
+    move(hit, Math.max(Math.round(zoom), SPREAD_ZOOM), 350);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusId]);
 
   const people = tone === 'people';
-  const byId = useMemo(() => new Map(pins.map((p) => [p.id, p])), [pins]);
+  const byId = useMemo(() => new globalThis.Map(pins.map((p) => [p.id, p])), [pins]);
+  // The layout runs when the map stops moving (the view state changes then), never per frame.
   const items = useMemo(() => {
     if (size.w === 0) return [];
     const placed = byOffer(pins, people).map((p) => {
@@ -225,34 +227,77 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
       return { id: p.id, x: q.x - left, y: q.y - top };
     });
     const inView = placed.filter((p) => p.x > -120 && p.x < size.w + 120 && p.y > -120 && p.y < size.h + 120);
-    return layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), { zoom, gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP });
+    return layoutPins(groupPins(inView, people ? CLUSTER_PX_PEOPLE : CLUSTER_PX), {
+      zoom,
+      gap: people ? SPREAD_GAP_PEOPLE : SPREAD_GAP,
+      box: (id, spread) => pinBox(byId.get(id), people, spread),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pins, region, size, tone]);
+  }, [pins, view, size, tone]);
   const offers = people ? null : offersOf(items, byId);
 
-  // The intro replays for a new set of things, not when the map is moved.
+  // Motion inside the pins plays for a new set of things (not on map moves) and when the zoom crosses the spread level.
   const introKey = useMemo(() => pins.map((p) => p.id).sort().join('|'), [pins]);
-  const freshIds = useMemo(() => new Set(pins.filter((p) => p.fresh).slice(0, MAX_FRESH).map((p) => p.id)), [pins]);
-  // The ripple timer re-renders the whole map 15 times a second, so it runs only while a fresh job is actually on screen.
-  const freshOnScreen = items.some((it) => it.kind === 'one' && freshIds.has(it.id));
-  const clock = useMapClock(introKey, introEnd(pins.length), freshOnScreen);
+  const introLive = usePinEpoch(introKey, introEnd(pins.length) + TAG_MS);
+  const spreadLive = usePinEpoch(zoom >= SPREAD_ZOOM ? 'spread' : 'stacked', SPREAD_MS + 100);
+  const freshIds = useMemo(() => [...pins.filter((p) => p.fresh).slice(0, MAX_FRESH).map((p) => p.id)], [pins]);
+
   const youAt = me ? project(me.lat, me.lng, zoom) : null;
   const youOnScreen = youAt ? { x: youAt.x - left, y: youAt.y - top } : null;
-  const delays = introDelays(items, youOnScreen);
   // Names that would overlap step back, and pins under the buttons step aside (P1-14, lib/mapLabels.ts).
   const labels = pinLabels(items, byId, offers, selectedId, mapWords(tone).many, {
     avoid: youOnScreen ? [youRect(youOnScreen.x, youOnScreen.y, meKind === 'live')] : [],
-    controls: controlsRect(size, { right: 8, top: 8 + (fill ? fill.top : 0), button: 36, gap: 6, count: bare ? 0 : (onExpand ? 1 : 0) + 2 + (me ? 1 : 0) }),
-  });
+    controls: controlsRect(size, { right: 8, top: 8 + padTop, button: 36, gap: 6, count: bare ? 0 : (onExpand ? 1 : 0) + 2 + (me ? 1 : 0) }),
+  }, people);
 
-  const flyTo = (center: { lat: number; lng: number }, next: number) => {
-    moved.current = true;
-    mapRef.current?.animateCamera(
-      { center: { latitude: center.lat, longitude: center.lng }, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next)) },
-      { duration: 250 },
-    );
+  const delays = useMemo(() => introDelays(items, youOnScreen), [items, youOnScreen?.x, youOnScreen?.y]); // eslint-disable-line react-hooks/exhaustive-deps
+  const here = { lat: view.lat, lng: view.lng };
+  // Earn (tasks) is always royal blue, Hire (helpers) always jade: one side colour for the shapes, ring and You dot.
+  const hue = sideHue(t, people);
+  const blue = hue;
+  const words = mapWords(tone);
+
+  // Everything that is not a pin, drawn by the engine from the same layout (lib/mapLayers.ts).
+  const ringCentre = ringAt ?? me;
+  const shapes = useMemo(
+    () =>
+      sceneShapes({
+        items,
+        toPlace,
+        mpp: metresPerPixel(view.lat, zoom),
+        ring: me && ringCentre ? { at: ringCentre, km: ringKm } : null,
+        offers,
+        pickedId: selectedId,
+      }),
+    // toPlace, zoom and the offers follow `view` and `byId`, which `items` already tracks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, selectedId, ringKm, me?.lat, me?.lng, ringCentre?.lat, ringCentre?.lng, people, byId],
+  );
+  const layers = useMemo(
+    () => shapeLayers({ hue, ring: blue, ink: t.colors.ink, halo: t.colors.bg, isDark: t.isDark, reduced }),
+    [hue, blue, t.colors.ink, t.colors.bg, t.isDark, reduced],
+  );
+  const beforeId = below ?? undefined;
+
+  // Clip to the map's box: MapLibre's pins are real native views and would otherwise draw over the header above
+  // the map (phone check, 26 Nov). The Google map clipped them itself.
+  const frame = fill
+    ? { flex: 1, overflow: 'hidden' as const, backgroundColor: t.colors.surface2 }
+    : { height, borderRadius: 18, overflow: 'hidden' as const, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line };
+
+  // The last zoom the tilt rule looked at: it acts when a zoom ends, not on every pan.
+  const lastZoom = useRef(view.glZoom);
+  const onRegionDidChange = (e: ChangeEvent) => {
+    const { center, zoom: glZoom, pitch, userInteraction } = e.nativeEvent;
+    setView({ lat: center[1], lng: center[0], glZoom, pitch });
+    // Only the person's own moves count, not the camera following a picked pin.
+    if (userInteraction) onMoveEnd?.({ lat: center[1], lng: center[0] });
+    if (Math.abs(glZoom - lastZoom.current) > 0.01) {
+      lastZoom.current = glZoom;
+      const lean = tiltAfterZoom(glZoom, pitch, reduced);
+      if (lean !== null) camera.current?.easeTo({ center, pitch: lean, duration: reduced ? 0 : 500 });
+    }
   };
-  const here = { lat: region.latitude, lng: region.longitude };
 
   const control = (label: string, onPress: () => void, child: React.ReactNode) => (
     <Pressable
@@ -265,127 +310,66 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
     </Pressable>
   );
 
-  const blue = t.colors.purple;
-  const hue = people ? blue : t.colors.btn;
-  const words = mapWords(tone);
-  const mpp = metresPerPixel(region.latitude, zoom);
-  const hex = (n: number) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
-  const padTop = fill ? fill.top : 0;
-  const padBottom = fill ? fill.bottom : 0;
-  const frame = fill
-    ? { flex: 1, backgroundColor: t.colors.surface2 }
-    : { height, borderRadius: 18, overflow: 'hidden' as const, backgroundColor: t.colors.surface2, borderWidth: 1, borderColor: t.colors.line };
-  const areas = new Map<string, { x: number; y: number; r: number }>();
-  for (const it of items) if (it.kind === 'one' && it.area) areas.set(`${it.area.x},${it.area.y}`, { x: it.area.x, y: it.area.y, r: Math.max(it.area.rx, it.area.ry) });
-
   return (
     <View onLayout={onLayout} style={frame}>
-      <MapView
-        ref={mapRef}
+      <MLMap
         style={{ flex: 1 }}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-        initialRegion={region}
-        onRegionChangeComplete={(r, details) => {
-          setRegion(r);
-          // Only the person's own moves count, not the camera following a picked pin.
-          if (details?.isGesture) onMoveEnd?.({ lat: r.latitude, lng: r.longitude });
+        mapStyle={glStyleUrl(t.isDark)}
+        dragPan={!bare}
+        touchZoom={!bare}
+        touchPitch={!bare}
+        touchRotate={false}
+        compass={false}
+        logo={false}
+        attribution
+        attributionPosition={{ bottom: 8 + padBottom, right: 8 }}
+        contentInset={{ top: padTop, bottom: padBottom, left: padLeft, right: 0 }}
+        onRegionWillChange={(e) => {
+          if (e.nativeEvent.userInteraction) moved.current = true;
         }}
-        onPanDrag={() => {
-          moved.current = true;
-        }}
-        minZoomLevel={MIN_ZOOM}
-        maxZoomLevel={MAX_ZOOM}
-        rotateEnabled={false}
-        pitchEnabled={false}
-        scrollEnabled={!bare}
-        zoomEnabled={!bare}
-        showsCompass={false}
-        showsMyLocationButton={false}
-        toolbarEnabled={false}
-        moveOnMarkerPress={false}
-        userInterfaceStyle={t.isDark ? 'dark' : 'light'}
-        mapPadding={{ top: padTop, bottom: padBottom, left: fill?.left ?? 0, right: 0 }}
+        onRegionDidChange={onRegionDidChange}
       >
-        {me ? (
+        <Camera ref={camera} initialViewState={{ center: [start.lng, start.lat], zoom: tileToGl(startZoom) }} minZoom={tileToGl(MIN_ZOOM)} maxZoom={tileToGl(MAX_ZOOM)} />
+
+        {below !== undefined ? (
           <>
-            <Circle
-              center={{ latitude: (ringAt ?? me).lat, longitude: (ringAt ?? me).lng }}
-              radius={ringKm * 1000}
-              strokeColor={blue + '77'}
-              strokeWidth={1}
-              lineDashPattern={[10, 8]}
-              fillColor="transparent"
-              zIndex={0}
-            />
-            <YouDot at={me} color={blue} kind={meKind} />
+            {(Object.keys(SRC) as (keyof typeof SRC)[]).map((k) => (
+              <GeoJSONSource key={`${SRC[k]}-${t.isDark}`} id={SRC[k]} data={shapes[k] as unknown as GeoJSON.FeatureCollection}>
+                {layers
+                  .filter((l) => l.source === SRC[k])
+                  // LayerSpec is the plain style-spec shape both engines share; the strict union type cannot see that.
+                  .map((l) => (
+                    <Layer key={l.id} {...(l as unknown as LayerProps)} beforeId={beforeId} />
+                  ))}
+              </GeoJSONSource>
+            ))}
+            <Layer key={`bld-${t.isDark}`} {...(buildingLayer(t.isDark) as unknown as LayerProps)} beforeId={beforeId} />
           </>
         ) : null}
 
-        {/* Spread areas: one soft circle behind everyone in it, never a spot. */}
-        {[...areas.entries()].map(([key, a]) => {
-          const p = toPlace(a.x, a.y);
-          return (
-            <Circle
-              key={'area-' + key}
-              center={{ latitude: p.lat, longitude: p.lng }}
-              radius={a.r * mpp}
-              strokeColor={hue + '80'}
-              strokeWidth={1}
-              lineDashPattern={[8, 6]}
-              fillColor={hue + '1A'}
-              zIndex={1}
-            />
-          );
-        })}
-
-        {/* Jobs: a soft heat glow under each area, stronger where the biggest offer is higher. */}
-        {offers && offers.best
-          ? items.flatMap((it, i) => {
-              if (it.kind === 'one' && it.area) return [];
-              const a = areaAt(clock.elapsed, delays[i]!);
-              if (!a.shown) return [];
-              const k = (offers.top[i] ?? 0) / offers.best!;
-              const r = (36 + 46 * k) * a.scale * mpp;
-              const p = toPlace(it.x, it.y);
-              // Two rings, not three: fewer native circles to redraw on every tick of the intro.
-              return [1, 0.5].map((s) => (
-                <Circle
-                  key={`heat-${i}-${s}`}
-                  center={{ latitude: p.lat, longitude: p.lng }}
-                  radius={Math.max(4, r * s)}
-                  strokeWidth={0}
-                  strokeColor="transparent"
-                  fillColor={hue + hex(255 * (0.07 + 0.12 * k))}
-                  zIndex={1}
-                />
-              ));
-            })
-          : null}
+        {me ? <YouDot at={me} color={blue} kind={meKind} /> : null}
 
         {items.map((it, i) => {
-          if (tagAt(clock.elapsed, delays[i]!) === 0) return null;
           const plan = labels.get(itemKey(it));
           const place = toPlace(it.x + (plan?.dx ?? 0), it.y);
           const hidePlace = plan ? !plan.showTag : false;
+          // Intro first; later, a pin that just joined a spread (or a group that appeared after a fold) fades and scales in from its centre.
+          // Phone: no sliding child, because a native marker view may clip it (not checked on a device).
+          const enter: PinEnter | null = introLive
+            ? { delay: delays[i] ?? 0, ms: TAG_MS, from: 0.8 }
+            : spreadLive
+              ? { delay: 0, ms: SPREAD_MS, from: it.kind === 'one' && it.area ? 0.5 : 0.6 }
+              : null;
           // While a pin is picked, the others step back.
           const back = dim && selectedId !== null && !(it.kind === 'one' && it.id === selectedId);
           if (it.kind === 'group') {
-            const into = () => flyTo(place, Math.max(Math.round(zoom) + 2, SPREAD_ZOOM));
+            const into = () => move(place, Math.max(Math.round(zoom) + 2, SPREAD_ZOOM), FLY_MS);
             const name = placeOf(it.ids, byId);
             if (people) {
               const shown = it.ids.slice(0, 3).map((id) => ({ seed: id, face: byId.get(id)!.face ?? { initials: '?', live: false } }));
               return (
-                <PinMarker
-                  key={'g-' + it.ids[0]}
-                  faded={back}
-                  at={place}
-                  box={FACE_STACK}
-                  z={2}
-                  label={`${it.ids.length} ${words.many} in ${name} area. Spread them out`}
-                  onPress={into}
-                  deps={[it.ids.join('|')]}
-                >
-                  {(redraw) => <FaceStack faces={shown} extra={it.ids.length - shown.length} label={`${name} · ${it.ids.length}`} onImage={redraw} />}
+                <PinMarker enter={enter} key={'g-' + it.ids[0]} faded={back} at={place} box={FACE_STACK} z={2} label={`${it.ids.length} ${words.many} in ${name} area. Spread them out`} onPress={into}>
+                  <FaceStack faces={shown} extra={it.ids.length - shown.length} label={stackLabel(it.ids, byId)} compact={hidePlace} />
                 </PinMarker>
               );
             }
@@ -393,6 +377,7 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
             const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
             return (
               <PinMarker
+                enter={enter}
                 key={'g-' + it.ids[0]}
                 faded={back}
                 at={place}
@@ -400,9 +385,8 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
                 z={best ? 3 : 2}
                 label={`${it.ids.length} ${words.many} in ${name} area, biggest offer ${topPin.label}. Zoom in`}
                 onPress={into}
-                deps={[topPin.label, best, it.ids.length, hidePlace]}
               >
-                {() => <PricePin price={topPin.label} best={best} on={false} place={name} count={`${it.ids.length} ${words.many}`} hidePlace={hidePlace} />}
+                <PricePin price={topPin.label} best={best} on={false} place={name} count={`${it.ids.length} ${words.many}`} hidePlace={hidePlace} />
               </PinMarker>
             );
           }
@@ -410,71 +394,66 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
           const pin = byId.get(it.id)!;
           const on = selectedId === it.id;
           const pick = () => onSelect(on ? null : it.id);
+          if (pin.promoted) {
+            // A promoted post: bigger, side-coloured and above the other pins (task 1.19 row C).
+            return (
+              <PinMarker
+                enter={enter}
+                key={'pr-' + it.id}
+                faded={back}
+                at={place}
+                box={PROMO_PIN}
+                z={on ? 6 : 5}
+                label={'Promoted. ' + (people ? helperSays(pin) : `${pin.label}${pin.title ? ', ' + pin.title : ''}, ${pin.area ?? 'nearby'} area`)}
+                onPress={pick}
+              >
+                <PromotedPin side={people ? 'hire' : 'earn'} price={people ? (pin.price ?? null) : pin.label} on={on} />
+              </PinMarker>
+            );
+          }
           if (people) {
             const face = pin.face ?? { initials: '?', live: false };
             return (
-              <PinMarker
-                key={'p-' + it.id}
-                faded={back}
-                at={place}
-                box={FACE_PIN}
-                z={on ? 4 : 2}
-                label={helperSays(pin)}
-                onPress={pick}
-                deps={[on, face.live, face.icon, pin.label, pin.price, pin.more]}
-              >
-                {(redraw) => <FacePin face={face} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} onImage={redraw} />}
+              <PinMarker enter={enter} key={'p-' + it.id} faded={back} at={place} box={FACE_PIN} z={on ? 4 : 2} label={helperSays(pin)} onPress={pick}>
+                <FacePin face={face} seed={pin.id} what={pin.label} price={pin.price} more={pin.more} on={on} compact={hidePlace} />
               </PinMarker>
             );
           }
           const spread = it.area !== null;
           const best = offers?.top[i] !== null && offers?.top[i] === offers?.best;
-          const ripple = freshIds.has(it.id) && !clock.still ? rippleAt(clock.now, i * 1200) : null;
-          return [
-            ripple !== null ? (
-              <Circle
-                key={'ripple-' + it.id}
-                center={{ latitude: place.lat, longitude: place.lng }}
-                radius={(20 + 30 * ripple) * mpp}
-                strokeColor={hue + hex(200 * (1 - ripple))}
-                strokeWidth={2}
-                fillColor="transparent"
-                zIndex={1}
-              />
-            ) : null,
+          return (
             <PinMarker
+              enter={enter}
               key={'j-' + it.id}
+              ripple={freshIds.indexOf(it.id) >= 0 ? freshIds.indexOf(it.id) : null}
+              hue={hue}
               faded={back}
               at={place}
               box={spread ? TASK_PIN : PRICE_PIN}
               z={on ? 4 : best ? 3 : 2}
               label={`${pin.label}${pin.title ? ', ' + pin.title : ''}${pin.who ? ', posted by ' + pin.who : ''}, ${pin.area ?? 'nearby'} area`}
               onPress={pick}
-              deps={[on, best, spread, pin.face?.photo, hidePlace]}
             >
-              {(redraw) =>
-                spread ? (
-                  <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} onImage={redraw} />
-                ) : (
-                  <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={hidePlace} />
-                )
-              }
-            </PinMarker>,
-          ];
+              {spread ? (
+                <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} compact={hidePlace} />
+              ) : (
+                <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={hidePlace} />
+              )}
+            </PinMarker>
+          );
         })}
-      </MapView>
+      </MLMap>
 
       {bare ? null : (
       <View style={{ position: 'absolute', right: 8, top: 8 + padTop, gap: 6 }}>
         {onExpand ? control('Open the full map', onExpand, <Icon name="expand" size={16} color={t.colors.ink} />) : null}
-        {control('Zoom in', () => flyTo(here, Math.round(zoom) + 1), <RNText style={tx('700', 18, t.colors.ink)}>+</RNText>)}
-        {control('Zoom out', () => flyTo(here, Math.round(zoom) - 1), <RNText style={tx('700', 18, t.colors.ink)}>−</RNText>)}
+        {control('Zoom in', () => move(here, Math.round(zoom) + 1, 250), <RNText style={tx('700', 18, t.colors.ink)}>+</RNText>)}
+        {control('Zoom out', () => move(here, Math.round(zoom) - 1, 250), <RNText style={tx('700', 18, t.colors.ink)}>−</RNText>)}
         {me
           ? control(
               'Back to my area',
               () => {
-                moved.current = false;
-                flyTo(me, START_ZOOM);
+                move(me, START_ZOOM, 250);
                 moved.current = false;
               },
               <Icon name="compass" size={18} color={blue} />,
@@ -495,9 +474,9 @@ function GoogleJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
         </View>
       </View>
 
-      {/* Clear of the Google logo in the bottom-left corner, which has to stay visible. */}
-      <View pointerEvents="none" style={{ position: 'absolute', left: 84, bottom: 8 + padBottom, right: 8, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
-        <Icon name="lock" size={12} color={people ? t.colors.purpleDeep : t.colors.accentDeep} />
+      {/* Left of the attribution button in the bottom-right corner, which has to stay visible. */}
+      <View pointerEvents="none" style={{ position: 'absolute', left: 8, bottom: 8 + padBottom, right: 52, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.colors.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
+        <Icon name="lock" size={12} color={people ? hireColours(t.isDark).deep : t.colors.purpleDeep} />
         <RNText style={tx('600', 11, t.colors.text, { flexShrink: 1 })} numberOfLines={2}>
           {words.privacy}
         </RNText>

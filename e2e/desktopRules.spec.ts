@@ -55,7 +55,7 @@ async function headerButton(page: Page, label: string) {
   await page.getByRole("button", { name: name(label) }).first().click();
 }
 async function openFeedList(page: Page) {
-  await tab(page, "Explore");
+  await tab(page, "(Explore|Find work)");
   const list = page.getByRole("button", { name: "Show the list" });
   if (await list.isVisible({ timeout: 4000 }).catch(() => false)) await list.click();
 }
@@ -66,7 +66,7 @@ const SCREENS: Screen[] = [
   { id: "explore-list-hire", mode: "poster", open: (p) => openFeedList(p) },
   { id: "explore-list-earn", mode: "worker", open: (p) => openFeedList(p) },
   // The map itself (Explore opens on it): full-bleed, with its own floating tools.
-  { id: "explore-map-earn", mode: "worker", fullBleed: true, open: (p) => tab(p, "Explore") },
+  { id: "explore-map-earn", mode: "worker", fullBleed: true, open: (p) => tab(p, "(Explore|Find work)") },
   { id: "myTasks-hire", mode: "poster", open: (p) => tab(p, "My (Tasks|Work)") },
   { id: "myTasks-earn", mode: "worker", open: (p) => tab(p, "My (Tasks|Work)") },
   {
@@ -151,11 +151,14 @@ function measureInPage(): Measured {
   const inDialog = (el: Element) => !!el.closest('[role="dialog"],[role="alertdialog"],[aria-modal="true"],dialog');
 
   // The header row: the first ancestor of the avatar menu that is a real row (the header has minHeight 76).
+  // The desktop page zoom (lib/desktopScale.web.ts) draws those 76 design px as fewer window px (about 70 at 1440,
+  // a hair under 70 on the tab screens), so the row is also known by its own min-height, which the zoom does not
+  // change. Without it the walk climbed to the whole column (headerBottom = the window, no content under it).
   const menus = all.filter((el) => el.getAttribute("aria-label") === "Account menu");
   let headerRow: Element | null = null;
   for (let el: Element | null = menus[0] ?? null; el && el !== document.body; el = el.parentElement) {
     const r = el.getBoundingClientRect();
-    if (r.height >= 70 && r.width >= 500) {
+    if (r.width >= 500 && (r.height >= 70 || parseFloat(getComputedStyle(el).minHeight) >= 70)) {
       headerRow = el;
       break;
     }
@@ -377,7 +380,10 @@ test("desktop rules 1440: the checks catch a phone-style page", async ({ page },
   await page.evaluate(() => {
     const menu = Array.from(document.querySelectorAll('[aria-label="Account menu"]')).find((e) => e.getBoundingClientRect().width > 0)!;
     let row: Element = menu;
-    while (row.parentElement && !(row.getBoundingClientRect().height >= 70 && row.getBoundingClientRect().width >= 500)) row = row.parentElement;
+    // The same walk as measureInPage: the row is also known by its min-height under the desktop page zoom.
+    const isRow = (e: Element) =>
+      e.getBoundingClientRect().width >= 500 && (e.getBoundingClientRect().height >= 70 || parseFloat(getComputedStyle(e).minHeight) >= 70);
+    while (row.parentElement && !isRow(row)) row = row.parentElement;
     const heading = Array.from(row.querySelectorAll('[role="heading"],h1,h2,h3')).find((e) => e.getBoundingClientRect().width > 0)!;
     const bottom = row.getBoundingClientRect().bottom;
     const left = row.getBoundingClientRect().left + 20;

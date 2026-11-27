@@ -13,6 +13,9 @@ import type { PublicMemo } from "./publicMemo.ts";
 export type DbError = { message: string; code?: string | null; details?: string | null };
 export type DbResult = { data: unknown; error: DbError | null; count?: number | null };
 
+/** The catalog functions behind `Ctx.catalogRpc`. */
+export type CatalogFn = "catalog_check_for" | "catalog_add_for";
+
 /** The slice of a supabase-js client the operations use. */
 export interface Db {
   rpc(fn: string, args?: Record<string, unknown>): PromiseLike<DbResult>;
@@ -34,6 +37,13 @@ export type Ctx = {
    * untidy, not broken.
    */
   removeOwnFiles?: (paths: string[]) => Promise<void>;
+  /** Fill in meaning vectors for a few catalog terms that lack one (service role, best-effort, never throws). */
+  catalogEmbeddings?: () => Promise<void>;
+  /**
+   * Runs one of the two catalog functions only the service role may call (migration 228), always for this caller:
+   * the server fills in `p_user`. Absent when the service key is missing; the catalog check and add then refuse.
+   */
+  catalogRpc?: (fn: CatalogFn, args: Record<string, unknown>) => PromiseLike<DbResult>;
   /**
    * ImageKit, when its keys are configured; null or absent otherwise. Without it,
    * pictures keep going to Supabase Storage exactly as before.
@@ -48,10 +58,20 @@ export type Ctx = {
   /** Whether the caller has a confirmed phone number; undefined when unknown. */
   phoneVerified?: boolean;
   /**
+   * Whether the caller's profile has a username (plan 1.18); resolves undefined when it could not be read. Asked
+   * only for USERNAME_OPS. Absent (tests, the signed-out reads), nothing is refused for it.
+   */
+  usernameSet?: () => Promise<boolean | undefined>;
+  /**
    * The server copy's shared answers (plan 3.5b layer D). Used only for the ops on PUBLIC_MEMO_OPS and only while
    * `controls.public_cache_memo` is on; absent, null or off, every op runs as before.
    */
   memo?: PublicMemo | null;
+  /**
+   * Make missing search fingerprints in the background (smart search, ./search.ts), with the service role. Absent in
+   * tests; never awaited, never fails a call.
+   */
+  searchFill?: () => void;
   now?: () => Date;
 };
 
@@ -68,6 +88,18 @@ export class OpError extends Error {
 // ------------------------------------------------------------ safe wording --
 
 export const GENERIC = "Something went wrong. Please try again.";
+
+/**
+ * Plan 1.18 (decision 51): a signed-in person always has a username. Until one is set, these are refused: posting,
+ * offers, chat and the money actions that start something. Reading, and finishing work already under way (mark done,
+ * approve, cancel, dispute), stay open, so the app's "Pick a username" page is the only door.
+ */
+export const USERNAME_OPS: ReadonlySet<string> = new Set([
+  "createTask", "placeBid", "updateBid", "sendMessage", "sendCrewMessage", "askTaskQuestion", "answerTaskQuestion",
+  "huntSendFind", "lockBid", "payTaskFromWallet", "raiseTopUp", "startPromotion", "requestWithdrawal",
+  "addPayoutDestination",
+]);
+export const USERNAME_REQUIRED_MESSAGE = "Pick a username first.";
 
 /** What a customer is told about a database failure. Never a table, column or policy name. */
 export function safeMessage(err: DbError): string {
@@ -268,9 +300,6 @@ export function rpcOp(fn: string, build: (a: Args, ctx: Ctx) => Record<string, u
 }
 
 export const nowIso = (ctx: Ctx) => (ctx.now?.() ?? new Date()).toISOString();
-
-/** PostgREST filter for tasks still takeable: no deadline, or a deadline still ahead. */
-export const notExpired = (ctx: Ctx) => `due_at.is.null,due_at.gt.${nowIso(ctx)}`;
 
 /**
  * Names that would pass for the team or the product. Found 2026-10-24: "admin", "support" and "taskdrop" were all

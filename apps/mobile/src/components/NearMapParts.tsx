@@ -7,11 +7,13 @@ import { presenceOf } from '../lib/presence';
 import { areaName, farText, firstName, initialsOf, offerOf, personMeta } from './mapPins';
 import { mapWords, type MapTone } from './JobsMap';
 import { TopUpBadge } from './TopUpBadge';
+import { hireColours } from './MapMarkers';
 import { categoryIcon } from './WorkCard';
 import { Icon } from './Icon';
 import { rupees } from './kit';
 import { Pressy, tx } from './primitives';
 import { wholeText } from '../lib/rupeeInput';
+import { PromotedPill } from './PromotedPill';
 
 /**
  * The pieces of the full map's side panel (desktop) and bottom sheet (phone),
@@ -25,12 +27,14 @@ export type MapJob = TaskWithPoster & { km: number; fresh: boolean; remote?: boo
 export const ROW_H = 64;
 export const ROW_GAP = 4;
 
-/** The colours of one side: jobs in the mode's accent, helpers in the Earn blue (as on the map). */
+/** The colours of one side: jobs in the mode's accent, helpers always in the Hire jade (as on the map; owner rule). */
 export function useTone(tone: MapTone) {
   const t = useTheme();
-  return tone === 'people'
-    ? { hue: t.colors.purple, soft: t.colors.purpleSoft, ink: t.colors.purpleDeep, border: t.colors.purple }
-    : { hue: t.colors.accent, soft: t.colors.accentSoft, ink: t.colors.accentDeep, border: t.colors.accentBorder };
+  if (tone === 'people') {
+    const hire = hireColours(t.isDark);
+    return { hue: hire.side, soft: hire.soft, ink: hire.deep, border: hire.side };
+  }
+  return { hue: t.colors.accent, soft: t.colors.accentSoft, ink: t.colors.accentDeep, border: t.colors.accentBorder };
 }
 
 /** Best offer and nearest (jobs), active now and nearest (helpers): two tiles that pick or filter. */
@@ -246,7 +250,7 @@ export function AreaRow({ area: a, best, first, onPress }: { area: MapArea; best
 }
 
 /** One helper in the list: what they offer and their area, never a name (plan D13). */
-export function HelperRow({ worker: w, now, on, onPress }: { worker: NearbyWorker; now: number; on: boolean; onPress: () => void }) {
+export function HelperRow({ worker: w, now, on, onPress, promoted = false }: { worker: NearbyWorker; now: number; on: boolean; onPress: () => void; promoted?: boolean }) {
   const t = useTheme();
   const c = useTone('people');
   const o = offerOf(w);
@@ -256,7 +260,7 @@ export function HelperRow({ worker: w, now, on, onPress }: { worker: NearbyWorke
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: on }}
-      accessibilityLabel={`${o.what}${o.price ? `, from ${o.price}` : ''}${live ? ', active now' : ''}, ${areaName(w.loc_label)} area`}
+      accessibilityLabel={`${promoted ? 'Promoted. ' : ''}${o.what}${o.price ? `, from ${o.price}` : ''}${live ? ', active now' : ''}, ${areaName(w.loc_label)} area`}
       style={({ pressed }) => ({
         height: ROW_H,
         flexDirection: 'row',
@@ -265,7 +269,7 @@ export function HelperRow({ worker: w, now, on, onPress }: { worker: NearbyWorke
         paddingHorizontal: 10,
         borderRadius: 16,
         borderWidth: 1.5,
-        borderColor: on ? c.hue : 'transparent',
+        borderColor: on || promoted ? c.hue : 'transparent',
         backgroundColor: on ? c.soft : pressed ? t.colors.surface2 : 'transparent',
       })}
     >
@@ -280,6 +284,7 @@ export function HelperRow({ worker: w, now, on, onPress }: { worker: NearbyWorke
         </RNText>
       </View>
       <View style={{ alignItems: 'flex-end', gap: 3 }}>
+        {promoted ? <PromotedPill side="hire" /> : null}
         <RNText style={tx('800', 14, o.price ? t.colors.ink : t.colors.muted, { fontVariant: ['tabular-nums'] })}>{o.price ? `from ${o.price}` : 'Skill only'}</RNText>
         {live ? <RNText style={tx('800', 10, t.colors.online)}>● Active</RNText> : null}
       </View>
@@ -639,9 +644,9 @@ export function StatusPill({ text, busy, onPress }: { text: string; busy: boolea
   const t = useTheme();
   if (onPress) {
     return (
-      <Pressy onPress={onPress} label={text} style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.colors.ink }}>
+      <Pressy onPress={onPress} label={text} style={{ maxWidth: '100%', minWidth: 0, height: 34, paddingHorizontal: 14, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.colors.ink }}>
         <Icon name="compass" size={13} color={t.colors.bg} />
-        <RNText style={tx('800', 12.5, t.colors.bg)} numberOfLines={1}>
+        <RNText style={tx('800', 12.5, t.colors.bg, { flexShrink: 1, minWidth: 0 })} numberOfLines={1}>
           {text}
         </RNText>
       </Pressy>
@@ -651,10 +656,10 @@ export function StatusPill({ text, busy, onPress }: { text: string; busy: boolea
     <View
       accessibilityRole="text"
       accessibilityLiveRegion="polite"
-      style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3 }}
+      style={{ maxWidth: '100%', minWidth: 0, height: 34, paddingHorizontal: 14, borderRadius: 17, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.colors.bg, borderWidth: 1, borderColor: t.colors.line, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3 }}
     >
       <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: busy ? t.colors.muted : t.colors.online }} />
-      <RNText style={tx('700', 12.5, t.colors.text)} numberOfLines={1}>
+      <RNText style={tx('700', 12.5, t.colors.text, { flexShrink: 1, minWidth: 0 })} numberOfLines={1}>
         {text}
       </RNText>
     </View>

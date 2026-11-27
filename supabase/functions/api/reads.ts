@@ -3,10 +3,14 @@ import { FEES, TIMING, distanceKm } from "../_shared/rules.ts";
 /** Most rows one "my" list returns. Said here so a long list is cut on purpose, not by the database's own row cap (S1-21). */
 const MY_LIST_MAX = 500;
 import {
-  type Args, type Ctx, type DbResult, type Op, MONEY_MAX, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, notExpired, nowIso, num, oneOf, rows,
+  type Args, type CatalogFn, type Ctx, type DbResult, type Op, GENERIC, MONEY_MAX, OpError, RESERVED_USERNAMES, bad, countBy, int, isoOrNull, limit, nowIso, num, coordOrNull, oneOf, rows,
   rpcOp, str, strOrNull, strings, take, uuid, uuids,
 } from "./core.ts";
 import { noKeep } from "./publicMemo.ts";
+import { chatStateFrom, readChatStates } from "./chat.ts";
+import { type Understanding, nearConcepts, rankedSearch, suggestConcepts, understand, whyLine } from "./search.ts";
+import { findContactIssue } from "../_shared/contacts.ts";
+import { embedText, toVectorLiteral } from "../_shared/meaning.ts";
 import {
   ASSIGNMENT_SELECT, BID_SELECT, CREW_MESSAGE_SELECT, MESSAGE_SELECT, PROFILE_OWNER_SELECT, PROFILE_PUBLIC_SELECT, PROOF_SELECT,
   NOTIFICATION_SELECT, PAYMENT_SELECT, PAYOUT_DESTINATION_SELECT, PAYOUT_SELECT, PROMOTION_SELECT, REVIEW_SELECT,
@@ -51,16 +55,63 @@ async function profilesById(ctx: Ctx, ids: (string | null | undefined)[]): Promi
 /**
  * Open posts of one kind that the caller could take on (never their own). A City Hunt that has stopped taking finds
  * (hunt_until passed) stays OPEN while its poster reviews, but nobody can act on it any more, so it is left out (B86).
+ * A task whose date has passed stays: it is open until someone is picked, and the server switches it to no fixed
+ * date within 15 minutes (plan 1.19 J, migration 216).
  */
 function openTasksQuery(ctx: Ctx, kind: "request" | "service") {
   return ctx.db
     .from("tasks")
     .select(TASK_PUBLIC_SELECT)
     .eq("status", "OPEN")
-    .or(notExpired(ctx))
     .or(`hunt_until.is.null,hunt_until.gt.${nowIso(ctx)}`)
     .eq("kind", kind)
     .neq("poster_id", ctx.userId);
+}
+
+/** The two kinds of catalog term. */
+export const catalogKind = (a: Args) => oneOf(a, "kind", ["skill", "category"]);
+
+/** What a refused word is told, in words a person can act on. */
+export function catalogRefusalMessage(kind: string, reason: unknown): string {
+  const thing = kind === "category" ? "category" : "skill";
+  switch (reason) {
+    case "length": return "Keep it between 2 and 30 letters.";
+    case "letters": return `Type the ${thing} in English letters.`;
+    case "contact":
+    case "rude": return `A ${thing} can't have a phone number, email, link or rude words. Type just the ${thing}.`;
+    case "hidden": return "That one can't be used. Pick another.";
+    default: return "That one can't be used. Pick another.";
+  }
+}
+
+/** Adds the `message` to a refused answer; any other answer passes through. */
+export function catalogRefusal(kind: string, res: unknown): unknown {
+  if (res && typeof res === "object" && (res as { result?: unknown }).result === "refused") {
+    return { ...(res as object), message: catalogRefusalMessage(kind, (res as { reason?: unknown }).reason) };
+  }
+  return res;
+}
+
+/** A phone number, email or link is refused here, before the database or the model is asked. */
+export function catalogContactRefusal(kind: string, text: string): { result: "refused"; reason: "contact"; message: string } | null {
+  if (!findContactIssue(text)) return null;
+  return { result: "refused", reason: "contact", message: catalogRefusalMessage(kind, "contact") };
+}
+
+/**
+ * The arguments for catalog_check_for / catalog_add_for. The meaning vector is always worked out here, never taken
+ * from the app (migration 228); null when the model is not available. The threshold lives in the database
+ * (private.catalog_settings.min_meaning) and the caller's id is added by `ctx.catalogRpc`.
+ */
+export async function catalogArgs(kind: string, text: string): Promise<Record<string, unknown>> {
+  const v = await embedText(text);
+  return { p_kind: kind, p_text: text, p_embedding: v ? toVectorLiteral(v) : null };
+}
+
+/** Calls a service-role catalog function for the caller, or refuses when the server has no service key. */
+export function catalogCall(ctx: Ctx, fn: CatalogFn, args: Record<string, unknown>): PromiseLike<DbResult> {
+  if (!ctx.catalogRpc) throw new OpError(GENERIC, "INTERNAL");
+  return ctx.catalogRpc(fn, args);
 }
 
 const kindArg = (a: Args) => oneOf(a, "kind", ["request", "service"], "request");
@@ -191,6 +242,98 @@ const rupeesText = (minor: number) => (minor % 100 === 0 ? String(minor / 100) :
 const workerShareOfEscrow = (escrowMinor: number, fees: LiveFees) =>
   Math.round(Math.round(escrowMinor / (1 + fees.posterFee)) * (1 - fees.commission));
 
+/** `drop`: the chip ids the searcher took off (smart search). */
+const dropArg = (a: Args): string[] =>
+  Array.isArray(a.drop) ? a.drop.filter((x): x is string => typeof x === "string" && /^[a-z]{2,20}$/.test(x)).slice(0, 10) : [];
+
+/**
+ * Ranked rows, best first. With a point: only those within the exact radius, and a small nudge for being closer
+ * (up to half the weight of the freshness part), so two equally good matches show the nearer one first.
+ */
+export function orderRanked<T extends { id: string; loc_lat: unknown; loc_lng: unknown; title?: unknown; description?: unknown; category?: unknown }>(
+  found: T[],
+  ranked: { ids: { id: string; score: number }[]; u: Understanding },
+  near: Near | null,
+): (T & { match_why: string | null })[] {
+  const score = new Map(ranked.ids.map((r) => [r.id, r.score]));
+  return found
+    .map((t) => {
+      let s = score.get(t.id) ?? 0;
+      if (near) {
+        const km = distanceKm(near, { lat: t.loc_lat as number | null, lng: t.loc_lng as number | null });
+        if (km === null || km > near.radius) return null;
+        s += 0.05 * (1 - km / Math.max(near.radius, 0.1));
+      }
+      return { t: { ...t, match_why: whyLine(t, ranked.u) }, s };
+    })
+    .filter((x): x is { t: T & { match_why: string | null }; s: number } => x !== null)
+    .sort((x, y) => y.s - x.s)
+    .map((x) => x.t);
+}
+
+/** The rows for ranked ids, read the way the caller may see them (members: row level security; guests: guest_open_posts). */
+export type RowsFor = (ctx: Ctx, kind: "request" | "service", ids: string[]) => Promise<Task[]>;
+const memberRows: RowsFor = async (ctx, kind, ids) => rows<Task>(await openTasksQuery(ctx, kind).in("id", ids));
+
+/**
+ * The two smart search hint reads, for members and guests alike: `rowsFor` decides what the caller may see, `viewer`
+ * leaves the caller's own posts out. Every count uses the same ranked search as the list.
+ */
+export function searchHintOps(rowsFor: RowsFor, viewer: (ctx: Ctx) => string | null): Record<"searchSuggest" | "searchFallbacks", Op> {
+  /** How many open posts a search finds (within the radius when `near` is given). */
+  const countFor = async (ctx: Ctx, kind: "request" | "service", text: string, near: Near | null): Promise<number> => {
+    const ranked = await rankedSearch(ctx.db as never, { kind, text, viewer: viewer(ctx), box: near ? nearBox(near, near.radius) : null, limit: 200 });
+    if (!ranked || ranked.ids.length === 0) return 0;
+    const list = await rowsFor(ctx, kind, ranked.ids.map((r) => r.id));
+    return near ? orderRanked(list, ranked, near).length : list.length;
+  };
+  /** How many remote posts (no pin) a search finds anywhere. */
+  const remoteCount = async (ctx: Ctx, kind: "request" | "service", text: string): Promise<number> => {
+    const ranked = await rankedSearch(ctx.db as never, { kind, text, viewer: viewer(ctx), limit: 200 });
+    if (!ranked || ranked.ids.length === 0) return 0;
+    return (await rowsFor(ctx, kind, ranked.ids.map((r) => r.id))).filter((t) => t.loc_lat == null).length;
+  };
+  return {
+    /**
+     * "Looks like you mean" while typing, and the chips once searched: the kinds of work a search points to, each
+     * with how many open posts match it (within the area when `near` is given), plus the spelling fix if one was made.
+     * `counts: false` skips the counts, for every keystroke.
+     */
+    searchSuggest: async (ctx, a) => {
+      const near = nearArgOf(a);
+      const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
+      const kind = kindArg(a);
+      const u = understand(text, { drop: dropArg(a), exact: a.exact === true });
+      const found = suggestConcepts(text);
+      const suggestions = a.counts === false
+        ? found.map((c) => ({ id: c.id, label: c.label, count: null }))
+        : await Promise.all(found.map(async (c) => ({ id: c.id, label: c.label, count: await countFor(ctx, kind, c.says[0], near) })));
+      return { corrected: u.corrected, chips: u.chips, suggestions };
+    },
+    /** Next steps when a search finds nothing: how many within 25 km, how many remote, close kinds of work. */
+    searchFallbacks: async (ctx, a) => {
+      const near = nearArgOf(a);
+      const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
+      if (!text) return { wider: null, remote: 0, related: null };
+      const kind = kindArg(a);
+      const u = understand(text, { drop: dropArg(a) });
+      const wideKm = 25;
+      const close = nearConcepts(u.chips);
+      const [wider, remote, relatedCounts] = await Promise.all([
+        near && near.radius < wideKm
+          ? countFor(ctx, kind, text, { ...near, radius: wideKm }).then((count) => ({ km: wideKm, count }))
+          : Promise.resolve(null),
+        remoteCount(ctx, kind, text),
+        Promise.all(close.map((c) => countFor(ctx, kind, c.says[0], near))),
+      ]);
+      const related = close.length
+        ? { labels: close.map((c) => c.label), q: close.map((c) => c.says[0]).join(" "), count: relatedCounts.reduce((x, y) => x + y, 0) }
+        : null;
+      return { wider, remote, related };
+    },
+  };
+}
+
 export const READ_OPS: Record<string, Op> = {
   // ------------------------------------------------------------- tasks ----
   listOpenTasks: async (ctx, a) =>
@@ -245,22 +388,44 @@ export const READ_OPS: Record<string, Op> = {
       .map((r) => r.task_id);
   },
 
-  /** Open tasks matching the search screen's filters. Every filter is optional. */
+  /**
+   * Open tasks matching the search screen's filters. Every filter is optional. With words (`q`), the posts are the
+   * ones that match what was meant, best first (smart search, migration 223, ./search.ts); each carries `match_why`,
+   * the short line saying why it came up. `drop` takes chips off, `exact: true` keeps the spelling as typed.
+   */
   searchTasks: async (ctx, a) => {
     // Checked before anything is asked of the database.
     const near = nearArgOf(a);
+    const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
+    const n = limit(a);
+    const pillar = a.pillar != null ? str(a, "pillar", 40) : null;
+    const minMinor = typeof a.minMinor === "number" ? int(a, "minMinor", 0, MONEY_MAX) : null;
+    const maxMinor = typeof a.maxMinor === "number" ? int(a, "maxMinor", 0, MONEY_MAX) : null;
+
+    if (text) {
+      const ranked = await rankedSearch(ctx.db as never, {
+        kind: kindArg(a), text, drop: dropArg(a), exact: a.exact === true, viewer: ctx.userId, pillar, minMinor, maxMinor,
+        box: near ? nearBox(near, near.radius) : null, limit: near ? nearFetch(n) : Math.max(n, 60),
+      });
+      if (ranked) {
+        ctx.searchFill?.();
+        if (ranked.ids.length === 0) return [];
+        // Read through row level security, so hidden and blocked posts stay out exactly as before.
+        const found = rows<Task>(await openTasksQuery(ctx, kindArg(a)).in("id", ranked.ids.map((r) => r.id)));
+        return orderRanked(found, ranked, near).slice(0, n);
+      }
+      // search_posts is not in the database yet: the old word match below.
+    }
 
     let q = openTasksQuery(ctx, kindArg(a));
-    const text = typeof a.q === "string" ? a.q.trim().slice(0, 200) : "";
     if (text) {
       // Commas and parens would break out of PostgREST's or() filter grammar.
       const safe = text.replace(/[,()*%\\]/g, " ").trim();
       if (safe) q = q.or(`title.ilike.%${safe}%,description.ilike.%${safe}%`);
     }
-    if (a.pillar != null) q = q.eq("pillar", str(a, "pillar", 40));
-    if (typeof a.minMinor === "number") q = q.gte("benchmark_minor", int(a, "minMinor", 0, MONEY_MAX));
-    if (typeof a.maxMinor === "number") q = q.lte("benchmark_minor", int(a, "maxMinor", 0, MONEY_MAX));
-    const n = limit(a);
+    if (pillar != null) q = q.eq("pillar", pillar);
+    if (minMinor != null) q = q.gte("benchmark_minor", minMinor);
+    if (maxMinor != null) q = q.lte("benchmark_minor", maxMinor);
     if (!near) return rows<Task>(await q.order("created_at", { ascending: false }).limit(n));
 
     // With a point, SQL first narrows to a box around it and reads more than a page (B34: capping first and
@@ -273,6 +438,8 @@ export const READ_OPS: Record<string, Op> = {
       return km !== null && km <= near.radius;
     }).slice(0, n);
   },
+
+  ...searchHintOps(memberRows, (ctx) => ctx.userId),
 
   /** Attach each task's poster profile, for feed rows that show identity. */
   attachPosters: async (ctx, a) => {
@@ -570,7 +737,7 @@ export const READ_OPS: Record<string, Op> = {
     // how far away they are, still comes from the helper's public area below.
     const listingQuery = () =>
       ctx.db.from("tasks").select("id, poster_id, title, benchmark_minor, category, created_at")
-        .eq("status", "OPEN").or(notExpired(ctx)).eq("kind", "service").neq("poster_id", ctx.userId);
+        .eq("status", "OPEN").eq("kind", "service").neq("poster_id", ctx.userId);
     const [res, pinned, unpinned] = await Promise.all([
       // PostgREST wants the empty array literally: skills=neq.{}
       people().filter("skills", "neq", "{}").order("last_seen_at", { ascending: false, nullsFirst: false }).limit(300),
@@ -861,7 +1028,26 @@ export const READ_OPS: Record<string, Op> = {
     ),
 
   listPromotions: async (ctx) =>
-    rows(await ctx.db.from("task_promotions").select(PROMOTION_SELECT).eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(20)),
+    rows(await ctx.db.from("task_promotions").select(`${PROMOTION_SELECT}, day_budget_minor, spent_minor, alerted_count, task:tasks(title, kind, status)`).eq("user_id", ctx.userId).order("created_at", { ascending: false }).limit(20)),
+
+  /** The Promote screen's facts for one of my posts (migration 203): budget limits, lengths, how busy the area is, campaign. */
+  promotionQuote: rpcOp("promotion_quote", (a) => ({ p_task_id: uuid(a, "taskId") })),
+  /**
+   * The auction for the top places (migration 203): live promotions of one kind near the caller, the top places
+   * marked. A new top place is charged its second price in the database, once; the same place again within a few
+   * minutes is free, so a retry never charges twice. Never reused (freshness NEVER_REUSE). taskIds: the posts in the
+   * list the caller is looking at (after filters); only those can win.
+   */
+  promotedLive: rpcOp("promoted_live", (a) => ({
+    p_kind: oneOf(a, "kind", ["request", "service"]),
+    p_lat: coordOrNull(a, "lat", 90),
+    p_lng: coordOrNull(a, "lng", 180),
+    p_radius_km: int(a, "radiusKm", 1, 100, 10),
+    p_surface: oneOf(a, "surface", ["list", "home", "map", "search"], "list"),
+    p_task_ids: a.taskIds == null ? null : uuids(a, "taskIds", 500),
+  })),
+  /** What the payer of one promotion sees: spend, top shows, price, saw it, opened, by place, offers, alerted (owner only). */
+  promotionResults: rpcOp("promotion_results", (a) => ({ p_promotion_id: uuid(a, "promotionId") })),
 
   /** The live ad auction's running order: { [taskId]: rank }. Rank 1 wins. */
   adAuctionRanks: async (ctx) => {
@@ -920,6 +1106,16 @@ export const READ_OPS: Record<string, Op> = {
   accountDeletionCheck: rpcOp("account_deletion_check"),
   platformStats: rpcOp("platform_stats", (a) => ({ p_days: int(a, "days", 1, 3650, 30) })),
   platformHighlights: rpcOp("platform_highlights"),
+  listCatalog: rpcOp("catalog_list", (a) => ({ p_kind: catalogKind(a) })),
+  checkCatalogTerm: async (ctx, a) => {
+    const kind = catalogKind(a);
+    const text = str(a, "text", 60);
+    const refused = catalogContactRefusal(kind, text);
+    if (refused) return refused;
+    const res = catalogRefusal(kind, take<Record<string, unknown>>(await catalogCall(ctx, "catalog_check_for", await catalogArgs(kind, text))));
+    void ctx.catalogEmbeddings?.().catch(() => {});
+    return res;
+  },
   trendingCategories: rpcOp("trending_categories", (a) => ({ p_limit: limit(a, "limit", 8, 50) })),
   topEarners: rpcOp("top_earners", (a) => ({
     p_kind: oneOf(a, "kind", ["top_rated", "most_active", "new_talent"]),
@@ -967,11 +1163,15 @@ export const READ_OPS: Record<string, Op> = {
       await ctx.db.from("tasks").select("id,title,status,updated_at").in("id", [...ids]),
     );
     const byId = new Map(tasks.map((t) => [t.id, t]));
+    // 1.19 row B: whether each chat is open, closing (48 hours after completion) or closed, and why.
+    // A failed read leaves `chat` null rather than failing the list.
+    const chats = await readChatStates(ctx, [...ids], true);
     return [...ids]
       .map((id) => {
         const m = latest.get(id);
         const t = byId.get(id);
         return {
+          chat: chats.get(id) ?? null,
           taskId: id,
           title: t?.title ?? "Task",
           status: t?.status ?? "",
@@ -981,6 +1181,17 @@ export const READ_OPS: Record<string, Op> = {
         };
       })
       .sort((x, y) => new Date(y.lastAt).getTime() - new Date(x.lastAt).getTime());
+  },
+
+  /**
+   * 1.19 row B (migration 215): the caller's chat state for one task, for the notice above the message box:
+   * { taskId, open, state: 'open' | 'closing' | 'closed', reason, message, closesAt, deleteAfter }.
+   */
+  chatState: async (ctx, a) => {
+    const taskId = uuid(a, "taskId");
+    return (await readChatStates(ctx, [taskId])).get(taskId) ?? chatStateFrom({
+      task_id: taskId, state: "closed", can_send: false, reason: "not_participant", closes_at: null, delete_after: null,
+    });
   },
 
   /** A task's thread, oldest first; with `after`, only messages newer than it. */

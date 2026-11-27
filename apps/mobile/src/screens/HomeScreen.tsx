@@ -6,13 +6,14 @@ import {
   Pressable,
   Animated,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { Screen, ScreenList, formatINR, cardSurface } from '../components/ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav, useFocusTick } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
-import { searchTasks, attachPosters, placeBid, kindFor, getProfile } from '../data/api';
+import { searchTasks, searchTasksWithPosters, searchFallbacks, attachPosters, placeBid, kindFor, getProfile, type SearchFallbacks } from '../data/api';
+import { SearchEmpty, SearchLoading, SearchUnderstood, TypoNote, WhyLine } from '../components/SmartSearch';
+import { useSearchUnderstood } from '../lib/useSmartSearch';
 import { HOME_FEED_RADIUS_KM, nearThenRemote } from '../lib/homePlace';
 import { useAuth } from '../providers/AuthProvider';
 import { isNeedsAccount, needAccount } from '../lib/guest';
@@ -34,7 +35,10 @@ import { Rail } from '../components/Rail';
 import { taskToFeedRow } from '../lib/openTask';
 import type { TaskWithPoster } from '../data/api';
 import { signedMediaUrls } from '../lib/media';
-import { adAuctionRanks, recordAdImpression, recordAdClick } from '../data/api';
+import { recordPromoView, recordAdClick } from '../data/api';
+import { PromotedPill, promotedBorder } from '../components/PromotedPill';
+import { pickPromotedItems, liftPromoted, auctionIds } from '../lib/promoted';
+import { usePromotedLive } from '../lib/usePromotedLive';
 import { Grid, LoadFailed, Shimmer } from '../components/kit';
 import { reportError } from '../lib/errors';
 import { useLayout } from '../lib/layout';
@@ -79,6 +83,8 @@ export type FeedRow = {
   options?: string[];
   /** A City Hunt: finders send finds, not offers. */
   hunt?: boolean;
+  /** Smart search: why this result matched ("Same need: plumber, leak"); only on search results. */
+  why?: string | null;
 };
 
 // Must match the pillar names in CreateScreen.tsx exactly — this list and
@@ -101,6 +107,7 @@ type LiveTask = {
   media_path: string | null;
   media_seconds: number | null;
   hunt_until?: string | null;
+  match_why?: string | null;
   poster: {
     display_name: string;
     poster_rating_avg: number | string;
@@ -139,6 +146,7 @@ function liveToFeedRow(task: LiveTask, worker: boolean): FeedRow {
           ? 'Unique'
           : (roughPlace(task.loc_label) ?? 'Area not shared'),
     amountMinor: task.benchmark_minor,
+    why: task.match_why ?? null,
     // Media comes from the row now. hasMedia used to be hard-coded false, so an
     // attached photo was uploaded and then shown to nobody.
     hasMedia: Boolean(task.media_path),
@@ -228,27 +236,6 @@ function ShimmerBar({
   );
 }
 
-function SponsoredMark({ t }: { t: Theme }) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 11,
-        paddingBottom: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: t.colors.line,
-      }}
-    >
-      <Svg width={11} height={11} viewBox="0 0 24 24" fill="none">
-        <Path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill={t.colors.accentDeep} />
-      </Svg>
-      <RNText style={tx('800', 9, t.colors.accentDeep, { letterSpacing: 1.62 })}>PROMOTED</RNText>
-    </View>
-  );
-}
-
 const FeedCard = memo(function FeedCard({
   row,
   index,
@@ -284,12 +271,14 @@ const FeedCard = memo(function FeedCard({
         style={{
           backgroundColor: t.colors.surface,
           borderWidth: 1,
-          borderColor: row.sponsored ? t.colors.accent : t.colors.line,
+          borderColor: t.colors.line,
+          // Only a promoted card in a top spot gets the 1.5px side-colour border (adRank > 0).
+          ...promotedBorder(t, worker ? 'earn' : 'hire', row.adRank > 0),
           borderRadius: 14,
           padding: 15,
         }}
       >
-        {row.sponsored && <SponsoredMark t={t} />}
+        {row.sponsored && <PromotedPill side={worker ? 'earn' : 'hire'} style={{ marginBottom: 11 }} />}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View
@@ -339,12 +328,14 @@ const FeedCard = memo(function FeedCard({
             >
               {row.meta}
             </RNText>
+            <WhyLine role={worker ? 'earn' : 'hire'} why={row.why} />
           </View>
         </View>
 
         <View
           style={{
             flexDirection: 'row',
+            flexWrap: 'wrap',
             alignItems: 'center',
             gap: 10,
             marginTop: 14,
@@ -353,10 +344,14 @@ const FeedCard = memo(function FeedCard({
             borderTopColor: t.colors.line,
           }}
         >
-          <View style={{ flex: 1 }}>
+          {/* The price never breaks inside the number (₹1,55 / 0 on narrow desktop cards, task 1.19 D check); when the
+              card is too narrow the buttons move to their own line instead (the row wraps). */}
+          {/* ~11.5 px a character at 19 px bold: the column never gets narrower than its price. */}
+          <View style={{ flex: 1, minWidth: Math.ceil(formatINR(row.amountMinor).length * 11.5) }}>
             <RNText style={tx('400', 10, t.colors.muted, { letterSpacing: 1.4 })}>{priceLabel}</RNText>
-            <RNText style={tx('800', 19, t.colors.accentDeep, { marginTop: 3 })}>{formatINR(row.amountMinor)}</RNText>
+            <RNText style={tx('800', 19, t.colors.accentDeep, { marginTop: 3 })} numberOfLines={1}>{formatINR(row.amountMinor)}</RNText>
           </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
           {single ? null : (
           <Pressy
             onPress={onCounter}
@@ -388,6 +383,7 @@ const FeedCard = memo(function FeedCard({
           >
             <RNText style={tx('700', 13, t.colors.onAccent)}>{hunt ? 'I’m looking' : quoted ? 'Edit your offer' : 'Accept'}</RNText>
           </Pressy>
+          </View>
         </View>
       </Pressy>
     </FadeIn>
@@ -419,6 +415,8 @@ export function HomeScreen() {
   // tapping the active chip clears it again.
   const [filter, setFilter] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Smart search: chips the person dropped, and "keep my spelling", for the words in the address bar only.
+  const [smart, setSmart] = useState<{ q: string; drop: string[]; exact: boolean }>({ q: '', drop: [], exact: false });
 
   // Filters arriving from the search screen. Their presence also switches the
   // feed from "fall back to samples" to "show exactly what matched".
@@ -450,6 +448,26 @@ export function HomeScreen() {
         return (await attachPosters(nearThenRemote(near, wide, at))) as unknown as LiveTask[];
       }
     }
+    const kindNow = kindFor(worker ? 'worker' : 'poster');
+    const smartNow = searchQ && smart.q === searchQ ? smart : null;
+    // Words searched: the meaning search, posters attached in the same request, rows in best-match order.
+    if (searchQ && searchQ.trim()) {
+      const hits = await searchTasksWithPosters({
+        q: searchQ,
+        pillar: searchPillar,
+        minMinor: searchMin,
+        maxMinor: searchMax,
+        near:
+          nearLat !== null && nearLng !== null && radiusKm !== null
+            ? { lat: nearLat, lng: nearLng, radiusKm }
+            : null,
+        limit: 20,
+        kind: kindNow,
+        drop: smartNow && smartNow.drop.length > 0 ? smartNow.drop : undefined,
+        exact: smartNow?.exact ? true : undefined,
+      });
+      return hits as unknown as LiveTask[];
+    }
     const rows = await searchTasks({
       q: searchQ ?? undefined,
       pillar: searchPillar,
@@ -464,7 +482,7 @@ export function HomeScreen() {
       kind: kindFor(worker ? 'worker' : 'poster'),
     });
     return (await attachPosters(rows)) as unknown as LiveTask[];
-  }, [searchQ, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker, focusTick, searching, userId]);
+  }, [searchQ, smart, searchPillar, searchMin, searchMax, nearLat, nearLng, radiusKm, worker, focusTick, searching, userId]);
 
   useEffect(() => {
     let active = true;
@@ -489,6 +507,26 @@ export function HomeScreen() {
     };
   }, [load, searching]);
 
+  const role = worker ? 'earn' : 'hire';
+  const smartDrop = smart.q === searchQ ? smart.drop : [];
+  const smartExact = smart.q === searchQ ? smart.exact : false;
+  const smartNear = nearLat !== null && nearLng !== null && radiusKm !== null ? { lat: nearLat, lng: nearLng, radiusKm } : null;
+  const understood = useSearchUnderstood({ q: searchQ ?? '', role, near: smartNear, drop: smartDrop, exact: smartExact });
+  // Nothing found for words: ask what to try instead.
+  const [fallbacks, setFallbacks] = useState<SearchFallbacks | null>(null);
+  const nothingFound = Boolean(searchQ && searchQ.trim()) && !loading && !failed && liveTasks !== null && liveTasks.length === 0;
+  useEffect(() => {
+    setFallbacks(null);
+    if (!nothingFound || !searchQ) return;
+    let alive = true;
+    searchFallbacks({ q: searchQ, kind: kindFor(worker ? 'worker' : 'poster'), near: smartNear, drop: smartDrop })
+      .then((r) => alive && setFallbacks(r))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [nothingFound, searchQ, smart, nearLat, nearLng, radiusKm]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -509,32 +547,51 @@ export function HomeScreen() {
     setFailed(false);
   }, [worker]);
 
-  // Which listings are being paid for right now. Without this, promotion was
-  // money for nothing: the card had a sponsored style and the flag was
-  // hard-coded false, so a live campaign changed nothing anyone could see.
-  // Who is winning the ad auction right now. The order is decided server-side
-  // (bid x action rate, paced, out-of-budget campaigns dropped); the client is
-  // told the running order and nothing else, so placement cannot be argued
-  // with from a phone.
-  const [adRanks, setAdRanks] = useState<Map<string, number>>(new Map());
+  // Promoted posts (task 1.19 row C): the server says which are live near the viewer; the app puts at most 2 on
+  // top (the server's auction, only for posts that match the chip). The rest keep their normal place
+  // and carry the PROMOTED pill. Workers see promoted requests, posters see promoted services.
+  const [homeAt, setHomeAt] = useState<{ lat: number; lng: number } | null>(null);
   useEffect(() => {
+    if (!userId) return;
     let alive = true;
-    void adAuctionRanks().then((m) => alive && setAdRanks(m));
+    void getProfile(userId)
+      .then((me) => {
+        if (alive && me?.loc_lat != null && me?.loc_lng != null) setHomeAt({ lat: me.loc_lat, lng: me.loc_lng });
+      })
+      .catch(() => {});
     return () => {
       alive = false;
     };
-  }, []);
-
-  const allRows: FeedRow[] = (liveTasks ?? [])
-    .map((task) => {
-      const adRank = adRanks.get(task.id) ?? 0;
-      return { ...liveToFeedRow(task, worker), sponsored: adRank > 0, adRank };
-    })
-    // Sponsored above organic, then in the auction's own order (rank 1 first).
-    // Ties and organic rows keep the server's order, which is newest-first.
-    .sort((a, b) => Number(b.sponsored) - Number(a.sponsored) || a.adRank - b.adRank);
+  }, [userId]);
+  const promoNear =
+    nearLat !== null && nearLng !== null ? { lat: nearLat, lng: nearLng, radiusKm: radiusKm ?? undefined } : homeAt;
   // Chip index -> card tag. No selection shows every pillar.
   const FILTER_TAGS: FeedRow['tag'][] = ['SERVICES', 'PRODUCTS', 'LOCAL HELP'];
+  const baseRows = useMemo(() => (liveTasks ?? []).map((task) => liveToFeedRow(task, worker)), [liveTasks, worker]);
+  // Only the posts the chip leaves in the feed can win a top place (and be charged).
+  const promoIds = useMemo(
+    () => auctionIds(baseRows.filter((r) => filter === null || r.tag === FILTER_TAGS[filter]).map((r) => r.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [baseRows, filter],
+  );
+  const promoLive = usePromotedLive(worker ? 'request' : 'service', promoNear, {
+    surface: 'home',
+    taskIds: promoIds,
+    enabled: liveTasks !== null,
+  });
+  const promo = useMemo(
+    () => pickPromotedItems({ items: baseRows, live: promoLive, keyOf: (r) => r.id }),
+    [baseRows, promoLive],
+  );
+  const allRows: FeedRow[] = useMemo(
+    () =>
+      liftPromoted(baseRows, promo.top).map((r) => ({
+        ...r,
+        sponsored: promo.badged.has(r.id),
+        adRank: promo.top.indexOf(r) + 1,
+      })),
+    [baseRows, promo],
+  );
   const feed: FeedRow[] =
     filter === null ? allRows : allRows.filter((row) => row.tag === FILTER_TAGS[filter]);
   // Urgent means flagged urgent, by whoever posted it. This used to render one
@@ -542,18 +599,19 @@ export function HomeScreen() {
   // on the front page of the marketplace, for every user, always.
   const urgentRows = feed.filter((row) => row.meta === 'Urgent').slice(0, 3);
 
-  // Delivery. A sponsored card that reaches the screen is an impression, and
-  // an impression is what the advertiser's daily budget actually buys — until
-  // this fired, "daily budget" could never be spent. Billed once per task per
-  // mount: re-sorting or filtering the feed is not a new view of the ad.
+  // Delivery. A promoted card that reaches the screen is a view (free; the server de-duplicates within 10
+  // minutes). Sent once per task and top/not-top per mount: re-sorting or filtering is not a new view.
   const billed = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const row of feed) {
-      if (!row.sponsored || billed.current.has(row.id)) continue;
-      billed.current.add(row.id);
-      void recordAdImpression(row.id).catch(() => {});
+      // The auction counts the top places itself; only showings below the top are recorded here.
+      if (!row.sponsored || row.adRank > 0) continue;
+      const k = row.id;
+      if (billed.current.has(k)) continue;
+      billed.current.add(k);
+      void recordPromoView(row.id, searching ? 'search' : 'home', false).catch(() => {});
     }
-  }, [feed]);
+  }, [feed, searching]);
 
   /**
    * One signing call for the whole page.
@@ -732,7 +790,27 @@ export function HomeScreen() {
           </View>
         ) : null}
 
-          {loading ? (
+        {searchQ && searchQ.trim() ? (
+          <View style={{ paddingHorizontal: 20 }}>
+            <TypoNote
+              role={role}
+              typed={searchQ}
+              corrected={understood.corrected}
+              onExact={() => setSmart({ q: searchQ, drop: smartDrop, exact: true })}
+            />
+            <SearchUnderstood
+              role={role}
+              chips={understood.chips}
+              onDrop={(id) => setSmart({ q: searchQ, drop: [...smartDrop, id], exact: smartExact })}
+            />
+          </View>
+        ) : null}
+
+          {loading && searchQ && searchQ.trim() ? (
+            <View style={{ paddingHorizontal: 20 }}>
+              <SearchLoading role={role} cardHeight={96} />
+            </View>
+          ) : loading ? (
             <View style={{ paddingHorizontal: 20 }}>
               {[0, 1, 2].map((i) => (
                 <View
@@ -774,6 +852,29 @@ export function HomeScreen() {
         empty={
           loading ? null : failed ? (
             <LoadFailed onRetry={() => void refresh()} />
+          ) : nothingFound && filter === null && searchQ ? (
+            <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+              <SearchEmpty
+                role={role}
+                query={searchQ}
+                chipLabel={understood.chips[0]?.label}
+                km={smartNear ? smartNear.radiusKm : null}
+                fallbacks={fallbacks}
+                onWider={(km) =>
+                  go('home', {
+                    q: searchQ,
+                    pillar: searchPillar ?? undefined,
+                    minMinor: searchMin ?? undefined,
+                    maxMinor: searchMax ?? undefined,
+                    nearLat: nearLat ?? undefined,
+                    nearLng: nearLng ?? undefined,
+                    radiusKm: km,
+                  })
+                }
+                onRemote={worker && smartNear ? () => go('home', { q: searchQ }) : undefined}
+                onRelated={(rq) => go('home', { q: rq })}
+              />
+            </View>
           ) : (
             <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
                 <View
@@ -905,8 +1006,8 @@ export function HomeScreen() {
     <Screen scroll padded={false} onRefresh={refresh} refreshing={refreshing}>
       <FadeIn duration={260}>
         <AppHeader />
-        {/* A worker's home is sectioned (skills, near you, remote, needed
-            today) in HomeSections. The Rail below is the poster's. Search
+        {/* A worker's home is one Jobs for you list with chips (For you, near
+            you, remote, today) in HomeSections. The Rail below is the poster's. Search
             results are the virtualised list above. */}
         <HomeSections
           footer={
@@ -918,7 +1019,6 @@ export function HomeScreen() {
               <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Services near you</RNText>
               <RNText style={tx('600', 12, t.colors.accentDeep)}>{loading ? '' : `${feed.length} offered`}</RNText>
             </View>
-            <RNText style={tx('400', 12.5, t.colors.muted, { marginTop: 4 })}>Services workers offer — tap one to see it and hire</RNText>
             {loading ? (
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
                 {[0, 1].map((i) => (
@@ -931,7 +1031,7 @@ export function HomeScreen() {
               <RNText style={tx('400', 13, t.colors.muted, { marginTop: 12 })}>No services listed nearby yet.</RNText>
             ) : (
               <View style={{ marginTop: 12 }}>
-                <Rail step={250} min={desktop ? 180 : 260}>
+                <Rail step={250} min={desktop ? 180 : 260} rows={1}>
                   {(liveTasks ?? [])
                     .filter((task) => feed.some((row) => row.id === task.id))
                     .map((task) => (

@@ -99,13 +99,26 @@ export function DateTimeSheet({
   onCancel,
   onConfirm,
   quick = true,
+  onOpenEnded,
+  openEndedLabel = 'No fixed date · keep it open',
+  title = 'When should it be done?',
+  subtitle = 'Workers plan their offers around this deadline.',
+  confirmLabel = 'Set deadline',
 }: {
+  /** The words at the top and on the button; a task's own date says "Close this task by" (plan 1.19 K). */
+  title?: string;
+  subtitle?: string;
+  confirmLabel?: string;
   visible: boolean;
   initial?: Date;
   /** Show the one-tap deadlines row. Off where the screen already offers its own shortcuts. */
   quick?: boolean;
   onCancel: () => void;
   onConfirm: (d: Date) => void;
+  /** When given, a "No fixed date" link that makes the task open-ended (plan 1.19 J). */
+  onOpenEnded?: () => void;
+  /** The words on that link. */
+  openEndedLabel?: string;
 }) {
   const t = useTheme();
   const { desktop } = useLayout();
@@ -286,9 +299,9 @@ export function DateTimeSheet({
 
           <ScrollView contentContainerStyle={{ paddingTop: 16 }} showsVerticalScrollIndicator={false}>
             <View style={{ paddingHorizontal: 20 }}>
-              <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>When should it be done?</RNText>
+              <RNText style={tx('800', 22, t.colors.ink, { letterSpacing: -0.5 })}>{title}</RNText>
               <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4 })}>
-                Workers plan their offers around this deadline.
+                {subtitle}
               </RNText>
             </View>
 
@@ -566,10 +579,22 @@ export function DateTimeSheet({
               </View>
 
               {note ? (
-                <RNText style={tx('500', 12, t.colors.signal, { marginTop: 10, lineHeight: 18 })}>{note}</RNText>
+                <RNText style={tx('500', 12, t.colors.signalDeep, { marginTop: 10, lineHeight: 18 })}>{note}</RNText>
               ) : null}
             </View>
           </ScrollView>
+
+          {onOpenEnded ? (
+            <Pressable
+              onPress={onOpenEnded}
+              accessibilityRole="button"
+              accessibilityLabel={openEndedLabel}
+              hitSlop={6}
+              style={{ alignSelf: 'center', paddingTop: 14, paddingHorizontal: 12 }}
+            >
+              <RNText style={tx('700', 14, t.colors.accentDeep)}>{openEndedLabel}</RNText>
+            </Pressable>
+          ) : null}
 
           <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 14 }}>
             <Pressable
@@ -591,7 +616,7 @@ export function DateTimeSheet({
             <Pressable
               onPress={confirm}
               accessibilityRole="button"
-              accessibilityLabel="Set deadline"
+              accessibilityLabel={confirmLabel}
               style={({ pressed }) => ({
                 flex: 2,
                 borderRadius: 999,
@@ -601,7 +626,7 @@ export function DateTimeSheet({
                 transform: [{ scale: pressed ? 0.97 : 1 }],
               })}
             >
-              <RNText style={tx('700', 15, inPast ? t.colors.muted : t.colors.onAccent)}>Set deadline</RNText>
+              <RNText style={tx('700', 15, inPast ? t.colors.muted : t.colors.onAccent)}>{confirmLabel}</RNText>
             </Pressable>
           </View>
         </Animated.View>

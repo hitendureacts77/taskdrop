@@ -9,8 +9,10 @@ import type { Tables } from '@taskdrop/db-types';
 import { guestGate, primeProfile, type Task, type Profile } from './api';
 import { isGuestOp } from '../lib/guest';
 import type { Idea, IdeaComment, IdeaKind, IdeaStatus } from '../lib/ideas';
+import type { FeedbackFile } from '../lib/media';
 import { EVERYONE_MAP_NOTICE, PEOPLE_MAP_NOTICE, type MapAudience } from '../lib/mapSpot';
 import { passwordProblem } from '../lib/passwordRules';
+import type { ChatState } from '../lib/chatWindow';
 
 /**
  * The second-wave features: notifications, saved tasks, help & support,
@@ -170,10 +172,14 @@ export const resolveTicket = (ticketId: string) => act<Ticket>('resolveTicket', 
 
 export type FeedbackKind = 'broken' | 'idea' | 'confusing' | 'praise';
 
-export async function sendFeedback(kind: FeedbackKind, body: string, page?: string): Promise<void> {
+export async function sendFeedback(kind: FeedbackKind, body: string, page?: string, attachments: FeedbackFile[] = []): Promise<void> {
   const text = body.trim();
   if (text.length < 3) throw new Error('Write a little more first');
-  await act('sendFeedback', { kind, body: text, page: page ?? null }, 'Sign in to send feedback');
+  await act(
+    'sendFeedback',
+    { kind, body: text, page: page ?? null, ...(attachments.length ? { attachments } : {}) },
+    'Sign in to send feedback',
+  );
 }
 
 // ------------------------------------------------------ feedback board (136) --
@@ -206,10 +212,14 @@ export const listIdeas = (q: IdeaQuery = {}) =>
 export const getIdea = (id: string) =>
   act<{ post: Idea; comments: IdeaComment[] } | null>('getFeedbackPost', { postId: id });
 
-export async function postIdea(title: string, body: string, category: IdeaKind): Promise<Idea> {
+export async function postIdea(title: string, body: string, category: IdeaKind, attachments: FeedbackFile[] = []): Promise<Idea> {
   const t = title.trim();
   if (t.length < 3) throw new Error('Give your idea a short title first');
-  return act<Idea>('postFeedbackIdea', { title: t, body: body.trim(), category }, 'Sign in to suggest an idea');
+  return act<Idea>(
+    'postFeedbackIdea',
+    { title: t, body: body.trim(), category, ...(attachments.length ? { attachments } : {}) },
+    'Sign in to suggest an idea',
+  );
 }
 
 export const voteIdea = (id: string, on: boolean) =>
@@ -306,6 +316,8 @@ export type Thread = {
   lastAt: string;
   lastFromMe: boolean;
   status: string;
+  /** Whether the chat may still be written to; null if the check failed. */
+  chat?: ChatState | null;
 };
 
 export const listThreads = () => ask<Thread[]>('listThreads', {}, []);

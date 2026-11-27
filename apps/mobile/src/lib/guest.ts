@@ -17,7 +17,7 @@ import { handoffFresh } from './guestHandoff';
  */
 export const GUEST_OPS: ReadonlySet<string> = new Set([
   'trendingCategories', 'platformHighlights', 'topEarners', 'platformFees', 'publicProfileStats', 'adAuctionRanks',
-  'listOpenTasks', 'searchTasks', 'searchTasksWithPosters', 'attachPosters', 'getTask', 'getTaskDetail',
+  'listOpenTasks', 'searchTasks', 'searchTasksWithPosters', 'searchSuggest', 'searchFallbacks', 'attachPosters', 'getTask', 'getTaskDetail',
   'countBidsByTask', 'getPosterStats', 'recommendedTasks', 'remoteTasks', 'tasksNear', 'urgentTasks',
   'workerServices', 'workersNear', 'listActiveWorkers', 'getProfile', 'listReviewsAbout', 'signMedia',
   'listTaskQuestions', 'listFeedbackBoard', 'getFeedbackPost', 'nearbyPulse', 'workerProofPhotos',
@@ -30,19 +30,19 @@ export const isGuestOp = (op: string) => GUEST_OPS.has(op);
  * QUIET_WRITES this is every write the server has (api.test.ts checks).
  */
 export const ACCOUNT_WRITES: ReadonlySet<string> = new Set([
-  'activatePromotion', 'addPayoutDestination', 'answerTaskQuestion', 'applyReferralCode', 'askTaskQuestion', 'attachMedia',
+  'activatePromotion', 'addCatalogTerm', 'addPayoutDestination', 'answerTaskQuestion', 'applyReferralCode', 'askTaskQuestion', 'attachMedia',
   'blockUser', 'cancelPromotion', 'cancelTask', 'cancelWithdrawal', 'commentFeedbackIdea', 'confirmRelease', 'createTask',
   'createUpload', 'deleteMyAccount', 'endMySessions', 'lockBid', 'markWorkDone', 'openDispute', 'openTicket',
   'payTaskFromWallet', 'placeBid', 'postFeedbackIdea', 'removeListing', 'removeMedia', 'removePayoutDestination',
   'replyTicket', 'reportContent', 'requestRevision', 'requestWithdrawal', 'resolveTicket', 'sendCrewMessage', 'sendFeedback',
-  'sendMessage', 'setDefaultPayoutDestination', 'setRepeat', 'raiseTopUp', 'setSaved', 'setWeeklyGoal', 'startPromotion', 'startTask',
+  'sendMessage', 'setDefaultPayoutDestination', 'setPromoAlerts', 'setRepeat', 'setTaskDue', 'raiseTopUp', 'setSaved', 'setWeeklyGoal', 'startPromotion', 'startTask',
   'submitProof', 'submitReview', 'unblockUser', 'updateBid', 'updateListing', 'updateProfile', 'updateProfileExtras',
   'voteFeedbackIdea', 'huntLook', 'huntSendFind', 'huntAcceptFind', 'huntDeclineFind', 'huntAskPart', 'setMapSharing', 'setMapAudience', 'clearMapSpot',
 ]);
 
 /** Writes the app makes on its own (presence, ad counters, devices): signed out they simply do not happen. */
 export const QUIET_WRITES: ReadonlySet<string> = new Set([
-  'markNotificationsRead', 'recordAdClick', 'recordAdImpression', 'recordBirthDate', 'recordDevice', 'registerPushToken', 'forgetPushToken',
+  'markNotificationsRead', 'recordAdClick', 'recordAdImpression', 'recordPromoView', 'recordBirthDate', 'recordDevice', 'registerPushToken', 'forgetPushToken',
   'settleClearedEarnings', 'touchPresence',
 ]);
 

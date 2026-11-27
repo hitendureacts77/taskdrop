@@ -7,6 +7,7 @@ import {
   PEOPLE_POLL_MS,
   SPOT_GRID,
   SPOT_TTL_MS,
+  isPersonLive,
   isSpotFresh,
   sameCell,
   shouldBeat,
@@ -151,4 +152,18 @@ test('isSpotFresh: missing or garbage stamps are stale', () => {
   assert.equal(isSpotFresh(undefined, T0), false);
   assert.equal(isSpotFresh('', T0), false);
   assert.equal(isSpotFresh('not a date', T0), false);
+});
+
+test('isPersonLive: a row from a fresh answer is live even with an old stamp (row M, 25 Nov)', () => {
+  const oldStamp = new Date(T0 - 15 * 24 * 3_600_000).toISOString();
+  assert.equal(isPersonLive(oldStamp, T0, T0), true);
+  assert.equal(isPersonLive(oldStamp, T0 - (SPOT_TTL_MS - 1), T0), true);
+});
+
+test('isPersonLive: nothing from an answer 15 minutes old, unless its own stamp is fresh', () => {
+  const oldStamp = new Date(T0 - 3_600_000).toISOString();
+  assert.equal(isPersonLive(oldStamp, T0 - SPOT_TTL_MS, T0), false);
+  assert.equal(isPersonLive(oldStamp, null, T0), false);
+  assert.equal(isPersonLive(new Date(T0 - 1000).toISOString(), null, T0), true);
+  assert.equal(isPersonLive(null, null, T0), false);
 });

@@ -1,15 +1,17 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.116.0";
+import { fillEmbeddings } from "./search.ts";
 import { APP_CHECK_HEADER, AppCheckLog, checkAppCheck } from "../_shared/appCheck.ts";
 import { ControlsCache,PLATFORM_HEADER, VERSION_HEADER, parseControls, readClient } from "../_shared/controls.ts";
 import { gatewayHeaders } from "../_shared/gateway.ts";
 import { configFrom as imageKitConfig } from "../_shared/imagekit.ts";
 import { type LogAttributes, captureSecurityEvent, guarded, background, captureServerError, logServer } from "../_shared/monitoring.ts";
 import { secret } from "../_shared/secrets.ts";
-import { type SessionCutoff, type Standing, StandingCache, callerFromClaims, cutoffOf, endedBefore, standingOf, tokenFacts } from "./core.ts";
+import { type CatalogFn, type SessionCutoff, type Standing, StandingCache, callerFromClaims, cutoffOf, endedBefore, standingOf, tokenFacts } from "./core.ts";
 import { MAX_BODY_BYTES, REQUEST_ID_HEADER, readBody, requestIdFrom, withGatewayHeaders } from "./http.ts";
 import { type Db, RecentlyLimited, batchCalls, rateBucket, rateCost, runBatch, runOp, spendRate } from "./ops.ts";
 import { type Claim, type RepeatStore, REPEAT_KEY_HEADER, REPLAYED_HEADER, repeatKeyFrom, runOnce } from "./repeat.ts";
+import { embedText, toVectorLiteral } from "../_shared/meaning.ts";
 import { PublicMemo } from "./publicMemo.ts";
 import { requestFor, routeOf } from "./routes.ts";
 import { GuestCeiling, GuestLocalLimit, guestAddress, guestBusy, guestCost, guestNetKey, guestRateKey, guestSpend, isGuestOp, isGuestToken, needsAccount, runGuestBatch, runGuestOp } from "./guest.ts";
@@ -90,6 +92,19 @@ const json = (body: unknown, status = 200) =>
 const refuse = (message: string, code: string, status: number) =>
   json({ ok: false, error: { message, code, details: null } }, status);
 
+/**
+ * Smart search fingerprints for posts that lack one, made in the background with the service role: a few per call,
+ * at most one run at a time per instance, so a busy minute does not stack model runs.
+ */
+let filling = false;
+const searchFiller = (admin: unknown) => () => {
+  if (filling) return;
+  filling = true;
+  background(fillEmbeddings(admin as never, 4).catch(() => 0).finally(() => {
+    filling = false;
+  }));
+};
+
 /** 200 with { ok: true } when the database answers, 503 otherwise, so a monitor can alert on the status code. */
 async function health(url: string): Promise<Response> {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -166,7 +181,7 @@ async function handleGuest(
   const signs = isBatch ? calls.some((c) => c.op === "signMedia") : body.op === "signMedia";
   const imagekit = signs ? await imageKitConfig(secret) : null;
   // No person: the nil id keeps the shared reads' types whole and matches nobody's rows.
-  const ctx = { db: admin as unknown as Db, userId: "00000000-0000-0000-0000-000000000000", client, controls, imagekit, memo: publicMemo };
+  const ctx = { db: admin as unknown as Db, userId: "00000000-0000-0000-0000-000000000000", client, controls, imagekit, memo: publicMemo, searchFill: searchFiller(admin) };
   const onUnexpected = (e: unknown) => {
     background(log("error", "guest op failed", { op: String(body.op), error: e instanceof Error ? e.message : String(e) }));
     background(captureServerError(e, { op: String(body.op), fn: "api", caller: "guest" }));
@@ -372,6 +387,28 @@ async function handle(req: Request, requestId: string): Promise<Response> {
     }
   };
 
+  /** Gives up to 3 catalog terms without a meaning vector one, with the service role. Swallows every error. */
+  // Runs after the answer is sent (waitUntil), so the caller never waits for it.
+  const catalogEmbeddings = async () => {
+    const job = (async () => {
+      try {
+        if (!admin) return;
+        const { data } = await admin.rpc("catalog_embedding_todo", { p_limit: 3 });
+        for (const row of (Array.isArray(data) ? data : []) as { id: string; text: string }[]) {
+          const v = await embedText(row.text, 2000);
+          if (v) await admin.rpc("catalog_set_embedding", { p_id: row.id, p_embedding: toVectorLiteral(v) });
+        }
+      } catch { /* best-effort */ }
+    })();
+    (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil?.(job);
+  };
+
+  // The catalog check and add run with the service role (migration 228), always for the signed-in caller: the
+  // caller's id is set here, never taken from the request.
+  const catalogRpc = admin
+    ? (fn: CatalogFn, args: Record<string, unknown>) => admin.rpc(fn, { ...args, p_user: userId })
+    : undefined;
+
   // A confirmed phone number is what "verified" means; Supabase leaves phone_confirmed_at empty otherwise.
   // The token does not say, and only the "phone must be confirmed" switch uses the answer, so the auth
   // service is asked only while that switch is on.
@@ -385,7 +422,14 @@ async function handle(req: Request, requestId: string): Promise<Response> {
   const isBatch = body.op === "batch";
   const needsImageKit = isBatch ? (batchCalls(body.args) ?? []).some((c) => IMAGE_OPS.has(c.op)) : IMAGE_OPS.has(String(body.op));
   const imagekit = needsImageKit ? await imageKitConfig(secret) : null;
-  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, client, controls, phoneVerified, imagekit, memo: publicMemo };
+  // Plan 1.18: read only when the operation needs it (USERNAME_OPS). A failed read is "unknown", never a refusal.
+  const usernameSet = async (): Promise<boolean | undefined> => {
+    const { data, error } = await db.from("profiles").select("username").eq("id", userId).maybeSingle();
+    if (error || !data) return undefined;
+    const u = (data as { username?: unknown }).username;
+    return typeof u === "string" && u.length > 0;
+  };
+  const ctx = { db: db as unknown as Db, userId, callFunction, removeOwnFiles, catalogEmbeddings, catalogRpc, client, controls, phoneVerified, usernameSet, imagekit, memo: publicMemo, searchFill: admin ? searchFiller(admin) : undefined };
   const onUnexpected = (e: unknown) => {
     // Both finish in the background after the response is sent.
     background(log("error", "op failed", { op: String(body.op), user_id: userId, error: e instanceof Error ? e.message : String(e) }));

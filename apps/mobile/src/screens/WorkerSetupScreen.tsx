@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { Field, Pill, PrimaryButton, TopBar } from '../components/kit';
+import { Field, PrimaryButton, TopBar } from '../components/kit';
 import { LocationSheet } from '../components/LocationSheet';
 import { SelectField } from '../components/SelectField';
 import { RoleTheme, useTheme } from '../providers/ThemeProvider';
@@ -15,7 +15,8 @@ import { getProfile, updateProfile } from '../data/api';
 import { updateProfileExtras, type EarnGoal } from '../data/extras';
 import { isEarnGoal } from '../components/EarnGoalPicker';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
-import { SKILL_OPTIONS, LANGUAGES } from './ProfileEditScreen';
+import { LANGUAGES } from './ProfileEditScreen';
+import { SkillPicker } from '../components/SkillPicker';
 import { tx } from '../components/primitives';
 import { ActionBar, FieldRow, FormPage, FormSection } from '../components/FormPage';
 import { WorkerPreviewCard } from '../components/WorkerPreviewCard';
@@ -23,11 +24,6 @@ import { useLayout } from '../lib/layout';
 
 const MAX_SKILLS = 8;
 
-/** "painting" -> "Painting", so typed skills match the suggestions. */
-const tidy = (s: string) => {
-  const v = s.trim().replace(/\s+/g, ' ');
-  return v.charAt(0).toUpperCase() + v.slice(1);
-};
 
 /**
  * The worker side of an account, set up once, kept as short as it can be.
@@ -60,7 +56,6 @@ function Setup() {
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
-  const [typed, setTyped] = useState('');
   const [langs, setLangs] = useState<string[]>([]);
   const [place, setPlace] = useState<{ label: string; lat: number | null; lng: number | null } | null>(null);
   const [showLoc, setShowLoc] = useState(false);
@@ -82,36 +77,6 @@ function Setup() {
   // W2-21: the same refusal as the customer bio, not a silent mask that swallows the words around a number.
   const bioIssue = findContactIssue(bio);
 
-  /** Adds what is typed (commas allowed: "Painting, Tiling") and returns the new list. */
-  const addTyped = (from: string[] = skills): string[] => {
-    const parts = typed.split(',').map(tidy).filter(Boolean);
-    setTyped('');
-    if (!parts.length) return from;
-    for (const part of parts) {
-      const issue = findContactIssue(part);
-      if (issue) {
-        flash(profileIssueMessage(issue));
-        return from;
-      }
-    }
-    const next = [...from];
-    for (const part of parts) {
-      if (next.some((x) => x.toLowerCase() === part.toLowerCase())) continue;
-      if (next.length >= MAX_SKILLS) {
-        flash(`Pick up to ${MAX_SKILLS}`);
-        break;
-      }
-      next.push(part);
-    }
-    setSkills(next);
-    return next;
-  };
-
-  const needle = typed.trim().toLowerCase();
-  const suggestions = needle
-    ? SKILL_OPTIONS.filter((s) => s.toLowerCase().includes(needle) && !skills.includes(s)).slice(0, 5)
-    : [];
-
   const language = langs[0] ?? '';
   // Pick one main language; any others saved earlier (edited in Profile) stay.
   const pickLanguage = (v: string) => setLangs(v ? [v, ...langs.slice(1).filter((x) => x !== v)] : langs.slice(1));
@@ -122,7 +87,7 @@ function Setup() {
     if (!userId) return;
     setBusy(true);
     try {
-      const finalSkills = addTyped();
+      const finalSkills = skills;
       await updateProfile(userId, {
         skills: finalSkills,
         ...(place ? { locLabel: place.label, locLat: place.lat, locLng: place.lng } : {}),
@@ -176,45 +141,9 @@ function Setup() {
 
         <FormSection first title="Skills" hint="Add what you like now, change it any time in Profile.">
           {desktop ? null : label('YOUR SKILLS')}
-          {skills.length ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: gap(9) }}>
-              {skills.map((s) => (
-                <Pill key={s} label={s} active icon="close" onPress={() => setSkills(skills.filter((x) => x !== s))} />
-              ))}
-            </View>
-          ) : null}
-          <Field
-            style={{ marginTop: desktop && !skills.length ? 0 : 10 }}
-            value={typed}
-            onChangeText={setTyped}
-            placeholder="Type a skill, e.g. Painting"
-            maxLength={60}
-            returnKeyType="done"
-            autoCapitalize="sentences"
-            onSubmitEditing={() => addTyped()}
-            right={
-              typed.trim() ? (
-                <Pressable onPress={() => addTyped()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Add skill">
-                  <RNText style={tx('700', 13, t.colors.accentDeep)}>Add</RNText>
-                </Pressable>
-              ) : undefined
-            }
-          />
-          {suggestions.length ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-              {suggestions.map((s) => (
-                <Pill
-                  key={s}
-                  label={s}
-                  onPress={() => {
-                    setTyped('');
-                    if (skills.length >= MAX_SKILLS) return flash(`Pick up to ${MAX_SKILLS}`);
-                    setSkills([...skills, s]);
-                  }}
-                />
-              ))}
-            </View>
-          ) : null}
+          <View style={{ marginTop: gap(9) }}>
+            <SkillPicker kind="skill" value={skills} onChange={setSkills} max={MAX_SKILLS} onLimit={() => flash(`Pick up to ${MAX_SKILLS}`)} />
+          </View>
         </FormSection>
 
         <FormSection title="Language and location">

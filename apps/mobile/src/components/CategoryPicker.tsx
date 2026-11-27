@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { View, Text as RNText, Pressable, TextInput, ScrollView, Platform } from 'react-native';
-import { CATEGORIES, TOP_CATEGORIES } from '../lib/taskBrief';
+import { TOP_CATEGORIES } from '../lib/taskBrief';
+import { hasExact, searchItems, type CatalogItem } from '../lib/catalogPick';
+import { AddTermCard, useCatalog } from './SkillPicker';
 import { useTheme } from '../providers/ThemeProvider';
 import { BottomSheet } from './kit';
 import { Icon } from './Icon';
@@ -14,15 +16,21 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
   const t = useTheme();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
-  const chips: string[] = TOP_CATEGORIES.includes(value as (typeof TOP_CATEGORIES)[number])
-    ? [...TOP_CATEGORIES]
-    : [value, ...TOP_CATEGORIES];
+  const items = useCatalog('category');
+  const [adding, setAdding] = useState<string | null>(null);
+  // Ranked by tasks; before any task counts exist (built-in fallback) the original six lead.
+  const ranked = items.some((i) => i.uses > 0);
+  const top: string[] = ranked ? items.slice(0, 6).map((i) => i.label) : [...TOP_CATEGORIES];
+  const chips: string[] = !value || top.some((c) => c.toLowerCase() === value.toLowerCase()) ? top : [value, ...top];
   const needle = q.trim().toLowerCase();
-  const results = CATEGORIES.filter((c) => c.toLowerCase().includes(needle));
+  const results: CatalogItem[] = searchItems(items, q);
+  const total = items.length;
+  const canAddTyped = needle.length >= 2 && !hasExact(items, needle);
 
   const close = () => {
     setOpen(false);
     setQ('');
+    setAdding(null);
   };
   const pick = (c: string) => {
     onChange(c);
@@ -75,7 +83,7 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
         <Pressable
           onPress={() => setOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel={`Search all ${CATEGORIES.length} categories`}
+          accessibilityLabel={`Search all ${total} categories`}
           style={({ pressed }) => ({
             flexDirection: 'row',
             alignItems: 'center',
@@ -90,7 +98,7 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
           })}
         >
           <Icon name="search" size={14} color={t.colors.accentDeep} strokeWidth={2.2} />
-          <RNText style={tx('700', 13.5, t.colors.accentDeep)}>Search all {CATEGORIES.length}</RNText>
+          <RNText style={tx('700', 13.5, t.colors.accentDeep)}>Search all {total}</RNText>
         </Pressable>
       </View>
 
@@ -120,13 +128,13 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
           />
         </View>
         <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, marginTop: 14, marginBottom: 4 })}>
-          {needle ? `${results.length} OF ${CATEGORIES.length} MATCH` : `ALL ${CATEGORIES.length}`}
+          {needle ? `${results.length} OF ${total} MATCH` : `ALL ${total}`}
         </RNText>
         <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
-          {results.length === 0 ? (
+          {results.length === 0 && !canAddTyped ? (
             <RNText style={tx('400', 14, t.colors.muted, { paddingVertical: 14 })}>No category matches. “Other” is always there.</RNText>
           ) : (
-            results.map((c) => (
+            results.map((it) => it.label).map((c) => (
               <Pressable
                 key={c}
                 onPress={() => pick(c)}
@@ -139,6 +147,17 @@ export function CategoryPicker({ value, onChange }: { value: string; onChange: (
               </Pressable>
             ))
           )}
+          {canAddTyped && adding === null ? (
+            <Pressable
+              onPress={() => setAdding(q.trim().charAt(0).toUpperCase() + q.trim().slice(1))}
+              accessibilityRole="button"
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48, opacity: pressed ? 0.6 : 1 })}
+            >
+              <Icon name="plus" size={16} color={t.colors.accentDeep} strokeWidth={2.4} />
+              <RNText style={tx('700', 15, t.colors.accentDeep, { flex: 1 })}>Add “{q.trim()}” as a new category</RNText>
+            </Pressable>
+          ) : null}
+          {adding !== null ? <AddTermCard kind="category" initialText={adding} onPick={(label) => onChange(label)} onClose={close} /> : null}
         </ScrollView>
       </BottomSheet>
     </>

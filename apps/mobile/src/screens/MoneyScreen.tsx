@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { View, Text as RNText, ScrollView, RefreshControl } from 'react-native';
 import { Screen, formatINR, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
+import { TabTitle } from '../components/TabTitle';
+import { useLayout } from '../lib/layout';
+import { walletLine } from '../lib/tabLines';
 import { GetPaidSheet } from '../components/GetPaidSheet';
 import { Pressy, tx } from '../components/primitives';
 import { useTheme } from '../providers/ThemeProvider';
@@ -25,6 +28,7 @@ export function MoneyScreen() {
   const focusTick = useFocusTick();
   const { mode: money, refresh: refreshMode } = useMoneyMode();
   const worker = mode === 'worker';
+  const { desktop } = useLayout();
 
   const [data, setData] = useState<MoneyLedger | null>(null);
   const [failed, setFailed] = useState(false);
@@ -65,14 +69,29 @@ export function MoneyScreen() {
   return (
     <Screen padded={false}>
       <AppHeader />
+      {desktop ? null : (
+        <TabTitle
+          title="Wallet"
+          live={walletLine({ loaded: data !== null, held: formatINR(held), heldMinor: held })}
+          action={
+            <Pressy
+              onPress={() => go('pricing')}
+              label="How fees work"
+              style={{ borderWidth: 1.5, borderColor: t.colors.accentBorder, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 14 }}
+            >
+              <RNText style={tx('800', 13.5, t.colors.accentDeep)}>How fees work</RNText>
+            </Pressy>
+          }
+        />
+      )}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 6, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.accent} />}
       >
-        <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.5, marginTop: 8 })}>Money</RNText>
-        <RNText style={tx('400', 13, t.colors.muted, { marginTop: 4, lineHeight: 19 })}>
+        {desktop ? <RNText style={tx('800', 24, t.colors.ink, { letterSpacing: -0.5, marginTop: 8 })}>Money</RNText> : null}
+        <RNText style={tx('400', 13, t.colors.muted, { marginTop: desktop ? 4 : 0, lineHeight: 19 })}>
           Each task is paid for on its own and held by Razorpay until the work is approved.
         </RNText>
 

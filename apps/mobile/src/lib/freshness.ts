@@ -30,13 +30,17 @@ export const FRESH_FOR_MS = 30_000;
  * none of the lists.
  */
 export const NEVER_REUSE: ReadonlySet<string> = new Set([
+  // own skills (row E): the already-covered check must see a term someone added a moment ago
+  'checkCatalogTerm',
   // money
   'getWallet', 'getEscrowHeld', 'listWalletActivity', 'getMoneyMode', 'getTaskHold', 'getMoneyLedger', 'listPayouts', 'listPayoutDestinations',
   'feesSince', 'platformFees', 'settleClearedEarnings', 'myStats', 'listPromotions',
+  // promotions (migration 203): the auction charges and changes every time a list opens
+  'promotionQuote', 'promotedLive', 'promotionResults',
   // task status and offers
   'getTask', 'getTaskDetail', 'canQuoteOn', 'getMyBid', 'myBidTaskIds', 'listBidsForTask', 'listMyBids', 'getProof',
   // chat and contacts
-  'listMessages', 'listThreads', 'listCrewMessages', 'taskContactPhone', 'getNotification',
+  'listMessages', 'chatState', 'listThreads', 'listCrewMessages', 'taskContactPhone', 'getNotification',
   // City Hunt finds: what unlocks, and whether a find was accepted (money)
   'huntFinds',
   // people map (migration 159): a spot and a consent choice are never shown from a stale copy
@@ -53,9 +57,11 @@ export const NEVER_REUSE: ReadonlySet<string> = new Set([
  * (`PUBLIC_MEMO_OPS`), never reused (`NEVER_REUSE`), or this.
  */
 export const PER_PERSON_REUSE: ReadonlySet<string> = new Set([
+  // the ranked skills and categories list (row E); the app keeps its own 5-minute copy too
+  'listCatalog',
   // feeds and task lists (row rules and blocked people make them per person)
   'listOpenTasks', 'listMyTasks', 'listMyAssignments', 'countBidsByTask', 'searchTasks', 'attachPosters',
-  'searchTasksWithPosters', 'getPosterStats', 'promotableTasks', 'recommendedTasks', 'remoteTasks',
+  'searchTasksWithPosters', 'searchSuggest', 'searchFallbacks', 'getPosterStats', 'promotableTasks', 'recommendedTasks', 'remoteTasks',
   'tasksNear', 'urgentTasks', 'listSavedTaskIds', 'listSavedTasks', 'listTaskQuestions', 'nearbyPulse',
   // people and profiles
   'listBlockedUsers', 'getProfile', 'usernameAvailable', 'listActiveWorkers', 'workersNear',

@@ -43,7 +43,8 @@ export type WizardSnapshot = {
   style: WritingStyle;
   /** The uploaded file's bucket path only; never a URL (those are signed on demand). */
   media: TaskMedia | null;
-  whenKey: WhenKey | 'custom';
+  /** 'open' is an open task: no completion date (plan 1.19 K). */
+  whenKey: WhenKey | 'custom' | 'open';
   /** ISO time, only for whenKey 'custom'. */
   customDue: string | null;
   budget: number | null;
@@ -66,7 +67,7 @@ export const STALE_AFTER_MS = 7 * DAY;
 /** "Post when back" only counts this long after the press; after that it just reopens on Review. */
 export const RESUME_WINDOW_MS = 2 * 3600_000;
 
-const WHEN_KEYS = ['now', 'today', '2days', 'week', 'custom'];
+const WHEN_KEYS = ['now', 'today', '2days', 'week', 'custom', 'open'];
 const SPLITS = [0, 2, 3, 4, 5, 6];
 const DEFAULT_OPTS: PosterOptions = {
   flash: false,
@@ -203,12 +204,12 @@ export function resumable(s: WizardSnapshot | null | undefined, now = Date.now()
   return !!s && s.submitAfterAuth && !isStale(s, now) && now - s.savedAt < RESUME_WINDOW_MS && now >= s.savedAt - 60_000;
 }
 
-/** Fixes what time has made wrong: a picked date already gone becomes "today". */
+/** Fixes what time has made wrong: a picked date already gone becomes "No fixed date", the default. */
 export function normalize(s: WizardSnapshot, now = Date.now()): WizardSnapshot {
   let out = s;
   if (s.whenKey === 'custom') {
     const due = s.customDue ? Date.parse(s.customDue) : NaN;
-    if (!Number.isFinite(due) || due <= now) out = { ...out, whenKey: 'today', customDue: null };
+    if (!Number.isFinite(due) || due <= now) out = { ...out, whenKey: 'open', customDue: null };
   } else if (s.customDue !== null) {
     out = { ...out, customDue: null };
   }

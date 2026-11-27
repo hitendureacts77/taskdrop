@@ -160,7 +160,9 @@ export function InboxScreen() {
                     style={tx(th.lastBody ? '400' : '600', 12, th.lastBody ? t.colors.muted : t.colors.accentDeep, { marginTop: 3 })}
                     numberOfLines={1}
                   >
-                    {th.lastBody ? (th.lastFromMe ? 'You: ' : '') + th.lastBody : 'No messages yet · say hello'}
+                    {th.chat?.state === 'closed'
+                      ? 'Chat closed' + (th.lastBody ? ' · ' + th.lastBody : '')
+                      : th.lastBody ? (th.lastFromMe ? 'You: ' : '') + th.lastBody : 'No messages yet · say hello'}
                   </RNText>
                 </View>
               </Pressable>

@@ -68,7 +68,7 @@
       "themeColor": "#0E8F72",
       "backgroundColor": "#0F1012",
       "display": "standalone",
-      "orientation": "portrait",
+      "orientation": "any",
       "startUrl": "/",
       "output": "single"
     },
@@ -93,6 +93,7 @@
       "expo-web-browser",
       "expo-apple-authentication",
       "expo-secure-store",
+      "@maplibre/maplibre-react-native",
       [
         "expo-notifications",
         {

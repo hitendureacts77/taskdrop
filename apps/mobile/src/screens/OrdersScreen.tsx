@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FEES } from '@taskdrop/rules';
+import { ConfirmDialog } from '../components/kit';
+import { KeepTaskSheet } from '../components/KeepTaskSheet';
+import { TopUpSheet } from '../components/TopUpSheet';
+import { closeTaskText } from '../lib/closeTaskText';
+import { useFees } from '../lib/useFees';
+import { useMoneyMode } from '../lib/useMoneyMode';
 import {
   View,
   Text as RNText,
@@ -23,6 +30,7 @@ import {
   countBidsByTask,
   cancelTask,
   refundEscrow,
+  type Task,
 } from '../data/api';
 import { type Theme } from '../theme';
 import {
@@ -107,7 +115,7 @@ function OrderCard({
             accessibilityLabel={`Cancel ${row.title}`}
             style={{ alignSelf: 'flex-start', marginTop: 11 }}
           >
-            <RNText style={tx('600', 12, t.colors.signal)}>Cancel</RNText>
+            <RNText style={tx('600', 12, t.colors.signalDeep)}>Cancel</RNText>
           </Pressable>
         )}
       </Pressy>
@@ -147,6 +155,8 @@ export function OrdersScreen() {
   // assignments they hold as a worker. Status drives the label, tone and the
   // action a tap performs.
   const [rows, setRows] = useState<ViewRow[]>([]);
+  // The posted tasks behind the rows, so Delete can show the keep-it sheet and the exact refund words.
+  const postedRef = useRef<Map<string, Task>>(new Map());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -161,6 +171,7 @@ export function OrdersScreen() {
       if (!worker) {
         const tasks = await listMyTasks(userId);
         const counts = await countBidsByTask(tasks.filter((t) => t.status === 'OPEN').map((t) => t.id));
+        postedRef.current = new Map(tasks.map((x) => [x.id, x]));
         setRows(tasks.map((t) => posterRow(t, counts.get(t.id) ?? 0)));
       } else {
         const [bids, assignments] = await Promise.all([
@@ -211,15 +222,39 @@ export function OrdersScreen() {
 
   // Every tap carries the real task id so the next screen works on live data.
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [keepIt, setKeepIt] = useState<Task | null>(null);
+  const [topUp, setTopUp] = useState<Task | null>(null);
+  const [confirmClose, setConfirmClose] = useState<Task | null>(null);
+  const { planB } = useMoneyMode();
+  const fees = useFees();
+  const cancelPct = fees.cancelFine ?? FEES.POST_START_CANCEL_PENALTY_PCT;
+  const closeWords = confirmClose
+    ? closeTaskText({
+        title: confirmClose.title,
+        status: confirmClose.status,
+        funded: Boolean(confirmClose.funded_at),
+        fineMinor: Math.round((confirmClose.locked_minor ?? 0) * cancelPct),
+        finePct: Math.round(cancelPct * 100),
+        money: formatINR,
+        refundTo: planB || (confirmClose.funded_via ?? 'wallet') !== 'wallet' ? 'source' : 'wallet',
+      })
+    : null;
+  // A poster deleting a task they posted sees the keep-it sheet first; a worker stepping off goes straight through.
+  const askCancel = (row: ViewRow) => {
+    const posted = !worker && row.taskId ? postedRef.current.get(row.taskId) : undefined;
+    if (posted) setKeepIt(posted);
+    else void cancelRow(row);
+  };
 
-  const cancelRow = async (row: ViewRow) => {
+  const cancelRow = async (row: Pick<ViewRow, 'taskId'>) => {
     if (!row.taskId || cancelling) return;
+    const funded = Boolean(postedRef.current.get(row.taskId)?.funded_at);
     setCancelling(row.taskId);
     try {
       await cancelTask(row.taskId);
       // The wording differs because the outcome does: a worker stepping off
       // puts the task back on the market rather than ending it.
-      flash(worker ? 'You stepped off — the task is open again' : 'Request cancelled');
+      flash(worker ? 'You stepped off — the task is open again' : planB && funded ? 'Your refund has started. It goes back to the card or UPI you paid with.' : 'Request cancelled');
       await load();
 
       // A poster who paid gets that money back now, not when somebody
@@ -228,7 +263,7 @@ export function OrdersScreen() {
       if (!worker) {
         try {
           const out = await refundEscrow(row.taskId);
-          if (out.refundedMinor > 0) {
+          if (!planB && out.refundedMinor > 0) {
             flash(formatINR(out.refundedMinor) + ' is on its way back to you');
             await load();
           }
@@ -261,7 +296,7 @@ export function OrdersScreen() {
           row={row}
           index={i}
           onOpen={() => openRow(row)}
-          onCancel={row.taskId && row.cancellable ? () => void cancelRow(row) : undefined}
+          onCancel={row.taskId && row.cancellable ? () => askCancel(row) : undefined}
           t={t}
         />
       ))}
@@ -300,6 +335,37 @@ export function OrdersScreen() {
     </>
   );
 
+  const sheets = (
+    <>
+      <KeepTaskSheet
+        task={keepIt}
+        hasWorker={false}
+        flash={flash}
+        onKeep={() => setKeepIt(null)}
+        onDelete={() => { const k = keepIt; setKeepIt(null); setConfirmClose(k); }}
+        onTopUp={(k) => setTopUp(k as Task)}
+        onSimilar={(k) => go('aiPost', { similar: k })}
+      />
+      <TopUpSheet task={topUp} onClose={() => setTopUp(null)} flash={flash} onRaised={() => void load()} />
+      <ConfirmDialog
+        visible={confirmClose !== null}
+        danger
+        icon="close"
+        title="Delete this task?"
+        message={closeWords?.message ?? ''}
+        confirmLabel="Yes, delete"
+        cancelLabel="Keep it"
+        busy={cancelling !== null}
+        onCancel={() => setConfirmClose(null)}
+        onConfirm={() => {
+          const c = confirmClose;
+          setConfirmClose(null);
+          if (c) void cancelRow({ taskId: c.id });
+        }}
+      />
+    </>
+  );
+
   if (desktop) {
     return (
       <Screen padded={false}>
@@ -326,6 +392,7 @@ export function OrdersScreen() {
         >
           <FadeIn duration={260}>{cards}</FadeIn>
         </ListPage>
+        {sheets}
       </Screen>
     );
   }
@@ -348,6 +415,7 @@ export function OrdersScreen() {
 
         <View style={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16 }}>{cards}</View>
       </FadeIn>
+      {sheets}
     </Screen>
   );
 }
