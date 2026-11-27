@@ -19,6 +19,16 @@ Everything below those four is detail. You open it only when a task sends you th
 
 **What was checked, the same day:** this whole plan (108 tasks), the live setup (the four websites, both databases, GitHub, the open pull requests) and today's prices and terms, read on each company's own pages. **Where this section and an older one differ, this section wins.**
 
+**Where it stands (27 Nov, end of day 1)**
+
+| | |
+|---|---|
+| **Done today** | (1) This pass, with decisions 56 to 60 (PR 574). (2) Production's database is level with staging: 202 of 202 changes. (3) The staging server code deploys by itself from GitHub Actions on every merge (5.12 step 3, PR 481). (4) The Cloudflare build of the user website is merged, as a dry run only (steps 4 and 5, PR 575). (5) The admin was tested on Cloudflare and works on the $5 plan (step 6, admin draft pull request 76, not merged). (6) DNSSEC is off at Spaceship since 15:36, so the nameserver move is allowed from 15:45 on Saturday 28 Nov. (7) The "Release to production" button is built (decision 57, PRs 577 and 578) and ran green once: run 45985440027, tagged `production-20261127-1053` |
+| **Waiting on you** | (1) The Cloudflare API token: SAY "the Cloudflare token is ready". After it, Workers Paid ($5). (2) SAY "approve 1.21" or "drop 1.21" (draft pull requests 566 to 570 and 572). (3) Decision 59: your one word on the free pilot. (4) Send the S.4 question to Razorpay and book the CA (S.2) |
+| **Not done yet** | No website runs on Cloudflare yet: that needs your token. Until then Vercel still rebuilds the two production websites on every merge, so Claude runs the release after any merge that changes the database or server code. The admin has no release button yet (it comes with step 6) |
+| **Seen and parked** | Vercel refuses new website builds until Saturday afternoon ("Deployment rate limited"), so `taskdrop.in` does not rebuild before then. Expo's free Android builds return on 1 December; until then the apps are built on this PC |
+| **Next for Claude** | Day 2 in the table below. It starts on your word: SAY "start day 2" |
+
 **The verdict in five lines**
 
 - **The tech stack is right. Keep it.** One part changes: the websites move off Vercel's free plan, which does not allow business use, to Cloudflare (task 5.12, which stalled on 22 Nov and restarts today).
@@ -6922,6 +6932,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-27 (progress stored, end of day 1):** you asked to store the progress in this plan. Added the block "Where it stands (27 Nov, end of day 1)" at the top of "The 3-day finish": what is done, what waits on you, what is not done yet, what is parked and what comes next. No task changed state: each item was already ticked on its own line the same day.
 - **2026-11-27 (first release through the button):** "Release to production" ran green (run 45985440027, tag `production-20261127-1053`). The first try had stopped at its first database step with an empty password, changing nothing: a called workflow only receives the secrets its caller passes by name. PR 578 passes each one by name, in the release and in the Cloudflare website deploy, and a test now keeps the lists together.
 - **2026-11-27 (decision 57 built: Release to production):** new workflow `release-production.yml`, started by hand only. It checks that staging already runs the commit, then deploys the production database and server code, then the production website (skipped until the Cloudflare token exists), checks that production answers and tags the commit. `production-database.yml` no longer starts on a merge, and the staging deploy no longer touches production. AGENTS.md rule 3 and docs/RELEASE.md section 4 say the same.
 - **2026-11-27 (3-day finish, day 1 done):** 5.12 step 3 merged (PR 481: the staging backend deploys from GitHub Actions, first run green); steps 4 and 5 merged (PR 575: Cloudflare build of the user web, dry run only); step 6 tested (admin draft pull request 76: the admin runs on Cloudflare on the $5 plan); DNSSEC switched off at Spaceship at 15:36 on your yes, DS record gone by 15:43. Vercel refused new builds for 24 hours (rate limit). Waiting for you: the Cloudflare token, then Workers Paid.
