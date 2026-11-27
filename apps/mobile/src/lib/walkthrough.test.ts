@@ -3,7 +3,19 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { shouldShowWalkthrough, videoUrl, walkCard, walkAnnouncement, walkSideFor, WALK_STEPS, WALK_LAST } from './walkthrough.ts';
+import {
+  shouldShowWalkthrough,
+  swipeDirection,
+  tapHalf,
+  videoUrl,
+  walkCard,
+  walkAnnouncement,
+  walkSideFor,
+  walkStepClamp,
+  WALK_AUTOPLAY_MS,
+  WALK_STEPS,
+  WALK_LAST,
+} from './walkthrough.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -57,4 +69,31 @@ test('it opens by itself only after sign-in, on Home, once, after the staging ca
   assert.equal(shouldShowWalkthrough({ ...base, seen: null }), false, 'not read yet');
   assert.equal(shouldShowWalkthrough({ ...base, screen: 'aiPost' }), false, 'a post being resumed comes first');
   assert.equal(shouldShowWalkthrough({ ...base, stagingCardClear: false }), false, 'the tester card is still open');
+});
+
+test('steps clamp at both ends and the last one does not loop', () => {
+  assert.equal(walkStepClamp(0, -1), 0);
+  assert.equal(walkStepClamp(0, 1), 1);
+  assert.equal(walkStepClamp(3, 1), 4);
+  assert.equal(walkStepClamp(4, 1), 4, 'stops on the last step');
+  assert.equal(walkStepClamp(2, -1), 1);
+});
+
+test('swipe left is next, swipe right is back, a small drag is nothing', () => {
+  assert.equal(swipeDirection(-80), 'next');
+  assert.equal(swipeDirection(80), 'prev');
+  assert.equal(swipeDirection(-39), null);
+  assert.equal(swipeDirection(12), null);
+  assert.equal(swipeDirection(-40), 'next');
+});
+
+test('tap on the right half is next, left half is back', () => {
+  assert.equal(tapHalf(300, 390), 'next');
+  assert.equal(tapHalf(40, 390), 'prev');
+  assert.equal(tapHalf(195, 390), 'next');
+  assert.equal(tapHalf(10, 0), 'next');
+});
+
+test('each step plays five seconds', () => {
+  assert.equal(WALK_AUTOPLAY_MS, 5000);
 });

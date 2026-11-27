@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text as RNText, Pressable, ActivityIndicator, Modal, TextInput, Linking, Platform, type TextStyle } from 'react-native';
+import { View, Text as RNText, Pressable, Modal, TextInput, Linking, Platform, type TextStyle } from 'react-native';
 import { PROMOTE_DEFAULTS } from '@taskdrop/rules';
 import { Screen, Chip, formatINR } from '../components/ui';
 import { ConfirmDialog, LoadFailed, PrimaryButton, Shimmer, TopBar } from '../components/kit';
 import { reportError, messageOf } from '../lib/errors';
-import { Icon } from '../components/Icon';
-import { useTheme, ring, PersonTheme } from '../providers/ThemeProvider';
+import { useTheme, PersonTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -16,11 +15,11 @@ import {
   activatePromotion,
   cancelPromotion,
   listPromotions,
-  promotableTasks,
+  getTask,
   promotionQuote,
-  type PromotableTask,
   type PromotionQuote,
 } from '../data/api';
+import { PromotionsScreen } from './PromotionsScreen';
 import { PaymentSheet } from '../components/PaymentSheet';
 import { PromotionResultsCard } from '../components/PromotionResultsCard';
 import { paymentReturnUrl } from '../lib/links';
@@ -55,6 +54,9 @@ import { KeyboardScrollView } from '../components/KeyboardScrollView';
  */
 export function PromoteScreen() {
   const { mode } = useMode();
+  const { params } = useNav();
+  // No post chosen (an old link, or a menu entry from before): the merged Promotions screen is where one is picked.
+  if (typeof params.taskId !== 'string') return <PromotionsScreen />;
   return (
     <PersonTheme role={mode === 'worker' ? 'worker' : 'poster'}>
       <PromoteBody />
@@ -75,45 +77,20 @@ function PromoteBody() {
   const [confirming, setConfirming] = useState(false);
   const [problem, setProblem] = useState<PromoteProblem | null>(null);
 
-  // Which listing is being promoted. Arrives pre-chosen when you come from a task, otherwise you pick from your own open ones.
-  const [mine, setMine] = useState<PromotableTask[]>([]);
-  const [loadingMine, setLoadingMine] = useState(true);
-  const [pickedId, setPickedId] = useState<string | null>(typeof params.taskId === 'string' ? params.taskId : null);
-  // A list that failed to load is not an empty list: "Nothing open to promote" would tell someone with open posts that they have none.
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
+  // Which listing is being promoted: chosen on the Promotions screen and passed in. Its title and price are read for the header card.
+  const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+  const [picked, setPicked] = useState<{ title: string; benchmark_minor: number } | null>(null);
   useEffect(() => {
+    setPicked(null);
+    if (!taskId) return;
     let alive = true;
-    setLoadingMine(true);
-    setLoadFailed(false);
-    void promotableTasks()
-      .then((rows) => {
-        if (!alive) return;
-        setMine(rows);
-        // Nothing pre-chosen and exactly one candidate: choosing it for them is obvious rather than presumptuous.
-        setPickedId((cur) => cur ?? (rows.length === 1 ? rows[0]!.id : null));
-      })
-      .catch((e) => {
-        reportError(e, 'promote');
-        if (alive) setLoadFailed(true);
-      })
-      .finally(() => alive && setLoadingMine(false));
+    void getTask(taskId)
+      .then((tk) => alive && tk && setPicked({ title: tk.title, benchmark_minor: tk.benchmark_minor ?? 0 }))
+      .catch((e) => reportError(e, 'promote-task'));
     return () => {
       alive = false;
     };
-  }, [attempt]);
-
-  const taskId = pickedId;
-  const picked = mine.find((m) => m.id === pickedId) ?? null;
-  // The list is collapsed once something is chosen, so the budget and the button stay on screen.
-  const [choosing, setChoosing] = useState(false);
-  // Nothing is listed until something is typed: a word from the title finds the post.
-  const [listingQuery, setListingQuery] = useState('');
-  const matches = (() => {
-    const q = listingQuery.trim().toLowerCase();
-    if (!q) return [];
-    return mine.filter((m) => m.title.toLowerCase().includes(q));
-  })();
+  }, [taskId]);
 
   const worker = mode === 'worker';
 
@@ -297,8 +274,7 @@ function PromoteBody() {
 
   const postCard = picked ? (
     <Pressable
-      onPress={() => mine.length > 1 && setChoosing(true)}
-      disabled={mine.length < 2}
+      onPress={back}
       accessibilityRole="button"
       accessibilityLabel={`Change post, currently ${picked.title}`}
       style={({ pressed }) => ({
@@ -318,99 +294,11 @@ function PromoteBody() {
         <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>
           {picked.title}
         </RNText>
-        <RNText style={tx('400', 11, t.colors.muted, { marginTop: 1 })}>
-          {formatINR(picked.benchmark_minor)} · {picked.quotes === 1 ? '1 offer' : `${picked.quotes} offers`}
-        </RNText>
+        <RNText style={tx('400', 11, t.colors.muted, { marginTop: 1 })}>{formatINR(picked.benchmark_minor)}</RNText>
       </View>
-      {mine.length > 1 ? <RNText style={tx('700', 12, t.colors.accentDeep)}>Change</RNText> : null}
+      <RNText style={tx('700', 12, t.colors.accentDeep)}>Change</RNText>
     </Pressable>
   ) : null;
-
-  const picker = (
-    <View style={{ marginTop: 8 }}>
-      {loadingMine ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 }}>
-          <ActivityIndicator size="small" color={t.colors.muted} />
-          <RNText style={tx('400', 13, t.colors.muted)}>Finding your posts…</RNText>
-        </View>
-      ) : loadFailed && !picked ? (
-        <LoadFailed title="Couldn’t load your posts" onRetry={() => setAttempt((n) => n + 1)} />
-      ) : mine.length === 0 ? (
-        <View style={{ borderWidth: 1, borderColor: t.colors.line, borderStyle: 'dashed', borderRadius: 14, padding: 16 }}>
-          <RNText style={tx('700', 14, t.colors.ink)}>Nothing open to promote</RNText>
-          <RNText style={tx('400', 12, t.colors.muted, { marginTop: 5, lineHeight: 18 })}>
-            Only your own open posts can be promoted. Post one, or reopen a closed one, and it will show up here.
-          </RNText>
-        </View>
-      ) : picked && !choosing ? (
-        postCard
-      ) : (
-        <>
-          <View
-            {...ring}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: t.colors.surface2, borderRadius: 11, paddingHorizontal: 13, paddingVertical: 10 }}
-          >
-            <Icon name="search" size={16} color={t.colors.muted} strokeWidth={1.8} />
-            <TextInput
-              value={listingQuery}
-              onChangeText={setListingQuery}
-              placeholder="Search your posts"
-              placeholderTextColor={t.colors.muted}
-              autoCorrect={false}
-              style={tx('400', 14, t.colors.ink, { flex: 1, padding: 0 })}
-            />
-            {listingQuery.length > 0 ? (
-              <Pressable onPress={() => setListingQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear the search">
-                <RNText style={tx('600', 15, t.colors.muted)}>×</RNText>
-              </Pressable>
-            ) : null}
-          </View>
-          {matches.length === 0 ? (
-            <RNText style={tx('400', 13, t.colors.muted, { marginTop: 14, lineHeight: 19 })}>
-              {listingQuery.trim()
-                ? `Nothing matches “${listingQuery.trim()}”. Only your own open posts can be promoted.`
-                : `Type a word from the title to find the post you want to promote (${mine.length} open).`}
-            </RNText>
-          ) : null}
-          {matches.map((m) => {
-            const on = m.id === pickedId;
-            return (
-              <Pressable
-                key={m.id}
-                onPress={() => {
-                  setPickedId(m.id);
-                  setChoosing(false);
-                  setListingQuery('');
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={`Promote ${m.title}`}
-                accessibilityState={{ selected: on }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingVertical: 12,
-                  borderBottomWidth: 1,
-                  borderBottomColor: t.colors.line,
-                  opacity: pressed ? 0.7 : 1,
-                })}
-              >
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <RNText style={tx(on ? '700' : '500', 15, on ? t.colors.ink : t.colors.text)} numberOfLines={1}>
-                    {m.title}
-                  </RNText>
-                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>
-                    {formatINR(m.benchmark_minor)} · {m.quotes === 1 ? '1 offer' : `${m.quotes} offers`}
-                  </RNText>
-                </View>
-                {on ? <RNText style={tx('700', 14, t.colors.accentDeep)}>✓</RNText> : null}
-              </Pressable>
-            );
-          })}
-        </>
-      )}
-    </View>
-  );
 
   const budgetBlock = (
     <View style={{ marginTop: 16 }}>
@@ -551,8 +439,7 @@ function PromoteBody() {
     <Screen padded={false}>
       <TopBar title={title} onBack={back} />
       <KeyboardScrollView hugContent style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-        {resultsId ? null : picker}
-        {resultsId && picked ? postCard : null}
+        {postCard}
 
         {taskId && quoteFailed && !quote ? (
           <View style={{ marginTop: 16 }}>

@@ -82,6 +82,8 @@ additional_redirect_urls = [
   "https://taskdrop.in/**",
   "https://www.taskdrop.in",
   "https://www.taskdrop.in/**",
+  "https://taskdrop-staging.hitendureacts.workers.dev",
+  "https://taskdrop-staging.hitendureacts.workers.dev/**",
   "https://taskdrop-admin.vercel.app/auth/callback",
   "http://localhost:8081",
   "http://localhost:8081/**",

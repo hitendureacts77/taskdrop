@@ -62,7 +62,6 @@ const SHARED_ROWS: MenuRow[] = [
 const WORKER_ROWS: MenuRow[] = [
   { icon: 'briefcase' as IconName, label: 'Work for you', go: 'myQuotes' },
   { icon: 'trophy' as IconName, label: 'Streaks and badges', go: 'streaks' },
-  { icon: 'bolt' as IconName, label: 'Promote my service', go: 'promote' },
   { icon: 'trending' as IconName, label: 'Promotions', go: 'promotions' },
   { icon: 'bookmark' as IconName, label: 'Saved tasks', go: 'saved' },
   ...SHARED_ROWS,
@@ -70,7 +69,6 @@ const WORKER_ROWS: MenuRow[] = [
 
 const POSTER_ROWS: MenuRow[] = [
   { icon: 'heart' as IconName, label: 'My regulars', go: 'regulars' },
-  { icon: 'bolt' as IconName, label: 'Promote a request', go: 'promote' },
   { icon: 'bookmark' as IconName, label: 'Saved tasks', go: 'saved' },
   { icon: 'trending' as IconName, label: 'Promotions', go: 'promotions' },
   ...SHARED_ROWS,
