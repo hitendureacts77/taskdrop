@@ -480,11 +480,20 @@ function MyPosted() {
       )
     ) : null;
 
-  /** A finished task's "Notify about a task": only once the person hired is loaded. */
+  /**
+   * A finished task's "Notify about a task". Only the first few cards have the person hired looked up
+   * (PEOPLE_LOOKUP), so the rest look them up on the tap; a task with nobody found falls back to Post again.
+   */
   const notifyFor = (task: Task) => {
     const done = task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED';
-    const who = done ? people.get(task.id) : null;
-    return who ? () => setNotify({ id: who.id, name: who.display_name, similar: task }) : undefined;
+    const known = people.get(task.id);
+    if (!done || known === null) return undefined;
+    return () => {
+      const open = (who: Profile | null | undefined) =>
+        who ? setNotify({ id: who.id, name: who.display_name, similar: task }) : flash('Could not find who did this task');
+      if (known) return open(known);
+      void getTaskDetail(task.id).then((d) => open(d?.worker ?? null)).catch(() => open(null));
+    };
   };
 
   const cardProps = (task: Task) => ({

@@ -39,7 +39,7 @@ import { areaOf } from './WorkerCard';
 
 /** The live button a posted task offers (the same rule the old card had). */
 export function posterNextLabel(task: Task, offers: number): string {
-  if (task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED') return 'Notify about a task';
+  if (task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED') return 'Notify helper';
   if (task.status === 'OPEN') return offers > 0 ? 'Choose an offer' : 'Open';
   if (task.status === 'LOCKED' && !task.funded_at) return 'Pay to start';
   if (task.status === 'WORK_DONE') return 'Review the work';
@@ -148,7 +148,7 @@ export function PosterCard(p: PosterCardProps) {
   ) : done ? (
     <>
       {p.onNotify ? (
-        <ActionButton big label="Notify about a task" onPress={p.onNotify} a11y={`Notify about a task: ${task.title}`} />
+        <ActionButton big label="Notify helper" onPress={p.onNotify} a11y={`Notify about a task: ${task.title}`} />
       ) : (
         <ActionButton big kind="outline" label="Post again" onPress={p.onAgain} a11y={`Post again: ${task.title}`} />
       )}
