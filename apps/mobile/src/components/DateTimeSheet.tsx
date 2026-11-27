@@ -5,13 +5,15 @@ import { useTheme } from '../providers/ThemeProvider';
 import { describeLeadTime, quickDeadlines } from '@taskdrop/rules';
 import { tx } from './primitives';
 import { useLayout } from '../lib/layout';
+import { ClockFace } from './ClockFace';
+import { floorMinute, firstAllowedMinute, isTimeAllowed, type TimeLimits } from '../lib/clockTime';
 
 /**
  * "Complete by" — the one field every request hangs on, so it is worth making
  * pleasant.
  *
  * Built the way delivery and home-service apps do it: a strip of day cards you
- * flick through with a thumb, then time slots grouped by part of the day. The
+ * flick through with a thumb, then a clock face for the time. The
  * full month calendar is still there for a date further out, one tap away.
  * Motion runs on the native driver (transform and opacity only) and never
  * blocks a tap while it plays.
@@ -26,14 +28,6 @@ const MONTHS = [
 
 /** How many day cards the strip shows before the calendar takes over. */
 const STRIP_DAYS = 21;
-
-type PartOfDay = { key: string; label: string; from: number; to: number };
-const PARTS: PartOfDay[] = [
-  { key: 'morning', label: 'Morning', from: 6, to: 12 },
-  { key: 'afternoon', label: 'Afternoon', from: 12, to: 17 },
-  { key: 'evening', label: 'Evening', from: 17, to: 21 },
-  { key: 'night', label: 'Night', from: 21, to: 24 },
-];
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -57,10 +51,6 @@ function clock(h24: number, minute: number): string {
 
 export function formatDeadline(d: Date): string {
   return `${d.getDate()} ${MONTHS[d.getMonth()]!.slice(0, 3)}, ${clock(d.getHours(), d.getMinutes())}`;
-}
-
-function partFor(h24: number): string {
-  return (PARTS.find((p) => h24 >= p.from && h24 < p.to) ?? PARTS[0]!).key;
 }
 
 function CalendarIcon({ color }: { color: string }) {
@@ -100,7 +90,10 @@ export function DateTimeSheet({
   onConfirm,
   quick = true,
   onOpenEnded,
-  openEndedLabel = 'No fixed date · keep it open',
+  openEndedLabel = 'No fixed date',
+  openEndedHint = 'It stays open until you pick someone',
+  minAt,
+  maxAt,
   title = 'When should it be done?',
   subtitle = 'Workers plan their offers around this deadline.',
   confirmLabel = 'Set deadline',
@@ -115,10 +108,15 @@ export function DateTimeSheet({
   quick?: boolean;
   onCancel: () => void;
   onConfirm: (d: Date) => void;
-  /** When given, a "No fixed date" link that makes the task open-ended (plan 1.19 J). */
+  /** When given, a first "No fixed date" option (tagged Recommended) that makes the task open-ended (plan 1.19 J). */
   onOpenEnded?: () => void;
-  /** The words on that link. */
+  /** The words on that first option. */
   openEndedLabel?: string;
+  /** The small line under it. */
+  openEndedHint?: string;
+  /** Earliest and latest time that may be picked (the earliest defaults to now). */
+  minAt?: Date;
+  maxAt?: Date;
 }) {
   const t = useTheme();
   const { desktop } = useLayout();
@@ -126,8 +124,7 @@ export function DateTimeSheet({
 
   const [picked, setPicked] = useState<Date>(startOfDay(base));
   const [h24, setH24] = useState(base.getHours());
-  const [minute, setMinute] = useState(base.getMinutes() < 30 ? 0 : 30);
-  const [part, setPart] = useState(partFor(base.getHours()));
+  const [minute, setMinute] = useState(floorMinute(base.getMinutes()));
   const [showCalendar, setShowCalendar] = useState(false);
   const [cursor, setCursor] = useState(new Date(base.getFullYear(), base.getMonth(), 1));
   const [note, setNote] = useState<string | null>(null);
@@ -180,7 +177,8 @@ export function DateTimeSheet({
     return d;
   }, [picked, h24, minute]);
 
-  const inPast = result.getTime() <= Date.now();
+  const limits: TimeLimits = useMemo(() => ({ min: minAt, max: maxAt }), [minAt, maxAt]);
+  const inPast = !isTimeAllowed(picked, h24, minute, limits);
 
   // A rejected tap should say why, and stop saying it once the user moves on.
   const say = (msg: string) => {
@@ -192,8 +190,7 @@ export function DateTimeSheet({
     setPicked(startOfDay(at));
     setCursor(new Date(at.getFullYear(), at.getMonth(), 1));
     setH24(at.getHours());
-    setMinute(at.getMinutes() < 30 ? 0 : 30);
-    setPart(partFor(at.getHours()));
+    setMinute(floorMinute(at.getMinutes()));
     setNote(null);
   };
 
@@ -221,36 +218,22 @@ export function DateTimeSheet({
   const pickDay = (d: Date) => {
     setPicked(d);
     setNote(null);
-    // Today with a slot already gone by: move to the first slot still ahead.
-    const at = new Date(d);
-    at.setHours(h24, minute, 0, 0);
-    if (at.getTime() <= Date.now()) {
-      const next = new Date(Date.now() + 60 * 60 * 1000);
-      const nh = next.getMinutes() > 30 ? next.getHours() + 1 : next.getHours();
-      if (nh < 24) {
-        setH24(nh);
-        setMinute(next.getMinutes() > 30 || next.getMinutes() === 0 ? 0 : 30);
-        setPart(partFor(nh));
+    // Today with a time already gone by: move to the first time still ahead.
+    if (!isTimeAllowed(d, h24, minute, limits)) {
+      for (let h = h24; h < 24; h++) {
+        const m = firstAllowedMinute(d, h, limits);
+        if (m !== null) {
+          setH24(h);
+          setMinute(m);
+          return;
+        }
       }
     }
   };
 
-  const slots = useMemo(() => {
-    const p = PARTS.find((x) => x.key === part) ?? PARTS[0]!;
-    const out: { h: number; m: number; past: boolean }[] = [];
-    for (let h = p.from; h < p.to; h++) {
-      for (const m of [0, 30]) {
-        const at = new Date(picked);
-        at.setHours(h, m, 0, 0);
-        out.push({ h, m, past: at.getTime() <= Date.now() });
-      }
-    }
-    return out;
-  }, [part, picked]);
-
   const confirm = () => {
     if (inPast) {
-      say('Pick a time in the future — workers plan their offers around this deadline.');
+      say(maxAt && result.getTime() > maxAt.getTime() ? 'That is later than allowed. Pick an earlier time.' : 'Pick a time in the future — workers plan their offers around this deadline.');
       return;
     }
     onConfirm(result);
@@ -304,6 +287,41 @@ export function DateTimeSheet({
                 {subtitle}
               </RNText>
             </View>
+
+            {/* No fixed date first and tagged Recommended: most posters tap this (plan 1.21 B). */}
+            {onOpenEnded ? (
+              <Pressable
+                onPress={onOpenEnded}
+                accessibilityRole="button"
+                accessibilityLabel={`${openEndedLabel}. Recommended. ${openEndedHint}`}
+                style={({ pressed }) => ({
+                  marginTop: 16,
+                  marginHorizontal: 20,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: 14,
+                  borderRadius: 16,
+                  borderWidth: 1.5,
+                  borderColor: t.colors.accent,
+                  backgroundColor: t.colors.accentSoft,
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                })}
+              >
+                <View style={{ width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: t.colors.surface }}>
+                  <CalendarIcon color={t.colors.accentDeep} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <RNText style={tx('800', 15, t.colors.ink)}>{openEndedLabel}</RNText>
+                    <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: t.colors.btn }}>
+                      <RNText style={tx('700', 11, t.colors.onAccent)}>Recommended</RNText>
+                    </View>
+                  </View>
+                  <RNText style={tx('400', 12, t.colors.muted, { marginTop: 2 })}>{openEndedHint}</RNText>
+                </View>
+              </Pressable>
+            ) : null}
 
             {/* The deadlines people actually want, one tap away. */}
             {quick ? (
@@ -462,85 +480,18 @@ export function DateTimeSheet({
             <View style={{ paddingHorizontal: 20 }}>
               {sectionLabel(<ClockIcon color={t.colors.accentDeep} />, 'Time')}
 
-              {/* Part of the day, as a segmented control. */}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  padding: 4,
-                  borderRadius: 14,
-                  backgroundColor: t.colors.surface2,
-                  borderWidth: 1,
-                  borderColor: t.colors.line,
+              <ClockFace
+                day={picked}
+                h24={h24}
+                minute={minute}
+                limits={limits}
+                onChange={(h, m) => {
+                  setH24(h);
+                  setMinute(m);
+                  setNote(null);
                 }}
-              >
-                {PARTS.map((p) => {
-                  const on = p.key === part;
-                  return (
-                    <Pressable
-                      key={p.key}
-                      onPress={() => setPart(p.key)}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: on }}
-                      style={{
-                        flex: 1,
-                        paddingVertical: 9,
-                        borderRadius: 10,
-                        alignItems: 'center',
-                        backgroundColor: on ? t.colors.surface : 'transparent',
-                        shadowColor: '#000',
-                        shadowOpacity: on ? 0.08 : 0,
-                        shadowRadius: 4,
-                        shadowOffset: { width: 0, height: 1 },
-                        elevation: on ? 1 : 0,
-                      }}
-                    >
-                      <RNText style={tx(on ? '700' : '600', 12, on ? t.colors.ink : t.colors.muted)}>{p.label}</RNText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-                {slots.map((s) => {
-                  const on = s.h === h24 && s.m === minute;
-                  return (
-                    <Pressable
-                      key={`${s.h}:${s.m}`}
-                      onPress={() => {
-                        if (s.past) {
-                          say('That time has already gone by today.');
-                          return;
-                        }
-                        setH24(s.h);
-                        setMinute(s.m);
-                        setNote(null);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={clock(s.h, s.m)}
-                      accessibilityState={{ selected: on, disabled: s.past }}
-                      style={({ pressed }) => ({
-                        width: '31.5%',
-                        paddingVertical: 11,
-                        borderRadius: 12,
-                        alignItems: 'center',
-                        backgroundColor: on ? t.colors.accentSoft : t.colors.surface,
-                        borderWidth: on ? 1.5 : 1,
-                        borderColor: on ? t.colors.accent : t.colors.line,
-                        opacity: s.past ? 0.35 : 1,
-                        transform: [{ scale: pressed ? 0.96 : 1 }],
-                      })}
-                    >
-                      <RNText
-                        style={tx(on ? '800' : '600', 13, on ? t.colors.accentDeep : t.colors.ink, {
-                          textDecorationLine: s.past ? 'line-through' : 'none',
-                        })}
-                      >
-                        {clock(s.h, s.m)}
-                      </RNText>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                onRejected={say}
+              />
 
               {/* What the choice actually means, in words. */}
               <View
@@ -583,18 +534,6 @@ export function DateTimeSheet({
               ) : null}
             </View>
           </ScrollView>
-
-          {onOpenEnded ? (
-            <Pressable
-              onPress={onOpenEnded}
-              accessibilityRole="button"
-              accessibilityLabel={openEndedLabel}
-              hitSlop={6}
-              style={{ alignSelf: 'center', paddingTop: 14, paddingHorizontal: 12 }}
-            >
-              <RNText style={tx('700', 14, t.colors.accentDeep)}>{openEndedLabel}</RNText>
-            </Pressable>
-          ) : null}
 
           <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 14 }}>
             <Pressable
