@@ -110,15 +110,13 @@ begin
     raise exception 'FAIL: a repeating crew should be refused';
   end if;
 
-  -- Regulars: only someone hired before.
-  begin
-    insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, preferred_worker_id)
-    values (v_poster, 'services', 'Offer to a stranger', 20000, 60, v_worker);
-    v_err := null;
-  exception when raise_exception then v_err := sqlerrm;
-  end;
-  if v_err is null then
-    raise exception 'FAIL: offering first to someone never hired should be refused';
+  -- Notify a helper (migration 230): someone never hired is dropped quietly, the task still posts open to all.
+  insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, preferred_worker_id)
+  values (v_poster, 'services', 'Notify a stranger', 20000, 60, v_worker)
+  returning * into v_next;
+  if v_next.preferred_worker_id is not null or v_next.preferred_until is not null
+     or exists (select 1 from public.notifications n where n.task_id = v_next.id and n.user_id = v_worker) then
+    raise exception 'FAIL: someone never hired must not be notified';
   end if;
 
   -- A repeating job, driven to COMPLETED through the real functions.
@@ -153,22 +151,49 @@ begin
     raise exception 'FAIL: finishing a repeating job should post the next one';
   end if;
   if v_next.status <> 'OPEN' or v_next.preferred_worker_id is distinct from v_worker
-     or v_next.preferred_until is null or v_next.due_at < now() + interval '6 days' then
-    raise exception 'FAIL: the next one should be open, a week later, offered first to the same person';
+     or v_next.preferred_until is not null or v_next.due_at < now() + interval '6 days' then
+    raise exception 'FAIL: the next one should be open to all, a week later, with the same person notified';
+  end if;
+  if (select count(*) from public.notifications n
+       where n.task_id = v_next.id and n.user_id = v_worker and n.kind = 'task_shared') <> 1 then
+    raise exception 'FAIL: the regular should get exactly one task_shared notification';
   end if;
 
-  -- During those 10 minutes only the regular may send an offer.
+  -- No first look any more: anyone may send an offer at once.
+  insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes)
+  values (v_next.id, v_other, 20000, 240);
+  insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes)
+  values (v_next.id, v_worker, 20000, 240);
+
+  -- Notifying again about the same task sends nothing (one per helper per task).
+  perform pg_temp.become(v_poster);
+  if (public.notify_helper_about_task(v_next.id, v_worker) ->> 'already')::boolean is not true then
+    raise exception 'FAIL: a second notice for the same task should come back as already sent';
+  end if;
+  -- A stranger cannot be notified about an open task.
   begin
-    insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes)
-    values (v_next.id, v_other, 20000, 240);
+    perform public.notify_helper_about_task(v_next.id, v_other);
     v_err := null;
   exception when raise_exception then v_err := sqlerrm;
   end;
   if v_err is null then
-    raise exception 'FAIL: someone else should wait while the regular has the first 10 minutes';
+    raise exception 'FAIL: notifying someone never hired should be refused';
   end if;
-  insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes)
-  values (v_next.id, v_worker, 20000, 240);
+  -- Someone else cannot share my task.
+  perform pg_temp.become(v_other);
+  begin
+    perform public.notify_helper_about_task(v_next.id, v_worker);
+    v_err := null;
+  exception when raise_exception then v_err := sqlerrm;
+  end;
+  if v_err is null then
+    raise exception 'FAIL: only the poster may share their task';
+  end if;
+  perform pg_temp.as_admin();
+  if (select count(*) from public.notifications n
+       where n.task_id = v_next.id and n.user_id = v_worker and n.kind = 'task_shared') <> 1 then
+    raise exception 'FAIL: still exactly one notice after the refused tries';
+  end if;
 
   -- Shared photos: anyone signed in sees them once the job is done.
   perform pg_temp.become(v_other);

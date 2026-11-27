@@ -39,7 +39,7 @@ import { areaOf } from './WorkerCard';
 
 /** The live button a posted task offers (the same rule the old card had). */
 export function posterNextLabel(task: Task, offers: number): string {
-  if (task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED') return 'Book again';
+  if (task.status === 'COMPLETED' || task.status === 'AUTO_COMPLETED') return 'Notify helper';
   if (task.status === 'OPEN') return offers > 0 ? 'Choose an offer' : 'Open';
   if (task.status === 'LOCKED' && !task.funded_at) return 'Pay to start';
   if (task.status === 'WORK_DONE') return 'Review the work';
@@ -65,8 +65,13 @@ export type PosterCardProps = {
   onMenu: () => void;
   /** Closing a task lives in the ⋯ menu now (same confirm dialog); kept so the screen's wiring stays the same. */
   onClose: () => void;
-  /** Starts a new post from this one ("Create similar" / "Book again" / "Post again"). */
+  /** Starts a new post from this one ("Create similar" / "Post again"). */
   onAgain: () => void;
+  /**
+   * A finished task: tell the person hired about one of your open tasks or a new one (NotifyHelperSheet,
+   * owner 27 Nov 2026: it replaced "Book again"). Absent until the person is loaded.
+   */
+  onNotify?: () => void;
   /** The live review screen for a finished task (taskRows: done row act = review). */
   onReview: () => void;
   onChat: () => void;
@@ -142,7 +147,11 @@ export function PosterCard(p: PosterCardProps) {
     <ActionButton big kind="outline" label="Post again" onPress={p.onAgain} a11y={`Post again: ${task.title}`} />
   ) : done ? (
     <>
-      <ActionButton big label="Book again" onPress={p.onAgain} a11y={`Book again: ${task.title}`} />
+      {p.onNotify ? (
+        <ActionButton big label="Notify helper" onPress={p.onNotify} a11y={`Notify about a task: ${task.title}`} />
+      ) : (
+        <ActionButton big kind="outline" label="Post again" onPress={p.onAgain} a11y={`Post again: ${task.title}`} />
+      )}
       <ActionButton big kind="quiet" label="Leave a review" onPress={p.onReview} a11y={`Leave a review: ${task.title}`} />
     </>
   ) : tab === 0 ? (

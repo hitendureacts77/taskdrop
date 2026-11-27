@@ -761,7 +761,7 @@ function TaskDetailBody() {
           </Card>
         ) : view.panel === 'sendTask' ? (
           /* Reverse direction: a customer looking at a worker's service. They do not "send an offer" to a
-             listing; they post their own task and the worker gets the first 10 minutes to answer it. */
+             listing; they post their own task (open to everyone) and the worker is notified with its link. */
           <Card style={offerGap}>
             <RNText style={tx('700', 11, t.colors.muted, { marginBottom: 10, letterSpacing: 1.2 })}>
               {otherId && otherId === userId ? 'YOUR SERVICE' : 'SEND THEM A TASK'}
@@ -771,7 +771,7 @@ function TaskDetailBody() {
             ) : (
               <>
                 <RNText style={tx('600', 15, t.colors.ink, { lineHeight: 22 })}>
-                  {`Want ${displayName} to do this? Post your task and ${displayName} gets the first 10 minutes to send an offer. You can send them more than one task.`}
+                  {`Want ${displayName} to do this? Post your task. It is open to everyone, and ${displayName} gets a notification with the link. You can send them more than one task.`}
                 </RNText>
                 <Button label={`Send ${displayName} a task`} onPress={sendThemATask} style={{ marginTop: t.spacing.lg }} />
               </>

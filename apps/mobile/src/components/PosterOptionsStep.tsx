@@ -22,6 +22,7 @@ export type PosterOptions = {
   /** 0 = off; otherwise how many helpers, 2 to 10. */
   crewSize: number;
   repeat: 'week' | 'month' | null;
+  /** Someone hired before who also gets a notification with the task's link (the task is open to everyone). */
   preferWorker: { id: string; name: string } | null;
   wantPhotos: boolean;
   photosPublic: boolean;
@@ -86,7 +87,7 @@ export function optionsSummary(o: PosterOptions): string[] {
   if (o.liveAnswer) out.push('Live answer');
   if (o.crewSize >= 2) out.push(`Crew of ${o.crewSize}`);
   if (o.repeat) out.push(o.repeat === 'week' ? 'Repeats weekly' : 'Repeats monthly');
-  if (o.preferWorker) out.push(`${o.preferWorker.name} first`);
+  if (o.preferWorker) out.push(`Also notify ${o.preferWorker.name}`);
   if (o.wantPhotos) out.push(o.photosPublic ? 'Photos, may be shown' : 'Before and after photos');
   return out;
 }
@@ -95,16 +96,16 @@ const META: Record<OptionKey, { title: string; icon: IconName; what: string; ton
   hunt: { title: 'Make it a Hunt', icon: 'search', what: 'Many people look at once. Pay only the person who finds it', tone: 'gold' },
   flash: { title: 'Flash Drop', icon: 'bolt', what: 'The first helper nearby to accept gets it, within 30 minutes', tone: 'signal' },
   crew: { title: 'Get a crew', icon: 'users', what: 'Several helpers, the budget split evenly, one shared chat', tone: 'accent' },
-  regular: { title: 'Offer to someone you hired first', icon: 'heart', what: 'They get 10 minutes to say yes, then everyone sees it', tone: 'purple' },
+  regular: { title: 'Also notify someone you hired', icon: 'heart', what: 'Your task is open to everyone. They also get a message with the link', tone: 'purple' },
   repeat: { title: 'Repeat it', icon: 'repeat', what: 'When it is done, the next one is posted by itself', tone: 'accent' },
   photos: { title: 'Before-and-after photos', icon: 'camera', what: 'The helper sends both with their proof of work', tone: 'accent' },
   liveAnswer: { title: 'Live answer', icon: 'eye', what: 'Someone nearby sends a live photo and a short reply', tone: 'accent' },
 };
 
 /**
- * What the step offers. Repeat, Offer-first and Before-and-after photos were
- * taken off (owner, 2026-11-02); Offer-first still shows when "Book again"
- * arrives with someone chosen, so the poster can see it and switch it off.
+ * What the step offers. Repeat and Before-and-after photos were taken off
+ * (owner, 2026-11-02). "Also notify" (owner, 2026-11-27: it replaced the
+ * 10-minute Offer-first) shows when the poster has someone to notify.
  */
 const ALL: OptionKey[] = ['hunt', 'flash', 'crew', 'liveAnswer'];
 
@@ -131,12 +132,12 @@ export function PosterOptionsStep({
 }) {
   const t = useTheme();
   const suggested = suggestions.map((s) => s.key);
-  // Kept for the whole visit, so switching Offer-first off does not hide it.
-  const [bookedAgain] = useState(value.preferWorker !== null);
-  // Who was chosen when this step opened ("Book again", or a service listing's owner who is not a
-  // regular), so Offer-first can be switched back on for them after being switched off.
+  // Kept for the whole visit, so switching "Also notify" off does not hide it.
+  const [arrivedWithPick] = useState(value.preferWorker !== null);
+  // Who was chosen when this step opened ("Notify about a task", or a service listing's owner who is
+  // not a regular), so "Also notify" can be switched back on for them after being switched off.
   const [firstPick] = useState(value.preferWorker);
-  const offered: OptionKey[] = bookedAgain ? ['regular', ...ALL] : ALL;
+  const offered: OptionKey[] = arrivedWithPick ? ['regular', ...ALL] : regulars.length > 0 ? [...ALL, 'regular'] : ALL;
   const rest = offered.filter((k) => !suggested.includes(k));
   const [moreOpen, setMoreOpen] = useState(suggested.length === 0);
 
@@ -144,7 +145,7 @@ export function PosterOptionsStep({
   const blocked = (key: OptionKey): string | null => {
     if (key !== 'hunt' && value.hunt && NOT_WITH_HUNT.includes(key)) return 'Not with a Hunt';
     if (key === 'hunt' && (value.flash || value.crewSize >= 2 || value.liveAnswer || value.repeat || value.preferWorker)) {
-      return 'Not with Flash Drop, a crew, Live answer, Repeat or a regular';
+      return 'Not with Flash Drop, a crew, Live answer, Repeat or Also notify';
     }
     if (remote && (key === 'flash' || key === 'crew' || key === 'liveAnswer')) return 'For jobs at a place';
     if (key === 'crew' && value.liveAnswer) return 'A Live answer is for one person';
@@ -164,7 +165,7 @@ export function PosterOptionsStep({
       case 'crew':
         return onChange({ ...value, crewSize: on ? 0 : crewSizeFrom(prompt) });
       case 'regular': {
-        // Shown only once "Book again" chose someone; it can switch back on after being switched off.
+        // The person chosen on the way in, else the most recent regular.
         const first = regulars[0]?.profile;
         const pick = firstPick ?? (first ? { id: first.id, name: first.display_name } : null);
         return onChange({ ...value, preferWorker: on || !pick ? null : pick });
@@ -286,7 +287,7 @@ export function PosterOptionsStep({
     const meta = META[key];
     const on = isOn(value, key);
     const why = blocked(key);
-    const title = key === 'regular' && value.preferWorker ? `Offer to ${value.preferWorker.name} first` : meta.title;
+    const title = key === 'regular' && value.preferWorker ? `Also notify ${value.preferWorker.name}` : meta.title;
     const tint =
       meta.tone === 'signal'
         ? { bg: t.colors.signalSoft, fg: t.colors.signalDeep }

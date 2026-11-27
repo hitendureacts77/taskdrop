@@ -11,7 +11,7 @@ import { setRepeat, type Task } from '../data/api';
 
 /**
  * The options a poster switched on for this task (migration 134), on the
- * task's own page: the Flash Drop countdown, the crew, who was asked first,
+ * task's own page: the Flash Drop countdown, the crew,
  * Repeat (which can be switched off here), and the photos asked for.
  * Shows nothing for a task with no options.
  */
@@ -20,14 +20,13 @@ export function TaskOptionsPanel({ task, onChanged }: { task: Task; onChanged: (
   const { go } = useNav();
   const { flash } = useActions();
   const [saving, setSaving] = useState(false);
-  const now = useNow(task.flash_until || task.preferred_until ? 1000 : 0);
+  const now = useNow(task.flash_until ? 1000 : 0);
 
   const open = task.status === 'OPEN';
   const flashLeft = open && task.flash_until ? new Date(task.flash_until).getTime() - now : 0;
-  const preferLeft = open && task.preferred_until ? new Date(task.preferred_until).getTime() - now : 0;
   const canRepeat = !task.crew_id && task.status !== 'CANCELLED';
   const any =
-    flashLeft > 0 || task.crew_id || preferLeft > 0 || task.repeat_every || task.want_photos || task.live_answer || task.repeated_from;
+    flashLeft > 0 || task.crew_id || task.repeat_every || task.want_photos || task.live_answer || task.repeated_from;
   if (!any && !canRepeat) return null;
 
   const toggleRepeat = async () => {
@@ -74,9 +73,6 @@ export function TaskOptionsPanel({ task, onChanged }: { task: Task; onChanged: (
                 <RNText style={tx('700', 13, t.colors.accentDeep)}>See crew</RNText>
               </Pressable>,
             )
-          : null}
-        {preferLeft > 0
-          ? line('heart', 'Offered first to someone you hired', `Everyone else can send offers in ${Math.ceil(preferLeft / 60000)} min`)
           : null}
         {task.live_answer ? line('eye', 'Live answer', 'The answer comes as a live photo taken in the app') : null}
         {task.want_photos

@@ -6,8 +6,8 @@
 --   * the same worker can still offer on a different task;
 --   * TaskDrop's own side (owner) can still delete a task, which removes its offers;
 --   * the unique rule on (task_id, worker_id) exists;
---   * hire side: a worker with an open service listing can be given the first 10 minutes of a task by a poster
---     who never hired them, unless they are blocked; a stranger with no listing is still refused.
+--   * hire side: a worker with an open service listing can be notified about a task (no hold, migration 230) by a poster
+--     who never hired them, unless they are blocked; a stranger with no listing is dropped quietly.
 --
 -- Fresh made-up people (Asha poster, Ravi and Meera workers, Kiran a stranger) so no seed rows are needed.
 -- One transaction, rolled back, so no rows are left behind.
@@ -141,45 +141,43 @@ begin
     raise exception 'FAIL: the owner must still be able to delete an offer';
   end if;
 
-  -- ---- hire side: first look for a worker with an open service listing ----------------------------
+  -- ---- hire side: notify a worker with an open service listing (migration 230: no first look) -----
   -- Asha has never hired Meera or Kiran. Kiran has no listing.
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, kind)
   values (v_meera, 'services', 'Tap and pipe repairs', 30000, 60, 'service') returning id into v_listing;
 
   perform pg_temp.become(v_asha);
-  v_err := pg_temp.try(format(
-    'insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, preferred_worker_id)'
-    || ' values (%L, ''services'', ''Fix the sink'', 50000, 60, %L)', v_asha, v_kiran));
-  if v_err is null or v_err not like '%only to someone you hired before%' then
-    raise exception 'FAIL: a stranger with no listing must still be refused, got %', v_err;
+  -- A stranger with no listing is dropped quietly: the task posts, nobody is told.
+  insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, preferred_worker_id)
+  values (v_asha, 'services', 'Fix the tap', 50000, 60, v_kiran) returning * into v_row;
+  if v_row.preferred_worker_id is not null then
+    raise exception 'FAIL: a stranger with no listing must not be notified, got %', v_row.preferred_worker_id;
   end if;
 
   insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, preferred_worker_id)
   values (v_asha, 'services', 'Fix the sink', 50000, 60, v_meera) returning * into v_row;
-  if v_row.preferred_worker_id is distinct from v_meera or v_row.preferred_until is null
-     or v_row.preferred_until > now() + interval '11 minutes' then
-    raise exception 'FAIL: a worker with a listing must get the first 10 minutes, got % until %', v_row.preferred_worker_id, v_row.preferred_until;
+  if v_row.preferred_worker_id is distinct from v_meera or v_row.preferred_until is not null then
+    raise exception 'FAIL: a worker with a listing is notified with no hold, got % until %', v_row.preferred_worker_id, v_row.preferred_until;
   end if;
 
-  -- Inside the window only Meera may offer.
+  -- Open to everyone at once: Ravi and Meera can both offer.
   perform pg_temp.become(v_ravi);
   v_err := pg_temp.try(format(
     'insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes) values (%L, %L, 45000, 60)', v_row.id, v_ravi));
-  if v_err is null then raise exception 'FAIL: Ravi must wait while Meera has the first look'; end if;
+  if v_err is not null then raise exception 'FAIL: Ravi must be able to offer at once: %', v_err; end if;
   perform pg_temp.become(v_meera);
   v_err := pg_temp.try(format(
     'insert into public.bids (task_id, worker_id, price_minor, time_limit_minutes) values (%L, %L, 45000, 60)', v_row.id, v_meera));
-  if v_err is not null then raise exception 'FAIL: Meera could not offer in her own first look: %', v_err; end if;
+  if v_err is not null then raise exception 'FAIL: Meera could not offer: %', v_err; end if;
 
-  -- A block either way closes the door again.
+  -- A block either way: never notified, the task still posts.
   perform pg_temp.as_owner();
   insert into public.blocks (blocker_id, blocked_id) values (v_meera, v_asha);
   perform pg_temp.become(v_asha);
-  v_err := pg_temp.try(format(
-    'insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, preferred_worker_id)'
-    || ' values (%L, ''services'', ''Fix the sink again'', 50000, 60, %L)', v_asha, v_meera));
-  if v_err is null or v_err not like '%only to someone you hired before%' then
-    raise exception 'FAIL: a blocked pair must not get a first look, got %', v_err;
+  insert into public.tasks (poster_id, pillar, title, benchmark_minor, time_limit_minutes, preferred_worker_id)
+  values (v_asha, 'services', 'Fix the sink again', 50000, 60, v_meera) returning * into v_row;
+  if v_row.preferred_worker_id is not null then
+    raise exception 'FAIL: a blocked pair must never be notified';
   end if;
 end;
 $$;
