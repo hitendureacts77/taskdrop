@@ -88,9 +88,10 @@ exactly as before, and `media-purge` waits. Old app builds keep uploading to Sup
   also set the ImageKit account's own upload rules (allowed types, size, private by default).
 * Pictures go to ImageKit only in production (H38): there, `createUpload` refuses to send a picture to Supabase
   Storage, because ImageKit removes a picture's location data when it serves it and the bucket does not. Staging keeps
-  the fallback. Videos and documents are served as uploaded, so a video keeps any location data inside it. The app
-  cannot strip it (no video re-encoder in the app or on the server), so the upload screen says so; a server step
-  (`ffmpeg -map_metadata -1`) is the real fix.
+  the fallback. Since 27 Nov (H38 closed) the app removes a video's location before upload: `lib/videoMeta.ts`
+  turns every `udta` and `meta` box of an MP4, MOV or 3GP into a zeroed `free` box of the same size (no re-encode,
+  chunk offsets unchanged, the video plays as before), and refuses a video it cannot read rather than upload it with
+  its location. WebM carries no location box and is sent as is. Documents are still served as uploaded.
 * A person can hold at most 100 unfinished uploads; uploads and attaches share the 20-a-minute upload limit.
 * The server accepts JPEG, PNG, WebP, HEIC and HEIF, up to 15 MB. SVG is refused.
 
