@@ -1,46 +1,25 @@
 #!/usr/bin/env node
 /**
- * The build command for the `taskdrop` Vercel project on `redesigned-2.0` (see vercel.json).
- * Vercel runs every deploy; GitHub only stores the code (docs/DEPLOY.md).
+ * The build command for the `taskdrop` and `taskdrop-production` Vercel projects (see vercel.json).
+ * It only builds the web app:
  *
- * On a push to `redesigned-2.0` it first puts the backend on the shared test project, then builds
- * the web app. On every other branch (and for production builds) it only builds the web app.
- * The production project `taskdrop-production` also builds `redesigned-2.0` (since 21 Nov 2026), as a
- * production build, so it only builds the web app: the production database waits for the owner's Approve
- * in .github/workflows/production-database.yml.
+ *   1. web export               npm run web:export
+ *   2. scan the build           scripts/scan-build.mjs apps/mobile/dist  (task 2.18 D: a key in the bundle, or a missing build, stops the deploy)
+ *   3. web source maps          scripts/upload-web-sourcemaps.mjs  (warning only)
  *
- *   1. old-app contract         npm run test:contract         (needs `main`; see below)
- *   2. new migrations           scripts/deploy-migrations.mjs
- *   3. old-app database check   scripts/check-old-app-db.mjs  (needs `main`)
- *   4. Edge Functions           supabase functions deploy  (up to 3 attempts, so a one-off network or API hiccup does not fail the build)
- *   5. Inngest sync             warning only, until the Inngest Cloud keys are set
- *   6. web export               npm run web:export
- *   7. scan the build           scripts/scan-build.mjs apps/mobile/dist  (task 2.18 D: a key in the bundle, or a missing build, stops the deploy)
+ * Since 22 Nov 2026 (plan task 5.12) the staging backend (old-app contract, migrations, old-app database
+ * check, Edge Functions, Inngest sync) is deployed by .github/workflows/deploy-staging.yml with
+ * scripts/deploy-staging-backend.mjs, and the web app moves to Cloudflare (scripts/cloudflare-web-build.mjs).
+ * This script and vercel.json are removed when Vercel is switched off (5.12 step 10).
+ * The production database waits for the owner's Approve in .github/workflows/production-database.yml.
  *
- * Function secrets are NOT copied here any more (plan task 2.17, "one home per secret"): they are set
- * straight in Supabase from `.env.all-secrets` with `node scripts/set-function-secrets.mjs`.
- *
- * A failed step 1-3 fails the build, so the web app is never published against a half-updated
- * backend (the previous deployment stays live). Steps 1 and 3 compare against `main`: Vercel only
- * clones the pushed branch, so the script fetches `main` first; if that fails it says so loudly and
- * skips those two checks instead of blocking every deploy.
- *
- * Needs these in Vercel -> `taskdrop` -> Settings -> Environment Variables (set to All Environments;
- * this script only uses them for Preview builds of `redesigned-2.0`; docs/DEPLOY.md). Without them the
- * backend step is skipped with a notice:
- *   SUPABASE_ACCESS_TOKEN   deploys Edge Functions (supabase.com -> Account -> Access Tokens)
- *   DATABASE_URL            the test project's Session pooler connection string, with its password
- *
- *   node scripts/vercel-build.mjs --dry-run   print what would run (set VERCEL_GIT_COMMIT_REF and VERCEL_ENV)
+ *   node scripts/vercel-build.mjs --dry-run   print what would run
  */
 import { spawnSync } from "node:child_process";
-import { missingOrShort } from "./lib/required-env.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
 const branch = process.env.VERCEL_GIT_COMMIT_REF || "";
 const target = process.env.VERCEL_ENV || "";
-const projectId = process.env.SUPABASE_PROJECT_ID || "wjxvingpfbfvkfqhrguj";
-const functionUrl = `https://${projectId}.supabase.co/functions/v1/inngest`;
 
 const note = (m) => console.log(`[vercel-build] ${m}`);
 const warn = (m) => console.log(`::warning:: [vercel-build] ${m}`);
@@ -58,77 +37,7 @@ function must(label, cmd, args, env) {
   }
 }
 
-// Like `must`, but tries up to `attempts` times with a growing wait, for a step that can hit a one-off network or API hiccup.
-// Only for steps that are safe to repeat. If the last attempt fails it stops the build exactly as `must` does.
-async function mustRetry(label, cmd, args, env, attempts = 3) {
-  for (let i = 1; i <= attempts; i++) {
-    if (run(`${label} (attempt ${i}/${attempts})`, cmd, args, env)) return;
-    if (i < attempts) {
-      const waitSeconds = 10 * i;
-      note(`"${label}" failed on attempt ${i}/${attempts}; waiting ${waitSeconds}s, then trying again.`);
-      await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
-    }
-  }
-  console.error(`[vercel-build] FAILED at "${label}" after ${attempts} attempts. Nothing after it ran, so the web app is not published. Fix it and push again.`);
-  process.exit(1);
-}
-
-// Secrets the backend steps need, with the shortest length a real one has (a Supabase access token is 44 characters).
-const REQUIRED = [
-  { name: "SUPABASE_ACCESS_TOKEN", min: 40 },
-  { name: "DATABASE_URL", min: 30 },
-];
-
-const wantsBackend = branch === "redesigned-2.0" && target === "preview";
-const hasSecrets = Boolean(process.env.SUPABASE_ACCESS_TOKEN && process.env.DATABASE_URL);
-
-if (!wantsBackend) {
-  note(`branch "${branch || "(none)"}" / environment "${target || "(none)"}": web build only, backend untouched`);
-} else if (!hasSecrets || missingOrShort(process.env, REQUIRED).length > 0) {
-  // Task 2.5: a deploy of redesigned-2.0 with a missing or stub secret fails, so the web app is never published
-  // against a backend that was silently skipped. Names only are printed.
-  console.error(`[vercel-build] FAILED: ${missingOrShort(process.env, REQUIRED).join("; ")}. Set them in Vercel (Preview, branch redesigned-2.0). See docs/DEPLOY.md.`);
-  process.exit(1);
-} else {
-  // `main` is the old app. Vercel cloned only this branch, so fetch main to compare against.
-  let oldAppEnv = null;
-  if (dryRun) {
-    note("fetch main: git fetch --depth=1 origin main");
-    oldAppEnv = { OLD_APP_REF: "FETCH_HEAD" };
-  } else {
-    const f = spawnSync("git", ["fetch", "--depth=1", "origin", "main"], { stdio: "pipe", encoding: "utf8" });
-    if (f.status === 0) {
-      // Fail closed: a missing or stale pin would make the two old-app checks pass or fail against the wrong source.
-      const u = spawnSync("git", ["update-ref", "refs/taskdrop/old-main", "FETCH_HEAD"], { stdio: "pipe", encoding: "utf8" });
-      if (u.status !== 0) {
-        console.error(`[vercel-build] FAILED to pin the fetched main branch: ${(u.stderr || "").trim().split("\n").pop()}`);
-        process.exit(1);
-      }
-      oldAppEnv = { OLD_APP_REF: "refs/taskdrop/old-main" };
-    } else {
-      warn(`Cannot fetch \`main\` here (${(f.stderr || "").trim().split("\n").pop()}). The old-app contract check and the old-app database check are SKIPPED on this build. Run them before merging: npm run test:contract and node scripts/check-old-app-db.mjs.`);
-    }
-  }
-
-  if (oldAppEnv) must("old-app contract", "npm", ["run", "test:contract"], oldAppEnv);
-  must("apply new migrations", "node", ["scripts/deploy-migrations.mjs"]);
-  if (oldAppEnv) must("old app still has its tables and functions", "node", ["scripts/check-old-app-db.mjs"], oldAppEnv);
-  await mustRetry("deploy Edge Functions", "npx", ["--yes", "supabase@2", "functions", "deploy", "--project-ref", projectId, "--use-api"]);
-
-  // Tell Inngest Cloud to re-read the function list (the request is signed on the way back, so no secret).
-  // A warning, not a failure, until the Inngest keys are set (docs/INNGEST.md): the code is already deployed.
-  note(`Inngest sync: PUT ${functionUrl}`);
-  if (!dryRun) {
-    try {
-      const res = await fetch(functionUrl, { method: "PUT", signal: AbortSignal.timeout(30_000) });
-      const text = await res.text();
-      console.log(text);
-      if (!res.ok || !text.includes("Successfully registered")) warn("Inngest sync did not report success; the backend is deployed anyway. See docs/INNGEST.md.");
-    } catch (e) {
-      warn(`Inngest sync failed: ${e.message}`);
-    }
-  }
-}
+note(`branch "${branch || "(none)"}" / environment "${target || "(none)"}": web build only; the staging backend is deployed by GitHub Actions (deploy-staging.yml)`);
 
 must("web export", "npm", ["run", "web:export"]);
 

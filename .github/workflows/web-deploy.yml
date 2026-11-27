@@ -1,0 +1,100 @@
+name: Web deploy (Cloudflare)
+
+# Called by deploy-staging.yml (plan task 5.12). Builds the web app for one target and uploads it to the
+# Cloudflare Worker taskdrop-<target>. Secrets come from the GitHub environment web-<target>.
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: staging or production
+        required: true
+        type: string
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: false
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+
+concurrency:
+  group: web-deploy-${{ inputs.target }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: web ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    environment: web-${{ inputs.target }}
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # The target reaches run: scripts only through this variable, never pasted in (Semgrep run-shell-injection).
+      TARGET: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: ready to deploy?
+        id: ready
+        run: |
+          case "$TARGET" in
+            staging|production) ;;
+            *) echo "::error::target must be staging or production"; exit 1 ;;
+          esac
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Cloudflare secrets not set yet (plan 5.12 step 2): web $TARGET not deployed."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          elif [ ! -f scripts/cloudflare-web-build.mjs ]; then
+            echo "::notice::scripts/cloudflare-web-build.mjs is not merged yet (plan 5.12 step 4): web $TARGET not deployed."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.ready.outputs.ok == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+
+      - if: steps.ready.outputs.ok == 'true'
+        run: npm ci
+
+      - name: build the web app
+        if: steps.ready.outputs.ok == 'true'
+        run: node scripts/cloudflare-web-build.mjs --target "$TARGET"
+        env:
+          APP_VARIANT: ${{ secrets.APP_VARIANT }}
+          EXPO_PUBLIC_APP_ENV: ${{ secrets.EXPO_PUBLIC_APP_ENV }}
+          EXPO_PUBLIC_APP_URL: ${{ secrets.EXPO_PUBLIC_APP_URL }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+          EXPO_PUBLIC_FIREBASE_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_SENDER_ID }}
+          EXPO_PUBLIC_RECAPTCHA_SITE_KEY: ${{ secrets.EXPO_PUBLIC_RECAPTCHA_SITE_KEY }}
+          EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+          EXPO_PUBLIC_SENTRY_ENVIRONMENT: ${{ secrets.EXPO_PUBLIC_SENTRY_ENVIRONMENT }}
+          EXPO_PUBLIC_SENTRY_REPLAY_RATE: ${{ secrets.EXPO_PUBLIC_SENTRY_REPLAY_RATE }}
+          EXPO_PUBLIC_LEGAL_ENTITY: ${{ secrets.EXPO_PUBLIC_LEGAL_ENTITY }}
+          EXPO_PUBLIC_LEGAL_ADDRESS: ${{ secrets.EXPO_PUBLIC_LEGAL_ADDRESS }}
+          EXPO_PUBLIC_LEGAL_EMAIL: ${{ secrets.EXPO_PUBLIC_LEGAL_EMAIL }}
+          EXPO_PUBLIC_LEGAL_JURISDICTION: ${{ secrets.EXPO_PUBLIC_LEGAL_JURISDICTION }}
+          EXPO_PUBLIC_LEGAL_REVIEWED: ${{ secrets.EXPO_PUBLIC_LEGAL_REVIEWED }}
+          EXPO_PUBLIC_GRIEVANCE_OFFICER_NAME: ${{ secrets.EXPO_PUBLIC_GRIEVANCE_OFFICER_NAME }}
+          EXPO_PUBLIC_GRIEVANCE_OFFICER_EMAIL: ${{ secrets.EXPO_PUBLIC_GRIEVANCE_OFFICER_EMAIL }}
+          EXPO_PUBLIC_COPYRIGHT_AGENT_NAME: ${{ secrets.EXPO_PUBLIC_COPYRIGHT_AGENT_NAME }}
+          EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL: ${{ secrets.EXPO_PUBLIC_COPYRIGHT_AGENT_EMAIL }}
+          EXPO_PUBLIC_COPYRIGHT_AGENT_ADDRESS: ${{ secrets.EXPO_PUBLIC_COPYRIGHT_AGENT_ADDRESS }}
+          EXPO_PUBLIC_COPYRIGHT_AGENT_PHONE: ${{ secrets.EXPO_PUBLIC_COPYRIGHT_AGENT_PHONE }}
+          SENTRY_AUTH_TOKEN_TASKDROP_USERAPP: ${{ secrets.SENTRY_AUTH_TOKEN_TASKDROP_USERAPP }}
+
+      - name: upload to Cloudflare
+        if: steps.ready.outputs.ok == 'true'
+        run: npx wrangler deploy --config "wrangler.$TARGET.jsonc"
