@@ -5400,7 +5400,7 @@ Set up the production web addresses.
 </details>
 
 <details id="t5-11" data-short="Prove they are separate">
-<summary>[BOTH] <b>5.11</b> Monitors, and prove the two copies are separate <small>· your time: 20 minutes</small></summary>
+<summary>[BOTH] <b>5.11</b> Monitors, and prove the two copies are separate <small>· your time: 20 minutes · server-side proofs passed 27 Nov · waiting for your Uptime Robot monitors and the Android apps (5.0c/5.0d)</small></summary>
 
 1. CLICK: https://dashboard.uptimerobot.com → **Add new monitor** → **HTTP(s)**, and add three:
    - the production website address (5.10), named "production website"
@@ -5423,6 +5423,15 @@ Prove that staging and production are separate.
 - Production database and functions: brought up to date 21 Nov (you approved; run 44925186614). Migrations through 195 (Plan B money) are applied and `money` and `money-webhook` are live. An old run from `main` that was stuck waiting held the queue; it was cancelled, not approved. If a production run ever sits "pending" with no jobs, look for an older run waiting for Approve.
 - Safety alarm: **all clear** on 21 Nov (re-run after the deploy; it was red before because the money functions were missing).
 - Still open: Sentry, PostHog and ImageKit proofs, the two phone apps side by side, and the update-channel proof (need the Android apps, 5.0c/5.0d, after 1 Dec).
+
+**Proof run 27 Nov (Claude, no phone needed): all PASS.**
+- 21 Nov lines still hold: 0 staging test accounts in production (Asha, `98880…` phones, `fa4e0001-…` ids); production has 2 users, 0 tasks. Keys: staging key on production 401, production key on staging 401, each on its own copy 200. `noindex` (header and page tag) on `taskdrop.in`, `admin.taskdrop.in`, `taskdrop-admin-production.vercel.app`; none on `taskdrop-production.vercel.app`.
+- Migrations: production holds all 202 migration files in the repo, and both copies end at `20261127110000`. Staging's table shows 207 rows only because its early migrations were recorded under older dates and names (checked: their tables and functions exist).
+- Sentry: one labelled test event sent to each DSN. Read through the Sentry API: the staging event is only in `taskdrop`, the production event only in `taskdrop-production` (404 in the other three projects). No saved Sentry token can read events (all three are upload-only), so the read used your signed-in browser.
+- ImageKit: one 1-pixel test image uploaded with each copy's keys into `/_proof-5-11/`. Staging's list showed only the staging file (`huztflnel`), production's only the production file (`taskdropproduction`). Both files and folders were deleted after.
+- Safety alarm: production run 46010253240 **all clear**. Practice run: the same rules on staging, judged as if it were production, fired with 8 critical findings (test sign-in code on, environment not production, test phones, Razorpay test key, and others). Its event went to staging's Sentry only. No production setting was touched.
+- Nightly copy: run 45935829007 (27 Nov 03:43 UTC) made `taskdrop-production-20261127T0343Z.dump.gpg` (263 KB) in `taskdrop-backups`, release `backup-20261127T0343Z`.
+- Still open: Uptime Robot monitors (yours, step 1), PostHog sign-up proof, the ribbon and sign-in proof, the two phone apps side by side, push and update-channel proofs, and the build-guard practice run (need the Android apps, 5.0c/5.0d).
 
 **Done when** all of these are true:
 
