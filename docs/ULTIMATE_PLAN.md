@@ -2,6 +2,7 @@
 
 **The only plan you need.** Read it in this order:
 
+0. **The 3-day finish** (5 minutes, 27 November): the stack and cost verdict, the final staging and production design, and what you and Claude do on each of the three days. It is the newest page and wins where another differs.
 1. **The plan on one page** (5 minutes): the road to launch as one picture, the three things that decide launch day, and what to do now. Rewritten on 11 November.
 2. **Start here:** your progress, and the green **Next** button at the top, which always opens the next task. Click a task to open its steps. Claude ticks every task it finishes (rule 5); tick the ones only you can do.
 3. **Your app in one page** (2 minutes), if you want to see how TaskDrop works.
@@ -12,7 +13,127 @@ Everything below those four is detail. You open it only when a task sends you th
 
 ---
 
+## The 3-day finish: CEO pass, 27 November 2026 {open}
+
+**You asked (27 Nov):** think as a CEO. Check the tech stack, the staging and production setup, and whether a second account is needed. Pick the best and cheapest way, decide everything, and finish in 2 to 3 days.
+
+**What was checked, the same day:** this whole plan (108 tasks), the live setup (the four websites, both databases, GitHub, the open pull requests) and today's prices and terms, read on each company's own pages. **Where this section and an older one differ, this section wins.**
+
+**The verdict in five lines**
+
+- **The tech stack is right. Keep it.** One part changes: the websites move off Vercel's free plan, which does not allow business use, to Cloudflare (task 5.12, which stalled on 22 Nov and restarts today).
+- **A second Gmail is not needed, and it would break the rules.** One login, one separate project per copy. The proof is in the table "One login or two" below.
+- **One real fault was found in the setup.** Production's website updated on every merge, but its database waited for an Approve click. A run from 23 Nov sat waiting and blocked every later one, so production's database fell 33 changes behind its website. Fixed today (the stuck run cleared, the waiting deploy approved). From now on production moves as **one release** (decision 57).
+- **Three days can finish everything that is code and setup.** They cannot finish what waits on other people: the CA, Razorpay, the lawyer and Google's 14 tester days.
+- **The biggest risk to launch is not technical.** Razorpay's own page says Route needs more than ₹40 lakh of yearly turnover, which a new business does not have, and your written question to them (S.4) is still not sent. See decision 59.
+
+**What 3 days can finish, and what they cannot**
+
+| Finished by Sunday 29 November, night | Cannot be finished in 3 days by anyone |
+|---|---|
+| Both copies set up the right way: staging deploys by itself, production by one button | S.2: the CA, GST and the bank account (1 to 3 weeks) |
+| All four websites on Cloudflare (allowed for business, user web free) | S.4 and S.8: Razorpay's written answer and its account check |
+| Production level with staging, and proven separate (5.11) | S.3: the lawyer's written answer |
+| The staging Android app and a production rehearsal app (5.0c, 5.0d) | S.6: SMS registration (needs S.2 first) |
+| The last security finds closed and one AI scan on the final code (2.14, 2.25) | 3.3: Google's 12 testers for 14 days in a row |
+| Task 1.21 merged or parked, then the freeze really holds | 4.6: 20 workers lined up in your launch areas |
+| This plan true again: stale lines ticked, the Vercel tasks replaced | 5.12 step 10: 7 quiet days before Vercel is switched off |
+
+So "the application is complete" is a fair sentence on Sunday night. "TaskDrop is launched" is not: launch day is about 3 weeks after the CA is booked, if the money path is settled (decision 59).
+
+**The stack, tool by tool** (prices read on 27 Nov 2026 from each company's own page; check again when you pay)
+
+| Tool | Verdict | Staging | Production | Pay more only when |
+|---|---|---|---|---|
+| The app: Expo, React Native, one codebase for Android and web | Keep | | | |
+| The admin: Next.js | Keep | | | |
+| **Hosting** | **Change: Cloudflare Workers** | User web free; admin shares the $5 plan | User web free; admin on Workers Paid, **$5 a month for both copies** | Over 10 million admin requests a month (not at launch size) |
+| Supabase (database, sign-in, files, server code), Mumbai | Keep | Free | Free now; **Pro, $25 a month, on the day real money starts** (6.1) | Free pauses after a quiet week and has no backups, so real money needs Pro. Never buy branching (about $10 a month each) or point-in-time recovery ($100) at launch |
+| Background jobs: pg_cron inside the database, plus Inngest | Keep | Free (about 15,000 of 50,000 runs a month) | Free, its own 50,000 | Inngest's next plan is $99. If the limit warns, move a job to pg_cron instead |
+| Photos: ImageKit | Keep | Free (20 GB a month) | Free, own account | $9 a month when 20 GB warns |
+| Errors: Sentry | Keep | Free (5,000 errors a month, one user) | Same organization, own projects | $26 a month when the 5,000 warns |
+| Funnels: PostHog | Keep, **production only** | Not made: task 3.3c is dropped | Free (1 million events), EU | Stops by itself at the limit; no bill |
+| Maps: MapLibre with OpenFreeMap | Keep | Free | Free | OpenFreeMap allows business use with no limit. MapTiler's and Stadia's free plans do not |
+| Place search: Google | Keep | Free monthly allowance | Capped at 2,000 a day (5.3) | The ₹1,000 budget alert |
+| Android builds: Expo (EAS) | Keep, **build on this PC first** | Free (15 cloud builds a month) | Free; own project | $19 a month above 1,000 people getting app updates |
+| Sign-in text messages | MSG91 after S.6, about ₹0.25 each | Code shown on screen | Google sign-in first until S.6 is done | Firebase's own SMS costs about ₹6 each: do not use it |
+| Sign-in emails | Add before launch, only if any sign-in email is sent | Not needed | Resend's free plan (3,000 a month) as Supabase's mail sender. Supabase's own sender is 2 an hour, team addresses only | $20 a month above 3,000 |
+| Payments: Razorpay | Keep (decision 3) | Test mode | Live mode: 2% + GST a payment, Route 0.25% a transfer | See decision 59 |
+| Code: GitHub | Keep. Public today, which is why checks cost nothing | | | Decision 60 |
+| Domain and DNS | DNS moves to Cloudflare (free) with 5.12 | `taskdrop.in` until launch | `taskdrop.in` from launch (decision 28) | about $6 a year |
+
+**What it costs each month**
+
+| When | Bill | Was |
+|---|---|---|
+| Today | $0 | $0 |
+| From the day the admin runs on Cloudflare | $5 | $0 (on a plan that forbids business use) |
+| From the day real money starts | **about $34**: Supabase Pro $25, Cloudflare $5, GitHub Pro about $4 | about $45 |
+
+Not bought at launch: Vercel Pro ($20), the `auth.taskdrop.in` add-on ($10, decision 53: no for now), Inngest Pro ($99), Supabase branching and point-in-time recovery.
+
+**One login or two? (your question, checked again today)**
+
+| Tool | What its own rules say | So |
+|---|---|---|
+| Expo | "You may not maintain more than one account for any individual person or entity without payment" | One account, two projects (as now) |
+| Vercel | The free plan is for personal, non-commercial use only, and each account gets one free team. Getting round a limit breaks its fair-use rules | A second login does not make a business allowed. We leave Vercel instead |
+| Supabase | Two free projects per person, counted across all of that person's organizations | You use exactly two (staging and production) under one login. A second login gains nothing allowed |
+| Cloudflare | Making several accounts to get round a limit is forbidden | One account, four Workers |
+| Inngest, Sentry, PostHog | A separate organization or project under the same login is the normal way | As now |
+
+The best practice everywhere is the same: **one owner login with 2-step sign-in, and a separate project with its own keys for each copy.** Keys keep the copies apart, not email addresses. One honest note: the production ImageKit account (15 Nov) was made with a dotted form of your Gmail because ImageKit has no projects. Its rules on that could not be confirmed today. If ImageKit ever objects, production moves to its $9 plan.
+
+**The two copies, final design**
+
+| | Staging (the test copy) | Production (the real copy) |
+|---|---|---|
+| Website | Worker `taskdrop-staging`: `taskdrop.in` until launch, then `staging.taskdrop.in` | Worker `taskdrop-production`: its Cloudflare address until launch, then `taskdrop.in` |
+| Admin | Worker `taskdrop-admin-staging`: `admin.taskdrop.in`, then `admin.staging.taskdrop.in` | Worker `taskdrop-admin-production`, then `admin.taskdrop.in` |
+| Database and server code | Supabase `wjxvingpfbfvkfqhrguj`, free | Supabase `taskdrop-production`, free now, Pro at 6.1 |
+| What deploys it | **Every merge** into `redesigned-2.0`, by GitHub Actions, in this order: database, server code, background jobs, website, admin | **One button**, "Release to production", run by you or by Claude when you say "release to production". Same order, then a short check, then a tag. Nothing reaches production any other way |
+| What may be released | | Only a commit that staging is already running |
+| Android | TaskDrop Staging, `com.taskdrop.app.staging`, update channel `staging` | TaskDrop, `com.taskdrop.app`, update channel `production` |
+| Money and data | Fake; Razorpay test mode | Real; starts empty; nothing is ever copied from staging |
+
+**Decisions taken today** (you asked Claude to decide; say the sentence to change one)
+
+| # | Decision | Why |
+|---|---|---|
+| 56 | **Keep the stack. Host on Cloudflare. Do not buy Vercel Pro.** The admin was tested on Cloudflare the same day and runs there on the $5 plan, so nothing stays on Vercel | The stack fits one founder and costs nothing until launch. Vercel's free plan forbids business use |
+| 57 | **Production moves as one release:** database, server code, website and admin together, from one button. This replaces the 21 Nov rule that one merge updates the production websites | The website and the database must never be on different versions. Today they were 33 changes apart |
+| 58 | **Pay only on the day real money starts:** Supabase Pro then, not before. No `auth.taskdrop.in` at launch (decision 53: no for now). PostHog on production only (3.3c dropped). One AI scan, not two: the Claude Security scan (2.25) replaces Strix (2.16), which needed Docker and a paid key | Rule 10: spend only when a number says so. Rule 11: no new kind of check |
+| 59 | **The money path. Open: needs your one word.** Send the S.4 question to Razorpay today. If there is no written yes within 7 days, launch the first areas as a **free pilot**: the poster pays the helper directly (UPI or cash) and TaskDrop takes no fee, while Plan B stays built and switched off | Route's published rule needs ₹40 lakh of turnover. Without a plan for "no", the whole launch waits on one email. A free pilot also needs no GST on fees and no payment approval. It gives up "your money is protected" for the pilot, which is why it is your call. Not legal or tax advice: ask the CA and the lawyer the same question |
+| 60 | **The code folders go private at Gate 2b, with GitHub Pro (about $4 a month).** Decision 16 stands, with its real price now known | A private folder on GitHub's free plan loses the protected branch and gets about 2,000 minutes of checks a month; this week used about 1,400. The release button (57) does not need the Approve feature that private folders lose. Until then the folders stay public and checks stay free |
+
+**Day by day**
+
+| | You | Claude |
+|---|---|---|
+| **Day 1, Friday 27 Nov** | About 40 minutes. (1) Cloudflare: make an API token with the template "Edit Cloudflare Workers", save it in `.env.all-secrets` as `CLOUDFLARE_WORKERS_API_TOKEN`, then SAY "the Cloudflare token is ready". (2) Done 27 Nov, 15:36: DNSSEC is off at Spaceship (Claude did it in your Chrome on your yes). (3) Open the 1.21 design page and SAY "approve 1.21" or "drop 1.21". (4) Send the S.4 question to Razorpay and book the CA (S.2) | **All done 27 Nov:** this pass. Production's database level with staging (202 of 202). The staging deploy moved from the Vercel build into GitHub Actions (5.12 step 3, PR 481). The Cloudflare build of the user web (steps 4 and 5, PR 575). The admin tested on Cloudflare (step 6): it works on the $5 plan |
+| **Day 2, Saturday 28 Nov** | About 2 hours. Turn on Workers Paid ($5) in Cloudflare, if Claude reports the admin test passed. Your security clicks: 2.2, 2.3, 2.4, 2.22 b to d, 2.23 step 3. Play Console: make the app and upload the store file (3.1, 3.2). Message 20 people for the Play test (3.3). Name your launch areas (decision 38) | Staging and production websites live on their Cloudflare addresses. The sign-in allow-lists (step 7). Full test there: sign-in, post a task, a ₹1 test payment, the admin (step 8). The "Release to production" button (57): built early, on 27 Nov. The 2.14 leftovers (H34, H37, H38, H77, H78, H80). The website finish list (3.6: a 404 page, page titles). Stale lines ticked (Gate 2a, 2.9, 1.13) |
+| **Day 3, Sunday 29 Nov** | About 30 minutes, with Claude. Add `taskdrop.in` to Cloudflare and change the nameservers at Spaceship (5.12 step 9). Send a test email to `admin@taskdrop.in` | The domain names attached, DNSSEC on again, `staging.taskdrop.in` ready for the launch swap. The plan page locked and live (1.19 row Q). The 5.11 proofs. The staging Android app and the production rehearsal app, built on this PC (5.0c, 5.0d). The Claude Security scan (2.25). Gates 1 and 2a ticked. A last report: what is left is only the calendar list |
+| **After** | The calendar list above. Day 10: say "done 5.12" after 7 quiet days | Vercel switched off (step 10). The code folders made private at Gate 2b (60) |
+
+**The freeze, for real this time.** Task 1.21 (your voice notes of today) is the last feature. Rows A to E and the desktop sign-in page sit on draft pull requests 566 to 570 and 572. If they are not approved by Sunday night they move to Future scope, and from Monday only fixes go in.
+
+**Cut or changed today, so that "finished" is true**
+
+| Task | Change |
+|---|---|
+| 5.8, 5.8b (Vercel Pro, its firewall and spending stop) | Replaced by 5.12. The free-plan projects stay only until step 10 |
+| 5.10 (production web addresses) | Now done inside 5.12 steps 7 and 9, with Cloudflare's addresses |
+| 3.3c (PostHog on staging) | Dropped. PostHog watches production only (5.6b) |
+| 2.16 (Strix) | Replaced by 2.25, the Claude Security scan |
+| 2.22 (e), decision 53 (`auth.taskdrop.in`) | Not at launch. Look again in Step 7 |
+| 4.5 (smart alerts), 4.10 (email sequences) | After launch, as features |
+| Gate 5, first line | Reads "5.0a to 5.0e, 5.1 to 5.7, 5.9, 5.11 and 5.12 steps 1 to 9" |
+
+---
+
 ## The plan on one page {open}
+
+**Read "The 3-day finish" above first (27 Nov): it is newer and wins where the two differ.**
 
 **CEO rewrite, 11 November 2026.** The plan was read from top to bottom, the app's code was checked for screen sizes, and the rules and prices were checked online on the same day.
 
@@ -515,13 +636,13 @@ I do not know. Pitch me three options and say which is best.
 5.6 | Sentry: taskdrop-production and taskdrop-admin-production | Money, spike and security alerts; give Claude the two DSNs.
 5.6b | PostHog: organization "TaskDrop Production", project taskdrop-production | Same login, its own free organization (the free plan allows one project per organization). EU region; give Claude the project key.
 5.7 | Expo: project taskdrop-production | Production variables, the push key and the upload keystore; update channel "production".
-5.8 | Vercel: taskdrop-production and taskdrop-admin-production | Pro ($20 a month), built from main, every variable set, every secret marked Sensitive.
-5.8b | Harden the two Vercel projects | A $50 spending stop, previews with nothing real and a login, the firewall and an admin sign-in limit.
+5.8 | Vercel: taskdrop-production and taskdrop-admin-production | Pro ($20 a month), built from main, every variable set, every secret marked Sensitive. Replaced 27 Nov by 5.12: Vercel Pro is not bought (decision 56).
+5.8b | Harden the two Vercel projects | A $50 spending stop, previews with nothing real and a login, the firewall and an admin sign-in limit. Replaced 27 Nov by 5.12 (decision 56).
 5.9 | Claude connects everything | An empty database from main, every test shortcut off, a safety alarm, a nightly copy, main protected, your admin account.
-5.10 | Production web addresses | Vercel's addresses written into Supabase, reCAPTCHA and Firebase. Production open to Google. Decision 28 (decided 11 Nov): `taskdrop.in` moves to production here and staging moves to `staging.taskdrop.in`.
+5.10 | Production web addresses | Vercel's addresses written into Supabase, reCAPTCHA and Firebase. Production open to Google. Decision 28 (decided 11 Nov): `taskdrop.in` moves to production here and staging moves to `staging.taskdrop.in`. Since 27 Nov the addresses are Cloudflare's and this is done inside 5.12 steps 7 and 9.
 5.0d | Production Android app | Rehearse with a production APK and a real SMS code, then the store file; App Check is switched on after the Play internal test.
 5.11 | Monitors, and prove the two copies are separate | Three uptime monitors; Claude proves no data, key, push, update or sign-in crosses between the copies.
-5.12 | Move web hosting from Vercel to Cloudflare (start now, owner 22 Nov) | Free business-use hosting for the user web, $5 a month for the admin, instead of Vercel Pro ($20 per member a month). Decided 22 Nov 2026: start now, not at launch.
+5.12 | Move web hosting from Vercel to Cloudflare (restarted 27 Nov, three days) | Free business-use hosting for the user web, $5 a month for the admin, instead of Vercel Pro ($20 a month). Day by day in "The 3-day finish".
 - | Pass Gate 5 | Every line must be true before real money. See [Gate 5](#gate-5).
 # D · Switch on real money (Step 6) | One part at a time, with a ₹10 test first.
 6.1 | Put the live keys into production yourself | Razorpay and RazorpayX keys into the Supabase Vault; MSG91, Inngest, ImageKit and Google keys into Vercel. Never in the chat.
@@ -532,8 +653,8 @@ I do not know. Pitch me three options and say which is best.
 6.6 | Release on Google Play | Only after Gate 6: the production store file, then Google's review.
 6.7 | Launch day | Launch posts, help the first 10 posters and 10 helpers yourself, watch the alerts all day.
 # E · Every change after launch | The same path every time (the full routine is task 5.0e).
-- | One branch, both copies (21 Nov) | A change merges into redesigned-2.0. Staging (taskdrop.in, admin.taskdrop.in, the staging database) and both production websites rebuild by themselves. main is an untouched copy.
-- | Production database waits for you | A database change runs on production only after you press Approve on the production-database environment in GitHub.
+- | One branch, staging by itself, production by one button (27 Nov, decision 57) | A change merges into redesigned-2.0 and staging rebuilds by itself: database, server code, website, admin. Production gets it only when "Release to production" is run. The button is built (27 Nov, `release-production.yml`). Until the websites are on Cloudflare, Vercel still rebuilds the two production websites on each merge, so Claude runs the release after any merge that changes the database or server code. main is an untouched copy.
+- | Production moves as one release | Database, server code, website and admin go out together, in that order, from the one button. You run it, or you say "release to production" and Claude does.
 - | Android | The Android update waits for your approval, then 20% of users, then everyone.
 - | An urgent fix | Roll back first, fix on a short branch with every check, test on staging, promote at once. Only the quiet-day wait is skipped. See the [release card](#c-release).
 ```
@@ -547,9 +668,9 @@ I do not know. Pitch me three options and say which is best.
 | Website | `taskdrop.in` until launch, hidden from Google; `staging.taskdrop.in` from launch (decision 28, decided 11 Nov) | The Vercel address (expected `taskdrop-production.vercel.app`) while it is built, then `taskdrop.in` from launch (task 5.10) |
 | Admin | `taskdrop-admin` (or `admin.taskdrop.in`) | `taskdrop-admin-production` |
 | Android app | TaskDrop Staging, `com.taskdrop.app.staging` | TaskDrop, `com.taskdrop.app` on Google Play |
-| Code branch | `redesigned-2.0` (automatic) | `main` (you promote) |
+| Code branch | `redesigned-2.0` (automatic on every merge) | `redesigned-2.0` too, but only when "Release to production" is run (decision 57) |
 | Sign-in code | Shown on screen | A real SMS |
-| Cost | Free plans | About $45 a month plus fees |
+| Cost | Free plans | $5 a month until real money, then about $34 a month plus fees (27 Nov) |
 </details>
 
 ---
@@ -3091,7 +3212,7 @@ start 2.15
 </details>
 
 <details id="t2-16" data-short="AI attacker (Strix)">
-<summary>[BOTH] <b>2.16</b> The AI attacker: let Strix attack staging and prove what it finds <small>· your time: 45 minutes · about $5 to $15 of AI use · added 4 Nov, not started; still waiting for you: Docker is not installed on this PC (checked 4 Nov)</small></summary>
+<summary>[BOTH] <b>2.16</b> The AI attacker: let Strix attack staging and prove what it finds <small>· your time: 45 minutes · about $5 to $15 of AI use · added 4 Nov, not started · Replaced 27 Nov by 2.25, the Claude Security scan (decision 58): no Docker, no paid key</small></summary>
 
 **Why:** [Strix](https://github.com/usestrix/strix) is a free, open-source team of AI attackers, and one of the most popular projects on GitHub this week. It reads the code, runs the app, tries real attacks, and reports a hole only when it has a working proof, so it raises few false alarms. It is a second, independent pair of eyes after Claude's hunt (2.14): a different AI with a professional attacker's toolbox. It runs after 2.14, so it tests the app with the hunt's fixes in.
 
@@ -3740,7 +3861,7 @@ start marketplace numbers
 </details>
 
 <details id="t3-3c" data-short="PostHog (staging)">
-<summary>[BOTH] <b>3.3c</b> PostHog on staging: see where the testers get stuck <small>· your time: 20 minutes · free to start</small></summary>
+<summary>[BOTH] <b>3.3c</b> PostHog on staging: see where the testers get stuck <small>· Dropped 27 Nov (decision 58): PostHog watches production only (5.6b)</small></summary>
 
 **Why:** 3.3b tells you how long tasks wait. PostHog shows where people give up on the way (signed up → posted a task → got a first offer → hired → paid) and replays the screen where they got stuck. Starting it with the 12 testers gives you real funnels before launch, so production (5.6b) starts with the events already proven.
 
@@ -4804,7 +4925,7 @@ Build the production APK.
 
 **Rules**
 
-1. **A change reaches staging first, always.** Production receives only code that has run on staging for at least one quiet day in Sentry. **Changed 21 Nov 2026 (owner):** until launch, one merge updates staging and both production websites at the same moment; the production database still waits for your Approve. Before real money (Gate 5), decide whether production websites should wait again (for example a Vercel "promote" step).
+1. **A change reaches staging first, always.** Production receives only code that has run on staging for at least one quiet day in Sentry. **Changed 21 Nov 2026 (owner):** until launch, one merge updates staging and both production websites at the same moment; the production database still waits for your Approve. **Changed again 27 Nov 2026 (decision 57):** that split let production's website run 33 database changes ahead of its database. Production now moves as one release (database, server code, website, admin) from the "Release to production" button; the button was built on 27 Nov (`.github/workflows/release-production.yml`): GitHub, Actions, Release to production, Run workflow. Before real money (Gate 5), decide whether production websites should wait again (for example a Vercel "promote" step).
 2. **A database change goes out with the code that needs it,** in the same release, and only adds (rule 2 of the agent guide).
 3. **Nothing is run by hand against production** without your OK in the chat. Claude never reads a production key; it reads names only.
 4. **Rollback.** Website and admin: promote the previous deployment in Vercel. Phone: republish the previous update, or stop the Play rollout. Database: a forward fix, or restore from the nightly copy (5.9).
@@ -5028,7 +5149,7 @@ Sign in to https://supabase.com/dashboard as **hitendureacts@gmail.com**.
 </details>
 
 <details id="t5-8" data-short="Production Vercel">
-<summary>[BOTH] <b>5.8</b> Production Vercel projects for the website and the admin <small>· Part built 17 Nov: both projects live on the free plan, waiting for your Pro upgrade</small></summary>
+<summary>[BOTH] <b>5.8</b> Production Vercel projects for the website and the admin <small>· Part built 17 Nov on the free plan · Replaced 27 Nov by 5.12: no Pro upgrade (decision 56)</small></summary>
 
 **Why separate projects:** the production projects hold only production settings, so a staging value can never end up in production. Vercel's free plan is for non-commercial use, so production needs Pro. Sign in at https://vercel.com as **hitendureacts@gmail.com**.
 
@@ -5086,7 +5207,7 @@ Never add `EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN` to production.
 </details>
 
 <details id="t5-8b" data-short="Vercel hardening">
-<summary>[BOTH] <b>5.8b</b> Harden the production Vercel projects (firewall, spending stop, preview safety) <small>· 30 minutes · free, inside Pro</small></summary>
+<summary>[BOTH] <b>5.8b</b> Harden the production Vercel projects (firewall, spending stop, preview safety) <small>· Replaced 27 Nov by 5.12 (decision 56)</small></summary>
 
 **Why:** Vercel blocks floods for you, but on Pro it does not stop spending, the firewall starts empty, and a preview build can see whatever values it is given. This closes hole H19. It does not cover sign-in codes, `api` or payments: those are answered by Supabase, so their limits stay in the server (2.8, hole H18).
 
@@ -5239,7 +5360,7 @@ Set up production.
 </details>
 
 <details id="t5-10" data-short="Production web addresses">
-<summary>[BOTH] <b>5.10</b> Production web addresses (Vercel makes them) <small>· 20 minutes · free</small></summary>
+<summary>[BOTH] <b>5.10</b> Production web addresses (Vercel makes them) <small>· Since 27 Nov done inside 5.12 steps 7 and 9, with Cloudflare's addresses</small></summary>
 
 **What this is (changed 5 November):** `taskdrop.in` stays with **staging**. Production runs on the addresses Vercel makes for its two projects. There is no DNS record to add and nothing to wait for. A real name can be attached to production later (option B below).
 
@@ -5312,11 +5433,22 @@ Prove that staging and production are separate.
 </details>
 
 <details id="t5-12" data-short="Cloudflare hosting">
-<summary>[BOTH] <b>5.12</b> Move web hosting from Vercel to Cloudflare (start now, owner 22 Nov) <small>· your time: about 45 minutes in total · user web free, admin $5 a month</small></summary>
+<summary>[BOTH] <b>5.12</b> Move web hosting from Vercel to Cloudflare (start now, owner 22 Nov) <small>· your time: about 45 minutes in total · user web free, admin $5 a month · steps 1, 3, 4, 5 done 27 Nov, admin test passed, DNSSEC off · waiting for your Cloudflare token</small></summary>
 
 **Who:** [BOTH]. **Your time:** about 45 minutes in total. **Cost:** user web free; admin $5/month (Cloudflare Workers Paid), instead of Vercel Pro at $20 per member a month. **Start word:** "start 5.12".
 
 **In plain words:** Vercel's free (Hobby) plan is for non-commercial use only, so launching on it breaks its terms and Pro costs $20 per member a month. You decided on 22 Nov to move web hosting to Cloudflare now, not at launch.
+
+**Where it stands (27 Nov, CEO pass).** Nothing had been finished since 22 Nov: step 3 sat on pull request 481, steps 4 and 6 were started and left. Restarted today, as days 1 to 3 of "The 3-day finish".
+
+- [x] **Step 1, prices and limits re-checked (27 Nov).** Workers static files: free and unlimited, also for business. Workers Paid: $5 a month for 10 million requests. The free plan gives a Worker only 10 ms of processor time per request, so the admin needs Paid. Cloudflare Pages' 500 builds a month does not apply, because GitHub Actions builds and wrangler uploads. The code folders are public, so GitHub Actions minutes are free. No number breaks the plan.
+- [ ] **Step 2, yours.** The account exists (25 Nov, row Q), but its token can only edit Pages. Make a second token with the template "Edit Cloudflare Workers" and save it in `.env.all-secrets` as `CLOUDFLARE_WORKERS_API_TOKEN`. Turn on Workers Paid on day 2, once the admin test has passed.
+- [x] **Step 3, done 27 Nov (PR 481).** The staging database and server code now deploy from GitHub Actions (`deploy-staging.yml`), in the old order with the old stops: old-app contract test, new migrations, old-app database check, Edge Functions (3 tries). The first run after the merge was green (run 45979285738). The Vercel build now only builds the website. Two real Semgrep finds in the workflow were fixed before the merge. Known gap until the websites are on Cloudflare: website and backend are two jobs, so one can land a few minutes before the other.
+- [x] **Steps 4 and 5, done 27 Nov (PR 575), build and dry run only.** `scripts/cloudflare-web-build.mjs` builds either site and writes Cloudflare's header file from today's `vercel.json` (same CSP and security headers, noindex on staging only, a year's cache on hashed files, none on the page itself). Two Workers are described: `taskdrop-staging` and `taskdrop-production`. Checked on this PC: both dry runs pass, `/` and `/explore` answer 200, the headers are right for each site. Nothing is uploaded yet: that waits for your token (step 2). The list for step 7 (where an old `vercel.app` address is written): `supabase/functions/_shared/cors.ts`, `supabase/config.toml`, `scripts/check-exposed-files.mjs`, `apps/mobile/variant.cjs`, two tests, the `ALLOWED_ORIGINS` secret and four documents.
+- [ ] **Step 6, tested 27 Nov: the admin runs on Cloudflare, on the $5 plan** (admin draft pull request 76, not merged). It builds on Linux (not on this Windows PC), the sign-in page gets a new CSP nonce on every request, signed-out pages redirect, an API route and a server action answer. Its size is 3.6 MiB zipped and a page needs more than 10 ms of processor time, so the free plan cannot run it. Left before it goes live: the deploy job, the server secrets put into the Worker, a check that Sentry receives server errors from a Worker, a placement near Mumbai, the allow-lists (step 7) and the domain (step 9). Waits for your token and Workers Paid.
+- [x] **Step 9, first half, done 27 Nov:** you said "Yes, turn it off"; DNSSEC was switched off at Spaceship at 15:36 India time and the DS record was gone from public DNS by 15:43. `taskdrop.in` still loads. The nameserver change may happen any time after 15:45 on Saturday 28 Nov; the plan keeps it on Sunday. DNSSEC goes back on in Cloudflare straight after the move.
+- **Seen 27 Nov:** Vercel refused new website builds for both projects ("Deployment rate limited, retry in 24 hours"), so `taskdrop.in` does not rebuild until Saturday afternoon. The staging backend still deploys (step 3). One more reason for the token: Cloudflare has no such limit for our uploads.
+- [x] **Decision 57, built 27 Nov:** the workflow "Release to production" (GitHub, Actions, Run workflow). In order: it refuses a commit staging does not already run; database and server code (your Approve still applies while the code folders are public); the production website to its Cloudflare Worker; a check that the production server and website answer; a tag `production-<date>-<time>` on the commit. A merge no longer starts a production deploy, so runs cannot pile up waiting again. The website step skips until your token exists. The admin lives in its own code folder and gets the same button with step 6. **Checked 27 Nov:** the first try stopped safely at its first database step, before changing anything (a called workflow only sees the secrets its caller passes by name; fixed in PR 578, which also closed the same gap in the Cloudflare website deploy). The second run (45985440027) was green from start to end: production already had all 202 migrations, the server code was deployed again, the first-day checks passed, the production server and website answered, and the commit was tagged `production-20261127-1053`.
 
 **What we found (22 Nov):**
 - The user web app is plain static files (the Expo web export), so it moves easily.
@@ -5346,7 +5478,7 @@ Prove that staging and production are separate.
 
 > **GATE 5: do not start Step 6 until all of these are true**
 
-- [ ] Tasks 5.0a to 5.0e and 5.1 to 5.11 are ticked, including 5.8b (Vercel firewall, spending stop, preview safety)
+- [ ] Tasks 5.0a to 5.0e, 5.1 to 5.7, 5.9 and 5.11 are ticked, and 5.12 steps 1 to 9 are done (27 Nov: 5.8, 5.8b and 5.10 were replaced by 5.12)
 - [ ] Every tool on Map 2 has its own production account or project, and its ID is written on the map
 - [ ] All the proofs in 5.11 are true
 - [ ] Production's Google keys are restricted: the Android maps key (this app only), the place-search key (Places only) and the Firebase browser key (the production web address only), as written in 5.3
@@ -6223,9 +6355,14 @@ For each one, SAY the sentence to record your answer, or write your own.
 | 50 | **Is Mapbox the right map? (14 Nov).** You asked after the DataFast video, whose globe was drawn with Mapbox. Today the website map is MapLibre GL with OpenFreeMap (decision 36, live since 9 Nov: free, no key, zooms like Google Maps), and the Android app's map is `react-native-maps` with the restricted Google Maps key. **Mapbox's own pricing page (14 Nov):** free up to 50,000 website map loads and 25,000 app users a month, then you pay per use, and it needs a Mapbox account and an access token. Its web library has been under Mapbox's own licence since version 2; MapLibre is the open copy of the version before that, so the look can match | **Recommended: keep MapLibre; do not switch.** Mapbox would add a bill that grows with every visitor, a new key to guard, and a rewrite of the website map and both Android map screens (`JobsMap`, `MapPicker`), for a base style that is already good enough after D21 and D14. Revisit only if the free OpenFreeMap tiles are slow or limited after launch (look at a paid tile host before Mapbox), or the Android Google Maps key becomes a problem, in which case the tile-proxy idea in the security notes (no Maps key in the Android app) is the first step | "Decision 50: keep MapLibre." or "Decision 50: plan a Mapbox switch." |
 | 51 | **A username for everyone who signs in** (14 Nov, task 1.18). Today the username is asked only in the full phone and Google setup. A guest who makes an account, and anyone who left setup early or signed up before the step existed, can use the app with none, and the database allows an empty one | **Decided by you, 2026-11-14** ("if a person is signing in he needs to compulsorily set the username"). Yes: compulsory for every way in, with a gate for accounts that have none, and the server refuses posting, offers and chat until one is set. It is a fix (it makes sign-up complete), so it is allowed inside the freeze. Not built yet | "Decision 51: skip it in the guest's account setup" to change. A guest who is only looking around never has one (your clarification, 14 Nov) |
 | 52 | **One email or two? (15 Nov).** Vercel asked for Pro ($20). You asked whether a NEW email for production and another for staging, each on free plans, would cover both for free, for every tool | **Decided 15 Nov: keep one login, no second email; pay only Supabase Pro and Vercel Pro, and only at Step 5.** Checked on each tool's own page, 15 Nov: **Vercel's terms** say the free Hobby plan is "for your personal or non-commercial use" only, and its fair-use page counts any site used for anyone's financial gain as commercial, so production on a free Vercel account breaks the terms whatever the email. **Supabase** counts its 2 free projects across every organization you own, pauses a free project after 1 week without use, gives it no daily backups, and its fair-use rules can pause or lock every project of an organization suspected of abuse; a money app needs Pro anyway. A second login made only to get more free plans risks both accounts being closed, splits the bills, two-step codes and recovery, and Razorpay, Google Play and Google Cloud must stay on the one owner who did the KYC. **What a second email does not buy:** nothing allowed that the plan does not already get, because every other tool (Inngest, Sentry, PostHog, ImageKit, Expo, Loops, Google Cloud) already gives production its own free organization, project or account under the same login. **One fix made:** PostHog's free plan allows only 1 project per organization, so production PostHog becomes its own free organization (5.6b). **Vercel:** one Pro seat ($20) on team `hitenduteam` covers both the staging and the production projects; upgrade on the 5.8 day, not before, unless Vercel actually blocks work. **Supabase:** production stays free and empty until 5.2 turns its organization to Pro ($25); a pause before then does no harm (restore it from the dashboard). **Watch, shared by staging and production under one login:** Expo's free 1,000 app-update users and 15 Android builds a month, and Sentry's 5,000 errors a month in organization `hitendu`; upgrade only when one warns (7.5). Total: $0 a month now, about $45 a month from Step 5 | "Decision 52: keep one login." To change: "Decision 52: make a production owner mailbox" (only the login changes, never a second free plan) |
-| 53 | **A custom Supabase address, `auth.taskdrop.in`, for production?** (17 Nov, task 2.22 part e). Google's sign-in screen shows the `supabase.co` address. Hiding it needs a paid Supabase plan plus the custom-domain add-on | **Recommended: yes, on production only, at task 5.2 (about $10 a month on top of Pro).** Staging stays free with the `supabase.co` address, because only testers see it | "Decision 53: yes, custom domain at 5.2." or "Decision 53: no, keep supabase.co." |
+| 53 | **(Answered 27 Nov by the CEO pass: no for now, look again in Step 7; say "Decision 53: yes" to change.)** **A custom Supabase address, `auth.taskdrop.in`, for production?** (17 Nov, task 2.22 part e). Google's sign-in screen shows the `supabase.co` address. Hiding it needs a paid Supabase plan plus the custom-domain add-on | **Recommended: yes, on production only, at task 5.2 (about $10 a month on top of Pro).** Staging stays free with the `supabase.co` address, because only testers see it | "Decision 53: yes, custom domain at 5.2." or "Decision 53: no, keep supabase.co." |
 | 54 | **npm or pnpm?** (17 Nov). You asked which package manager is better | **Recommended: stay on npm until after launch; switch to pnpm later (F.16).** npm workspaces, Turborepo, Expo and EAS builds and both Vercel projects already install with `npm ci` from one lockfile and work. Switching changes the lockfile, the CI, Vercel's install command and the EAS builds, and React Native's native modules often need pnpm's "hoisted" mode, which gives up much of what pnpm is good at. It is not a fix, so it does not fit the freeze. **What pnpm would give:** faster installs; much less disk (each worktree today holds a full copy of `node_modules`); a stricter check that every package is declared; and it blocks packages' install scripts unless you allow them, a supply-chain safety gain. Decided by Claude's recommendation; you can change it | "Decision 54: stay on npm." or "Decision 54: switch to pnpm now." |
 | 55 | **Where does our data live? (17 Nov, task 2.24).** You asked for third-party services in India where possible | **Decided 17 Nov 2026: "Move what can + disclose".** Data location: India where offered (Supabase, ImageKit and Vercel in Mumbai or India), EU for Sentry and PostHog, US for Inngest (ids and amounts only). The Privacy Policy lists each service's country. India's DPDP law does not require data to stay in India | "Decision 55: keep as decided." |
+| 56 | **Stack and hosting (CEO pass, 27 Nov).** Is the tech stack right, and where do the websites run? | **Decided 27 Nov (you asked Claude to decide): keep the stack; host on Cloudflare; do not buy Vercel Pro.** If the admin cannot run on Cloudflare, only the admin stays on Vercel Pro | "Decision 56: stay on Vercel Pro." |
+| 57 | **How production gets a change (27 Nov).** One merge used to update the production websites while the production database waited for Approve; they drifted 33 changes apart | **Decided 27 Nov: production moves as one release** (database, server code, website, admin) from one button, and only a commit staging already runs. Replaces the 21 Nov rule. **Built and run 27 Nov** (`release-production.yml`, PRs 577 and 578; first green release tagged `production-20261127-1053`) | "Decision 57: keep production websites automatic." |
+| 58 | **When to start paying (27 Nov).** | **Decided 27 Nov:** Supabase Pro on the day real money starts; no `auth.taskdrop.in` at launch; PostHog on production only (3.3c dropped); the Claude Security scan (2.25) replaces Strix (2.16) | "Decision 58: buy Supabase Pro now." |
+| 59 | **The money path if Razorpay says no to Route (27 Nov).** Route's published rule needs more than ₹40 lakh of yearly turnover, and S.4 is not sent | **Open: yours.** Recommended: send S.4 today; if there is no written yes in 7 days, launch the first areas as a free pilot (people pay each other directly, TaskDrop takes no fee), with Plan B built and switched off. Not built. Ask the CA and the lawyer the same question | "Decision 59: yes, free pilot if no answer in 7 days." or "Decision 59: wait for Razorpay." |
+| 60 | **Private code folders, and their price (27 Nov).** Decision 16 said private. On GitHub's free plan a private folder loses the protected branch and the Approve step, and gets about 2,000 minutes of checks a month | **Decided 27 Nov: go private at Gate 2b, with GitHub Pro (about $4 a month).** Until then the folders stay public and checks stay free | "Decision 60: go private now." |
 
 ---
 
@@ -6674,16 +6811,17 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 
 | What | Amount |
 |---|---|
-| Supabase Pro, in its own organization (staging stays free) | $25 |
-| Vercel Pro (includes $20 of usage, 1M CDN requests and 1 TB transfer; stopped at $50 by 5.8b). 5.12 moves off Vercel now: user web free, admin $5/month (Cloudflare Workers Paid) | $20 |
+| Supabase Pro, in its own organization (staging stays free). Bought on the day real money starts (6.1), not before (decision 58) | $25 |
+| Cloudflare Workers Paid, for the two admins; the user websites are free (5.12). Vercel Pro ($20) is not bought (decision 56) | $5 |
+| GitHub Pro, from the day the code folders go private (decision 60) | about $4 |
 | Inngest, ImageKit, Sentry, PostHog, Loops and Expo, each in its own production account | free plans; upgrade one only when its limit warns at about 70%. The first likely to warn: Expo's 1,000 app-update users ($19 Starter) and Sentry's 5,000 errors a month shared with staging ($26 Team) |
 | Google Cloud and Firebase for production | pay as you use, with the ₹1,000 budget alert (5.3) |
 | Nightly database copy outside Supabase (5.9) | free (GitHub's free minutes and storage) |
 | Domain `taskdrop.in` | about $6 a year |
-| Supabase custom domain `auth.taskdrop.in` (if decision 53 is yes) | about $10 |
-| **Total** | **about $45 a month (roughly ₹4,000) plus the fee on each payment** |
+| Supabase custom domain `auth.taskdrop.in` | not at launch (decision 53: no for now, 27 Nov) |
+| **Total** | **about $34 a month (roughly ₹3,000) plus the fee on each payment. Before real money: $5** |
 
-**Not done, on purpose: a second email to stay on free plans (decision 52, 15 Nov).** Vercel's free plan forbids business use and Supabase counts free projects across all your organizations, so a second login would break their rules and saves nothing allowed. One Vercel Pro seat covers staging and production together.
+**Not done, on purpose: a second email to stay on free plans (decision 52, 15 Nov).** Vercel's free plan forbids business use and Supabase counts free projects across all your organizations, so a second login would break their rules and saves nothing allowed. Checked again on 27 Nov with the same answer (Expo's terms forbid a second free account outright); the table is in "The 3-day finish". Hosting moves to Cloudflare instead of paying for Vercel Pro.
 
 **Not bought, on purpose:** Supabase point-in-time recovery (daily backups and the nightly copy are enough at launch; look again after Step 6), a business email (decision 11), a second domain (decision 28), paid ads (F.8), and a paid security review before the money flow is final (decision 30). RazorpayX or payout balance is working money you hold, not a cost.
 
@@ -6701,7 +6839,7 @@ Claude runs this before a feature is called done, and writes what it saw in the 
 | **TaskDrop keeps** | **about ₹12.90** |
 | Only for a house-keeping task by an unregistered worker, if section 9(5) applies (5% of ₹150) | − ₹7.50, leaving **about ₹5.40** |
 
-**When TaskDrop pays for its own tools:** about ₹4,000 a month ÷ about ₹12.90 a task ≈ **310 finished tasks a month, about 10 a day**. If most tasks are house-keeping under section 9(5), it is about 740 a month, which is why the fee is set only after the CA answers. The payout fee per withdrawal is not counted yet: the S.4 quotes give it.
+**When TaskDrop pays for its own tools:** about ₹3,000 a month ÷ about ₹12.90 a task ≈ **230 finished tasks a month, about 8 a day** (27 Nov; it was 310 at $45). If most tasks are house-keeping under section 9(5), it is about 740 a month, which is why the fee is set only after the CA answers. The payout fee per withdrawal is not counted yet: the S.4 quotes give it.
 
 **What it costs as you grow:** the scaling ladder (Architecture, "How it grows") gives the monthly cost at each size: about $45 at launch, about $60 to $130 when the first limit warns, about $160 to $230 at 100 paid tasks a day, and about $350 to $500 for one busy city. No step is bought before its number fires.
 
@@ -6787,6 +6925,10 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 - **2026-11-27 (task 1.21 row W, second pass):** you said the desktop still looked like the mobile view and asked why a demo showed during sign-in. Row W was rebuilt on draft PR 572: sign-in only on the first page, no walkthrough by itself, a website top bar instead of the side menu, pages centred and no longer stretched. Shown on the design page; nothing merged, waiting for your design OK.
 - **2026-11-27 (task 1.21 row W, desktop):** you asked for sign-in first and the demo second on Chrome desktop, and no desktop page that looks like the phone layout. Built on draft PR 572 and shown as row W on the design page; nothing merged, waiting for your design OK.
+- **2026-11-27 (first release through the button):** "Release to production" ran green (run 45985440027, tag `production-20261127-1053`). The first try had stopped at its first database step with an empty password, changing nothing: a called workflow only receives the secrets its caller passes by name. PR 578 passes each one by name, in the release and in the Cloudflare website deploy, and a test now keeps the lists together.
+- **2026-11-27 (decision 57 built: Release to production):** new workflow `release-production.yml`, started by hand only. It checks that staging already runs the commit, then deploys the production database and server code, then the production website (skipped until the Cloudflare token exists), checks that production answers and tags the commit. `production-database.yml` no longer starts on a merge, and the staging deploy no longer touches production. AGENTS.md rule 3 and docs/RELEASE.md section 4 say the same.
+- **2026-11-27 (3-day finish, day 1 done):** 5.12 step 3 merged (PR 481: the staging backend deploys from GitHub Actions, first run green); steps 4 and 5 merged (PR 575: Cloudflare build of the user web, dry run only); step 6 tested (admin draft pull request 76: the admin runs on Cloudflare on the $5 plan); DNSSEC switched off at Spaceship at 15:36 on your yes, DS record gone by 15:43. Vercel refused new builds for 24 hours (rate limit). Waiting for you: the Cloudflare token, then Workers Paid.
+- **2026-11-27 (CEO pass: the 3-day finish):** you asked Claude to think as a CEO, check the stack, the staging and production setup and the two-accounts idea, decide everything and finish in 2 to 3 days. New top section **The 3-day finish**: the stack stays; hosting moves to Cloudflare and Vercel Pro is not bought (decision 56); production moves as one release from one button (57); pay only when real money starts, about $34 a month instead of $45 (58); the money path if Razorpay refuses Route is open and yours (59); the code folders go private at Gate 2b with GitHub Pro (60). A second Gmail was checked again and turned down (Expo forbids it outright). Found and fixed the same day: a production deploy stuck since 23 Nov had left production's database 33 changes behind its website. 5.8, 5.8b and 5.10 are replaced by 5.12; 3.3c is dropped; 2.16 is replaced by 2.25; 5.12 step 1 ticked. Started: 5.12 steps 3, 4 and 6.
 - **2026-11-27 (task 1.21 added):** your 13 voice notes of 27 Nov written out as task 1.21, rows A-G (map pins and task location, clock time picker, notify instead of offer-first, one Promotions screen, simpler Help & support, Ideas & feedback filled, hero-feature designs), started as 7 parallel pieces.
 - **2026-11-27 (staging rebuild + D33 follow-up app):** taskdrop.in rebuilt from the latest `redesigned-2.0` (PRs 551-557); migrations 227 (hire checks due) and 228 (own skills server side) applied on staging. The D33 follow-up Android app installed on your phone over USB; uploaded as the beta on 27 Nov (the site's Download button serves it); waiting for your look at the map on the phone.
 - **2026-11-26 (1.20 follow-ups, PR 557):** zoomed in, no price bubble sits on another across neighbouring spread areas (Gachibowli on the web: 77 overlapping pairs before, 0 after); helper stacks step their name back near the "Your area" pill; the helper sheet, Home helper row and full-map helper list are Hire jade. Web and phone share the code; the new Android app is built locally, not put on the site.
