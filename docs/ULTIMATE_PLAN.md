@@ -6151,7 +6151,7 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 2. Both palettes stay (Hire jade, Earn royal blue), in light and dark.
 3. Press instead of hover on phones, and motion off with reduce-motion.
 4. Each piece follows the "Design from proven patterns" card.
-5. Order: the user Home first (design D-21st, Hire and Earn, drawn 27 Nov as a design page only, waiting for your approval), then the other user screens, then the admin site.
+5. Order: the user Home first (design D-21st, "Home with 21st.dev", Hire and Earn phone screens, drawn 27 Nov as a design page only: https://claude.ai/artifact/WJ6awFUdEox7gWjkQzDcdc; waiting for your approval, then say "approve 21st Home" to start building), then the other user screens, then the admin site.
 6. The free plan gives 2 code pulls a day, so the work is spread over days.
 
 **Done when:** the user app, the admin site and the landing pages use the new look and all checks pass.
@@ -6974,7 +6974,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
-- **2026-11-27 (21st.dev for every app, added as F.17):** you asked to use 21st.dev later to improve the look of all the apps, not only the user app (user app, admin site and landing pages). **Added:** future task **F.17**. A Home design (Hire and Earn) restyled with 21st.dev components was drawn today as a design page only, and it is waiting for your approval. Plan only: nothing in the app changed.
+- **2026-11-27 (21st.dev for every app, added as F.17):** you asked to use 21st.dev later to improve the look of all the apps, not only the user app (user app, admin site and landing pages). **Added:** future task **F.17**. A Home design (Hire and Earn) restyled with 21st.dev components was drawn today as a design page only (https://claude.ai/artifact/WJ6awFUdEox7gWjkQzDcdc), and it is waiting for your approval; to start building say "approve 21st Home". Plan only: nothing in the app changed.
 - **2026-11-27 (5.12 steps 7 and 8, the user websites live on Cloudflare):** the staging website runs at `https://taskdrop-staging.hitendureacts.workers.dev` and the production website at `https://taskdrop-production.hitendureacts.workers.dev` (release run 46025653216, tagged by the release button). Allow-lists added next to the old Vercel addresses (PR 584, Supabase, reCAPTCHA, CORS); GitHub environments filled for both code folders. Staging passed sign-in, map and posting a task; production passed the page, guest mode and the map. Waiting for you: one sign-in and one task on production, and one production admin sign-in.
 - **2026-11-27 (free until money day):** you decided everything stays on free plans until money day, so Workers Paid ($5) is not turned on now. The user websites go on Cloudflare Workers Free; the admin stays on Vercel Hobby until money day, when Workers Paid is turned on, admin PR 76 is merged and Vercel is retired. 5.12 step 2 is done (the existing token got the Workers permissions); the bill is $0 now and about $34 from money day.
 - **2026-11-27 (task 1.21 row X):** screen recording showed "How TaskDrop works" opening in a small phone card inside the sign-in frame on desktop (cause: `intro` in `PRE_AUTH`). Design for a full page with auto-playing steps and new landing art drawn on https://claude.ai/artifact/2gXZNcMfChjK8d1YjwiNcc; nothing built; waiting for your OK (approve X) and YouTube link.
