@@ -111,6 +111,9 @@ test('Hermes joined strings (private_ + 40+ letters, an acronym, no digit) are n
   assert.equal(scanBuffer(Buffer.from('x=private_' + 'QwErTyUiOpAsDfGhJkLzXcVbNmQw')).length, 1);
   assert.equal(scanBuffer(Buffer.from('x=private_' + joined.slice(0, 40) + '7' + joined.slice(40))).length, 1);
   assert.equal(scanBuffer(Buffer.from('x=private_' + joined.slice(0, 40) + '+' + joined.slice(40))).length, 1);
+  // The 27 Nov Android bundle shape: a short join with a lowercase word in it (private_ + connectivity + BLACK + eep).
+  assert.deepEqual(scanBuffer(Buffer.from('information private_' + 'connectivityBLACKeep as a')), []);
+  assert.equal(scanBuffer(Buffer.from('x=private_' + 'connectivityBLACK7ep')).length, 1);
   // The finding carries a masked shape, never the value.
   const [hit] = scanBuffer(Buffer.from('x=private_' + long(28)));
   assert.ok(!hit.shape.includes(long(28)) && /^\d+ chars, [aA9_]+$/.test(hit.shape));
