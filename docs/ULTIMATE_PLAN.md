@@ -46,7 +46,7 @@ Everything below those four is detail. You open it only when a task sends you th
 | All four websites on Cloudflare (allowed for business, user web free) | S.4 and S.8: Razorpay's written answer and its account check |
 | Production level with staging, and proven separate (5.11) | S.3: the lawyer's written answer |
 | The staging Android app and a production rehearsal app (5.0c, 5.0d) | S.6: SMS registration (needs S.2 first) |
-| The last security finds closed and one AI scan on the final code (2.14, 2.25) | 3.3: Google's 12 testers for 14 days in a row |
+| The last security finds closed and one AI scan on the final code (2.14, 2.25). 2.14 leftovers done 27 Nov; 2.25 is waiting for your yes to start the scan (you answered No on 27 Nov) | 3.3: Google's 12 testers for 14 days in a row |
 | Task 1.21 merged or parked, then the freeze really holds | 4.6: 20 workers lined up in your launch areas |
 | This plan true again: stale lines ticked, the Vercel tasks replaced | 5.12 step 10: 7 quiet days before Vercel is switched off |
 
@@ -135,7 +135,7 @@ The best practice everywhere is the same: **one owner login with 2-step sign-in,
 | 5.8, 5.8b (Vercel Pro, its firewall and spending stop) | Replaced by 5.12. The free-plan projects stay only until step 10 |
 | 5.10 (production web addresses) | Now done inside 5.12 steps 7 and 9, with Cloudflare's addresses |
 | 3.3c (PostHog on staging) | Dropped. PostHog watches production only (5.6b) |
-| 2.16 (Strix) | Replaced by 2.25, the Claude Security scan |
+| 2.16 (Strix) | Replaced by 2.25, the Claude Security scan (not run yet: waiting for your yes to start it) |
 | 2.22 (e), decision 53 (`auth.taskdrop.in`) | Not at launch. Look again in Step 7 |
 | 4.5 (smart alerts), 4.10 (email sequences) | After launch, as features |
 | Gate 5, first line | Reads "5.0a to 5.0e, 5.1 to 5.7, 5.9, 5.11 and 5.12 steps 1 to 9" |
@@ -981,11 +981,11 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H31 | A text-message code is the main way to sign in, where the checklist wants it only as a second check (found 4 Nov, 2.13 part C). It is how phone-first apps in India work and is limited per number, per address and per day, but a stolen SIM can sign in | Low | **Accepted 18 Nov by you** (it is the product) |
 | H32 | Migration 071 (4 Oct) rewrote the withdrawal function from an older copy and lost three checks: the most per withdrawal (₹1 lakh), "add your name and PAN first", and the holder's name on a bank account. Proven on staging: an established account could ask for more than ₹1 lakh at once. Found by the 2.14 hunt | High (before real money) | **Fixed 3 Nov** (migration 145 and a test; a new test now fails if any database function loses a check this way). PAN: decision 17 |
 | H33 | Every staff role, including the read-only Viewer, can download one spreadsheet with every person's name, email and phone number (the People export) | Medium | **Fixed 6 Nov (admin PR 45).** Only Admin and Support see or export the full phone and email; every other role sees them masked, and opening a person's page writes an audit row. Built with the recommended answer to decision 18 |
-| H34 | Each wallet is one running number, changed in place by many functions, with no record of each movement, so the books cannot be proven to balance and a wrong change would be hard to trace | Medium (High once money is real) | Build before Step 5: an add-only list of wallet movements and a test that every balance equals its list (2.14). **Still open:** the design is merged (`docs/WALLET_LEDGER_DESIGN.md`, PR 269); nothing built. It waits for your "start H34" and your answers to its nine questions |
+| H34 | Each wallet is one running number, changed in place by many functions, with no record of each movement, so the books cannot be proven to balance and a wrong change would be hard to trace | Medium (High once money is real) | **Closed 27 Nov.** Plan B (195) replaced the wallet with the add-only `money_ledger` (rows can never change, each write happens once). Migration 229 adds the proof: the nightly money check now flags any hold whose ledger does not add up to what was charged (`hold_paid_not_in_ledger`, `hold_settled_unbalanced`), with a test; all 71 holds on staging balanced on 27 Nov. The old wallet design (`docs/WALLET_LEDGER_DESIGN.md`) is no longer needed |
 | H35 | Any staff login, even the read-only Viewer, could send a refund or trigger RazorpayX withdrawal actions by calling the two money server functions directly, with no authenticator code. The amount and the receiver were right (the database works them out), so no theft, but "Viewer changes nothing" and "money needs a code" were both untrue for these paths. Found by hunt round 2 | Medium | **Fixed 4 Nov (PR 234 + admin PR 44, migration 147)** |
 | H36 | Refunds and RazorpayX give-backs left no row in the admin audit log, so nobody could say which staff member pressed the button | Medium | **Fixed 4 Nov (PR 234 + admin PR 44, migration 147)** |
-| H37 | The admin's login cookies can be read by page scripts, and the 30-minute idle and 12-hour limits are enforced only by the admin website, not by Supabase. A script that got onto an admin page could steal the login and keep using it directly | Medium | **Partly fixed 6 Nov (admin PR 46).** The login cookies are now HttpOnly, Secure and SameSite Lax with a 12-hour maximum, and the live panel and the authenticator use server routes. **Still open:** the 30-minute idle and 12-hour limit inside the database (`private.is_admin()`); the Google sign-in button still uses the browser client, so its one-time cookie is readable; a manual Google sign-in check is needed on the admin preview (cookie flags, sign-out, live indicator, authenticator) |
-| H38 | Videos, documents and any picture sent to Supabase storage keep the location data stored inside them, and while a job is open every signed-in person can open its video. (Pictures kept in ImageKit are fine: ImageKit removes the hidden location. This corrects round 1) | Medium | **Partly fixed 6 Nov (PR 263).** In production pictures go only through ImageKit, so they lose the location; upload links expire after 5 minutes. **Still open:** the location inside videos is not stripped (a plain notice tells people instead; the real fix is a server step with ffmpeg) |
+| H37 | The admin's login cookies can be read by page scripts, and the 30-minute idle and 12-hour limits are enforced only by the admin website, not by Supabase. A script that got onto an admin page could steal the login and keep using it directly | Medium | **Closed 27 Nov.** Cookies HttpOnly, Secure, SameSite Lax, 12 hours (admin PR 46, 6 Nov). Migration 229: `private.is_admin()` now also checks the token's own session, which must still exist, be under 12 hours old and used within 90 minutes (the hour-long token plus the website's 30; settings `admin_session_hours`, `admin_session_idle_minutes`), so a stolen admin token used straight against Supabase stops too. The Google button now starts on the server (`/auth/google`), so its one-time cookie is HttpOnly as well, and the browser Supabase client is gone from the admin. **Left for you:** one Google sign-in on the staging admin to see it work |
+| H38 | Videos, documents and any picture sent to Supabase storage keep the location data stored inside them, and while a job is open every signed-in person can open its video. (Pictures kept in ImageKit are fine: ImageKit removes the hidden location. This corrects round 1) | Medium | **Closed 27 Nov.** Pictures go only through ImageKit in production, so they lose the location; upload links expire after 5 minutes (PR 263). The app now removes a video's location before upload, with no server step: `lib/videoMeta.ts` turns every `udta` and `meta` box of an MP4, MOV or 3GP into an emptied `free` box of the same size, so the video plays as before; a video it cannot read is refused, never sent with its location. The old notice is gone |
 | H39 | The place search has no daily or overall limit, so one account or a few could run up the Google bill | Medium | **Fixed 6 Nov (PR 259, migration 153):** daily caps of 150 a person and 3,000 in all; past the cap the search uses OpenStreetMap, which is free |
 | H40 | A person's phone can be texted 120 times a day by someone else, and one bot with about 17 network addresses can use up the whole day's SMS allowance (500 on staging), so nobody new can sign in by text until midnight | Medium | **Fixed 6 Nov (PR 259, migration 153):** 10 texts a day per phone number, 20% of the day's total held for numbers that already have an account, and only real sends are counted |
 | H41 | A signed-in person can upload files to ImageKit under their own names and folders, outside the path TaskDrop checks. They take space and are never found or removed | Medium | **Fixed 6 Nov (PR 263), not yet running:** a weekly job (`stray-imagekit-files`) finds files outside TaskDrop's paths; it needs a deploy to register, a dry run first (`IMAGEKIT_ORPHAN_DRY_RUN=1`), and does nothing until the ImageKit keys are set |
@@ -1020,10 +1020,10 @@ What the audit found good: the website sends HSTS, `nosniff`, a frame block and 
 | H74 | Row rules guard rows, not columns. Every signed-in person can read 28 columns of `profiles` and 51 of `tasks`, including a task's funding fields, and 29 database calls in `api` ask for every column, so a column added later would reach people unreviewed. No private value was found (`payout_upi` is empty on every row; profile locations are rounded). The same trap as H62, for signed-in people. Includes H13 and H45 (found 6 Nov, 2.18) | Medium | **Closed 23 Nov** (2.18, PR 486) |
 | H75 | The built Android app has been checked from its settings and for keys, but never opened up the way an attacker would: entry points, app links, debug settings (found 6 Nov, 2.18) | Low | **Closed 23 Nov** (2.18, PR 486) |
 | H76 | The Razorpay webhook does not compare the amount Razorpay reports with the amount on record. The signature is checked and the link is made by the server, so this is a second net, not a known way in (found 6 Nov, 2.18) | Low | **Closed 23 Nov** (2.18, PR 486) |
-| H77 | The admin's rate limiter lets every call through when its counter cannot be reached (`src/lib/rate-limit.ts` returns "allowed" on an error), so the 10-a-minute admin sign-in limit and the authenticator limit vanish during a database hiccup (found 13 Nov) | Medium | 2.14 part F, round 3 |
-| H78 | The admin sends no security events to Sentry: failed staff sign-ins, wrong authenticator codes and calls refused for the wrong role are not tagged `security_event`, so the "Security spike" alert (2.10) cannot see an attack on the admin (found 13 Nov) | Medium | 2.14 part F, round 3 |
+| H77 | The admin's rate limiter lets every call through when its counter cannot be reached (`src/lib/rate-limit.ts` returns "allowed" on an error), so the 10-a-minute admin sign-in limit and the authenticator limit vanish during a database hiccup (found 13 Nov) | Medium | **Closed** (admin PR 53, 15 Nov; rechecked 27 Nov): every limit but the live strip refuses when the counter is down and sends a `rate_limiter_unavailable` security event (`rate-decide.ts`, tested) |
+| H78 | The admin sends no security events to Sentry: failed staff sign-ins, wrong authenticator codes and calls refused for the wrong role are not tagged `security_event`, so the "Security spike" alert (2.10) cannot see an attack on the admin (found 13 Nov) | Medium | **Closed** (rechecked 27 Nov): failed password sign-ins, wrong authenticator codes, refused Google sign-ins, non-admin and wrong-role refusals and rate-limited actions all go to Sentry tagged `security_event` (`lib/security-event.ts`, only safe fields) |
 | H79 | The admin's door check (`scripts/check-endpoints.mjs`) proves every route has a role check and a limit, but not that a plain person or a lower staff role is actually refused; only `live/token` is tested that way (`docs/SECURITY_ROLES.md` F3) | Low | 2.18 part B |
-| H80 | The admin has no browser tests: no Playwright smoke on `admin.taskdrop.in`, so a broken page or a lost role gate ships unseen, and the debug loop's "admin golden path" is not written down (found 13 Nov) | Low | 2.14 part G, 2.19 |
+| H80 | The admin has no browser tests: no Playwright smoke on `admin.taskdrop.in`, so a broken page or a lost role gate ships unseen, and the debug loop's "admin golden path" is not written down (found 13 Nov) | Low | **Closed 27 Nov (admin PR 77).** Playwright smoke in the admin folder (`npm run test:e2e`, `e2e/README.md`): signed out, every side-menu page goes to the login page, the Google start sets an HttpOnly cookie (5 of 5 pass on localhost); per staff role, every allowed page loads clean and hidden pages are refused. The per-role part skips until one test login per staff role exists on staging (Claude, next debug round) |
 | H81 | The website keeps the sign-in session in `localStorage` (`lib/secureStorage.ts:63`), so a script injected into the page could read it (found 23 Nov, audit F1) | Medium | 2.20 |
 | H82 | `ALLOW_ANY_OTP` is still on in staging (`phone-auth/index.ts:76-82`): any phone number signs in with any code. It must be off before launch (found 23 Nov, audit F2) | Medium | 2.20, 5.9 |
 | H83 | The gateway lockdown is not on yet, so the database can still be reached outside the `api` door (found 23 Nov, audit F3) | Medium | 3.9 |
@@ -2389,7 +2389,7 @@ A new idea for a check becomes one round ("charter") of the debug loop. It does 
 | 2 | **The six holes from the outside testers** (2.18, H71 to H76): SAY "start 2.18". Decision 30 is decided | Claude | 30 minutes of yours | Gate 2b |
 | 3 | **Your clicks:** spending alerts (2.2), lock the key stores (2.3), read the emergency guide (2.4, also proof 6 of 2.10) | You | about 1.5 hours | Gate 2b |
 | 4 | **The rest of 2.13:** make both code folders private (part H), invite 2 or 3 free testers (part E), the spend-stop clicks (part F) | You | 30 minutes | Gate 2b (part E may follow, before 6.5) |
-| 5 | **The rest of the hunt** (2.14): H34 wallet record list, H37 admin idle limit and Google button, H38 location inside videos, the admin round 3 (F: H77, H78; G: H80, the admin smoke), your "fix" or "accept" on the Low finds, part G on the phone | Both | 45 minutes of yours | Gate 2b |
+| 5 | **The rest of the hunt** (2.14): **Done 27 Nov** (PRs 588 and admin 77): H34, H37, H38, H77, H78, H80. Left: your "fix" or "accept" on the Low finds, part G on the phone | Both | 45 minutes of yours | Gate 2b |
 | 6 | **Your OK on the Google-first sign-in screen** (2.8) | You | 2 minutes | Gate 2b |
 | 7 | **The money flow, Plan B** (2.21): locked 18 Nov, design written, build under way; real money after Razorpay's written answer and the lawyer's yes | Claude, then you | see 2.21 | Gate 2b, then Step 5 |
 | 8 | **The AI attacker** (2.16), on the finished Plan B code, then one small paid tester (decision 30) | Both | 45 minutes of yours | Gate 2b |
@@ -2419,7 +2419,7 @@ Every finding from 2.13 to 2.16 reaches you in one short form: a level, what hap
 | 2.10 Alarms and emergency guide | Part done | Proof 6 (you read the guide); optional second Sentry rule for `fatal` issues |
 | 2.11 Money safety limits | Done | Nothing |
 | 2.13 The WhatsApp advice (added 3 Nov) | Built 4 Nov | H30 waits for the CA (decision 17); H31 was built 6 Nov (decision 18). Yours: the Make-private click (part H), invite the testers (part E), the spend-stop clicks in the part F table |
-| 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov (staging) | H52 (direct database access) closes in 3.9; H34 wallet record list (design done); H37 database-side idle limit and Google button, with a manual Google sign-in check; H38 location inside videos; your "fix" or "accept" on the Low finds (H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30, B32); part G (needs the phone); admin round 3 (H77, H78, H80), added 13 Nov. Decisions 17 and 25 were decided 11 Nov (CEO defaults) |
+| 2.14 The bug and security hunt (added 3 Nov) | Rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov (staging) | H52 (direct database access) closes in 3.9. **Done 27 Nov (PRs 588, admin 77):** H34, H37, H38, H77, H78, H80; one Google sign-in on the staging admin to see H37 work. Your "fix" or "accept" on the Low finds (H45, H48, H49, H55, H56, H64, H65, H68, B18, B21, B30, B32); part G (needs the phone). Decisions 17 and 25 were decided 11 Nov (CEO defaults) |
 | 2.15 The secrets audit (added 4 Nov) | Done 4 Nov | H56 before launch (5.9); make the code folders private (2.13 H) |
 | 2.16 The AI attacker, Strix (added 4 Nov) | Not started | Waiting for you: Docker Desktop (not installed on this PC, checked 4 Nov) and an AI key with a spending limit, then say "start 2.16" |
 | 2.17 One home per secret (added 5 Nov) | Done 5 Nov | Nothing of yours. `push-payment-secrets.sh` now reads the master file too. Does not block Gate 2b; production (Step 5) uses `--production` |
@@ -3052,7 +3052,7 @@ start 2.13
 </details>
 
 <details id="t2-14" data-short="Bug and security hunt">
-<summary>[CLAUDE] <b>2.14</b> The bug and security hunt: read the whole app end to end and attack it, to find the mistakes the tests do not know about <small>· your time: 45 minutes · rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov; parts B, C, D, E, F, H, and a new part J: guest mode</small></summary>
+<summary>[CLAUDE] <b>2.14</b> The bug and security hunt: read the whole app end to end and attack it, to find the mistakes the tests do not know about <small>· your time: 45 minutes · rounds 1 and 2 done 4 Nov; Medium finds fixed 5 and 6 Nov; parts B, C, D, E, F, H, and a new part J: guest mode · Leftovers H34, H37, H38, H77, H78, H80 Done 27 Nov</small></summary>
 
 **Why:** on 3 November you asked Claude to find the bugs and security problems in the app. The rounds so far (2.7 and 2.9 on 1 Nov, 3.6 on 2 Nov) test attacks we already knew to look for, and most bugs so far were found by you on the phone (B1 to B14). Since 1 November about 60 changes and 10 database changes (migrations 132 to 141) have landed: top-ups, poster options, helper streaks, the Ideas board, task questions, the nearby pulse, marketplace numbers, repeat keys, the sign-up guard, three map redesigns and the desktop layout. None of that has been through a security round. Nobody has yet read the whole app from start to finish asking "what could go wrong here?". This task does that, in nine parts (a tenth, J, the guest door, was added on 4 Nov), on staging only.
 
@@ -3388,14 +3388,14 @@ start 2.17
 |---|---|---|
 | Test sign-in shortcuts off, production build settings right | H1, H15 | Claude, 5.9 |
 | Direct database door shut | H3, H52 | Claude: production from day one (5.9), staging in 3.9 |
-| Wallet record list built and balancing | H34 | Claude, after your "start H34" |
+| Wallet record list built and balancing | H34 | **Done 27 Nov** (Plan B ledger + migration 229 nightly check) |
 | Backups outside Supabase, and one real restore | H16 | 5.9, 6.5 |
 | Webhooks and function settings right in production | H73, H76 | Claude, part E |
 | New doors start closed; what ships is scanned; columns decided | H71, H72, H74 | Claude, parts A, C, D |
 | Android build inspected, debug token gone | H75, H56 | Claude, part G and 5.9 |
-| Admin time limits in the database, Google button | H37 | Claude |
-| Admin limits fail closed, admin security events reach Sentry, every admin door refuses a lower role, admin smoke passes | H77, H78, H79, H80 | Claude, 2.14 F and G, 2.18 B |
-| Location inside videos stripped, or the notice accepted | H38 | Claude, or your "accept" |
+| Admin time limits in the database, Google button | H37 | **Done 27 Nov** (migration 229, admin PR 77) |
+| Admin limits fail closed, admin security events reach Sentry, every admin door refuses a lower role, admin smoke passes | H77, H78, H79, H80 | H77, H78, H80 **Done 27 Nov**; H79 in 2.18 B |
+| Location inside videos stripped, or the notice accepted | H38 | **Done 27 Nov** (stripped in the app, PR 588) |
 | Spending stops, firewall, leaked-password protection | H19, H11 | 5.8b, 5.2 |
 | Both code folders private | H27 | Your click |
 | Rush and spammer test passed | H29 | Claude, 2.13 J |
@@ -4876,11 +4876,21 @@ Add admin.taskdrop.in to the staging allow-lists.
 </details>
 
 <details id="t5-0c" data-short="Staging Android app">
-<summary>[BOTH] <b>5.0c</b> Staging Android app: TaskDrop Staging (an APK) <small>· your time: about 1 hour · one build</small></summary>
+<summary>[BOTH] <b>5.0c</b> Staging Android app: TaskDrop Staging (an APK) <small>· your time: about 20 minutes · APK built 27 Nov on this PC · waiting for your phone checks (step 8) and the App Check debug token (step 4)</small></summary>
 
 **Why a new app and not the old one:** Android allows only one app per package on a phone. If staging and production both used `com.taskdrop.app`, you could never have both on one phone, and a sign-in, push token or link from one could land in the other. A separate package keeps them apart for good. The price is one more install for your testers. Their accounts and data live on the server, so nothing is lost.
 
 **Needs:** 5.0a merged. Everything below touches staging only (the Google project **Taskdrop** and the Expo project `@hitendureacts/taskdrop`). Sign in to Google as **hitendureacts@gmail.com** (`/u/2`). Claude checks each Google and Expo screen against the current documentation first; if a screen looks different, send Claude a screenshot.
+
+**Progress 27 Nov (Claude):**
+
+- Step 2 done: the signing key for `com.taskdrop.app.staging` already existed (made in the staging Expo project on 8 Nov; names in `.env.all-secrets`). Backed up to `C:\TaskDrop-safe\staging\` with the google-services.json. SHA-1 `44:4D:11:BC:72:5D:30:3B:86:CD:4D:9A:9E:D1:F5:34:CC:20:A4:2E`, SHA-256 `DB:47:74:C3:6D:82:A1:F1:37:67:6A:DD:8D:77:1F:03:86:71:47:89:1C:31:C9:75:2B:2B:3C:8B:DF:33:7F:95`.
+- Step 3 done: Firebase app "TaskDrop Staging" is registered with both fingerprints; the `GOOGLE_SERVICES_JSON` file in the staging Expo project (preview) lists both apps.
+- Step 4 part done: the app is registered in App Check (Play Integrity). Waiting for your debug token: Firebase → App Check → Apps → TaskDrop Staging → ⋮ → Manage debug tokens → Add debug token → paste `EXPO_PUBLIC_APP_CHECK_DEBUG_TOKEN` from `.env.all-secrets` → Save. Staging App Check is in monitor mode, so the app works without it; the token only makes the checks show "valid".
+- Step 5 not needed: the phone map is MapLibre since D33 (1.20), so there is no Android maps key to restrict.
+- Step 6 done: `taskdrop-staging://**` is in the staging Supabase Redirect URLs.
+- Step 7 done differently: Expo's free cloud builds are used up until 1 Dec, so the APK was built on this PC (`C:\td-tools\taskdrop-staging-r27.apk`, package `com.taskdrop.app.staging`, "TaskDrop Staging", channel `staging`, staging server only). Install over USB: `adb install C:\td-tools\taskdrop-staging-r27.apk` (it sits beside the current TaskDrop app).
+- Steps 8-10: waiting for your phone checks. Step 10 (moving the staging workflow live) waits for them too.
 
 1. SAY:
 
@@ -4908,7 +4918,7 @@ Build the staging APK.
 </details>
 
 <details id="t5-0d" data-short="Production APK and store file">
-<summary>[BOTH] <b>5.0d</b> Production Android app: the production APK and the store file <small>· your time: about 40 minutes · after 5.7 and 5.9</small></summary>
+<summary>[BOTH] <b>5.0d</b> Production Android app: the production APK and the store file <small>· your time: about 30 minutes · APK built 27 Nov on this PC (not from the release button yet) · waiting for your install and checks (step 2)</small></summary>
 
 **What you get:** a production APK you can install on your own phone to rehearse the real thing before Google's review, and the store file (AAB) that 6.6 uploads. Both are built from the commit last released to production (the release button, decision 57), so what you rehearse is the code that ships.
 
@@ -4916,7 +4926,15 @@ Build the staging APK.
 
 - Built by the **production** Expo project, with the production variables only. No debug token, ever.
 - The production Firebase app `com.taskdrop.app` and the Android maps key `taskdrop-production-android-maps` must list **both** signing certificates: the Play upload key (the APK is signed with it) and the Play app-signing key (the store version is signed with it). 5.3 adds the second one after Google shows it; add the first one now.
-- The production APK cannot sit beside the Play testing app (row 2) because they share a package and have different signatures. Use a different phone, or uninstall the testing app first. Row 1 (TaskDrop Staging) can stay.
+- The production APK and the current TaskDrop (beta) app share the package `com.taskdrop.app` **and** the signing key (the Play upload key is the same key the beta app was built with). So installing the production APK **replaces** the beta app on that phone (its sign-in is lost; the app then talks to production). Use a different phone, or move to TaskDrop Staging (5.0c) first. Row 1 (TaskDrop Staging) can stay.
+
+**Progress 27 Nov (Claude):**
+
+- Built on this PC (Expo cloud builds are used up until 1 Dec) from `redesigned-2.0` at c0bfd19, through the production Expo project and its production variables: `C:	d-tools	askdrop-production-r27.apk`. Checked: package `com.taskdrop.app`, name "TaskDrop", channel `production`, update address = the production Expo project, signed with the Play upload key (SHA-1 `1F:22:C8:0B:77:D1:C9:36:D2:B2:F6:C0:CF:35:09:B1:72:2B:E5:D1`), the app talks only to the production server, no App Check debug token, no Razorpay test key.
+- The build guard ran inside the build and passed.
+- The production Firebase app `com.taskdrop.app` already lists the upload-key SHA-1. The Play app-signing SHA is added in 5.3 once Google shows it.
+- Not done: nothing was sent to Google Play. The final rehearsal build comes from the release button (decision 57) once it exists; this one is from the current `redesigned-2.0`.
+- Waiting for your install and checks (step 2): with the phone on USB, `adb install -r C:	d-tools	askdrop-production-r27.apk` (read the rule above first: it replaces the beta app).
 
 1. Check that 5.2 to 5.7 and 5.9 are done. SAY:
 
@@ -6142,6 +6160,21 @@ These are recorded so nothing is lost. **None of them is needed to launch, and n
 **Done when:** both repos install with pnpm and all four checks pass.
 </details>
 
+<details id="tF-17" data-short="21st.dev look, every app">
+<summary>[LATER] <b>F.17</b> Better look with 21st.dev, every app <small>· after the freeze · added 27 Nov · Home design drawn, nothing built</small></summary>
+
+**What it is:** use 21st.dev components to improve the look of every TaskDrop app: the user app (Android and web, Hire and Earn), the admin site, and the taskdrop.in landing and marketing pages. You asked for this on 27 Nov.
+
+1. Each component is rebuilt in the app's own parts (`apps/mobile/src/components`, colours from `theme.ts`; the admin CSS for the admin site). Nothing is pasted in as it comes.
+2. Both palettes stay (Hire jade, Earn royal blue), in light and dark.
+3. Press instead of hover on phones, and motion off with reduce-motion.
+4. Each piece follows the "Design from proven patterns" card.
+5. Order: the user Home first (design D-21st, "Home with 21st.dev", Hire and Earn phone screens, drawn 27 Nov as a design page only: https://claude.ai/artifact/WJ6awFUdEox7gWjkQzDcdc; waiting for your approval, then say "approve 21st Home" to start building), then the other user screens, then the admin site.
+6. The free plan gives 2 code pulls a day, so the work is spread over days.
+
+**Done when:** the user app, the admin site and the landing pages use the new look and all checks pass.
+</details>
+
 ---
 
 ## Architecture and system design
@@ -6959,6 +6992,9 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-27 (2.14 leftovers closed; 2.25 waiting):** Opus closed the six 2.14 leftovers. User PR 588 (migration 229, on staging): the database now checks an admin token's own session (live, under 12 hours, used within 90 minutes) (H37); the nightly money check proves every Plan B hold's ledger adds up (H34; all 71 staging holds balance); the app strips the location from videos before upload (H38). Admin PR 77: Google sign-in starts on the server, so its one-time cookie is HttpOnly (H37); a Playwright admin smoke (H80); a test-script typo that skipped two tests. H77 and H78 were already fixed (admin PR 53 and later), rechecked. The admin staging site picks up PR 77 once Vercel's 24-hour build limit resets. The Claude Security scan (2.25) was not started: you answered No to its start question; it is waiting for your yes.
+- **2026-11-27 (5.0c staging APK):** 5.0c: staging APK built on this PC; key, Firebase, App Check registration and Supabase link already in place; waiting for phone checks and the debug token.
+- **2026-11-27 (21st.dev for every app, added as F.17):** you asked to use 21st.dev later to improve the look of all the apps, not only the user app (user app, admin site and landing pages). **Added:** future task **F.17**. A Home design (Hire and Earn) restyled with 21st.dev components was drawn today as a design page only (https://claude.ai/artifact/WJ6awFUdEox7gWjkQzDcdc), and it is waiting for your approval; to start building say "approve 21st Home". Plan only: nothing in the app changed.
 - **2026-11-27 (5.12 steps 7 and 8, the user websites live on Cloudflare):** the staging website runs at `https://taskdrop-staging.hitendureacts.workers.dev` and the production website at `https://taskdrop-production.hitendureacts.workers.dev` (release run 46025653216, tagged by the release button). Allow-lists added next to the old Vercel addresses (PR 584, Supabase, reCAPTCHA, CORS); GitHub environments filled for both code folders. Staging passed sign-in, map and posting a task; production passed the page, guest mode and the map. Waiting for you: one sign-in and one task on production, and one production admin sign-in.
 - **2026-11-27 (free until money day):** you decided everything stays on free plans until money day, so Workers Paid ($5) is not turned on now. The user websites go on Cloudflare Workers Free; the admin stays on Vercel Hobby until money day, when Workers Paid is turned on, admin PR 76 is merged and Vercel is retired. 5.12 step 2 is done (the existing token got the Workers permissions); the bill is $0 now and about $34 from money day.
 - **2026-11-27 (task 1.21 row X):** screen recording showed "How TaskDrop works" opening in a small phone card inside the sign-in frame on desktop (cause: `intro` in `PRE_AUTH`). Design for a full page with auto-playing steps and new landing art drawn on https://claude.ai/artifact/2gXZNcMfChjK8d1YjwiNcc. Approved the same day (landing A and B alternate every 20 s) and merged in PR 594; waiting for your YouTube link.
