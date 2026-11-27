@@ -95,7 +95,7 @@ export function MyQuotesScreen() {
   const wrapRows = (cards: React.ReactNode[]) =>
     desktop && cards.length > 0 ? (
       <View style={{ marginTop: 12 }}>
-        <RowCard>{cards}</RowCard>
+        <RowCard fill>{cards}</RowCard>
       </View>
     ) : (
       cards
@@ -121,7 +121,7 @@ export function MyQuotesScreen() {
             </Text>
           )}
 
-          {/* Desktop: the offers are rows on one centred card (the picked one tinted); elsewhere a card each. */}
+          {/* Desktop: the offers are rows on one card (the picked one tinted); elsewhere a card each. */}
           {wrapRows(rows.map((row, i) => {
             const selected = i === picked;
             const poster = row.poster;

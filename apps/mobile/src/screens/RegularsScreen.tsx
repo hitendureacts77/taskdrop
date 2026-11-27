@@ -29,13 +29,13 @@ export function RegularsScreen() {
     };
   }, []);
 
-  // Desktop: the regulars are rows on one centred card, "Book again" at the right end of each row.
+  // Desktop: the regulars are rows on one card, "Book again" at the right end of each row.
   if (desktop && list !== null && list.length > 0) {
     return (
       <Screen padded={false}>
         <TopBar title="My regulars" subtitle="People you liked working with, one tap away" onBack={back} />
         <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 28, paddingHorizontal: CONTENT_INSET }}>
-          <RowCard>
+          <RowCard fill>
             {list.map((r) => (
               <View key={r.profile.id} style={{ padding: 16 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>

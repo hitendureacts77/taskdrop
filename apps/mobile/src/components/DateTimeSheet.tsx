@@ -293,9 +293,12 @@ export function DateTimeSheet({
             transform: [{ translateY: desktop ? Animated.multiply(sheetY, 0.1) : sheetY }],
           }}
         >
-          <View style={{ paddingTop: 12, alignItems: 'center' }}>
-            <View style={{ width: 40, height: 4, borderRadius: 999, backgroundColor: t.colors.line }} />
-          </View>
+          {/* The grab handle is for dragging a phone sheet; a desktop dialog has nothing to drag. */}
+          {!desktop && (
+            <View style={{ paddingTop: 12, alignItems: 'center' }}>
+              <View style={{ width: 40, height: 4, borderRadius: 999, backgroundColor: t.colors.line }} />
+            </View>
+          )}
 
           <ScrollView contentContainerStyle={{ paddingTop: 16 }} showsVerticalScrollIndicator={false}>
             <View style={{ paddingHorizontal: 20 }}>

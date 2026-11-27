@@ -34,6 +34,7 @@ import {
   type AddressDetails,
   type PickedPlace,
 } from '../lib/location';
+import { useLayout } from '../lib/layout';
 import { rememberPlace, recentPlaces, loadRecentPlaces } from '../lib/recentPlaces';
 
 export type { PickedPlace };
@@ -140,6 +141,10 @@ export function LocationSheet({
 }) {
   const t = useTheme();
   const { userId } = useAuth();
+  // Desktop web: the search box and the address card float at the left of the map at a card's width, instead of
+  // two bars stretched across the whole window (owner, 27 Nov: desktop must not look like the phone layout).
+  const { desktop } = useLayout();
+  const sideCard = desktop ? ({ left: 16, right: undefined, width: 440 } as const) : null;
   const insets = useSafeAreaInsets();
   const provider = searchProvider();
 
@@ -486,6 +491,7 @@ export function LocationSheet({
             position: 'absolute',
             left: 12,
             right: 12,
+            ...sideCard,
             top: topInset,
             flexDirection: 'row',
             alignItems: 'center',
@@ -543,6 +549,7 @@ export function LocationSheet({
               position: 'absolute',
               left: 12,
               right: 12,
+              ...sideCard,
               top: topInset + 62,
               maxHeight: '55%',
               backgroundColor: t.colors.bg,
@@ -615,7 +622,7 @@ export function LocationSheet({
             style={({ pressed }) => ({
               position: 'absolute',
               right: 14,
-              bottom: panelHeight + 14,
+              bottom: desktop ? 16 : panelHeight + 14,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 8,
@@ -652,9 +659,10 @@ export function LocationSheet({
             left: 0,
             right: 0,
             bottom: 0,
+            ...(desktop ? { ...sideCard, bottom: 16, borderRadius: 22, borderWidth: 1, borderColor: t.colors.line } : null),
             paddingHorizontal: 20,
             paddingTop: 18,
-            paddingBottom: bottomInset + 6,
+            paddingBottom: desktop ? 16 : bottomInset + 6,
             backgroundColor: t.colors.bg,
             borderTopLeftRadius: 22,
             borderTopRightRadius: 22,

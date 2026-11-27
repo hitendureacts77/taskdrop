@@ -76,9 +76,9 @@ export function DisputesScreen() {
         ) : rows.length === 0 ? (
           <EmptyState icon="shield" title="No complaints" body="If something goes wrong on a task, report a problem from the task page. It will show up here." />
         ) : desktop ? (
-          // Desktop: the complaints are rows on one centred card, not a card each.
+          // Desktop: the complaints are rows on one card, not a card each.
           <View style={{ marginTop: 14 }}>
-            <RowCard>
+            <RowCard fill>
               {rows.map((task) => (
                 <View key={task.id} style={{ padding: 16 }}>
                   {rowBody(task)}

@@ -36,10 +36,13 @@ export const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet',
 // Desktop column classes (lib/layout.ts, docs/design/desktop-fit/PLAN.md Q1).
 // Feeds and lists: as wide as the window allows, up to FEED_MAX. workerSetup is here for its FormPage card (720) + aside (320).
 const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'notifications', 'workerSetup'];
+// Pages of your own lists and numbers, opened from Profile or the account menu. They sat in the form column, which on a
+// wide window read as a phone screen in the middle of the page (owner, 27 Nov); they are lists, so they get the list width.
+const WIDE_PAGES: ScreenName[] = ['analytics', 'disputes', 'regulars', 'streaks', 'myQuotes', 'promotions', 'promote'];
 // Forms on FormPage (card 720 + aside 320): the same wide column. Kept apart from WIDE so each form package lists its own.
-const WIDE_FORMS: ScreenName[] = ['listing', 'confirm', 'escrow', 'aiPost', 'postDetails', 'create'];
+const WIDE_FORMS: ScreenName[] = ['listing', 'confirm', 'escrow', 'aiPost', 'postDetails', 'create', 'profileEdit'];
 // One list or one page of text: up to READ_MAX.
-const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail'];
+const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail', 'pricing', 'ticket'];
 // Screens that fill everything beside the menu: a full map has no reading column.
 const FULL: ScreenName[] = ['nearMap', 'explore'];
 // Two-pane pages (components/TwoPane.tsx): the feed width when both panes fit,
@@ -48,7 +51,7 @@ const TWO_PANE: ScreenName[] = ['taskDetail', 'profile', 'account', 'publicProfi
 // Everything else is a form or a single page: FORM_MAX, as before.
 function columnFor(screen: ScreenName, twoPane: boolean): ColumnClass {
   if (FULL.includes(screen)) return 'full';
-  if (WIDE.includes(screen) || WIDE_FORMS.includes(screen)) return 'feed';
+  if (WIDE.includes(screen) || WIDE_PAGES.includes(screen) || WIDE_FORMS.includes(screen)) return 'feed';
   if (TWO_PANE.includes(screen)) return twoPane ? 'feed' : 'form';
   if (READ.includes(screen)) return 'read';
   return 'form';

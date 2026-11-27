@@ -11,16 +11,17 @@ export const ROW_CARD_MAX = 880;
  *
  * - Default: the card draws the hairlines between its children.
  * - `ownDividers`: the rows already draw a line under themselves (the idea rows do); the card only hides the last one.
+ * - `fill`: on a page at the list width (ScreenHost WIDE_PAGES) the card takes the page's width, like the table on My tasks.
  */
-export function RowCard({ children, ownDividers = false }: { children: React.ReactNode; ownDividers?: boolean }) {
+export function RowCard({ children, ownDividers = false, fill = false }: { children: React.ReactNode; ownDividers?: boolean; fill?: boolean }) {
   const t = useTheme();
   const rows = React.Children.toArray(children);
   return (
     <View
       style={{
         width: '100%',
-        maxWidth: ROW_CARD_MAX,
-        alignSelf: 'center',
+        maxWidth: fill ? undefined : ROW_CARD_MAX,
+        alignSelf: fill ? 'stretch' : 'center',
         backgroundColor: t.colors.surface,
         borderWidth: 1,
         borderColor: t.colors.line,
