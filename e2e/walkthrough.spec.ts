@@ -69,6 +69,19 @@ test("Profile has How TaskDrop works, and the old practice tour is gone", async 
   await page.getByRole("button", { name: "Close", exact: true }).click();
 });
 
+test("Help & support: one Get help form, links in a short list, rarely used pages under More", async ({ page }) => {
+  await home(page);
+  await page.getByText("Profile", { exact: true }).first().click();
+  await page.getByText("Help & support", { exact: true }).first().click();
+  await expect(page.getByText("Get help", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
+  await expect(page.getByText("Terms of Service", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: /^More/ }).click();
+  for (const name of ["Copyright and takedowns", "Security reports and contact", "Terms of Service", "Privacy Policy"]) {
+    await expect(page.getByRole("button", { name }).first()).toBeVisible();
+  }
+});
+
 test("Home has the small Help improve TaskDrop card, and Suggest a feature opens the idea sheet", async ({ page }) => {
   await home(page);
   const card = page.getByText("Help improve TaskDrop", { exact: true }).first();
