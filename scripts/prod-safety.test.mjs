@@ -276,6 +276,22 @@ test('production moves as one release: guard, then database, then website, then 
   assert.equal((y.match(/contents: write/g) || []).length, 1);
   const staging = wf('deploy-staging.yml');
   assert.ok(!staging.includes('target: production'), 'deploy-staging must not deploy production');
+  // A called job that sets `environment` only sees a secret its caller passed by name (the first release run,
+  // 27 Nov, stopped with an empty database password). Every secret a called workflow reads must be declared by
+  // it and passed by each caller.
+  const read = (text) => [...new Set([...text.matchAll(/\$\{\{ secrets\.([A-Z0-9_]+) \}\}/g)].map((m) => m[1]))];
+  const declared = (text, name) => new RegExp(`\\n      ${name}:\\r?\\n        required: false`).test(text);
+  const db = wf('production-database.yml');
+  const web = wf('web-deploy.yml');
+  for (const name of read(db)) {
+    assert.ok(declared(db, name), `production-database.yml must declare ${name}`);
+    assert.ok(y.includes(`      ${name}: \${{ secrets.${name} }}`), `the release must pass ${name}`);
+  }
+  for (const name of read(web)) {
+    assert.ok(declared(web, name), `web-deploy.yml must declare ${name}`);
+    assert.ok(y.includes(`      ${name}: \${{ secrets.${name} }}`), `the release must pass ${name}`);
+    assert.ok(staging.includes(`      ${name}: \${{ secrets.${name} }}`), `deploy-staging must pass ${name}`);
+  }
 });
 
 test('the hourly alarm and the nightly copy run from redesigned-2.0 in their own environment', () => {

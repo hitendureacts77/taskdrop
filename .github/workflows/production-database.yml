@@ -36,6 +36,43 @@ name: Production database and functions
 on:
   workflow_dispatch:
   workflow_call:
+    # Every secret the deploy job reads, so a caller can pass each one by name. The values still come from
+    # the environment `production-database`: GitHub hands a called job only the secrets its caller passed.
+    secrets:
+      PROD_SUPABASE_DB_PASSWORD:
+        required: false
+      PROD_SUPABASE_ACCESS_TOKEN:
+        required: false
+      PROD_INNGEST_EVENT_KEY:
+        required: false
+      PROD_INNGEST_SIGNING_KEY:
+        required: false
+      PROD_INNGEST_PUSH_RECEIPT_WAIT:
+        required: false
+      PROD_IMAGEKIT_PUBLIC_KEY:
+        required: false
+      PROD_IMAGEKIT_PRIVATE_KEY:
+        required: false
+      PROD_IMAGEKIT_URL_ENDPOINT:
+        required: false
+      PROD_IMAGEKIT_ENV:
+        required: false
+      PROD_SENTRY_DSN:
+        required: false
+      PROD_SENTRY_ENVIRONMENT:
+        required: false
+      PROD_EXPO_BUILDS_TOKEN:
+        required: false
+      PROD_GOOGLE_MAPS_API_KEY:
+        required: false
+      PROD_FIREBASE_PROJECT_NUMBER:
+        required: false
+      PROD_ALLOWED_ORIGINS:
+        required: false
+      PROD_MSG91_AUTHKEY:
+        required: false
+      PROD_MSG91_TEMPLATE_ID:
+        required: false
 
 permissions:
   contents: read
