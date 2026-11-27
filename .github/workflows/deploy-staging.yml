@@ -32,6 +32,8 @@ permissions:
 jobs:
   backend:
     name: staging backend
+    # A manual run from any other branch must not put that branch's migrations or functions on staging.
+    if: github.ref == 'refs/heads/redesigned-2.0'
     runs-on: ubuntu-latest
     environment: staging-backend
     timeout-minutes: 30
@@ -58,11 +60,18 @@ jobs:
     uses: ./.github/workflows/web-deploy.yml
     with:
       target: staging
-    secrets: inherit
+    # Only the two repository secrets it needs (no `secrets: inherit`); the EXPO_PUBLIC_* values are
+    # environment secrets of web-staging, which the called job reads itself.
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   # Like the Vercel production project: does not wait for the staging backend or the production database.
   web-production:
+    if: github.ref == 'refs/heads/redesigned-2.0'
     uses: ./.github/workflows/web-deploy.yml
     with:
       target: production
-    secrets: inherit
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
