@@ -53,6 +53,36 @@ export function SideNavAppCard() {
   );
 }
 
+/** The desktop top bar's quiet "Get the app" link (the side menu's button, moved with the menu); the code opens under it. */
+export function TopNavAppLink() {
+  const t = useTheme();
+  const apple = useAppleDevice();
+  const [open, setOpen] = useState(false);
+  if (apple) return null;
+  return (
+    <>
+      <Pressable
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Get the Android app"
+        style={({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) => ({
+          height: 36,
+          borderRadius: 10,
+          paddingHorizontal: 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          backgroundColor: hovered || pressed ? t.colors.surface2 : 'transparent',
+        })}
+      >
+        <Icon name="smartphone" size={15} color={t.colors.text} strokeWidth={2} />
+        <RNText style={tx('600', 13.5, t.colors.text)}>Get the app</RNText>
+      </Pressable>
+      <AppQrPopover open={open} onClose={() => setOpen(false)} place={{ right: 24, top: 72 }} />
+    </>
+  );
+}
+
 /** A "Get the app" pill for the top right of Home; opens a popover with a larger code. */
 export function GetAppButton() {
   const t = useTheme();

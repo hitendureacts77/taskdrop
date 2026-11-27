@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, Text as RNText, View } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { useLayout, RAIL_WIDTH, SIDEBAR_WIDTH } from '../lib/layout';
+import { useLayout, RAIL_WIDTH } from '../lib/layout';
 import { cardSurface } from './ui';
 import { tx } from './primitives';
 import { currentConsent, subscribeConsent, writeConsent, type Consent } from '../lib/consent';
@@ -38,7 +38,7 @@ function Bar() {
   if (consent) return null;
 
   const wide = layout.desktop || layout.tablet;
-  const left = layout.desktop ? SIDEBAR_WIDTH + 16 : layout.tablet ? RAIL_WIDTH + 16 : 0;
+  const left = layout.desktop ? 16 : layout.tablet ? RAIL_WIDTH + 16 : 0;
   const button = (label: string, a11y: string, primary: boolean, onPress: () => void) => (
     <Pressable
       onPress={onPress}

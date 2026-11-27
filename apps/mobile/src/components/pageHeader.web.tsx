@@ -51,7 +51,7 @@ export function useDesktopHeaderPortal({
             <View>
               {onBack ? <BackLink onBack={onBack} /> : null}
               {title ? (
-                <RNText accessibilityRole="header" style={tx('800', 26, t.colors.ink, { letterSpacing: -0.6 })} numberOfLines={1}>
+                <RNText accessibilityRole="header" style={tx('800', 24, t.colors.ink, { letterSpacing: -0.5 })} numberOfLines={1}>
                   {title}
                 </RNText>
               ) : null}

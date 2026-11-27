@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useLayout } from '../lib/layout';
+import { CONTENT_INSET } from '../navigation/DesktopPage';
 
 /**
  * Two panes side by side on a wide desktop (docs/design/desktop-fit/PLAN.md, Q3):
@@ -63,7 +64,8 @@ export function TwoPane({
     </View>
   );
   return (
-    <View nativeID="twoPane" style={{ flex: 1, flexDirection: 'row', gap: gutter, minHeight: 0 }}>
+    // Inset like every other desktop page, so the panes line up with the page title and the top bar above them.
+    <View nativeID="twoPane" style={{ flex: 1, flexDirection: 'row', gap: gutter, minHeight: 0, paddingHorizontal: CONTENT_INSET }}>
       {pane(left, fixed === 'left', 'left')}
       {pane(right, fixed === 'right', 'right')}
     </View>

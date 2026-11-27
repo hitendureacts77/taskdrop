@@ -11,8 +11,8 @@ export { TABLET_CONTENT, TABLET_MIN_WIDTH };
  *   < 600       phone: single column, bottom tab bar and the drop button
  *   600 – 1023  tablet: a slim icon rail on the left, content up to 720,
  *               two-column grids, sheets as centred dialogs
- *   ≥ 1024      desktop: the full side menu, the page scaled up with the
- *               window (desktopScale), and fluid columns with a gutter
+ *   ≥ 1024      desktop: a website: the top bar (DesktopTopNav) and one centred
+ *               page column with a gutter; the page zoom is desktopScale
  *
  * Resizing the window switches live.
  */
@@ -24,15 +24,17 @@ export const RAIL_WIDTH = 84;
 
 
 /**
- * Desktop columns (docs/design/desktop-fit/PLAN.md, Q1). FULL fills the area
- * beside the menu (maps); FEED, READ and FORM fill it less a gutter, up to a cap.
+ * Desktop columns (docs/design/desktop-fit/PLAN.md, Q1). FULL fills the window
+ * under the top bar (maps); FEED, READ and FORM are centred in it, less a gutter, up to a cap.
  * READ and FORM keep a small cap on purpose: line length, one form at a time.
- * FEED stops at 1760 (was 1280, docs/design/desktop-web/PLAN.md, 4.1): with the 0.92 page zoom (task 1.19 S) a
- * 1280 cap left ~280 px empty beside the menu on a 1920 px screen. 1760 fills a 1920 screen less the gutter and
- * still stops the page stretching edge to edge on bigger monitors. ListPage (LIST_MAX) and Wallet use the same cap.
+ *
+ * FEED stops at 1400 (about 1290 real px at the 0.92 page zoom; owner, 27 Nov: on a 1920 px Chrome window the pages looked "oversized or stretched"; the
+ * reference given was Upwork, whose pages sit in one centred column of about that width). It was 1760 while the
+ * app had a side menu, to fill the space beside it; with the top bar the column is centred, so the space left
+ * over is an even margin on both sides, as on any website. ListPage (LIST_MAX) and Wallet use the same cap.
  */
 export type ColumnClass = 'full' | 'feed' | 'read' | 'form';
-export const FEED_MAX = 1760;
+export const FEED_MAX = 1400;
 export const READ_MAX = 960;
 export const FORM_MAX = 760;
 export const GUTTER_MIN = 24;
@@ -101,7 +103,8 @@ export function useLayout(): Layout {
   const width = win.width / scale;
   const height = win.height / scale;
   if (desktop) {
-    const main = width - SIDEBAR_WIDTH;
+    // The whole window: the desktop has a top bar (DesktopTopNav), not a side menu.
+    const main = width;
     const gutter = clamp(GUTTER_MIN, Math.round(0.025 * main), GUTTER_MAX);
     const contentWidth = (cls: ColumnClass) =>
       cls === 'full' ? main : Math.min(main - 2 * gutter, cls === 'feed' ? FEED_MAX : cls === 'read' ? READ_MAX : FORM_MAX);

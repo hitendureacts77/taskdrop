@@ -2,7 +2,6 @@ import { useCallback, useContext, useMemo, useState } from 'react';
 import { View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useMode } from '../providers/ModeProvider';
-import { HeaderTools } from '../components/AppHeader';
 import { tx } from '../components/primitives';
 import { nameForScreen } from './webAddress';
 import { DesktopPageHostsContext, DesktopPageScopeContext, type DesktopPageHosts } from './desktopPageContext';
@@ -11,9 +10,9 @@ import { DesktopPageHostsContext, DesktopPageScopeContext, type DesktopPageHosts
 export const CONTENT_INSET = 20;
 
 /**
- * Desktop web only (docs/design/desktop-web/PLAN.md, 4.1): the page header above every screen's column, in place
- * of the old empty bar. Left: the page title (and, on pushed screens, a small "Back" link and a subtitle). Right:
- * the screen's own buttons, then the bell, messages and avatar (`HeaderTools`), as before.
+ * Desktop web only (docs/design/desktop-web/PLAN.md, 4.1): the page's own heading row, at the top of every screen's
+ * column, under the site's top bar (components/DesktopTopNav.tsx). Left: the page title (and, on pushed screens, a
+ * small "Back" link and a subtitle). Right: the screen's own buttons. The bell, messages and face are in the top bar.
  *
  * The title is the screen's name (`nameForScreen`) unless the screen draws its own: a `TopBar` or `BackButton`
  * on a desktop draws nothing in the page and portals its title, back link and buttons in here instead
@@ -97,17 +96,18 @@ export function DesktopPageHeader({
     <>
     <View
       style={{
-        minHeight: 76,
+        minHeight: 40,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 16,
         paddingHorizontal: CONTENT_INSET,
-        paddingVertical: 14,
+        paddingTop: 22,
+        paddingBottom: 12,
       }}
     >
       <View style={{ flexGrow: 1, flexShrink: 1, minWidth: 0 }}>
         {showDefaultTitle && name ? (
-          <RNText accessibilityRole="header" style={tx('800', 26, t.colors.ink, { letterSpacing: -0.6 })} numberOfLines={1}>
+          <RNText accessibilityRole="header" style={tx('800', 24, t.colors.ink, { letterSpacing: -0.5 })} numberOfLines={1}>
             {name}
           </RNText>
         ) : null}
@@ -118,9 +118,7 @@ export function DesktopPageHeader({
           free space, so the title stays left and the buttons right as before. */}
       <View ref={centerRef as never} style={{ flexGrow: 2, flexShrink: 1, minWidth: 0, maxWidth: 560 }} />
       <View ref={actionsRef as never} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }} />
-      <HeaderTools />
     </View>
-    <View style={{ height: 1, backgroundColor: t.colors.line, marginHorizontal: CONTENT_INSET }} />
     </>
   );
 }

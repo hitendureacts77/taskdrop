@@ -49,12 +49,17 @@ test('it opens on the side asked for, else the mode the person is in', () => {
   assert.equal(walkSideFor('other', 'poster'), 'hire');
 });
 
-test('it opens by itself only after sign-in, on Home, once, after the staging card', () => {
+test('it never opens by itself: people sign in and use the app first (owner, 27 Nov)', () => {
   const base = { signedIn: true, seen: false, screen: 'home', stagingCardClear: true };
-  assert.equal(shouldShowWalkthrough(base), true);
-  assert.equal(shouldShowWalkthrough({ ...base, signedIn: false }), false, 'a guest or a signed-out visitor');
-  assert.equal(shouldShowWalkthrough({ ...base, seen: true }), false, 'already seen on this device');
-  assert.equal(shouldShowWalkthrough({ ...base, seen: null }), false, 'not read yet');
-  assert.equal(shouldShowWalkthrough({ ...base, screen: 'aiPost' }), false, 'a post being resumed comes first');
-  assert.equal(shouldShowWalkthrough({ ...base, stagingCardClear: false }), false, 'the tester card is still open');
+  assert.equal(shouldShowWalkthrough(base), false);
+});
+
+test('switched back on, it opens only after sign-in, on Home, once, after the staging card', () => {
+  const base = { signedIn: true, seen: false, screen: 'home', stagingCardClear: true };
+  assert.equal(shouldShowWalkthrough(base, true), true);
+  assert.equal(shouldShowWalkthrough({ ...base, signedIn: false }, true), false, 'a guest or a signed-out visitor');
+  assert.equal(shouldShowWalkthrough({ ...base, seen: true }, true), false, 'already seen on this device');
+  assert.equal(shouldShowWalkthrough({ ...base, seen: null }, true), false, 'not read yet');
+  assert.equal(shouldShowWalkthrough({ ...base, screen: 'aiPost' }, true), false, 'a post being resumed comes first');
+  assert.equal(shouldShowWalkthrough({ ...base, stagingCardClear: false }, true), false, 'the tester card is still open');
 });

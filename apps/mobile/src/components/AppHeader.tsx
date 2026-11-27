@@ -349,6 +349,8 @@ export function AccountDrawer({ visible, onClose }: { visible: boolean; onClose:
 
               <View style={{ height: 1, backgroundColor: t.colors.line, marginVertical: 14 }} />
 
+              {/* The desktop site has no side menu: Profile is reached from here, as on a website. */}
+              {row('user', 'My profile', 'Your details, regulars and promotions', () => open(() => go('profile')))}
               {row('bookmark', 'Saved tasks', 'Tasks you saved for later', () => open(() => go('saved')))}
               {row(
                 'wallet',

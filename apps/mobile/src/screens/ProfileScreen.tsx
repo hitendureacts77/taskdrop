@@ -623,7 +623,7 @@ export function ProfileScreen() {
           </>
         }
         right={
-          <View style={{ maxWidth: 720, ...stack }}>
+          <View style={{ ...stack }}>
             {menuCard}
             {links}
           </View>

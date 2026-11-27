@@ -933,6 +933,9 @@ export function PrimaryButton({
   // In a desktop ActionBar (FormPage) the button is its natural width, not full width.
   const inBar = React.useContext(ActionBarContext);
   const off = disabled || busy;
+  // Desktop web (owner, 27 Nov: parts looked oversized next to a website like Upwork): 44 tall, a rounded
+  // rectangle, no coloured shadow. Phones, tablets and the apps keep the pill below.
+  const { desktop } = useLayout();
   // v2: a 52-tall pill on the deep shade (white text 4.5:1+), lifted by a
   // soft shadow of its own colour in light.
   const bg = tone === 'signal' ? t.colors.signalDeep : tone === 'quiet' ? t.colors.surface : t.colors.btn;
@@ -945,9 +948,9 @@ export function PrimaryButton({
       accessibilityState={{ disabled: Boolean(off) }}
       style={({ pressed }) => [
         {
-          borderRadius: 999,
-          minHeight: 54,
-          paddingVertical: 15,
+          borderRadius: desktop ? 12 : 999,
+          minHeight: desktop ? 44 : 54,
+          paddingVertical: desktop ? 10 : 15,
           paddingHorizontal: 20,
           alignItems: 'center',
           justifyContent: 'center',
@@ -955,7 +958,7 @@ export function PrimaryButton({
           borderWidth: tone === 'quiet' ? 1.5 : 0,
           borderColor: t.colors.line,
           shadowColor: bg,
-          shadowOpacity: !disabled && tone !== 'quiet' && !t.isDark ? 0.32 : 0,
+          shadowOpacity: !desktop && !disabled && tone !== 'quiet' && !t.isDark ? 0.32 : 0,
           shadowRadius: 14,
           shadowOffset: { width: 0, height: 8 },
           transform: [{ scale: pressed && !off ? t.motion.pressScale : 1 }],

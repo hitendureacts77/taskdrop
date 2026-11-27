@@ -92,10 +92,17 @@ export function walkSideFor(param: unknown, mode: 'poster' | 'worker' | null | u
 }
 
 /**
- * When the walkthrough opens by itself (owner, 26 Nov): never before sign-in. Sign-in comes first; once someone is
- * signed in and on Home, it opens once per device, after the staging tester card (if any) is closed. A guest sees it
- * only from the "?" on Home, Profile or the account menu.
+ * When the walkthrough opens by itself: never (owner, 27 Nov: "i want customer to sign in or use my app first, instead
+ * of looking the walkthrough"). After sign-in people land in the app. The walkthrough is still one tap away: the "?" on
+ * Home, Profile, the account menu and the link on the desktop sign-in page.
+ *
+ * WALK_OPENS_BY_ITSELF keeps the 26 Nov rule (once per device, after sign-in, on Home, after the staging tester card)
+ * so it can be switched back on in one place.
  */
-export function shouldShowWalkthrough(a: { signedIn: boolean; seen: boolean | null; screen: string; stagingCardClear: boolean }): boolean {
-  return a.signedIn && a.seen === false && a.screen === 'home' && a.stagingCardClear;
+export const WALK_OPENS_BY_ITSELF: boolean = false;
+export function shouldShowWalkthrough(
+  a: { signedIn: boolean; seen: boolean | null; screen: string; stagingCardClear: boolean },
+  opensByItself: boolean = WALK_OPENS_BY_ITSELF,
+): boolean {
+  return opensByItself && a.signedIn && a.seen === false && a.screen === 'home' && a.stagingCardClear;
 }

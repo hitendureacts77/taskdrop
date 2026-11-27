@@ -12,6 +12,7 @@ import { PUBLIC_PAGES, pathForScreen, titleForScreen } from './webAddress';
 import { useMode } from '../providers/ModeProvider';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
+import { DesktopTopNav } from '../components/DesktopTopNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
 import { READ_MAX, TABLET_CONTENT, useLayout, type ColumnClass } from '../lib/layout';
 import { DesktopPageFrame, DesktopPageScope } from './DesktopPage';
@@ -35,19 +36,23 @@ export const KEEP_ALIVE: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet',
 // Desktop web: which screens get the signed-out frame is in ./frame.ts (PRE_AUTH, PUBLIC).
 // Desktop column classes (lib/layout.ts, docs/design/desktop-fit/PLAN.md Q1).
 // Feeds and lists: as wide as the window allows, up to FEED_MAX. workerSetup is here for its FormPage card (720) + aside (320).
-const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'notifications', 'workerSetup'];
+const WIDE: ScreenName[] = ['home', 'explore', 'myTasks', 'orders', 'saved', 'wallet', 'spending', 'inbox', 'taskManage', 'help', 'workerSetup'];
 // Pages of your own lists and numbers, opened from Profile or the account menu. They sat in the form column, which on a
 // wide window read as a phone screen in the middle of the page (owner, 27 Nov); they are lists, so they get the list width.
 const WIDE_PAGES: ScreenName[] = ['analytics', 'disputes', 'regulars', 'streaks', 'myQuotes', 'promotions', 'promote'];
 // Forms on FormPage (card 720 + aside 320): the same wide column. Kept apart from WIDE so each form package lists its own.
 const WIDE_FORMS: ScreenName[] = ['listing', 'confirm', 'escrow', 'aiPost', 'postDetails', 'create', 'profileEdit'];
 // One list or one page of text: up to READ_MAX.
-const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail', 'pricing', 'ticket'];
-// Screens that fill everything beside the menu: a full map has no reading column.
+// Notifications are one list of short lines: across the feed width each row was a long empty strip (owner, 27 Nov).
+const READ: ScreenName[] = ['search', 'chat', 'copyright', 'terms', 'privacy', 'support', 'ideas', 'ideaDetail', 'pricing', 'ticket', 'notifications'];
+// Screens that fill the window under the top bar: a full map has no reading column.
 const FULL: ScreenName[] = ['nearMap', 'explore'];
 // Two-pane pages (components/TwoPane.tsx): the feed width when both panes fit,
 // otherwise their one column at FORM_MAX, as before.
 const TWO_PANE: ScreenName[] = ['taskDetail', 'profile', 'account', 'publicProfile', 'active'];
+// A two-pane page whose panes are both narrow: held to their own width and centred, so the page does not end
+// in a blank third on the right (Settings: the tabs, 240, beside one form card, 720).
+const PAGE_CAP: Partial<Record<ScreenName, number>> = { account: 1040 };
 // Everything else is a form or a single page: FORM_MAX, as before.
 function columnFor(screen: ScreenName, twoPane: boolean): ColumnClass {
   if (FULL.includes(screen)) return 'full';
@@ -164,8 +169,8 @@ export function ScreenHost() {
       </View>
   );
 
-  // Desktop web: sign-in screens get the split brand/form layout; the app gets
-  // the sidebar (in place of the tab bar and the + button) and a centred column.
+  // Desktop web: sign-in screens get the sign-in page (DesktopAuthFrame); the app gets
+  // the site's top bar (in place of the tab bar and the + button) and a centred column.
   // A guest is inside the app too: the public pages keep the app's frame for them (B149, navigation/frame.ts).
   const inApp = Boolean(userId) || guest;
   // Setup (onboarding) on a desktop: the FormPage card (720) with the steps beside it (320), centred, no menu.
@@ -183,7 +188,7 @@ export function ScreenHost() {
     );
   }
   // "How TaskDrop works" on a desktop (owner, 27 Nov): a wide page of its own, the picture beside the words
-  // (components/Walkthrough.tsx), not a phone-width card. The sign-in page beside it already plays the same demo.
+  // (components/Walkthrough.tsx), not a phone-width card. It opens only when someone asks for it.
   if (desktop && screen === 'intro') {
     return (
       <View style={{ flex: 1, alignItems: 'center', backgroundColor: t.colors.bg, paddingHorizontal: gutter }}>
@@ -220,19 +225,21 @@ export function ScreenHost() {
     );
   }
   if (desktop && usesAuthFrame(screen, inApp)) {
-    return <DesktopAuthFrame>{content}</DesktopAuthFrame>;
+    // The walkthrough is a link on the sign-in page itself, never in the way of it (owner, 27 Nov).
+    const onHow = screen === 'welcome' || screen === 'signup' ? () => go('intro', { replay: true, side: 'hire' }) : undefined;
+    return <DesktopAuthFrame onHow={onHow}>{content}</DesktopAuthFrame>;
   }
   if (desktop) {
-    // A column of the screen's class with a gutter each side, under the page
-    // header (DesktopPage.tsx); full maps fill the whole area and keep their
-    // own floating controls.
+    // A website (owner, 27 Nov): the site's top bar, then one centred column of the screen's class with a gutter
+    // each side, under the page's own heading (DesktopPage.tsx); full maps fill the window under the bar and keep
+    // their own floating controls.
     const cls = columnFor(screen, twoPane);
     const full = cls === 'full';
     return (
-      <View style={{ flex: 1, flexDirection: 'row', backgroundColor: t.colors.bg }}>
-        <SideNav />
+      <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
+        <DesktopTopNav />
         <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: full ? 0 : gutter }}>
-          <View style={{ flex: 1, width: '100%', maxWidth: full ? undefined : contentWidth(cls) }}>
+          <View style={{ flex: 1, width: '100%', maxWidth: full ? undefined : Math.min(contentWidth(cls), PAGE_CAP[screen] ?? Infinity) }}>
             <DesktopPageFrame screen={screen} header={!full}>
               {content}
             </DesktopPageFrame>

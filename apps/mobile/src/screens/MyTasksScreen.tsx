@@ -63,7 +63,6 @@ import { PosterCard } from '../components/myTasks/PosterCard';
 import { WorkerCard } from '../components/myTasks/WorkerCard';
 import { DeskTiles } from '../components/myTasks/DeskTiles';
 import { DeskTableCard, POSTER_COLUMNS, PosterDeskRow, TableFooter, WORKER_COLUMNS, WorkerDeskRow } from '../components/myTasks/DeskTable';
-import { HeaderButton } from '../components/myTasks/bits';
 
 // Shared with Home's sections and the task page; the words live in lib/myTasksBoard.
 export { statusBadge } from '../lib/myTasksBoard';
@@ -323,7 +322,8 @@ function MyPosted() {
     setNeeds(!needs);
   };
 
-  const portal = useDesktopHeaderPortal({ title: 'My tasks', right: <HeaderButton label="Post a request" onPress={() => go('aiPost')} /> });
+  // No second "Post a request" beside the title: the site's top bar has it on every page (DesktopTopNav).
+  const portal = useDesktopHeaderPortal({ title: 'My tasks' });
 
   const guestNote = guest ? (
     <View style={{ paddingHorizontal: px }}>
@@ -851,7 +851,7 @@ function MyWork() {
 
   const refreshControl = <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={t.colors.purple} />;
 
-  const portal = useDesktopHeaderPortal({ title: 'My work', right: <HeaderButton label="Offer a service" onPress={() => go('listing')} /> });
+  const portal = useDesktopHeaderPortal({ title: 'My work' });
 
   const guestBlock = guest ? (
     // B175: no earnings, counts or tabs that read like an empty real account; the jobs saved on

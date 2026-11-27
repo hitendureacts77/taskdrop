@@ -116,7 +116,7 @@ export function MoneyScreen() {
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
           {tiles.map((x) => (
-            <View key={x.label} style={{ ...cardSurface(t, 16), flexBasis: '47%', flexGrow: 1, padding: 14 }}>
+            <View key={x.label} style={{ ...cardSurface(t, 16), flexBasis: desktop ? '22%' : '47%', flexGrow: 1, padding: 14 }}>
               <RNText style={tx('600', 12, t.colors.muted)}>{x.label}</RNText>
               <RNText style={tx('800', 20, t.colors.ink, { marginTop: 4, fontVariant: ['tabular-nums'] })}>{formatINR(x.minor)}</RNText>
             </View>

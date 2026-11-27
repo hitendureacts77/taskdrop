@@ -7,6 +7,10 @@ export function SideNavAppCard() {
   return null;
 }
 
+export function TopNavAppLink() {
+  return null;
+}
+
 export function GetAppButton() {
   return null;
 }

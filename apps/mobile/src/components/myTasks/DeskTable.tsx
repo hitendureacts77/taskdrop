@@ -135,6 +135,15 @@ function Row({ columns, cells, onPress, label }: { columns: Column[]; cells: Rea
   );
 }
 
+/** The status pill at its own width: a table cell stretches its child, which drew the pill as a long bar on a wide page. */
+function PillCell(props: React.ComponentProps<typeof StatusPill>) {
+  return (
+    <View style={{ alignItems: 'flex-start' }}>
+      <StatusPill {...props} />
+    </View>
+  );
+}
+
 function TaskCell({ task, title }: { task: Pick<Task, 'category' | 'pillar' | 'loc_lat' | 'loc_label'> | null; title: string }) {
   const t = useTheme();
   const area = areaOf(task as Task | null);
@@ -260,7 +269,7 @@ export function PosterDeskRow({
       columns={POSTER_COLUMNS}
       label={task.title}
       onPress={onOpen}
-      cells={[<StatusPill key="s" label={pill.label} tone={pill.tone} />, <TaskCell key="t" task={task} title={task.title} />, people, budget, <DateText key="d" bits={dateBits} />, actions]}
+      cells={[<PillCell key="s" label={pill.label} tone={pill.tone} />, <TaskCell key="t" task={task} title={task.title} />, people, budget, <DateText key="d" bits={dateBits} />, actions]}
     />
   );
 }
@@ -330,7 +339,7 @@ export function WorkerDeskRow({
       label={row.title}
       onPress={onOpen}
       cells={[
-        <StatusPill key="s" label={pill.label} tone={pill.tone} />,
+        <PillCell key="s" label={pill.label} tone={pill.tone} />,
         <TaskCell key="t" task={task} title={row.title} />,
         person,
         price,
