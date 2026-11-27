@@ -30,8 +30,10 @@ function fakePage(offset: number, limit: number) {
 }
 
 async function mockPromotable(page: Page, calls: { offset: number; limit: number }[], empty = false) {
-  await page.route(/promotableTasksPage/, async (route) => {
-    const body = JSON.parse(route.request().postData() || "{}") as { args?: { offset?: number; limit?: number } };
+  await page.route("**/functions/v1/api", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const body = JSON.parse(route.request().postData() || "{}") as { op?: string; args?: { offset?: number; limit?: number } };
+    if (body.op !== "promotableTasksPage") return route.fallback();
     const offset = body.args?.offset ?? 0;
     const limit = body.args?.limit ?? 10;
     calls.push({ offset, limit });
