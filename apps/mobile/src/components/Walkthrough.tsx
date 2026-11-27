@@ -4,6 +4,7 @@ import { Icon } from './Icon';
 import { PrimaryButton } from './kit';
 import { tx } from './primitives';
 import { PersonTheme, useTheme } from '../providers/ThemeProvider';
+import { useLayout } from '../lib/layout';
 import {
   videoUrl,
   walkAnnouncement,
@@ -16,7 +17,7 @@ import {
 } from '../lib/walkthrough';
 
 /** The ten real app screens (taken from the app at phone width with fake staging people). */
-const SHOTS: Record<string, number> = {
+export const SHOTS: Record<string, number> = {
   h1: require('../../assets/walkthrough/h1.jpg'),
   h2: require('../../assets/walkthrough/h2.jpg'),
   h3: require('../../assets/walkthrough/h3.jpg'),
@@ -28,7 +29,7 @@ const SHOTS: Record<string, number> = {
   e4: require('../../assets/walkthrough/e4.jpg'),
   e5: require('../../assets/walkthrough/e5.jpg'),
 };
-const SHOT_RATIO = 488 / 835;
+export const SHOT_RATIO = 488 / 835;
 
 function openVideo(url: string) {
   Linking.openURL(url).catch(() => {
@@ -159,7 +160,10 @@ function Inner({
   const video = videoUrl();
   // The screen picture takes what height is left, so a card fits a phone without scrolling.
   // Wide screens show it inside the sign-in page's card, which has less height to spare.
-  const shotH = Math.max(260, Math.min(500, height - (width >= 768 ? 520 : 400)));
+  // A desktop gets its own layout (owner, 27 Nov): the picture on the left, the words and buttons beside it,
+  // on a wide page of its own (ScreenHost), never inside a phone-width card.
+  const { desktop: wide, height: pageH } = useLayout();
+  const shotH = wide ? Math.max(360, Math.min(640, pageH - 250)) : Math.max(260, Math.min(500, height - (width >= 768 ? 520 : 400)));
 
   let body: React.ReactNode;
   if (card.kind === 'intro') {
@@ -225,55 +229,106 @@ function Inner({
       </View>
     );
   } else {
-    body = (
-      <View>
-        <View
-          style={{
-            alignSelf: 'center',
-            height: shotH,
-            width: shotH * SHOT_RATIO,
-            maxWidth: '100%',
-            borderRadius: 20,
-            overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: t.colors.line,
-            backgroundColor: t.colors.surface,
-          }}
+    const shot = (
+      <View
+        style={{
+          alignSelf: 'center',
+          height: shotH,
+          width: shotH * SHOT_RATIO,
+          maxWidth: '100%',
+          borderRadius: 20,
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: t.colors.line,
+          backgroundColor: t.colors.surface,
+        }}
+      >
+        <Image
+          source={SHOTS[card.step.shot]}
+          accessibilityLabel={`TaskDrop screen: ${card.step.title}`}
+          resizeMode="cover"
+          style={{ width: '100%', height: '100%' }}
+        />
+      </View>
+    );
+    const words = (
+      <>
+        <RNText style={tx('800', wide ? 13 : 11.5, t.colors.accent, { letterSpacing: 0.8, marginTop: wide ? 0 : 14 })}>{`STEP ${card.n} OF 5`}</RNText>
+        <RNText
+          accessibilityRole="header"
+          style={tx('800', wide ? 34 : 20, t.colors.ink, wide ? { letterSpacing: -1, marginTop: 8, lineHeight: 40 } : { letterSpacing: -0.3, marginTop: 2 })}
         >
-          <Image
-            source={SHOTS[card.step.shot]}
-            accessibilityLabel={`TaskDrop screen: ${card.step.title}`}
-            resizeMode="cover"
-            style={{ width: '100%', height: '100%' }}
-          />
+          {card.step.title}
+        </RNText>
+        <RNText style={tx('400', wide ? 17 : 14.5, t.colors.muted, { marginTop: wide ? 12 : 4, lineHeight: wide ? 26 : 21, minHeight: wide ? 78 : 42 })}>{card.step.body}</RNText>
+      </>
+    );
+    const controls = (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: wide ? 28 : 12 }}>
+        <Dots at={card.n} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Pressable onPress={() => step(-1)} accessibilityRole="button" accessibilityLabel={WALK_COPY.back} hitSlop={6} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
+            <RNText style={tx('700', 14, t.colors.muted)}>{WALK_COPY.back}</RNText>
+          </Pressable>
+          <Pressable
+            onPress={() => step(1)}
+            accessibilityRole="button"
+            accessibilityLabel={card.n === 5 ? WALK_COPY.finish : WALK_COPY.next}
+            style={({ pressed }) => ({
+              minHeight: 46,
+              paddingHorizontal: wide ? 30 : 22,
+              borderRadius: 999,
+              backgroundColor: t.colors.btn,
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [{ scale: pressed ? t.motion.pressScale : 1 }],
+            })}
+          >
+            <RNText style={tx('800', 14.5, t.colors.onBtn)}>{card.n === 5 ? WALK_COPY.finish : WALK_COPY.next}</RNText>
+          </Pressable>
         </View>
-        <RNText style={tx('800', 11.5, t.colors.accent, { letterSpacing: 0.8, marginTop: 14 })}>{`STEP ${card.n} OF 5`}</RNText>
-        <RNText accessibilityRole="header" style={tx('800', 20, t.colors.ink, { letterSpacing: -0.3, marginTop: 2 })}>{card.step.title}</RNText>
-        <RNText style={tx('400', 14.5, t.colors.muted, { marginTop: 4, lineHeight: 21, minHeight: 42 })}>{card.step.body}</RNText>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
-          <Dots at={card.n} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Pressable onPress={() => step(-1)} accessibilityRole="button" accessibilityLabel={WALK_COPY.back} hitSlop={6} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
-              <RNText style={tx('700', 14, t.colors.muted)}>{WALK_COPY.back}</RNText>
-            </Pressable>
-            <Pressable
-              onPress={() => step(1)}
-              accessibilityRole="button"
-              accessibilityLabel={card.n === 5 ? WALK_COPY.finish : WALK_COPY.next}
-              style={({ pressed }) => ({
-                minHeight: 46,
-                paddingHorizontal: 22,
-                borderRadius: 999,
-                backgroundColor: t.colors.btn,
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ scale: pressed ? t.motion.pressScale : 1 }],
-              })}
-            >
-              <RNText style={tx('800', 14.5, t.colors.onBtn)}>{card.n === 5 ? WALK_COPY.finish : WALK_COPY.next}</RNText>
+      </View>
+    );
+    body = wide ? (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 64, paddingTop: 12 }}>
+        {shot}
+        <View style={{ flex: 1, maxWidth: 440 }}>
+          {words}
+          {controls}
+          {extra ? <View style={{ alignItems: 'flex-start', marginTop: 18 }}>{extra}</View> : null}
+        </View>
+      </View>
+    ) : (
+      <View>
+        {shot}
+        {words}
+        {controls}
+      </View>
+    );
+  }
+
+  if (wide) {
+    return (
+      <View style={{ width: '100%', maxWidth: 1000, alignSelf: 'center', gap: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <RNText accessibilityRole="header" style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6, flex: 1 })}>{WALK_COPY.header}</RNText>
+          <View style={{ width: 260 }}>
+            <SideSwitch side={side} onChange={pick} />
+          </View>
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <Pressable onPress={onSkip} accessibilityRole="button" accessibilityLabel={skipLabel} hitSlop={10} style={{ paddingVertical: 8, paddingLeft: 12 }}>
+              <RNText style={tx('700', 15, t.colors.muted)}>{skipLabel}</RNText>
             </Pressable>
           </View>
         </View>
+        {card.kind === 'step' ? (
+          <View {...swipe}>{body}</View>
+        ) : (
+          <View style={{ width: '100%', maxWidth: 520, alignSelf: 'center', gap: 12, paddingTop: 24 }}>
+            <View {...swipe}>{body}</View>
+            {extra}
+          </View>
+        )}
       </View>
     );
   }

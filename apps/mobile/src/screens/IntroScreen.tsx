@@ -11,6 +11,7 @@ import { FROM_GUEST } from '../lib/guest';
 import { saveIntroSeen } from '../lib/intro';
 import { introMode } from '../lib/introRoute';
 import { walkSideFor, type WalkSide } from '../lib/walkthrough';
+import { useLayout } from '../lib/layout';
 
 /**
  * "How TaskDrop works" (plan 1.19 row N): the one walkthrough, five real app
@@ -26,6 +27,7 @@ export function IntroScreen() {
   const { reset, back, go, params } = useNav();
   const { session, continueAsGuest } = useAuth();
   const { mode: appMode, setMode } = useMode();
+  const { desktop } = useLayout();
   const mode = introMode({ replay: Boolean(params.replay), signedIn: Boolean(session) });
   // A new install opens on Hire; a replay opens on the side the person is on.
   const side = walkSideFor(params.side, mode === 'first' ? 'poster' : appMode);
@@ -73,7 +75,7 @@ export function IntroScreen() {
 
   return (
     <Screen scroll>
-      <View style={{ width: '100%', maxWidth: 460, alignSelf: 'center', paddingTop: 12, paddingBottom: 160 }}>
+      <View style={{ width: '100%', maxWidth: desktop ? 1000 : 460, alignSelf: 'center', paddingTop: 12, paddingBottom: desktop ? 40 : 160 }}>
         <Walkthrough
           side={side}
           onSkip={skip}

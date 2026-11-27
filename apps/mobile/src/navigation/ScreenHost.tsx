@@ -7,13 +7,13 @@ import { incomingTaskId, clearIncomingTask } from '../lib/links';
 import { getTask } from '../data/api';
 import { roughPlace } from '../lib/place';
 import { taskLinkTarget } from '../lib/taskLink';
-import { usesAuthFrame } from './frame';
+import { PUBLIC, usesAuthFrame } from './frame';
 import { PUBLIC_PAGES, pathForScreen, titleForScreen } from './webAddress';
 import { useMode } from '../providers/ModeProvider';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
 import { DesktopAuthFrame } from '../components/DesktopAuthFrame';
-import { TABLET_CONTENT, useLayout, type ColumnClass } from '../lib/layout';
+import { READ_MAX, TABLET_CONTENT, useLayout, type ColumnClass } from '../lib/layout';
 import { DesktopPageFrame, DesktopPageScope } from './DesktopPage';
 import { FadeIn, tx } from '../components/primitives';
 import { useKeyboardOpen } from '../lib/useKeyboardOpen';
@@ -174,6 +174,43 @@ export function ScreenHost() {
           <Text style={tx('800', 22, t.colors.ink, { letterSpacing: -0.8, paddingTop: 28, paddingBottom: 12 })}>
             taskdrop<Text style={{ color: t.colors.accent }}>.</Text>
           </Text>
+          {content}
+        </View>
+      </View>
+    );
+  }
+  // "How TaskDrop works" on a desktop (owner, 27 Nov): a wide page of its own, the picture beside the words
+  // (components/Walkthrough.tsx), not a phone-width card. The sign-in page beside it already plays the same demo.
+  if (desktop && screen === 'intro') {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', backgroundColor: t.colors.bg, paddingHorizontal: gutter }}>
+        <View style={{ flex: 1, width: '100%', maxWidth: 1040 }}>
+          <Text style={tx('800', 22, t.colors.ink, { letterSpacing: -0.8, paddingTop: 28, paddingBottom: 4, paddingHorizontal: 20 })}>
+            taskdrop<Text style={{ color: t.colors.accent }}>.</Text>
+          </Text>
+          {content}
+        </View>
+      </View>
+    );
+  }
+  // Terms, Privacy, Copyright and Support for a visitor with no account, on a desktop: a reading page at a
+  // reading width, with the way to sign in at the top right, instead of the sign-in column's narrow width.
+  if (desktop && !inApp && PUBLIC.includes(screen)) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', backgroundColor: t.colors.bg, paddingHorizontal: gutter }}>
+        <View style={{ flex: 1, width: '100%', maxWidth: READ_MAX }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 24, paddingBottom: 8 }}>
+            <Text style={tx('800', 22, t.colors.ink, { letterSpacing: -0.8 })}>
+              taskdrop<Text style={{ color: t.colors.accent }}>.</Text>
+            </Text>
+            <Text
+              onPress={() => go('welcome')}
+              accessibilityRole="link"
+              style={tx('700', 15, t.colors.accentDeep, { paddingVertical: 8, paddingHorizontal: 4 })}
+            >
+              Sign in
+            </Text>
+          </View>
           {content}
         </View>
       </View>
