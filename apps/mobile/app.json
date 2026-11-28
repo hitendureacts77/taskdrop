@@ -99,6 +99,13 @@
         {
           "color": "#0E8F72"
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "TaskDrop uses the microphone so you can speak your task instead of typing it, and to record sound with a video of the job.",
+          "speechRecognitionPermission": "TaskDrop turns what you say into text so you can speak your task instead of typing it."
+        }
       ]
     ],
     "extra": {
