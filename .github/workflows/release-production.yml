@@ -15,10 +15,15 @@ name: Release to production
 #   3. web       the production website, built for production and uploaded to the Cloudflare Worker
 #                `taskdrop-production` (web-deploy.yml). Skips with a notice until the Cloudflare secrets are set
 #                (plan 5.12 step 2); until then the production website is still built by Vercel on each merge.
-#   4. check     the production server and the production website both answer.
-#   5. record    a tag production-<date>-<time> on the released commit, so "what is in production" has one answer.
+#   4. admin     the production admin (Vercel project taskdrop-admin-production) at the newest redesigned-2.0
+#                commit of hitendureacts77/taskdrop-admin, once that commit's admin CI is green. It calls the
+#                Vercel deploy hook in secret VERCEL_ADMIN_PRODUCTION_DEPLOY_HOOK and waits until the new build
+#                serves. The project's Ignored Build Step lets a build through only while this workflow is
+#                running, so an admin merge alone never reaches production (docs/RELEASE.md section 4a).
+#   5. check     the production server and the production website both answer.
+#   6. record    a tag production-<date>-<time> on the released commit, so "what is in production" has one answer.
 #
-# A failure in a step stops every step after it. The admin has its own repository and its own release.
+# A failure in a step stops every step after it.
 
 on:
   workflow_dispatch:
@@ -128,6 +133,63 @@ jobs:
       EXPO_PUBLIC_COPYRIGHT_AGENT_PHONE: ${{ secrets.EXPO_PUBLIC_COPYRIGHT_AGENT_PHONE }}
       SENTRY_AUTH_TOKEN_TASKDROP_USERAPP: ${{ secrets.SENTRY_AUTH_TOKEN_TASKDROP_USERAPP }}
 
+  admin:
+    name: admin
+    needs: [database, web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ADMIN_REPO: hitendureacts77/taskdrop-admin
+      ADMIN_URL: https://taskdrop-admin-production.vercel.app
+    steps:
+      - name: the admin commit to release passed admin CI
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(gh api "repos/$ADMIN_REPO/commits/redesigned-2.0" --jq '.sha')
+          ci=$(gh api "repos/$ADMIN_REPO/actions/workflows/ci.yml/runs?head_sha=$sha&event=push&per_page=1" --jq '.workflow_runs[0].conclusion // "none"')
+          echo "admin redesigned-2.0: $sha (admin CI: $ci)"
+          if [ "$ci" != "success" ]; then
+            echo "::error::Admin CI on $sha is '$ci', not green. Wait for the admin CI to pass, then run this again."
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: deploy the production admin
+        env:
+          HOOK: ${{ secrets.VERCEL_ADMIN_PRODUCTION_DEPLOY_HOOK }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::warning::Secret VERCEL_ADMIN_PRODUCTION_DEPLOY_HOOK is not set: the production admin was NOT released (docs/RELEASE.md section 4a)."
+            echo "Production admin NOT released: deploy hook secret missing." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Every Next.js build carries its own build id ("b":"...") in the page; a new id means the new build serves.
+          build_id() { curl -sS --max-time 30 "$ADMIN_URL/login" | grep -o '\\"b\\":\\"[^\\"]*' | head -1; }
+          before=$(build_id || true)
+          echo "serving before: ${before:-unknown}"
+          # The hook builds the tip of redesigned-2.0. The project's Ignored Build Step lets it through because
+          # this run is in progress.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 -X POST "$HOOK" || true)
+          if [ "$code" != "201" ] && [ "$code" != "200" ]; then echo "::error::The deploy hook answered $code."; exit 1; fi
+          echo "Deploy hook called for $ADMIN_REPO@$SHA. Waiting for the new build (up to 25 minutes)."
+          for i in $(seq 1 50); do
+            sleep 30
+            now=$(build_id || true)
+            if [ -n "$now" ] && [ "$now" != "$before" ]; then
+              code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$ADMIN_URL/login" || true)
+              echo "new build serving after $((i * 30)) s, /login -> $code"
+              if [ "$code" = "200" ]; then
+                echo "Production admin released at $ADMIN_REPO@$SHA." >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+            fi
+          done
+          echo "::error::The production admin did not switch to a new build in 25 minutes. See Vercel project taskdrop-admin-production, Deployments (an Ignored build means the GitHub check in its Ignored Build Step failed)."
+          exit 1
+
   check:
     name: production answers
     needs: [database, web]
@@ -156,7 +218,7 @@ jobs:
 
   record:
     name: tag the release
-    needs: check
+    needs: [check, admin]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
