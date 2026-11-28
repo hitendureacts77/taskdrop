@@ -323,12 +323,30 @@ export function DateTimeSheet({
               </Pressable>
             ) : null}
 
+            {/* An "or" between the two choices, so picking a date reads as the second option, not more of the first (owner, 28 Nov). */}
+            {onOpenEnded ? (
+              <View style={{ marginTop: 18, paddingHorizontal: 20 }}>
+                <View
+                  accessibilityRole="text"
+                  accessibilityLabel="or"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                >
+                  <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
+                  <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2, textTransform: 'uppercase' })}>or</RNText>
+                  <View style={{ flex: 1, height: 1, backgroundColor: t.colors.line }} />
+                </View>
+                <RNText accessibilityRole="header" style={tx('800', 15, t.colors.ink, { marginTop: 14 })}>
+                  Pick a closing date and time
+                </RNText>
+              </View>
+            ) : null}
+
             {/* The deadlines people actually want, one tap away. */}
             {quick ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={{ marginTop: 16 }}
+                style={{ marginTop: onOpenEnded ? 10 : 16 }}
                 contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
               >
                 {presets.map((q) => {

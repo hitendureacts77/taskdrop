@@ -9,6 +9,7 @@ import { Icon } from '../components/Icon';
 import { BottomSheet, ConfirmDialog, EmptyState, Grid, LoadFailed, MenuRow, Pill, PillTabs, Shimmer, StatTile, SwipeTabs, timeAgo } from '../components/kit';
 import { WorkCard } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
+import { useUnsaveConfirm } from '../components/UnsaveConfirm';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { dueFor } from '../lib/taskBrief';
 import { tx } from '../components/primitives';
@@ -733,6 +734,7 @@ function MyWork() {
   // Services this worker listed; posters browse these (migration 050).
   const [listings, setListings] = useState<Task[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const unsaveConfirm = useUnsaveConfirm();
   const [stats, setStats] = useState<MyStats | null>(null);
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -966,7 +968,7 @@ function MyWork() {
               quoted={offers.has(task.id)}
               onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
               onApply={() => setBidTask(task)}
-              onToggleSave={() => void unsave(task.id)}
+              onToggleSave={() => unsaveConfirm.ask(() => void unsave(task.id))}
             />
           ))}
         </Grid>
@@ -1079,6 +1081,7 @@ function MyWork() {
         </ScrollView>
       )}
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
+      {unsaveConfirm.dialog}
     </Screen>
   );
 }
