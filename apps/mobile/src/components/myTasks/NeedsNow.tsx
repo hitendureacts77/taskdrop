@@ -6,6 +6,7 @@ import { Icon, type IconName } from '../Icon';
 import { tx } from '../primitives';
 import type { Need, NeedKind } from '../../lib/myTasksBoard';
 import { ActionButton, IconTile } from './bits';
+import { useLayout } from '../../lib/layout';
 
 const ICON: Record<NeedKind, IconName> = {
   review: 'eye',
@@ -27,6 +28,7 @@ const FIRST = { phone: 3, desktop: 3 };
 
 export function NeedsNow({ items, onPick, desktop, side }: { items: Need[]; onPick: (n: Need) => void; desktop: boolean; side: 'hire' | 'earn' }) {
   const t = useTheme();
+  const { scale } = useLayout();
   const [all, setAll] = useState(false);
   if (items.length === 0) return null;
   const first = desktop ? FIRST.desktop : FIRST.phone;
@@ -77,9 +79,10 @@ export function NeedsNow({ items, onPick, desktop, side }: { items: Need[]; onPi
             hitSlop={4}
             style={({ pressed }) => ({
               alignSelf: 'center',
-              paddingVertical: 8,
+              height: 32 / scale,
+              justifyContent: 'center',
               paddingHorizontal: 16,
-              borderRadius: 999,
+              borderRadius: 10,
               borderWidth: 1,
               borderColor: t.colors.line,
               backgroundColor: t.colors.surface,
@@ -106,7 +109,14 @@ export function NeedsNow({ items, onPick, desktop, side }: { items: Need[]; onPi
 
 function NeedRow({ need, first, desktop, onPress }: { need: Need; first: boolean; desktop: boolean; onPress: () => void }) {
   const t = useTheme();
+  const { scale } = useLayout();
   const hintInk = need.tone === 'gold' ? t.colors.goldInk : need.tone === 'signal' ? t.colors.signalDeep : t.colors.muted;
+  const lineText = (
+    <RNText numberOfLines={1} style={tx('700', 14, t.colors.ink, { lineHeight: 20, flexShrink: 0 })}>
+      {need.lead}
+      {need.rest ? <RNText style={tx('400', 14, t.colors.text)}>{' · ' + need.rest}</RNText> : null}
+    </RNText>
+  );
   const words = (
     <View style={{ flex: 1, minWidth: 0 }}>
       <RNText numberOfLines={desktop ? 1 : 2} style={tx('700', 14, t.colors.ink, { lineHeight: 20 })}>
@@ -118,10 +128,15 @@ function NeedRow({ need, first, desktop, onPress }: { need: Need; first: boolean
   );
   if (desktop) {
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: t.colors.line }}>
-        <IconTile icon={ICON[need.kind]} tone={need.tone} size={36} />
-        {words}
-        <ActionButton label={need.action} kind={need.primary ? 'primary' : 'outline'} onPress={onPress} a11y={need.rest ? `${need.action}: ${need.rest}` : need.action} />
+      // One line, 52 px (design D3): icon, the bold lead and task name, then the grey note on the same line; the
+      // button is 32 px, hugs its words, and only the first row's is filled.
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, height: 52 / scale, borderTopWidth: 1, borderTopColor: t.colors.line }}>
+        <IconTile icon={ICON[need.kind]} tone={need.tone} size={32} />
+        <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'baseline', gap: 14 }}>
+          <View style={{ flexShrink: 1, minWidth: 0 }}>{lineText}</View>
+          <RNText numberOfLines={1} style={tx('500', 12.5, hintInk, { flex: 1, minWidth: 0 })}>{need.hint}</RNText>
+        </View>
+        <ActionButton row label={need.action} kind={first && need.primary ? 'primary' : 'outline'} onPress={onPress} a11y={need.rest ? `${need.action}: ${need.rest}` : need.action} />
       </View>
     );
   }

@@ -1,4 +1,5 @@
 import { createContext } from 'react';
+import type { ScreenName } from '../providers/NavProvider';
 
 /**
  * Desktop web only (docs/design/desktop-web/PLAN.md, 4.1): where a screen's `TopBar` / `BackButton` put their
@@ -23,6 +24,8 @@ export type DesktopPageScopeValue = {
   hosts: DesktopPageHosts;
   /** This screen is the one in front. */
   active: boolean;
+  /** The screen this scope draws (not always the navigator's current one: "How TaskDrop works" opens over the page behind it). */
+  screen?: ScreenName;
 };
 
 export const DesktopPageHostsContext = createContext<DesktopPageHosts | null>(null);

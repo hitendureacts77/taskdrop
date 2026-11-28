@@ -206,13 +206,13 @@ test('phone: SegmentedTabs is a scrolling row of Pills, the chosen one active', 
   assert.deepEqual(picked, ['open']);
 });
 
-test('desktop: SegmentedTabs is one segmented track with tab roles and count badges', () => {
+test('desktop: SegmentedTabs is a row of underline tabs with tab roles and count badges', () => {
   lp.layout = { desktop: true };
   const picked = [];
   const el = SegmentedTabs({ tabs: tabList, value: 'open', onChange: (k) => picked.push(k) });
   assert.equal(el.props.nativeID, 'segmentedTabs');
   assert.equal(el.props.accessibilityRole, 'tablist');
-  assert.equal(flat(el.props.style).backgroundColor, 'SURFACE2');
+  assert.equal(flat(el.props.style).backgroundColor, undefined);
   const nodes = walk(el);
   assert.equal(nodes.some((n) => n.type === PillStub), false);
   const buttons = nodes.filter((n) => n.type === 'Pressable');
@@ -224,8 +224,8 @@ test('desktop: SegmentedTabs is one segmented track with tab roles and count bad
       ['tab', 'Done', false],
     ],
   );
-  assert.equal(flat(buttons[0].props.style).backgroundColor, 'SURFACE');
-  assert.equal(flat(buttons[1].props.style).backgroundColor, 'transparent');
+  assert.equal(flat(buttons[0].props.style).borderBottomColor, 'ACCENTDEEP');
+  assert.equal(flat(buttons[1].props.style).borderBottomColor, 'transparent');
   const texts = nodes.filter((n) => n.type === 'Text').map((n) => n.props.children);
   assert.deepEqual(texts, ['Open', 3, 'Done']);
   buttons[1].props.onPress();

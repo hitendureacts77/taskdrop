@@ -3,12 +3,18 @@ import { useContext, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
+import { useNav, type ScreenName } from '../providers/NavProvider';
 import { DesktopPageScopeContext } from '../navigation/desktopPageContext';
 import { Icon } from './Icon';
 import { tx } from './primitives';
 import type { DesktopCrumb, DesktopHeaderProps } from './pageHeader';
 
 export type { DesktopHeaderProps, DesktopCrumb } from './pageHeader';
+
+const SUB_LINE = 15;
+
+/** The screens that are items of the desktop side menu: no "Back" link above their title. */
+const SIDE_MENU_PAGES: ScreenName[] = ['home', 'explore', 'myTasks', 'wallet', 'inbox', 'notifications', 'profile', 'account', 'help'];
 
 /**
  * Desktop web (docs/design/desktop-web/PLAN.md, 4.1): draws a screen's back link, title, subtitle and buttons into
@@ -30,6 +36,7 @@ export function useDesktopHeaderPortal({
   crumbs,
 }: DesktopHeaderProps): React.ReactNode | undefined {
   const t = useTheme();
+  const { screen } = useNav();
   const scope = useContext(DesktopPageScopeContext);
   const active = scope?.active ?? false;
   const claimTitle = scope?.hosts.claimTitle;
@@ -48,15 +55,21 @@ export function useDesktopHeaderPortal({
       {titleNode && custom ? createPortal(custom, titleNode) : null}
       {titleNode && !custom
         ? createPortal(
-            <View>
-              {onBack ? <BackLink onBack={onBack} /> : null}
+            <View style={subtitle && title ? { marginBottom: SUB_LINE - 2, top: SUB_LINE / 2 - 0.5 } : undefined}>
+              {/* Pages in the side menu have no "Back" link: the menu is the way out (design D5/D7). */}
+              {onBack && !(SIDE_MENU_PAGES as string[]).includes(scope.screen ?? screen) ? <BackLink onBack={onBack} /> : null}
               {title ? (
                 <RNText accessibilityRole="header" style={tx('800', 26, t.colors.ink, { letterSpacing: -0.6 })} numberOfLines={1}>
                   {title}
                 </RNText>
               ) : null}
+              {/* The block is centred in the row, so it is nudged back up by half the sentence's height (a visual offset
+                  only) and given the sentence's height as room below: the title stays exactly where it is on every page,
+                  and the divider drops by the sentence's height. */}
               {subtitle ? (
-                <RNText style={tx('400', 13, t.colors.muted, { marginTop: 2 })} numberOfLines={1}>
+                <RNText
+                  style={tx('400', 13, t.colors.muted, title ? { lineHeight: SUB_LINE, marginTop: 2 } : { marginTop: 2 })}
+                  numberOfLines={1}>
                   {subtitle}
                 </RNText>
               ) : null}

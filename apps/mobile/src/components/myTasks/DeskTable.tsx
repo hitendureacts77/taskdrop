@@ -5,6 +5,7 @@ import { Icon } from '../Icon';
 import { rupees, timeAgo } from '../kit';
 import { categoryIcon, categoryLabel } from '../WorkCard';
 import { tx } from '../primitives';
+import { useLayout } from '../../lib/layout';
 import type { ViewRow } from '../../lib/taskRows';
 import type { HeldRates } from '../../lib/heldWords';
 import {
@@ -31,27 +32,54 @@ import { areaOf, earnOf, earnedLine, workerDateBits } from './WorkerCard';
  * money, due, the live button and the ⋯ menu), and a "Showing X of Y" footer with Show more.
  */
 
-export type Column = { label: string; flex?: number; width?: number };
+/**
+ * `dropBelow`: the least important columns leave when the table's room is narrower than this (layout px, the same
+ * unit as `useTableWidth`, already divided by the page zoom), so nothing overlaps. `narrow`: the width the column
+ * takes when the room is under NARROW.
+ */
+export type Column = { label: string; flex?: number; width?: number; narrow?: number; mid?: number; minWidth?: number; dropBelow?: number };
+
+/** Under this much room (about a 1024 px window) the fixed columns tighten and the action buttons may wrap. */
+const NARROW = 900;
+/** Under this much room (a 1366 px laptop window) Status, Offers and Budget give some room to the Task name. */
+const MID = 1300;
+
+/** The room the table's rows have, in layout px: the feed column less the page's side padding and the card's. */
+function useTableWidth(): number {
+  const { contentWidth } = useLayout();
+  return contentWidth('feed') - 80;
+}
+const shownCols = (columns: Column[], w: number): Column[] =>
+  columns.filter((c) => !c.dropBelow || w >= c.dropBelow).map((c) => (w < NARROW && c.narrow ? { ...c, width: c.narrow } : w < MID && c.mid ? { ...c, width: c.mid } : c));
 
 export const POSTER_COLUMNS: Column[] = [
-  { label: 'STATUS', flex: 2 },
-  { label: 'TASK', flex: 3.4 },
-  { label: 'OFFERS', flex: 1.5 },
-  { label: 'BUDGET', flex: 1.2 },
-  { label: 'DATE', flex: 1.7 },
-  { label: '', width: 230 },
+  // Task takes the room that is left; the others hold a width of their own (design D3: Status, Offers, Budget
+  // narrow, Date wide enough for "Posted 3 Nov · No fixed date" on one line). Date goes first, then Offers.
+  { label: 'TASK', flex: 1.05, minWidth: 150 },
+  { label: 'STATUS', width: 156, mid: 146, narrow: 130 },
+  { label: 'OFFERS', width: 156, mid: 112, narrow: 110, dropBelow: 700 },
+  { label: 'BUDGET', width: 130, mid: 104, narrow: 100 },
+  { label: 'DATE', flex: 1, minWidth: 180, dropBelow: 1090 },
+  // Wide enough for the longest set (Leave a review + Book again + the menu); on a laptop (mid) and narrower a second button wraps under the first.
+  { label: '', width: 290, mid: 210, narrow: 170 },
 ];
 
 export const WORKER_COLUMNS: Column[] = [
-  { label: 'STATUS', flex: 1.6 },
-  { label: 'TASK', flex: 3 },
-  { label: 'CUSTOMER', flex: 1.7 },
-  { label: 'PRICE', flex: 1.3 },
-  { label: 'DATE', flex: 1.7 },
-  { label: '', width: 230 },
+  { label: 'TASK', flex: 1.05, minWidth: 150 },
+  { label: 'STATUS', width: 156, mid: 146, narrow: 130 },
+  { label: 'CUSTOMER', width: 170, mid: 140, narrow: 130, dropBelow: 700 },
+  { label: 'PRICE', width: 130, mid: 104, narrow: 100 },
+  { label: 'DATE', flex: 1, minWidth: 180, dropBelow: 1090 },
+  { label: '', width: 290, mid: 210, narrow: 170 },
 ];
 
-const cellStyle = (c: Column) => (c.width ? { width: c.width, flexShrink: 0 } : { flex: c.flex ?? 1, minWidth: 0 });
+// The actions column (no label) never shrinks, so its buttons and the menu are always whole. The other fixed columns
+// may give a little room back (they share it by size, in the head row and every row alike), so a row can never be
+// wider than the table; Task and Date take what is left.
+const cellStyle = (c: Column) =>
+  c.width
+    ? { width: c.width, flexShrink: c.label ? 1 : 0, minWidth: 0 }
+    : { flex: c.flex ?? 1, minWidth: c.minWidth ?? 0 };
 
 export function DeskTableCard({
   toolbarLeft,
@@ -70,15 +98,19 @@ export function DeskTableCard({
   table?: boolean;
 }) {
   const t = useTheme();
+  const { scale } = useLayout();
+  const w = useTableWidth();
   return (
     <View nativeID="myTasksTable" style={[cardSurface(t, 16), { overflow: 'hidden' }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, paddingVertical: 14, flexWrap: 'wrap' }}>
-        <View style={{ flex: 1, minWidth: 0 }}>{toolbarLeft}</View>
+      {/* The tabs are underline tabs 52 px tall (ListPage SegmentedTabs): the toolbar is exactly that high, and the
+          column-head row under it draws the line they sit on. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 20, minHeight: 52 / scale, flexWrap: 'wrap' }}>
+        <View style={{ flexGrow: 1, flexShrink: 0 }}>{toolbarLeft}</View>
         {toolbarRight}
       </View>
       {table ? (
         <View style={{ flexDirection: 'row', gap: 16, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: t.colors.surface2, borderTopWidth: 1, borderBottomWidth: 1, borderColor: t.colors.line }}>
-          {columns.map((c, i) => (
+          {shownCols(columns, w).map((c, i) => (
             <RNText key={i} style={[tx('700', 11, t.colors.muted, { letterSpacing: 1 }), cellStyle(c)]}>{c.label}</RNText>
           ))}
         </View>
@@ -108,6 +140,10 @@ export function TableFooter({ shown, total, noun, onMore }: { shown: number; tot
 
 function Row({ columns, cells, onPress, label }: { columns: Column[]; cells: React.ReactNode[]; onPress: () => void; label: string }) {
   const t = useTheme();
+  const { scale } = useLayout();
+  const w = useTableWidth();
+  const keep = columns.map((c) => !c.dropBelow || w >= c.dropBelow);
+  const shown = shownCols(columns, w);
   return (
     // Not a button: the row holds its own buttons (a button inside a button is invalid on the web).
     <Pressable onPress={onPress} accessibilityLabel={label}>
@@ -118,20 +154,30 @@ function Row({ columns, cells, onPress, label }: { columns: Column[]; cells: Rea
             alignItems: 'center',
             gap: 16,
             paddingHorizontal: 20,
-            paddingVertical: 14,
+            paddingVertical: 8,
+            minHeight: 56 / scale,
             borderTopWidth: 1,
             borderTopColor: t.colors.line,
             backgroundColor: hovered ? t.colors.bg : 'transparent',
           }}
         >
-          {cells.map((cell, i) => (
-            <View key={i} style={[cellStyle(columns[i]!), i === cells.length - 1 ? { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 } : null]}>
+          {cells.filter((_, i) => keep[i]).map((cell, i) => (
+            <View key={i} style={[cellStyle(shown[i]!), i === shown.length - 1 ? { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: 8 } : null]}>
               {cell}
             </View>
           ))}
         </View>
       )}
     </Pressable>
+  );
+}
+
+/** The status pill hugs its words: never stretched across its column. */
+function HugPill({ label, tone }: { label: string; tone: Parameters<typeof StatusPill>[0]['tone'] }) {
+  return (
+    <View style={{ alignItems: 'flex-start' }}>
+      <StatusPill label={label} tone={tone} />
+    </View>
   );
 }
 
@@ -169,7 +215,7 @@ function Two({ top, sub, topInk, subInk, icon }: { top: string; sub?: string | n
 function DateText({ bits, prefix }: { bits: Bit[]; prefix?: string }) {
   const t = useTheme();
   return (
-    <RNText numberOfLines={2} style={tx('600', 12.5, t.colors.muted, { lineHeight: 18 })}>
+    <RNText numberOfLines={1} style={tx('600', 12.5, t.colors.muted, { lineHeight: 18 })}>
       {prefix}
       {bits.map((b, i) => (b.b ? <RNText key={i} style={tx('800', 12.5, t.colors.ink)}>{b.t}</RNText> : b.t))}
     </RNText>
@@ -188,7 +234,10 @@ export function PosterDeskRow({
   onAgain,
   onNotify,
   onReview,
+  first = false,
 }: {
+  /** The table's first row: the only one whose button may be filled. */
+  first?: boolean;
   task: Task;
   offers: number;
   /** Offers that came in since this device last opened them (lib/seenOffers). */
@@ -246,17 +295,18 @@ export function PosterDeskRow({
   const primary = label === 'Choose an offer' || label === 'Pay to start' || label === 'Review the work';
   const actions = (
     <>
-      {done ? <ActionButton kind="outline" label="Leave a review" onPress={onReview} a11y={`Leave a review: ${task.title}`} /> : null}
+      {/* Buttons repeated on every row are 32 px and outlined; only the first row's may be filled. */}
+      {done ? <ActionButton row kind="outline" label="Leave a review" onPress={onReview} a11y={`Leave a review: ${task.title}`} /> : null}
       {open && passed && offers === 0 ? (
-        <ActionButton kind="outline" label="Post again" onPress={onAgain} a11y={`Post again: ${task.title}`} />
+        <ActionButton row kind="outline" label="Post again" onPress={onAgain} a11y={`Post again: ${task.title}`} />
       ) : done ? (
         onNotify ? (
-          <ActionButton label="Notify helper" onPress={onNotify} a11y={`Notify about a task: ${task.title}`} />
+          <ActionButton row kind={first ? 'primary' : 'outline'} label="Notify helper" onPress={onNotify} a11y={`Notify about a task: ${task.title}`} />
         ) : (
-          <ActionButton kind="outline" label="Post again" onPress={onAgain} a11y={`Post again: ${task.title}`} />
+          <ActionButton row kind="outline" label="Post again" onPress={onAgain} a11y={`Post again: ${task.title}`} />
         )
       ) : (
-        <ActionButton kind={primary ? 'primary' : 'outline'} label={label} onPress={onOpen} a11y={`${label}: ${task.title}`} />
+        <ActionButton row kind={primary && first ? 'primary' : 'outline'} label={label} onPress={onOpen} a11y={`${label}: ${task.title}`} />
       )}
       <DotsButton boxed onPress={onMenu} />
     </>
@@ -267,7 +317,7 @@ export function PosterDeskRow({
       columns={POSTER_COLUMNS}
       label={task.title}
       onPress={onOpen}
-      cells={[<StatusPill key="s" label={pill.label} tone={pill.tone} />, <TaskCell key="t" task={task} title={task.title} />, people, budget, <DateText key="d" bits={dateBits} />, actions]}
+      cells={[<TaskCell key="t" task={task} title={task.title} />, <HugPill key="s" label={pill.label} tone={pill.tone} />, people, budget, <DateText key="d" bits={dateBits} />, actions]}
     />
   );
 }
@@ -280,7 +330,10 @@ export function WorkerDeskRow({
   sentAt,
   rates,
   onOpen,
+  first = false,
 }: {
+  /** The table's first row: the only one whose button may be filled. */
+  first?: boolean;
   row: ViewRow;
   task: Task | null;
   customer?: Profile | null;
@@ -326,9 +379,9 @@ export function WorkerDeskRow({
   const pill = workerPill(row.state, task?.status);
 
   const action = button ? (
-    <ActionButton kind={button.kind === 'quiet' ? 'outline' : 'primary'} label={button.label} onPress={onOpen} a11y={`${button.label}: ${row.title}`} />
+    <ActionButton row kind={button.kind === 'quiet' || !first ? 'outline' : 'primary'} label={button.label} onPress={onOpen} a11y={`${button.label}: ${row.title}`} />
   ) : (
-    <ActionButton kind="outline" label="Open job" onPress={onOpen} a11y={`Open job: ${row.title}`} />
+    <ActionButton row kind="outline" label="Open job" onPress={onOpen} a11y={`Open job: ${row.title}`} />
   );
 
   return (
@@ -337,8 +390,8 @@ export function WorkerDeskRow({
       label={row.title}
       onPress={onOpen}
       cells={[
-        <StatusPill key="s" label={pill.label} tone={pill.tone} />,
         <TaskCell key="t" task={task} title={row.title} />,
+        <HugPill key="s" label={pill.label} tone={pill.tone} />,
         person,
         price,
         <DateText key="d" bits={workerDateBits(row, task, now, sentAt)} prefix={row.state === 'ACTIVE · TIMER RUNNING' && task?.status !== 'OVERDUE' ? 'Timer running' : undefined} />,

@@ -395,7 +395,7 @@ function MyPosted() {
     <View {...ring}
       style={
         desktop
-          ? { flexDirection: 'row', alignItems: 'center', gap: 8, width: 300, ...cardSurface(t, 12), shadowOpacity: 0, paddingHorizontal: 14 }
+          ? { flexDirection: 'row', alignItems: 'center', gap: 8, width: 300, flexShrink: 1, minWidth: 150, ...cardSurface(t, 12), shadowOpacity: 0, paddingHorizontal: 14 }
           : {
               flexDirection: 'row',
               alignItems: 'center',
@@ -560,7 +560,7 @@ function MyPosted() {
       ) : empty ? (
         <View style={{ padding: 20 }}>{empty}</View>
       ) : (
-        shown.slice(0, limit).map((task) => <PosterDeskRow key={task.id} {...cardProps(task)} heldText={heldTextOf(task)} />)
+        shown.slice(0, limit).map((task, i) => <PosterDeskRow key={task.id} first={i === 0} {...cardProps(task)} heldText={heldTextOf(task)} />)
       )}
     </DeskTableCard>
   );
@@ -1037,7 +1037,7 @@ function MyWork() {
       footer={isTable ? <TableFooter shown={Math.min(limit, list.length)} total={list.length} noun={WORKER_NOUN[tab]!} onMore={() => setLimit((n) => n + DESK_PAGE)} /> : null}
     >
       {isTable ? (
-        list.slice(0, limit).map((row, i) => <WorkerDeskRow key={`${row.taskId}-${i}`} {...cardFor(row)} />)
+        list.slice(0, limit).map((row, i) => <WorkerDeskRow key={`${row.taskId}-${i}`} first={i === 0} {...cardFor(row)} />)
       ) : (
         <View style={{ paddingHorizontal: 20, paddingBottom: 20, paddingTop: 8 }}>{results}</View>
       )}

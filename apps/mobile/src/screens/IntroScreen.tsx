@@ -30,6 +30,9 @@ export function IntroScreen() {
   const { session, continueAsGuest } = useAuth();
   const { mode: appMode, setMode } = useMode();
   const mode = introMode({ replay: Boolean(params.replay), signedIn: Boolean(session) });
+  // Opened from the link on the desktop sign-in page by someone with no session who has not chosen guest: closing or
+  // finishing just returns to the sign-in page, and there is no "Create my account" (they are already on it).
+  const fromSignIn = params.from === 'signin';
   // A new install opens on Hire; a replay opens on the side the person is on.
   const side = walkSideFor(params.side, mode === 'first' ? 'poster' : appMode);
 
@@ -52,6 +55,10 @@ export function IntroScreen() {
   const finish = useCallback(
     (s: WalkSide) => {
       void saveIntroSeen();
+      if (fromSignIn) {
+        back();
+        return;
+      }
       setMode(s === 'earn' ? 'worker' : 'poster');
       if (mode === 'first') {
         continueAsGuest();
@@ -61,11 +68,11 @@ export function IntroScreen() {
       }
       go(s === 'earn' ? 'explore' : 'aiPost');
     },
-    [mode, setMode, continueAsGuest, reset, back, go],
+    [mode, fromSignIn, setMode, continueAsGuest, reset, back, go],
   );
 
   const account =
-    mode === 'member-replay' ? null : (
+    mode === 'member-replay' || fromSignIn ? null : (
       <View style={{ alignItems: 'center', marginTop: 6 }}>
         <Pressable onPress={makeAccount} accessibilityRole="button" accessibilityLabel="Create my account" hitSlop={8} style={{ paddingVertical: 8, paddingHorizontal: 14 }}>
           <RNText style={tx('700', 14, t.colors.ink, { textDecorationLine: 'underline' })}>Create my account</RNText>
@@ -79,7 +86,7 @@ export function IntroScreen() {
       side={side}
       onSkip={skip}
       onFinish={finish}
-      skipLabel={mode === 'first' ? WALK_COPY.skip : WALK_COPY.backHome}
+      skipLabel={fromSignIn ? WALK_COPY.backSignIn : mode === 'first' ? WALK_COPY.skip : WALK_COPY.backHome}
       extra={account}
     />
   );

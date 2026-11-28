@@ -263,7 +263,7 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
      quick questions, writes the post and checks it with you. Speaking a task
      is on that screen (its Speak button). */
   const hero = (
-    <HeroCard style={{ marginTop: desktop ? 0 : 10 }} padding={wideHero ? 30 : 20}>
+    <HeroCard style={{ marginTop: desktop ? 0 : 10 }} radius={desktop ? 16 : undefined} padding={wideHero ? 30 : 20}>
       <View style={{ flexDirection: 'row', gap: 28 }}>
         <View style={wideHero ? { flex: 7, maxWidth: 720, justifyContent: 'center' } : { flex: 1.25 }}>
           {/* D22: the question is the title; "How TaskDrop works" is the ? beside it. */}
@@ -895,7 +895,7 @@ function EarnTop() {
   /* Where you stand, in one hero: level, jobs on the go, the job search (phones; the desktop header has it) and the
      pay promise. */
   const levelCard = (
-    <HeroCard radius={24} padding={18} watermark={false} ringSize={200}>
+    <HeroCard radius={desktop ? 16 : 24} padding={18} watermark={false} ringSize={200}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <RNText style={tx('700', 12, onHero.text, { flex: 1 })}>Find your next job</RNText>
         {/* D22 H2: "How TaskDrop works" is the ? in the card's corner, as on the Hire side. */}

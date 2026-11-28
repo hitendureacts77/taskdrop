@@ -5,7 +5,7 @@ import { useNav, type ScreenName } from '../providers/NavProvider';
 import { useMode } from '../providers/ModeProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { countNeedsAttention } from '../data/api';
-import { RAIL_WIDTH, SIDEBAR_WIDTH } from '../lib/layout';
+import { RAIL_WIDTH, SIDEBAR_WIDTH, useLayout } from '../lib/layout';
 import { Icon, type IconName } from './Icon';
 import { ModeSwitch } from './ModeSwitch';
 import { GuestSignInPill } from './GuestBits';
@@ -26,6 +26,8 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
   const { mode } = useMode();
   const { userId, guest } = useAuth();
   const worker = mode === 'worker';
+  // The page is drawn at a zoom (lib/layout scale): design sizes are screen pixels, so divide by it.
+  const { scale } = useLayout();
 
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
@@ -130,16 +132,22 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        height: 48,
+        // Full desktop menu (not the tablet rail): a 40 px rectangle, radius 10, no glow (design D2). The 8 px it
+        // gives up is kept as bottom margin so the menu rows below do not move.
+        height: rail ? 48 : 40 / scale,
         width: rail ? 48 : undefined,
         alignSelf: rail ? 'center' : 'stretch',
-        borderRadius: 14,
+        borderRadius: rail ? 14 : 10,
         backgroundColor: t.colors.btn,
         opacity: hovered ? 0.93 : 1,
-        shadowColor: t.colors.btn,
-        shadowOpacity: t.isDark ? 0 : 0.35,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 8 },
+        ...(rail
+          ? {
+              shadowColor: t.colors.btn,
+              shadowOpacity: t.isDark ? 0 : 0.35,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 8 },
+            }
+          : { marginBottom: 48 - 40 / scale }),
         transform: [{ scale: pressed ? 0.97 : hovered ? 1.01 : 1 }],
       })}
     >

@@ -2,6 +2,7 @@ import { View, Text as RNText, Pressable } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
 import { Icon, type IconName } from '../Icon';
 import { HitArea, tx } from '../primitives';
+import { useLayout } from '../../lib/layout';
 import { presenceOf } from '../../lib/presence';
 import type { Bit, CardHint, PillTone } from '../../lib/myTasksBoard';
 
@@ -30,15 +31,19 @@ export function ActionButton({
   kind = 'primary',
   big = false,
   a11y,
+  row = false,
 }: {
   label: string;
   onPress: () => void;
   kind?: 'primary' | 'quiet' | 'outline';
   big?: boolean;
+  /** Desktop table rows (design section 3): a 32 px rectangle that hugs its words, no extra padding. */
+  row?: boolean;
   /** What a screen reader says, e.g. "Choose an offer: Fix a fan". */
   a11y?: string;
 }) {
   const t = useTheme();
+  const { scale } = useLayout();
   const filled = kind === 'primary';
   return (
     <Pressable
@@ -49,8 +54,9 @@ export function ActionButton({
         flex: big ? 1 : undefined,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: big ? 13 : 8,
-        paddingHorizontal: big ? 12 : 14,
+        ...(row ? { height: 32 / scale, minWidth: 80 / scale } : null),
+        paddingVertical: row ? 0 : big ? 13 : 8,
+        paddingHorizontal: row ? 16 : big ? 12 : 14,
         borderRadius: big ? 14 : 10,
         backgroundColor: filled ? t.colors.btn : kind === 'quiet' ? t.colors.surface2 : t.colors.surface,
         borderWidth: filled ? 0 : 1,

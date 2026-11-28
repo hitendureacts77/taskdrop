@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   shouldShowWalkthrough,
+  stagingCardCanBlock,
+  stagingCardIsClear,
   swipeDirection,
   tapHalf,
   videoUrl,
@@ -61,14 +63,35 @@ test('it opens on the side asked for, else the mode the person is in', () => {
   assert.equal(walkSideFor('other', 'poster'), 'hire');
 });
 
-test('it opens by itself only after sign-in, on Home, once, after the staging card', () => {
-  const base = { signedIn: true, seen: false, screen: 'home', stagingCardClear: true };
-  assert.equal(shouldShowWalkthrough(base), true);
-  assert.equal(shouldShowWalkthrough({ ...base, signedIn: false }), false, 'a guest or a signed-out visitor');
+test('it opens by itself after a new sign-in or Continue as guest, on Home, once, after the staging card', () => {
+  const base = { entered: true, seen: false, screen: 'home', stagingCardClear: true };
+  assert.equal(shouldShowWalkthrough(base), true, 'a signed-in person or a new guest');
+  assert.equal(shouldShowWalkthrough({ ...base, entered: false }), false, 'a signed-out visitor who has not chosen guest');
+  assert.equal(shouldShowWalkthrough({ ...base, screen: 'welcome' }), false, 'never on the sign-in page');
   assert.equal(shouldShowWalkthrough({ ...base, seen: true }), false, 'already seen on this device');
   assert.equal(shouldShowWalkthrough({ ...base, seen: null }), false, 'not read yet');
   assert.equal(shouldShowWalkthrough({ ...base, screen: 'aiPost' }), false, 'a post being resumed comes first');
   assert.equal(shouldShowWalkthrough({ ...base, stagingCardClear: false }), false, 'the tester card is still open');
+});
+
+test('the staging tester card only holds the walkthrough back for a signed-in person on staging (a guest never sees that card)', () => {
+  assert.equal(stagingCardCanBlock({ stagingUi: true, signedIn: true }), true, 'signed in on staging: the card goes first');
+  assert.equal(stagingCardCanBlock({ stagingUi: true, signedIn: false }), false, 'a guest on staging has no card to wait for');
+  assert.equal(stagingCardCanBlock({ stagingUi: false, signedIn: true }), false, 'production has no card');
+  // A guest on staging: nothing blocks, so the walkthrough opens.
+  assert.equal(
+    shouldShowWalkthrough({ entered: true, seen: false, screen: 'home', stagingCardClear: !stagingCardCanBlock({ stagingUi: true, signedIn: false }) }),
+    true,
+  );
+});
+
+test('right after a sign-in on staging the tester card goes first: an old "clear" is never carried across the sign-in', () => {
+  const staging = { stagingUi: true };
+  assert.equal(stagingCardIsClear({ ...staging, signedIn: false, storedSeen: null }), true, 'signed out: nothing to wait for');
+  assert.equal(stagingCardIsClear({ ...staging, signedIn: true, storedSeen: null }), false, 'signed in, not read yet: wait');
+  assert.equal(stagingCardIsClear({ ...staging, signedIn: true, storedSeen: false }), false, 'signed in, card not closed yet');
+  assert.equal(stagingCardIsClear({ ...staging, signedIn: true, storedSeen: true }), true, 'the card was closed');
+  assert.equal(stagingCardIsClear({ stagingUi: false, signedIn: true, storedSeen: null }), true, 'production has no card');
 });
 
 test('steps clamp at both ends and the last one does not loop', () => {
