@@ -11,7 +11,7 @@ import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
 import { FairRulesNote } from '../components/PromotedPill';
-import { FAIR_RULES_TASKS, auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
+import { SORT_PHRASES, fairRulesTasks, auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
 import { usePromotedLive } from '../lib/usePromotedLive';
 import { HowItWorks } from '../components/HowItWorks';
 import { FadeIn, Pressy, tx } from '../components/primitives';
@@ -42,7 +42,7 @@ import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, QuickChip, WorkSwitch } from '../components/MapFilterParts';
 import { FIND_WORK_LIMIT, REMOTE_LIMIT, capped, findWorkSearches, joinFindWork } from '../lib/findWorkRead';
-import { changedFilters, clearJobFilters, filterList, jobsSummary, narrowsJobs, type MapFilters } from '../lib/mapFilters';
+import { SORT_LABELS, changedFilters, clearJobFilters, filterList, jobsSummary, narrowsJobs, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { LooksLikeYouMean, SearchEmpty, SearchLoading, SearchUnderstood, TypoNote } from '../components/SmartSearch';
 import { useRecentSearches, useSearchUnderstood, useTypingSuggestions } from '../lib/useSmartSearch';
@@ -881,7 +881,7 @@ function FindWork({
       void recordPromoView(id, 'list', false).catch(() => {});
     }
   }, [promo, topIds]);
-  const fairRules = promo && promo.badged.size > 0 ? <FairRulesNote side="earn" text={FAIR_RULES_TASKS} /> : null;
+  const fairRules = promo && promo.badged.size > 0 ? <FairRulesNote side="earn" text={fairRulesTasks(SORT_PHRASES[filters.sort])} /> : null;
 
   // How many a draft of the filters would show, for the sheet's button and the one-tap ways out.
   const countFor = (f: MapFilters) => (rows ? filterList(rows, at, f).length : 0);
@@ -1159,6 +1159,7 @@ function FindWork({
                 </RNText>
                 {clearAllButton}
               </View>
+              <RNText style={tx('500', 12, t.colors.muted, { marginTop: 2 })}>Sorted by {SORT_LABELS[filters.sort].toLowerCase()}</RNText>
               {areaNote}
 
               {shown === null ? loadingCards : noResults}
