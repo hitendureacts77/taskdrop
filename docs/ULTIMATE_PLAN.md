@@ -2353,6 +2353,27 @@ done 1.18
 **Done when:** every row is Done, or has your written "drop".
 </details>
 
+<details id="t1-22" data-short="Admin redesign">
+<summary>[CLAUDE] <b>1.22</b> Admin panel redesign (design + staging build) <small>· added 28 Nov · design brief and clickable design done 28 Nov · waiting for your review of the admin design (say "build the admin design" to start)</small></summary>
+
+**In plain words:** the admin gets a calmer, safer layout: 8 sections instead of 25 menu items and 9 tabs, one Inbox for everything waiting on you, three confirm levels (tap, confirm, type a word + authenticator code) on every risky action, and every November app feature covered (Plan B holds and money moves, chat, counter-offers, skills, City Hunt, guest mode). It is built on staging first; production keeps the old admin until you say "promote the admin design".
+
+- [x] [opus] Design brief, old to new page map, per-screen spec, confirm tiers, backend pieces · Done 28 Nov (admin repo `docs/admin-redesign/03-design-brief.md`, with inventories 01 and 02)
+- [x] [opus] Clickable design, light and dark, desktop and phone, role switcher · Done 28 Nov (admin repo `docs/admin-redesign/design/admin-design.html`)
+- [x] [sonnet] Staging build plan, phases P1 to P5 with each step tagged Opus or Sonnet · Done 28 Nov (admin repo [`docs/admin-redesign/04-staging-build-plan.md`](https://github.com/hitendureacts77/taskdrop-admin/blob/redesigned-2.0/docs/admin-redesign/04-staging-build-plan.md))
+- [ ] **Waiting for your review of the admin design**: open the design file, then say "build the admin design" (with any changes to the decisions below)
+- [ ] P1 shell (8 sections, top bar, search, staging ribbon, dark mode, hide test data, role-aware menu) + Inbox + Money holds & moves + task dispute page
+- [ ] P2 person page + app switches and settings (confirm tiers + authenticator code) + audit log in plain sentences
+- [ ] P3 Safety, Support, Feedback board, Growth, Reports
+- [ ] P4 System health, Content, Launch checklist, Team
+- [ ] P5 the "New - needs building" items you pick
+- [ ] Promote to production (your checklist in the build plan, section 6)
+
+**Your decisions (recommendation in brackets):** (1) the 8-section layout with one Inbox (yes); (2) disputes and refunds need a typed word every time and the authenticator code once per 10 minutes (yes); (3) which New items first (content editor for the walkthrough YouTube link and banner, then launch areas; coupons and Loops email after launch); (4) Support sees money read-only (yes); (5) the dark sidebar stays dark green in dark mode (yes); (6) build order P1 to P5 (yes); (7) production gate: the new admin shows only where a staging-only build setting is on AND the server says exactly "staging", until you promote it (yes).
+
+**Done when:** P1 to P4 (and the P5 items you pick) are built and checked on staging, and you have run the promote checklist.
+</details>
+
 > **GATE 1: do not start Step 3 until all of these are true** (Step 2 can start at the same time as Step 1)
 
 - [-] Every decision has an answer (1.1). **Future scope (your decision, 1 Nov 2026):** no gate waits on it; each open decision is answered when the task that needs it comes up.
@@ -6993,6 +7014,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-28 (admin panel redesign, task 1.22):** Opus wrote the admin design brief (8 sections instead of 25 menu items and 9 tabs, one Inbox, three confirm levels, every November feature covered) and a clickable design (light and dark, desktop and phone, role switcher); Sonnet wrote the staging build plan, phases P1 to P5 with a production gate so production keeps the old admin until you promote it. All in the admin repo `docs/admin-redesign/`. Plan and design only: nothing built. Waiting for your review; say "build the admin design" to start.
 - **2026-11-28 (area search fix, task 1.21 row F3):** OpenStreetMap search (Nominatim) and its backup Photon both refuse the Supabase servers (403 since 27 Nov), so guests found no area ("Nothing matched") and a dropped pin got no area name. PR 617 added Photon; PR 619 adds Google (the server key, Places search and nearby search) as the last backup, capped at 600 calls a day inside the 3,000-a-day Google total (migration 243, `take_places_backup`); PR 620 credits "Results from Google Maps." when Google answered; PR 621 skips a refusing service for 15 minutes (keeps the search under the app's 8 s limit) and makes a newly picked area update the live pill ("20 workers near you") and "Workers offering services near you" at once instead of after reopening. Checked on staging at phone width as a new guest: walkthrough opens, Kondapur found, Home top updates. New APK r28e (`C:/complete taskdrop/apk/taskdrop-r28e.apk`, same native runtime 27dcc051 as r28c, all app changes of 28 Nov) installs by itself when your phone is on USB: tap Install on the phone.
 - **2026-11-28 (three voice notes of 28 Nov + Ideas board, task 1.21 row F3):** all built and merged into `redesigned-2.0`: PR 609 (share link for your task: "Share your task" after posting and in Task options, opens taskdrop.in/task/<id>), 610 (Speak button while posting, needs the new APK), 611 ("or" line between "No fixed date" and the date and time picker; "Remove from saved?" before unsaving), 612 (Home top: area name always readable, "N workers online now" instead of "0, 43 helpers"; "Only on TaskDrop" moved to the end; heading "Workers offering services near you"), 613 (walkthrough opens once per person for a new guest, first start and each new sign-in; phone picture fits; a "what it is for" line on every step; the earn-goal question moved out of sign-up to an optional last step of Start earning), 614 and 615 (Ideas board: earnings by week chart, distance on every Find work card, bigger task photo, save a task as a template, map pin groups never overlap; price filter and dark map were already live). Seven board ideas set to Done on staging. OTA 266bbde6 published to beta for the r28b APK (runtime d553fb8e); a new APK with the Speak module was built on this PC (`C:/complete taskdrop/apk/taskdrop-r28c.apk`), waiting for your phone on USB to install. Waiting for your decision on four board ideas: "Pay in two parts for big jobs" and "Add a tip button" (money, Plan B), "Telugu language option" (a big project), "Verified badge for workers with ID" (needs an ID check, there is no ID data yet).
 - **2026-11-28 (beta APK r28b on your phone):** you asked to see the latest code on your phone. A full beta APK (`com.taskdrop.app`, versionCode 4, arm64) was built on this PC from `redesigned-2.0` at ba89509a (PRs 601-607 included) and installed over USB on your CPH2585, with your data kept. The app opened with no crash. Native libraries had changed, so the build compiled from scratch (Gradle 33 min). **New rule (yours):** from now on, phone updates go out as OTA updates (`eas update`, beta channel, about 5-10 minutes). A new APK is built only when native libraries change. Nothing in the database or settings changed.
