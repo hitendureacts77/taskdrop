@@ -10,6 +10,7 @@ import { postSignInRoute } from '../data/api';
 import type { SignInRoute } from '../lib/username';
 import { GUEST_DRAFTS_OWNER, clearGuestHandoff, clearStaleGuestHandoff, dropGuestHandoffMark, guestHandoffLive, loadGuestChoice, saveGuestChoice, saveGuestHandoffMark, takeGuestHandoff } from '../lib/guest';
 import { clearDrafts, moveGuestDrafts } from '../lib/drafts';
+import { clearTemplates } from '../lib/postTemplatesStore';
 import { clearBigDays, moveGuestBigDays } from '../lib/bigDayStore';
 import { allowGuestSaves, dropGuestSaves } from '../lib/guestSaves';
 import { adoptGuestWizard, clearWizard, dropGuestWizard } from '../lib/postWizardStore';
@@ -179,6 +180,7 @@ async function forgetGuestThingsOnDevice(): Promise<void> {
 async function forgetDraftsOnDevice(userId: string | null): Promise<void> {
   if (userId) {
     await clearDrafts(userId);
+    await clearTemplates(userId);
     await clearBigDays(userId);
   }
   await forgetGuestThingsOnDevice();
