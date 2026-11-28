@@ -33,9 +33,21 @@ export function peekArea(owner: string | null | undefined): KnownArea | null | u
   return cached.area;
 }
 
+/** Screens showing the area (the live pill, Workers near you, the maps) hear a new pick at once, not on the next visit. */
+const listeners = new Set<(owner: string, area: KnownArea | null) => void>();
+
+export function onAreaChange(fn: (owner: string, area: KnownArea | null) => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
 export function rememberArea(owner: string | null | undefined, area: KnownArea | null): void {
   if (!owner) return;
+  const changed = !cached || cached.owner !== owner || !sameArea(cached.area, area);
   cached = { owner, area };
+  if (changed) listeners.forEach((fn) => fn(owner, area));
 }
 
 /** Signed out, or tests: forget it. */
