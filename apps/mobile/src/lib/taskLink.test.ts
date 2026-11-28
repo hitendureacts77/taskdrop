@@ -22,11 +22,12 @@ test('B148 a real task still opens on its page, with only the rough area', () =>
 });
 
 test('B148 the shared-link handler and the task page use it', () => {
-  const host = readFileSync(new URL('../navigation/ScreenHost.tsx', import.meta.url), 'utf8');
-  assert.match(host, /taskLinkTarget\(/);
-  // A failed read lands on the same page, not silently on Home.
-  const handler = host.slice(host.indexOf('const handledLink'), host.indexOf('const content ='));
-  assert.equal((handler.match(/taskLinkTarget\(/g) ?? []).length, 2);
+  // The web navigator opens /task/<id> and ?task=<id> links (providers/NavProvider.tsx).
+  const host = readFileSync(new URL('../providers/NavProvider.tsx', import.meta.url), 'utf8');
+  // A failed read lands on the same page, not silently on Home: the one call gets null when the read throws.
+  const handler = host.slice(host.indexOf('async function taskEntry'), host.indexOf('export function NavProvider'));
+  assert.equal((handler.match(/taskLinkTarget\(/g) ?? []).length, 1);
+  assert.match(handler, /catch \{\s*task = null;/);
   const page = readFileSync(new URL('../screens/TaskDetailScreen.tsx', import.meta.url), 'utf8');
   assert.match(page, /TASK_UNAVAILABLE/);
   assert.match(page, /params\.unavailable === true/);

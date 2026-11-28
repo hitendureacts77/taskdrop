@@ -63,7 +63,7 @@ export function BottomTabBar() {
         return (
           <Pressable
             key={tab.key}
-            onPress={() => go(tab.key)}
+            onPress={() => go(tab.key, {}, { tab: true })}
             accessibilityRole="tab"
             accessibilityLabel={
               tab.key === 'myTasks' && waiting > 0

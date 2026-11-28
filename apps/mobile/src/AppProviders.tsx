@@ -22,7 +22,6 @@ import { PushBridge } from './components/PushBridge';
 import { SessionWatch } from './components/SessionWatch';
 import { UsernameGate } from './components/UsernameGate';
 import { PresenceBeat } from './components/PresenceBeat';
-import { PublicPageLink } from './components/PublicPageLink';
 import { refreshAppConfig } from './lib/appConfig';
 
 // Ask for the admin panel's switches as the script loads, while the five font files download, instead of
@@ -58,7 +57,6 @@ export function Background() {
       <SessionWatch />
       <UsernameGate />
       <PresenceBeat />
-      <PublicPageLink />
     </ErrorBoundary>
   );
 }

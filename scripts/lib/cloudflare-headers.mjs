@@ -5,7 +5,7 @@
 // Cloudflare limits (developers.cloudflare.com/workers/platform/limits): 100 `_headers` rules, 2,000 characters per
 // `_headers` line, 2,000 static `_redirects` rules. A rule over a limit throws here, so a bad file is never published.
 
-import { ROUTE_PAGES } from '../../apps/mobile/scripts/web-route-pages.mjs';
+import { APP_ROUTES, ROUTE_PAGES } from '../../apps/mobile/scripts/web-route-pages.mjs';
 
 export const TARGETS = ['staging', 'production'];
 
@@ -75,9 +75,10 @@ export function headersFor(config, target) {
 }
 
 /**
- * Rewrites and redirects. The Vercel catch-all rewrite `/(.*)` -> `/index.html` needs no file on Cloudflare: every
- * address the site answers is its own file and anything else gets 404.html (wrangler.*.jsonc, not_found_handling
- * "404-page", plan 3.6), where the app shows "Page not found". A redirect becomes a `_redirects` line; anything
+ * Rewrites and redirects. The Vercel catch-all rewrite `/(.*)` -> `/index.html` needs no file on Cloudflare: the
+ * public pages are files of their own, the app's screens are rewritten to index.html (APP_ROUTES, renderRedirectsFile)
+ * and anything else gets 404.html (wrangler.*.jsonc, not_found_handling "404-page", plan 3.6), where the app shows
+ * "Page not found". A redirect becomes a `_redirects` line; anything
  * else is listed in `untranslated` for the build to print.
  */
 export function routesFor(config) {
@@ -110,6 +111,8 @@ export function renderHeadersFile(config, target) {
   block('/index.html', { 'Cache-Control': NO_CACHE });
   // The other pages (terms.html, ... and 404.html; plan 3.6) are copies of index.html, so they are never cached either.
   for (const p of ROUTE_PAGES) if (p.path !== '/') block(p.path, { 'Cache-Control': NO_CACHE });
+  // The app's screens (/task/*, /wallet, ...) are answered with index.html, so they are never cached either.
+  for (const p of APP_ROUTES) block(p, { 'Cache-Control': NO_CACHE });
   block('/404.html', { 'Cache-Control': NO_CACHE });
   for (const p of perPath) block(p.pattern, p.headers);
   if (blocks.length > MAX_RULES) throw new Error(`_headers has ${blocks.length} rules; Cloudflare allows ${MAX_RULES}.`);
@@ -119,10 +122,17 @@ export function renderHeadersFile(config, target) {
   return text;
 }
 
-/** The text of the `_redirects` file, or null when there is nothing to redirect. */
+/**
+ * The text of the `_redirects` file: vercel.json's redirects first (Cloudflare applies the first rule that matches),
+ * then one rewrite per app screen (APP_ROUTES: /task/*, /wallet, ...) to "/" (index.html) with status 200, so a reload or
+ * a shared link opens that screen while any other address still gets 404.html with status 404. Not "/index.html":
+ * Cloudflare drops that rule as a loop (it redirects /index.html to /; checked with wrangler dev).
+ */
 export function renderRedirectsFile(config) {
   const { redirects } = routesFor(config);
-  return redirects.length ? redirects.join('\n') + '\n' : null;
+  const lines = [...redirects, ...APP_ROUTES.map((p) => `${p} / 200`)];
+  if (lines.length > 2000) throw new Error(`_redirects has ${lines.length} rules; Cloudflare allows 2000.`);
+  return lines.join('\n') + '\n';
 }
 
 /**
