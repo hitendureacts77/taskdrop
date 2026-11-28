@@ -67,7 +67,7 @@ export const STALE_AFTER_MS = 7 * DAY;
 /** "Post when back" only counts this long after the press; after that it just reopens on Review. */
 export const RESUME_WINDOW_MS = 2 * 3600_000;
 
-const WHEN_KEYS = ['now', 'today', '2days', 'week', 'custom', 'open'];
+const WHEN_KEYS = ['now', 'today', '2days', 'weekend', 'week', 'custom', 'open'];
 const SPLITS = [0, 2, 3, 4, 5, 6];
 const DEFAULT_OPTS: PosterOptions = {
   flash: false,
