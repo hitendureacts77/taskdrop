@@ -8,6 +8,8 @@ import { subscribeLive } from '../lib/live';
 import { count, log } from '../lib/monitoring';
 import { noteChange, reusePublic, reuseWhileFresh } from '../lib/freshness';
 import { isPlanB } from '../lib/moneyFlow';
+import { getAppConfig } from '../lib/appConfig';
+import { outsideAreaMessage } from '../lib/launchAreas';
 import { signInRouteFor, type SignInRoute } from '../lib/username';
 import type { Database, Tables, Enums } from '@taskdrop/db-types';
 
@@ -451,6 +453,9 @@ export type PosterOptionsInput = {
 
 export async function createTask(input: NewTask): Promise<Task> {
   const { posterId: _poster, ...rest } = input;
+  // Launch areas (admin, migration 260): a job with a place outside every area is not sent. The api refuses it too.
+  const outside = outsideAreaMessage(getAppConfig().launchAreas, input.locLat, input.locLng);
+  if (outside) throw new ApiError(outside, 'FEATURE_OFF', outside, 'launch_areas');
   const task = await act<Task>('createTask', { ...rest });
   count('task.posted');
   return task;

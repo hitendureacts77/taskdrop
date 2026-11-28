@@ -51,6 +51,7 @@ import { WIDER_KM } from '../lib/smartSearch';
 import { LocationSheet } from '../components/LocationSheet';
 import { LocationPrompt } from '../components/LocationPrompt';
 import { useMyArea } from '../lib/useMyArea';
+import { LaunchAreaNote } from '../components/LaunchAreaNote';
 import { useLivePlace } from '../lib/useLivePlace';
 import { LOCATION_DISMISSED_KEY, dismissedRecently, locationAskedThisLaunch, markLocationAsked, shouldAskForLocation } from '../lib/locationAsk';
 import { pickedPlaceName, roughPlace } from '../lib/place';
@@ -192,8 +193,11 @@ export function ExploreScreen() {
   const centre = lookAt ? { lat: lookAt.lat, lng: lookAt.lng } : live ? { lat: live.lat, lng: live.lng } : area ? { lat: area.lat, lng: area.lng } : null;
   // A picked place keeps the name it was picked by ("Koramangala, Bengaluru"), not its ward.
   const placeLabel = lookAt ? lookAt.label : live ? (roughPlace(live.label) ?? 'Your location') : area ? (pickedPlaceName(area.label) ?? undefined) : undefined; // B176: the place they picked, by its name
+  // Launch areas: on a phone's map the note sits under the tab title; everywhere else above the page.
+  const phoneMap = view === 'map' && !(desktop || tablet);
   return (
     <View style={{ flex: 1 }}>
+      {phoneMap ? null : <LaunchAreaNote at={centre} />}
       {view === 'map' ? (
         <FadeIn key="map" duration={reduced ? VIEW_FADE_REDUCED_MS : VIEW_FADE_MS} translateY={reduced ? 0 : 8} style={{ flex: 1 }}>
           {userId && !loaded && !live ? (
@@ -213,6 +217,7 @@ export function ExploreScreen() {
                 <>
                   <AppHeader />
                   <TabTitle title={mode === 'worker' ? 'Find work' : 'Explore'} live={live} dot action={<ViewSwitch view="map" onList={() => setView('list')} />} />
+                  <LaunchAreaNote at={centre} />
                 </>
               )}
               onChooseArea={() => setPrompt('type')}

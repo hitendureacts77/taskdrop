@@ -70,7 +70,51 @@ export type Controls = {
    */
   public_cache_snapshots: boolean;
   public_cache_app: boolean;
+  /** The "How TaskDrop works" YouTube link the admin set (migration 261), or null. */
+  walkthrough_url: string | null;
+  /** Where people can post jobs (migrations 260/261). Off, or no area, means everywhere. */
+  launch_areas: LaunchAreas;
 };
+
+/** One launch area: a circle around a centre (migration 260). */
+export type LaunchArea = { name: string; lat: number; lng: number; radius_km: number };
+export type LaunchAreas = { on: boolean; message: string | null; areas: LaunchArea[] };
+
+export const LAUNCH_AREAS_OFF: LaunchAreas = { on: false, message: null, areas: [] };
+export const OUTSIDE_AREA_FALLBACK = "TaskDrop is not open for posting in this area yet. It is coming soon.";
+
+/** Read the launch_areas object; anything odd means off (an outage must not close the country). */
+export function parseLaunchAreas(raw: unknown): LaunchAreas {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return LAUNCH_AREAS_OFF;
+  const r = raw as Record<string, unknown>;
+  const areas = (Array.isArray(r.areas) ? r.areas : [])
+    .map((a) => (a && typeof a === "object" ? (a as Record<string, unknown>) : {}))
+    .map((a) => ({ name: typeof a.name === "string" ? a.name : "", lat: Number(a.lat), lng: Number(a.lng), radius_km: Number(a.radius_km) }))
+    .filter((a) => Number.isFinite(a.lat) && Number.isFinite(a.lng) && Number.isFinite(a.radius_km) && a.radius_km > 0);
+  const message = typeof r.message === "string" && r.message.trim() ? r.message.trim() : null;
+  return { on: r.on === true && areas.length > 0, message, areas };
+}
+
+/** Distance in km between two points (haversine). */
+export function kmBetween(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Whether a point may post under the launch areas. True while they are off, and for a point we
+ * do not know (a remote job has no place): only a known place outside every circle is refused.
+ */
+export function insideLaunchAreas(la: LaunchAreas, lat: unknown, lng: unknown): boolean {
+  if (!la.on) return true;
+  const y = typeof lat === "number" ? lat : Number.NaN;
+  const x = typeof lng === "number" ? lng : Number.NaN;
+  if (!Number.isFinite(y) || !Number.isFinite(x)) return true;
+  return la.areas.some((a) => kmBetween(y, x, a.lat, a.lng) <= a.radius_km);
+}
 
 /** The switches the api can refuse an operation for. */
 export type Feature = "posting" | "bidding" | "topups" | "withdrawals" | "promotions" | "chat_photos";
@@ -143,6 +187,10 @@ export function refusalFor(
   if (op === "createUpload" && args.purpose === "chat") feature = "chat_photos";
   if (op === "sendMessage" && typeof args.body === "string" && args.body.startsWith(CHAT_MEDIA_PREFIX)) feature = "chat_photos";
   if (feature && !controls[feature]) return { message: featureOffMessage(feature), code: "FEATURE_OFF", details: feature };
+  // Launch areas (migration 260): a new job with a place outside every area. FEATURE_OFF so the app refreshes its config.
+  if (op === "createTask" && controls.launch_areas && !insideLaunchAreas(controls.launch_areas, args.locLat, args.locLng)) {
+    return { message: controls.launch_areas.message ?? OUTSIDE_AREA_FALLBACK, code: "FEATURE_OFF", details: "launch_areas" };
+  }
   // Only a known "no": if we could not tell whether the phone is confirmed, the request goes ahead.
   if (controls.require_phone_verified && PHONE_OPS.has(op) && caller.phoneVerified === false) {
     return { message: PHONE_REQUIRED_MESSAGE, code: "PHONE_REQUIRED", details: null };
@@ -183,6 +231,8 @@ export function parseControls(data: unknown): Controls | null {
     public_cache_memo: d.public_cache_memo === true,
     public_cache_snapshots: d.public_cache_snapshots === true,
     public_cache_app: d.public_cache_app === true,
+    walkthrough_url: text("walkthrough_url"),
+    launch_areas: parseLaunchAreas(d.launch_areas),
   };
 }
 
@@ -215,6 +265,10 @@ export type AppConfig = {
   /** "staging" (fake money; the apps show the ribbon) or "production". Staging when it cannot be read. */
   environment: Environment;
   banner: { text: string; level: "info" | "warning" | "critical"; link: string | null } | null;
+  /** The "How TaskDrop works" YouTube link (migration 261), or null. */
+  walkthroughUrl: string | null;
+  /** Where people can post jobs (migration 260). The api refuses createTask outside them while on. */
+  launchAreas: { on: boolean; message: string | null; areas: { name: string; lat: number; lng: number; radiusKm: number }[] };
   /** How long the app may keep this before asking again. */
   ttlSeconds: number;
 };
@@ -244,6 +298,12 @@ export function publicConfig(c: Controls, client: Client): AppConfig {
     requirePhoneVerified: c.require_phone_verified,
     environment: c.environment,
     banner: c.banner_text ? { text: c.banner_text, level: c.banner_level ?? "info", link: c.banner_link } : null,
+    walkthroughUrl: c.walkthrough_url,
+    launchAreas: {
+      on: c.launch_areas.on,
+      message: c.launch_areas.message,
+      areas: c.launch_areas.areas.map((a) => ({ name: a.name, lat: a.lat, lng: a.lng, radiusKm: a.radius_km })),
+    },
     ttlSeconds: CONFIG_TTL_SECONDS,
   };
 }
