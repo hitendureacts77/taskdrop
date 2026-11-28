@@ -232,6 +232,7 @@ export function PosterDeskRow({
   onOpen,
   onMenu,
   onAgain,
+  onNotify,
   onReview,
   first = false,
 }: {
@@ -246,6 +247,8 @@ export function PosterDeskRow({
   onOpen: () => void;
   onMenu: () => void;
   onAgain: () => void;
+  /** A finished task: tell the person hired about one of your tasks (NotifyHelperSheet); absent until they load. */
+  onNotify?: () => void;
   onReview: () => void;
 }) {
   const t = useTheme();
@@ -297,7 +300,11 @@ export function PosterDeskRow({
       {open && passed && offers === 0 ? (
         <ActionButton row kind="outline" label="Post again" onPress={onAgain} a11y={`Post again: ${task.title}`} />
       ) : done ? (
-        <ActionButton row kind={first ? 'primary' : 'outline'} label="Book again" onPress={onAgain} a11y={`Book again: ${task.title}`} />
+        onNotify ? (
+          <ActionButton row kind={first ? 'primary' : 'outline'} label="Notify helper" onPress={onNotify} a11y={`Notify about a task: ${task.title}`} />
+        ) : (
+          <ActionButton row kind="outline" label="Post again" onPress={onAgain} a11y={`Post again: ${task.title}`} />
+        )
       ) : (
         <ActionButton row kind={primary && first ? 'primary' : 'outline'} label={label} onPress={onOpen} a11y={`${label}: ${task.title}`} />
       )}

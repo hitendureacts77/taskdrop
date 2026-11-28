@@ -127,3 +127,9 @@ test('a stack\'s pill widens with its faces and count', () => {
   const more = stackRects(0, 0, 3, 12, 'Kondapur · 15').compact.w;
   assert.ok(one < three && three < more);
 });
+
+test('task 1.21 row A: every price bubble makes room for its service icon; a bare price is narrower', () => {
+  const withIcon = bubbleRect(0, 0, '₹500');
+  const bare = bubbleRect(0, 0, '₹500', false);
+  assert.equal(withIcon.w - bare.w, 18);
+});

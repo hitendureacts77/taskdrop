@@ -15,7 +15,6 @@ import { Screen, cardSurface } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { ConsentSetting } from '../components/ConsentBanner';
 import { BlockedPeopleCard } from '../components/BlockedPeopleCard';
-import { PeopleMapCard } from '../components/PeopleMapCard';
 import { Badge, ConfirmDialog, Field, PrimaryButton, SwipeTabs, TopBar, UnderlineTabs } from '../components/kit';
 import { nameCarriesContact } from '../lib/mask';
 import { tx } from '../components/primitives';
@@ -170,7 +169,7 @@ export function AccountScreen() {
   const { desktop: desk, scale } = useLayout();
   const { back, go, params } = useNav();
   const { flash, celebrate } = useActions();
-  const { userId, signOut, linkGoogle, guest } = useAuth();
+  const { userId, signOut, linkGoogle } = useAuth();
   const { reset } = useNav();
   const { pref, setPref } = useThemeControls();
   const { mode } = useMode();
@@ -574,7 +573,6 @@ export function AccountScreen() {
                 ))}
               </View>
             ) : null}
-            {guest || !userId ? null : <PeopleMapCard style={card} />}
             <BlockedPeopleCard style={card} />
           </>
         ) : null}

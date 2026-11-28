@@ -27,6 +27,8 @@ import { TwoPane } from '../components/TwoPane';
 import { CONTENT_INSET } from '../navigation/DesktopPage';
 import { HomeFeedbackCard } from '../components/HomeFeedbackCard';
 import { onHero } from '../theme';
+import { useActions } from '../providers/AppStateProvider';
+import { NotifyHelperSheet, type NotifyHelper } from '../components/NotifyHelperSheet';
 
 function SlideIn({ delay, children }: { delay: number; children: React.ReactNode }) {
   const v = useRef(new Animated.Value(0)).current;
@@ -132,6 +134,9 @@ export function ProfileScreen() {
   // W2-16: names every way this person can sign back in.
   const signOutWords = useSignOutMessage(confirmSignOut, profile?.username);
   const [regulars, setRegulars] = useState<Regular[]>([]);
+  // Tapping a regular: notify them about a task (task 1.21 C: it replaced "Book again").
+  const [notify, setNotify] = useState<NotifyHelper | null>(null);
+  const { flash: flashMsg } = useActions();
   const [verified, setVerified] = useState<{ phone: boolean; email: boolean } | null>(null);
 
   // A worker sees their earnings here. A customer's spending is deliberately
@@ -418,9 +423,9 @@ export function ProfileScreen() {
                 {regulars.map((r) => (
                   <Pressable
                     key={r.profile.id}
-                    onPress={() => go('aiPost', { preferWorker: { id: r.profile.id, name: r.profile.display_name } })}
+                    onPress={() => setNotify({ id: r.profile.id, name: r.profile.display_name })}
                     accessibilityRole="button"
-                    accessibilityLabel={`Book ${r.profile.display_name} again`}
+                    accessibilityLabel={`Notify ${r.profile.display_name} about a task`}
                     style={({ pressed }) => ({ width: 64, alignItems: 'center', opacity: pressed ? 0.8 : 1 })}
                   >
                     <Avatar name={r.profile.display_name} size={52} />
@@ -670,6 +675,7 @@ export function ProfileScreen() {
             .finally(() => reset('splash'));
         }}
       />
+      <NotifyHelperSheet helper={notify} onClose={() => setNotify(null)} flash={flashMsg} />
     </Screen>
   );
 }

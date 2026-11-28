@@ -28,7 +28,7 @@ import { SPREAD_ZOOM, layoutPins } from '../lib/mapLayout';
 import { youRect } from '../lib/mapLabels';
 import { SRC, buildingLayer, glToTile, sceneShapes, shapeLayers, tileToGl, tiltAfterZoom } from '../lib/mapLayers';
 import { glStyleUrl } from '../lib/mapStyle';
-import { SPREAD_MS, controlsRect, itemKey, pinBox, pinLabels, stackLabel } from './MapPinLayer';
+import { SPREAD_MS, controlsRect, itemKey, jobSays, pinBox, pinLabels, stackLabel } from './MapPinLayer';
 import { MAX_FRESH, TAG_MS, introDelays, introEnd } from '../lib/mapMotion';
 import { RIPPLE_ROOM } from '../lib/mapMotion';
 import { usePinEpoch } from './usePinEpoch';
@@ -386,7 +386,7 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
                 label={`${it.ids.length} ${words.many} in ${name} area, biggest offer ${topPin.label}. Zoom in`}
                 onPress={into}
               >
-                <PricePin price={topPin.label} best={best} on={false} place={name} count={`${it.ids.length} ${words.many}`} hidePlace={hidePlace} />
+                <PricePin price={topPin.label} icon={topPin.face?.icon} best={best} on={false} place={name} count={`${it.ids.length} ${words.many}`} hidePlace={hidePlace} />
               </PinMarker>
             );
           }
@@ -404,10 +404,10 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
                 at={place}
                 box={PROMO_PIN}
                 z={on ? 6 : 5}
-                label={'Promoted. ' + (people ? helperSays(pin) : `${pin.label}${pin.title ? ', ' + pin.title : ''}, ${pin.area ?? 'nearby'} area`)}
+                label={'Promoted. ' + (people ? helperSays(pin) : jobSays(pin))}
                 onPress={pick}
               >
-                <PromotedPin side={people ? 'hire' : 'earn'} price={people ? (pin.price ?? null) : pin.label} on={on} />
+                <PromotedPin side={people ? 'hire' : 'earn'} price={people ? (pin.price ?? null) : pin.label} on={on} {...(people ? {} : { icon: pin.face?.icon })} />
               </PinMarker>
             );
           }
@@ -431,13 +431,13 @@ function NativeJobsMap({ me, pins, selectedId, onSelect, height = 320, ringKm = 
               at={place}
               box={spread ? TASK_PIN : PRICE_PIN}
               z={on ? 4 : best ? 3 : 2}
-              label={`${pin.label}${pin.title ? ', ' + pin.title : ''}${pin.who ? ', posted by ' + pin.who : ''}, ${pin.area ?? 'nearby'} area`}
+              label={jobSays(pin)}
               onPress={pick}
             >
               {spread ? (
                 <TaskPin price={pin.label} face={pin.face} seed={pin.id} who={pin.who} title={pin.title} best={best} on={on} compact={hidePlace} />
               ) : (
-                <PricePin price={pin.label} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={hidePlace} />
+                <PricePin price={pin.label} icon={pin.face?.icon} best={best} on={on} place={pin.area ?? 'Nearby'} hidePlace={hidePlace} />
               )}
             </PinMarker>
           );

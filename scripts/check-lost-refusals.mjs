@@ -17,6 +17,14 @@ export const MIGRATIONS = join(dirname(fileURLToPath(import.meta.url)), '..', 's
 /** "schema.function: refusal" pairs dropped on purpose, each with why. */
 export const ACCEPTED = new Map([
   // Example: ['public.some_function: The old refusal', 'replaced by the shared guard in 150'],
+  [
+    'private.shape_poster_options: You can offer a task first only to someone you hired before',
+    '231: the helper to notify is dropped quietly instead (no hold any more), so the task still posts',
+  ],
+  [
+    'private.bids_wait_for_regular: The customer asked someone they hired before first. It opens to everyone in % min',
+    '231: the 10-minute first look was removed (owner, 27 Nov 2026); tasks are open to everyone at once',
+  ],
 ]);
 
 const HEAD = /create\s+or\s+replace\s+function\s+([a-z_]+\.)?([a-z0-9_]+)\s*\(/gi;

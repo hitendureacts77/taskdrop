@@ -10,16 +10,22 @@ import { myRegulars, type Regular } from '../data/api';
 import { useLayout } from '../lib/layout';
 import { RowCard } from '../components/RowCard';
 import { CONTENT_INSET } from '../navigation/DesktopPage';
+import { useActions } from '../providers/AppStateProvider';
+import { NotifyHelperSheet, type NotifyHelper } from '../components/NotifyHelperSheet';
 
 /**
  * The people this poster hired for finished jobs (Regulars, migration 134):
- * book one again, and they get the first 10 minutes to send an offer.
+ * notify one about a task (owner, 27 Nov 2026: it replaced "Book again"). They get one notification
+ * with the link; the task stays open to everyone and nothing is reserved for them.
  */
 export function RegularsScreen() {
   const t = useTheme();
   const { back, go } = useNav();
   const { desktop } = useLayout();
+  const { flash } = useActions();
   const [list, setList] = useState<Regular[] | null>(null);
+  const [notify, setNotify] = useState<NotifyHelper | null>(null);
+  const sheet = <NotifyHelperSheet helper={notify} onClose={() => setNotify(null)} flash={flash} />;
 
   useEffect(() => {
     let alive = true;
@@ -29,7 +35,7 @@ export function RegularsScreen() {
     };
   }, []);
 
-  // Desktop: the regulars are rows on one centred card, "Book again" at the right end of each row.
+  // Desktop: the regulars are rows on one centred card, "Notify about a task" at the right end of each row.
   if (desktop && list !== null && list.length > 0) {
     return (
       <Screen padded={false}>
@@ -57,9 +63,9 @@ export function RegularsScreen() {
                     <Icon name="heart" size={18} color={t.colors.signal} />
                   </Pressable>
                   <Pressable
-                    onPress={() => go('aiPost', { preferWorker: { id: r.profile.id, name: r.profile.display_name } })}
+                    onPress={() => setNotify({ id: r.profile.id, name: r.profile.display_name })}
                     accessibilityRole="button"
-                    accessibilityLabel={`Book ${r.profile.display_name} again`}
+                    accessibilityLabel={`Notify ${r.profile.display_name} about a task`}
                     style={({ pressed }) => ({
                       minWidth: 160,
                       paddingHorizontal: 24,
@@ -71,16 +77,17 @@ export function RegularsScreen() {
                       opacity: pressed ? 0.8 : 1,
                     })}
                   >
-                    <RNText style={tx('800', 13, t.colors.accentDeep)}>Book again</RNText>
+                    <RNText style={tx('800', 13, t.colors.accentDeep)}>Notify about a task</RNText>
                   </Pressable>
                 </View>
                 <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8, marginLeft: 60 })}>
-                  They get the first 10 minutes to send an offer, then everyone can.
+                  They get a notification with the link. Your task stays open to everyone.
                 </RNText>
               </View>
             ))}
           </RowCard>
         </ScrollView>
+        {sheet}
       </Screen>
     );
   }
@@ -101,7 +108,7 @@ export function RegularsScreen() {
           <EmptyState
             icon="heart"
             title="No regulars yet"
-            body="Everyone you hire for a finished job shows up here, so you can book them again."
+            body="Everyone you hire for a finished job shows up here, so you can tell them about your next task."
             actionLabel="Post a task"
             onAction={() => go('aiPost')}
           />
@@ -127,9 +134,9 @@ export function RegularsScreen() {
                   <Icon name="heart" size={18} color={t.colors.signal} />
                 </Pressable>
                 <Pressable
-                  onPress={() => go('aiPost', { preferWorker: { id: r.profile.id, name: r.profile.display_name } })}
+                  onPress={() => setNotify({ id: r.profile.id, name: r.profile.display_name })}
                   accessibilityRole="button"
-                  accessibilityLabel={`Book ${r.profile.display_name} again`}
+                  accessibilityLabel={`Notify ${r.profile.display_name} about a task`}
                   style={({ pressed }) => ({
                     marginTop: 12,
                     height: 42,
@@ -140,16 +147,17 @@ export function RegularsScreen() {
                     opacity: pressed ? 0.8 : 1,
                   })}
                 >
-                  <RNText style={tx('800', 13, t.colors.accentDeep)}>Book again</RNText>
+                  <RNText style={tx('800', 13, t.colors.accentDeep)}>Notify about a task</RNText>
                 </Pressable>
                 <RNText style={tx('400', 11, t.colors.muted, { marginTop: 8, textAlign: 'center' })}>
-                  They get the first 10 minutes to send an offer, then everyone can.
+                  They get a notification with the link. Your task stays open to everyone.
                 </RNText>
               </View>
             </FadeIn>
           ))
         )}
       </ScrollView>
+      {sheet}
     </Screen>
   );
 }

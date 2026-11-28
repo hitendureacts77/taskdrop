@@ -25,9 +25,12 @@ export function priceWidth(price: string): number {
   return w;
 }
 
-/** The price bubble of a pin whose point is at (x, y). `best` adds the trending icon the best offer carries. */
-export function bubbleRect(x: number, y: number, price: string, best = false): Rect {
-  const w = Math.min(168, 28 + 8.5 * price.length + (best ? 18 : 0));
+/**
+ * The price bubble of a pin whose point is at (x, y). `icon`: the service icon every task pin carries (task 1.21
+ * row A; it took the place of the best offer's trending icon, the same width). False for a bare price.
+ */
+export function bubbleRect(x: number, y: number, price: string, icon = true): Rect {
+  const w = Math.min(168, 28 + 8.5 * price.length + (icon ? 18 : 0));
   return { x: x - w / 2, y: y - 46, w, h: 34 };
 }
 

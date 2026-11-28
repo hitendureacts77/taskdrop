@@ -32,7 +32,7 @@ export const isGuestOp = (op: string) => GUEST_OPS.has(op);
 export const ACCOUNT_WRITES: ReadonlySet<string> = new Set([
   'activatePromotion', 'addCatalogTerm', 'addPayoutDestination', 'answerTaskQuestion', 'applyReferralCode', 'askTaskQuestion', 'attachMedia',
   'blockUser', 'cancelPromotion', 'cancelTask', 'cancelWithdrawal', 'commentFeedbackIdea', 'confirmRelease', 'createTask',
-  'createUpload', 'deleteMyAccount', 'endMySessions', 'lockBid', 'markWorkDone', 'openDispute', 'openTicket',
+  'createUpload', 'deleteMyAccount', 'endMySessions', 'lockBid', 'markWorkDone', 'notifyHelperAboutTask', 'openDispute', 'openTicket',
   'payTaskFromWallet', 'placeBid', 'postFeedbackIdea', 'removeListing', 'removeMedia', 'removePayoutDestination',
   'replyTicket', 'reportContent', 'requestRevision', 'requestWithdrawal', 'resolveTicket', 'sendCrewMessage', 'sendFeedback',
   'sendMessage', 'setDefaultPayoutDestination', 'setPromoAlerts', 'setRepeat', 'setTaskDue', 'raiseTopUp', 'setSaved', 'setWeeklyGoal', 'startPromotion', 'startTask',

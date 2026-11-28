@@ -19,14 +19,14 @@ import { WhyLine } from './SmartSearch';
 
 const CATEGORY_ICON: Record<string, IconName> = {
   'Home Services': 'home',
-  'Repairs & Maintenance': 'settings',
+  'Repairs & Maintenance': 'wrench',
   'Errands & Delivery': 'send',
   'Shopping & Sourcing': 'tag',
   'Local Checks & Info': 'pin',
   'Tech & Websites': 'compass',
   'Design & Creative': 'edit',
   'Writing & Content': 'edit',
-  'Photo & Video': 'play',
+  'Photo & Video': 'camera',
   'Tutoring & Education': 'list',
   'Career & Resume': 'briefcase',
   'Business & Consulting': 'briefcase',

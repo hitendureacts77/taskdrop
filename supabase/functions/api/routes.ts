@@ -32,7 +32,7 @@ export const API_GROUPS = {
   disputes: ["listMyDisputes", "listDisputeReasons", "openDispute"],
   profile: [
     "getProfile", "isAdmin", "usernameAvailable", "updateProfile", "updateProfileExtras", "ageStatus", "recordBirthDate",
-    "myStats", "myStreaks", "myRegulars", "setWeeklyGoal",
+    "myStats", "myStreaks", "myRegulars", "notifyHelperAboutTask", "setWeeklyGoal",
   ],
   reviews: ["listReviewsAbout", "publicProfileStats", "workerProofPhotos", "submitReview"],
   workers: ["listActiveWorkers", "workersNear", "workerServices", "topEarners"],
