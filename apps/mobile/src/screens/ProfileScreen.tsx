@@ -25,7 +25,6 @@ import { needAccount } from '../lib/guest';
 import { useLayout } from '../lib/layout';
 import { TwoPane } from '../components/TwoPane';
 import { CONTENT_INSET } from '../navigation/DesktopPage';
-import { HomeFeedbackCard } from '../components/HomeFeedbackCard';
 import { onHero } from '../theme';
 import { useActions } from '../providers/AppStateProvider';
 import { NotifyHelperSheet, type NotifyHelper } from '../components/NotifyHelperSheet';
@@ -438,7 +437,7 @@ export function ProfileScreen() {
             </View>
           ) : null;
 
-  // Task 1.19 F (decision 4): the "Suggest a feature" vote card sits under the menu, by its Ideas & feedback row.
+  // The Ideas board is listed once here: the Ideas & feedback row (the vote card and its button were removed, board fix).
   // Desktop: the rows run in two columns (first half left, the rest right), 48 px each with a 32 px icon tile.
   const menuRow = (r: (typeof rows)[number], last: boolean) => (
     <Pressable
@@ -483,7 +482,6 @@ export function ProfileScreen() {
               rows.map((r, i) => menuRow(r, i === rows.length - 1))
             )}
           </View>
-          <HomeFeedbackCard />
         </>
   );
 

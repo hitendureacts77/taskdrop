@@ -34,7 +34,7 @@ export type MapFilters = {
   sort: JobSort;
 };
 
-export const DEFAULT_FILTERS: MapFilters = { km: 10, minPay: 0, maxPay: 0, work: 'all', auto: false, offers: false, dueSoon: false, sort: 'pay' };
+export const DEFAULT_FILTERS: MapFilters = { km: 10, minPay: 0, maxPay: 0, work: 'all', auto: false, offers: false, dueSoon: false, sort: 'new' };
 
 /** The one-tap distances in the Filters sheet; the slider reaches every whole km between. */
 export const KM_STEPS = [2, 5, 10, 25, 50, 100];
@@ -98,7 +98,7 @@ export const hasPrice = (f: MapFilters) => f.minPay > 0 || f.maxPay > 0;
 
 /** How many filters differ from the default (the badge on the Filters button). Distance always counts as chosen, so it is left out. */
 export function changedFilters(f: MapFilters): number {
-  return (hasPrice(f) ? 1 : 0) + (f.work !== 'all' ? 1 : 0) + (f.auto ? 1 : 0) + (f.offers ? 1 : 0) + (f.dueSoon ? 1 : 0) + (f.sort !== 'pay' ? 1 : 0);
+  return (hasPrice(f) ? 1 : 0) + (f.work !== 'all' ? 1 : 0) + (f.auto ? 1 : 0) + (f.offers ? 1 : 0) + (f.dueSoon ? 1 : 0) + (f.sort !== DEFAULT_FILTERS.sort ? 1 : 0);
 }
 
 /** Does anything hide jobs? (The order never does.) */

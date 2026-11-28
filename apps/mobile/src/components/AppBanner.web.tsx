@@ -19,7 +19,7 @@ import { tx } from './primitives';
 /**
  * A slim bar across the very top of every page on an Android phone's browser:
  * the app icon, one line of why, a "Get app" pill that goes to /get, and a
- * close that hides it for 14 days. Never on an iPhone or iPad, never on a
+ * close that hides it for 7 days. Never on an iPhone or iPad, never on a
  * desktop, and not on the download page itself.
  */
 export function AppBanner() {
