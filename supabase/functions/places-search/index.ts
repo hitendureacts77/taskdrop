@@ -6,6 +6,7 @@ import { placesSource } from "../_shared/sendCaps.ts";
 import type { Db } from "../api/core.ts";
 import { GuestCeiling, GuestLocalLimit, guestAddress, guestNetKey, guestRateKey, isGuestToken } from "../api/guest.ts";
 import { answerGuest, guestPlaceAsk, guestPlacesAllowed, roundForGuest } from "./guest.ts";
+import { INDIA_BBOX, photonAreaName, photonPlaces, type PhotonFeature } from "./photon.ts";
 
 /**
  * Place search for the app, so no Google key ships in the web bundle or APK.
@@ -212,7 +213,7 @@ async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: 
     });
     if (!res.ok) {
       await logServer("warn", "places-search", "OpenStreetMap search refused", { http_status: res.status });
-      return [];
+      return await photonSearch(q);
     }
     const list = (await res.json()) as { display_name?: string; name?: string; lat?: string; lon?: string }[];
     return list
@@ -225,7 +226,7 @@ async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: 
       .filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng));
   } catch (e) {
     await logServer("warn", "places-search", "OpenStreetMap unreachable", { error: e instanceof Error ? e.message : String(e) });
-    return [];
+    return await photonSearch(q);
   }
 }
 
@@ -238,10 +239,41 @@ async function osmReverse(lat: number, lng: number): Promise<string | null> {
     });
     if (!res.ok) {
       await logServer("warn", "places-search", "OpenStreetMap reverse lookup refused", { http_status: res.status });
-      return null;
+      return await photonReverse(lat, lng);
     }
     const out = (await res.json()) as { display_name?: string; name?: string };
     return out.name || tidy(out.display_name?.split(",").slice(0, 3).join(",") ?? "") || null;
+  } catch {
+    return await photonReverse(lat, lng);
+  }
+}
+
+// Backup when Nominatim refuses this server (403 from 27 Nov 2026): Photon, the free OpenStreetMap search by komoot.
+async function photonSearch(q: string): Promise<{ label: string; lat: number; lng: number }[]> {
+  try {
+    const res = await fetch(`https://photon.komoot.io/api/?limit=10&lang=en&bbox=${INDIA_BBOX}&q=${encodeURIComponent(q)}`, {
+      headers: OSM,
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) {
+      await logServer("warn", "places-search", "Photon search refused", { http_status: res.status });
+      return [];
+    }
+    const out = (await res.json()) as { features?: PhotonFeature[] };
+    return photonPlaces(out.features ?? [], q).map((p) => ({ ...p, label: tidy(p.label) }));
+  } catch (e) {
+    await logServer("warn", "places-search", "Photon unreachable", { error: e instanceof Error ? e.message : String(e) });
+    return [];
+  }
+}
+
+async function photonReverse(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(`https://photon.komoot.io/reverse?lang=en&lat=${lat}&lon=${lng}`, { headers: OSM, signal: AbortSignal.timeout(6000) });
+    if (!res.ok) return null;
+    const out = (await res.json()) as { features?: PhotonFeature[] };
+    const name = photonAreaName(out.features ?? []);
+    return name ? tidy(name) : null;
   } catch {
     return null;
   }
