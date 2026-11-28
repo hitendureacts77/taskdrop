@@ -219,3 +219,27 @@ export function isKnownPath(pathname: string | null | undefined): boolean {
   const path = clean(pathname ?? '');
   return path === '/index.html' || KNOWN_PATHS.includes(path) || routeFromAddress(path) !== null;
 }
+
+/**
+ * Forms that end in a result (post a request, publish a service, pay, confirm, rate, edit the profile...). When one
+ * finishes, its result replaces it in history, so browser Back never lands on the emptied form (board fix, PR 606).
+ */
+export const FORM_SCREENS: readonly string[] = [
+  'aiPost', 'create', 'postDetails', 'listing', 'workerSetup', 'confirm', 'escrow', 'swipe', 'review', 'withdraw',
+  'promote', 'profileEdit', 'ticket', 'bigDay',
+];
+/** Where a finished form sends people: a list, a tab or the task it made. */
+const FORM_RESULTS: readonly string[] = ['home', 'explore', 'myTasks', 'orders', 'wallet', 'profile', 'taskManage', 'myQuotes', 'promotions'];
+/** Pages with an offer box: sending the offer opens the offers list. */
+const OFFER_PAGES: readonly string[] = ['taskDetail', 'detailSheet'];
+
+/**
+ * True when moving from `from` to `to` is a form finishing, so the move replaces the form's history entry instead
+ * of adding one. A tab or menu tap is never this (the caller passes { tab: true }); opening a help page from a
+ * form is not either (Back returns to the form).
+ */
+export function finishesForm(from: string, to: string): boolean {
+  if (FORM_SCREENS.includes(from)) return FORM_RESULTS.includes(to);
+  if (OFFER_PAGES.includes(from)) return to === 'orders' || to === 'myQuotes';
+  return false;
+}

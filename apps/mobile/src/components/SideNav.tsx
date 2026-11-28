@@ -61,7 +61,7 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
     return (
       <Pressable
         key={it.key}
-        onPress={() => (['home', 'explore', 'myTasks', 'wallet', 'profile'].includes(it.key) ? reset(it.key) : go(it.key))}
+        onPress={() => (['home', 'explore', 'myTasks', 'wallet', 'profile'].includes(it.key) ? reset(it.key, {}, { tab: true }) : go(it.key, {}, { tab: true }))}
         accessibilityRole="link"
         accessibilityLabel={it.badge ? `${it.label}, ${it.badge} needing attention` : it.label}
         accessibilityState={{ selected: on }}
@@ -171,7 +171,7 @@ export function SideNav({ rail = false }: { rail?: boolean }) {
         showsVerticalScrollIndicator={false}
       >
         <Pressable
-          onPress={() => reset('home')}
+          onPress={() => reset('home', {}, { tab: true })}
           accessibilityRole="link"
           accessibilityLabel="TaskDrop home"
           style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: rail ? 0 : 6, alignSelf: rail ? 'center' : 'flex-start' }}

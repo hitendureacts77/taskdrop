@@ -3,14 +3,14 @@ import { BackHandler, Platform } from 'react-native';
 import { useSyncVersion } from './SyncProvider';
 import { useAuth } from './AuthProvider';
 import { useMode } from './ModeProvider';
-import type { NavParams, ScreenName } from './navTypes';
-import { OPEN_TO_ALL, OUTSIDE_APP, pathForStack, routeFromAddress, type WebRoute } from '../navigation/webAddress';
+import type { NavOptions, NavParams, ScreenName } from './navTypes';
+import { finishesForm, FORM_SCREENS, OPEN_TO_ALL, OUTSIDE_APP, pathForStack, routeFromAddress, type WebRoute } from '../navigation/webAddress';
 import { WebHistory, type HistoryHost } from '../navigation/webHistory';
 import { getTask } from '../data/api';
 import { roughPlace } from '../lib/place';
 import { taskLinkTarget } from '../lib/taskLink';
 
-export type { NavParams, ScreenName } from './navTypes';
+export type { NavOptions, NavParams, ScreenName } from './navTypes';
 
 /**
  * Lightweight screen navigator that mirrors the design's own tab-state model.
@@ -25,9 +25,10 @@ export type { NavParams, ScreenName } from './navTypes';
 type NavCtx = {
   screen: ScreenName;
   params: NavParams;
-  go: (screen: ScreenName, params?: NavParams) => void;
+  /** opts.tab: a tab or menu tap, always its own Back step on the website (NavOptions). */
+  go: (screen: ScreenName, params?: NavParams, opts?: NavOptions) => void;
   back: () => void;
-  reset: (screen: ScreenName, params?: NavParams) => void;
+  reset: (screen: ScreenName, params?: NavParams, opts?: NavOptions) => void;
   /** Swap the screen on top for another: Back skips the one that was replaced (a step that is over, like swipe-to-start). */
   replace: (screen: ScreenName, params?: NavParams) => void;
 };
@@ -165,8 +166,15 @@ export function NavProvider({
   }, [mode]);
 
   const go = useCallback(
-    (screen: ScreenName, params: NavParams = {}) => {
-      commit([...stackRef.current, { screen, params }], 'push');
+    (screen: ScreenName, params: NavParams = {}, opts?: NavOptions) => {
+      const s = stackRef.current;
+      // A form that has finished (a request posted, an offer sent, a payment made): its result takes the form's
+      // place, so neither Back lands on the emptied form.
+      if (!opts?.tab && finishesForm(s[s.length - 1]!.screen, screen)) {
+        commit([...s.slice(0, -1), { screen, params }], 'replace');
+        return;
+      }
+      commit([...s, { screen, params }], 'push');
     },
     [commit],
   );
@@ -178,7 +186,7 @@ export function NavProvider({
     hist.current?.back(target);
   }, [commit]);
   const reset = useCallback(
-    (screen: ScreenName, params: NavParams = {}) => {
+    (screen: ScreenName, params: NavParams = {}, opts?: NavOptions) => {
       const s = stackRef.current;
       const from = s[s.length - 1]!.screen;
       const next: Entry[] = [{ screen, params }];
@@ -192,6 +200,9 @@ export function NavProvider({
         const w = waiting.current;
         waiting.current = null;
         if (w && w.screen !== screen) openRoute(w, next, 'push');
+      } else if (!opts?.tab && (FORM_SCREENS.includes(from) || finishesForm(from, screen))) {
+        // A form that has finished and starts over somewhere (posted: My tasks): Back never lands on the emptied form.
+        commit(next, 'replace');
       } else {
         // A tab or Home from the menu: a step of its own, so browser Back returns to where they were.
         commit(next, 'push');

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { isKnownPath, nameForScreen, NOT_FOUND_TITLE, pageFromAddress, pathForEntry, pathForStack, routeFromAddress, SITE_TITLE, titleForScreen } from './webAddress.ts';
+import { finishesForm, isKnownPath, nameForScreen, NOT_FOUND_TITLE, pageFromAddress, pathForEntry, pathForStack, routeFromAddress, SITE_TITLE, titleForScreen } from './webAddress.ts';
 import { WebHistory, type HistoryHost } from './webHistory.ts';
 
 test('B171: /privacy, /terms, /support and /copyright open their page on load', () => {
@@ -220,4 +220,47 @@ test('board fix: a reload keeps its address and its place in history', () => {
   assert.deepEqual(b.urls(), [`/task/${TASK}`]);
   // A fresh visit is not a reload.
   assert.equal(new WebHistory<E>(fakeBrowser().host, (s) => pathForStack(s)).reloaded, false);
+});
+
+test('PR 606: a finished form gives way to its result; tabs, menus and help pages do not', () => {
+  assert.equal(finishesForm('aiPost', 'myTasks'), true); // posted
+  assert.equal(finishesForm('escrow', 'taskManage'), true); // paid
+  assert.equal(finishesForm('confirm', 'orders'), true); // work confirmed
+  assert.equal(finishesForm('workerSetup', 'home'), true); // service published
+  assert.equal(finishesForm('taskDetail', 'orders'), true); // offer sent
+  assert.equal(finishesForm('detailSheet', 'myQuotes'), true);
+  assert.equal(finishesForm('aiPost', 'pricing'), false); // "How fees work" from the form: Back returns to it
+  assert.equal(finishesForm('taskDetail', 'publicProfile'), false);
+  assert.equal(finishesForm('taskDetail', 'explore'), false);
+  assert.equal(finishesForm('home', 'myTasks'), false);
+});
+
+test('PR 606: after posting, Back goes to the screen before the form, never the form', () => {
+  const b = fakeBrowser();
+  const h = new WebHistory<E>(b.host, (s) => pathForStack(s));
+  const home = [e('home')];
+  h.start(home);
+  const form = [...home, e('aiPost')];
+  h.push(form);
+  // NavProvider on success: reset('myTasks') replaces the form's entry (finishesForm), then go('taskManage') pushes.
+  const mine = [e('myTasks')];
+  h.replace(mine);
+  h.push([...mine, e('taskManage', { taskId: TASK })]);
+  assert.deepEqual(b.urls(), ['/', '/my-tasks', '/my-tasks']);
+  const r1 = h.onPop(b.browserBack());
+  assert.ok(typeof r1 === 'object' && r1.stack === mine);
+  const r2 = h.onPop(b.browserBack());
+  assert.ok(typeof r2 === 'object' && r2.stack === home);
+  // The in-app back from the result agrees: the entry behind is the stack it wants.
+  const b2 = fakeBrowser();
+  const h2 = new WebHistory<E>(b2.host, (s) => pathForStack(s));
+  const pops: unknown[] = [];
+  b2.listen((st) => pops.push(h2.onPop(st)));
+  h2.start(home);
+  h2.push(form);
+  const paid = [...home, e('orders')];
+  h2.replace(paid); // go('orders') from a finished form
+  h2.back(home);
+  assert.equal(b2.at(), 0);
+  assert.deepEqual(b2.urls(), ['/', '/my-work']);
 });
