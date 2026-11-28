@@ -154,7 +154,7 @@ export function NotificationsScreen() {
       // Your own request: its page, with quotes, progress and the worker.
       if (task.poster_id === userId) {
         setMode('poster');
-        return openPostedTask(task, go);
+        return openPostedTask(task, go, { offers: n.kind === 'quote' });
       }
       // Work you're doing: straight to where it stands (start, in progress,
       // waiting on approval...). Otherwise the post itself.
