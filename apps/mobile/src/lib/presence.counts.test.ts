@@ -11,9 +11,12 @@ test('one count of helpers and of those active now', () => {
   assert.deepEqual(peopleCounts([], now), { n: 0, live: 0 });
 });
 
-test('the live pill says both numbers, so "active now" never contradicts "within 5 km"', () => {
-  assert.equal(helpersLiveText([online, away, away], now), '1 of 3 helpers active now');
-  assert.equal(helpersLiveText([online], now), '1 of 1 helper active now');
+test('the live pill says one number: online now, or near you when nobody is online (never a 0)', () => {
+  assert.equal(helpersLiveText([online, away, away], now), '1 worker online now');
+  assert.equal(helpersLiveText([online, online, away], now), '2 workers online now');
+  assert.equal(helpersLiveText([away, away, away], now), '3 workers near you');
+  assert.equal(helpersLiveText([away], now), '1 worker near you');
+  assert.equal(helpersLiveText(Array.from({ length: 50 }, () => away), now), '50+ workers near you');
   assert.equal(helpersLiveText([], now), null);
   assert.equal(helpersLiveText(null, now), null);
 });

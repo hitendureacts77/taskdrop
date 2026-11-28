@@ -10,6 +10,7 @@ import { reportError } from '../lib/errors';
 import { TrendingSection } from '../components/Trending';
 import { WorkCard, categoryLabel } from '../components/WorkCard';
 import { BidSheet } from '../components/BidSheet';
+import { useUnsaveConfirm } from '../components/UnsaveConfirm';
 import { FairRulesNote } from '../components/PromotedPill';
 import { SORT_PHRASES, fairRulesTasks, auctionIds, liftPromoted, pickPromotedItems } from '../lib/promoted';
 import { usePromotedLive } from '../lib/usePromotedLive';
@@ -763,6 +764,7 @@ function FindWork({
     setTab(0);
   }, [handedQ]);
   const [saved, setSavedIds] = useState<Set<string>>(new Set());
+  const unsaveConfirm = useUnsaveConfirm();
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -887,8 +889,12 @@ function FindWork({
   const countFor = (f: MapFilters) => (rows ? filterList(rows, at, f).length : 0);
   const narrowed = narrowsJobs(filters);
 
-  const toggleSave = async (id: string) => {
-    const on = !saved.has(id);
+  // Saving is one tap; unsaving asks first (owner, 28 Nov), for guests too.
+  const toggleSave = (id: string) => {
+    if (saved.has(id)) unsaveConfirm.ask(() => void writeSave(id, false));
+    else void writeSave(id, true);
+  };
+  const writeSave = async (id: string, on: boolean) => {
     setSavedIds((s) => {
       const n = new Set(s);
       if (on) n.add(id);
@@ -926,7 +932,7 @@ function FindWork({
       km={taskKm(at, task)}
       onOpen={() => open(task)}
       onApply={() => setBidTask(task)}
-      onToggleSave={() => void toggleSave(task.id)}
+      onToggleSave={() => toggleSave(task.id)}
       promoted={promoState(task.id)}
     />
   );
@@ -1019,6 +1025,7 @@ function FindWork({
   const sheets = (
     <>
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void refresh()} />
+      {unsaveConfirm.dialog}
       <BottomSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
         <FiltersPanel
           initial={filters}
@@ -1098,7 +1105,7 @@ function FindWork({
                     km={taskKm(at, task)}
                     onOpen={() => open(task)}
                     onApply={() => setBidTask(task)}
-                    onToggleSave={() => void toggleSave(task.id)}
+                    onToggleSave={() => toggleSave(task.id)}
                     promoted={promoState(task.id)}
                   />
                 ))}

@@ -1,21 +1,24 @@
 import { Platform } from 'react-native';
 import type { PublicPage } from '../navigation/webAddress';
+import { roughPlace } from './place';
+import { STAGING_SITE, taskLink, taskShare, type TaskShare } from './taskShare';
 
 /**
  * Public links into the app.
  *
  * A shared link has to land somewhere real, so the web build opens /task/<id>
  * (and the older ?task=<id>) on startup (providers/NavProvider.tsx). Native builds need an
- * absolute origin, which the app can't know on its own — set
- * EXPO_PUBLIC_APP_URL when you deploy, otherwise sharing from a device falls
- * back to the same origin the web build is served from.
+ * absolute origin, which the app can't know on its own: EXPO_PUBLIC_APP_URL when it is set,
+ * otherwise staging's taskdrop.in (task 128: the staging APK has no EXPO_PUBLIC_APP_URL, so a
+ * phone made no link at all). A production Android build refuses to start without
+ * EXPO_PUBLIC_APP_URL (variant.cjs, plan 5.0a), so production never falls back to staging.
  */
 
 export function appOrigin(): string | null {
   const configured = process.env.EXPO_PUBLIC_APP_URL?.trim().replace(/[/]+$/, '');
   if (configured) return configured;
-  if (Platform.OS === 'web' && typeof window !== 'undefined') return window.location.origin;
-  return null;
+  if (Platform.OS === 'web') return typeof window !== 'undefined' ? window.location.origin : null;
+  return STAGING_SITE;
 }
 
 /**
@@ -31,7 +34,7 @@ export function appOrigin(): string | null {
  */
 export function paymentReturnUrl(): string {
   if (Platform.OS === 'web' && typeof window !== 'undefined') return `${window.location.origin}/`;
-  return `${appOrigin() ?? 'https://taskdrop.in'}/`;
+  return `${appOrigin() ?? STAGING_SITE}/`;
 }
 
 /** Razorpay adds razorpay_payment_link_id (and friends) to the address it returns the payer to. */
@@ -54,14 +57,14 @@ export function finishPaymentReturn(): void {
   window.history.replaceState({}, '', url.toString());
 }
 
-/**
- * Shareable URL for a task, or null when no public origin is configured. The website shares the task's own
- * address (/task/<id>); the phone apps keep the older ?task=<id>, which the website still opens.
- */
+/** Shareable URL for a task: its own website address, <origin>/task/<id>, on every platform. */
 export function taskUrl(taskId: string): string | null {
-  const origin = appOrigin();
-  if (!origin) return null;
-  return Platform.OS === 'web' ? `${origin}/task/${encodeURIComponent(taskId)}` : `${origin}/?task=${encodeURIComponent(taskId)}`;
+  return taskLink(appOrigin(), taskId);
+}
+
+/** What a poster shares for their own task: title, rough area, "Can you help?" and the link (task 128). */
+export function taskShareItem(task: { id: string; title: string; loc_label?: string | null }): TaskShare | null {
+  return taskShare(task, appOrigin(), roughPlace);
 }
 
 /** Shareable URL for a public page, e.g. the copyright notice page. */

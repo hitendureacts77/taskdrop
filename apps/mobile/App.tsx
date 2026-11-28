@@ -50,13 +50,16 @@ function Routes() {
             <AgeGate>
               <ScreenHost />
               <ResumePost />
+              {/* Inside AgeGate, like the phone apps (NativeRoot): it opens only once the screens are really there. */}
+              <ErrorBoundary silent>
+                <WalkthroughHost />
+              </ErrorBoundary>
             </AgeGate>
           </ScreenBoundary>
           <ErrorBoundary silent>
             <Overlays />
             <AccountPrompt />
             <StagingWelcome />
-            <WalkthroughHost />
             <AppSheet />
           </ErrorBoundary>
         </KeyboardAvoidingView>

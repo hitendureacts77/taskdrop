@@ -34,10 +34,14 @@ export function peopleCounts(list: readonly { last_seen_at?: string | null }[], 
   return { n: list.length, live: list.filter((w) => presenceOf(w.last_seen_at, now).online).length };
 }
 
-/** The live pill's words: "1 of 12 helpers active now". Null until the read is back, or with nobody near. */
+/**
+ * The live pill's words, one number (owner, 28 Nov): "3 workers online now", or "12 workers near you" when nobody is
+ * online, so the pill never shows a 0. Null until the read is back, or with nobody near.
+ */
 export function helpersLiveText(list: readonly { last_seen_at?: string | null }[] | null, now: number): string | null {
   if (list === null) return null;
   const { n, live } = peopleCounts(list, now);
   if (n === 0) return null;
-  return `${live} of ${peopleCountText(n)} ${n === 1 ? 'helper' : 'helpers'} active now`;
+  if (live > 0) return `${live} ${live === 1 ? 'worker' : 'workers'} online now`;
+  return `${peopleCountText(n)} ${n === 1 ? 'worker' : 'workers'} near you`;
 }

@@ -246,7 +246,10 @@ function TaskDetailBody() {
   const [huntTask, setHuntTask] = useState<Task | null>(null);
 
   useEffect(() => {
-    if (!realId || (!userId && !guest)) return;
+    // Also signed out: a shared link (/task/<id>) opens this page for anyone, and getTaskDetail and getPosterStats
+    // are guest reads the server allows without an account. Without them a request showed as someone's service
+    // ("Send Customer a task") to a visitor from WhatsApp (task 128).
+    if (!realId) return;
     let alive = true;
     void (async () => {
       try {

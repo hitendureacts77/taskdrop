@@ -493,9 +493,20 @@ export function AiPostScreen() {
     };
   }, [hydrated, userId, guest]);
 
+  // Spoken words show in the box while the person talks: each partial result
+  // replaces the last one after whatever was typed before they tapped Speak.
+  const promptNow = useRef(prompt);
+  promptNow.current = prompt;
+  const voiceBase = useRef<string | null>(null);
   const voice = useVoiceInput(
-    (text) => setPrompt((cur) => (cur.trim() ? cur.trim() + ' ' + text : text)),
+    (text, partial) => {
+      if (voiceBase.current === null) voiceBase.current = promptNow.current.trim();
+      const base = voiceBase.current;
+      if (!partial) voiceBase.current = null;
+      setPrompt(base ? base + ' ' + text : text);
+    },
     flash,
+    { interim: true },
   );
 
   // Home's mic opens this screen already listening (plan item 2), once.
@@ -789,7 +800,7 @@ export function AiPostScreen() {
       setMode('poster');
       celebrate('Task posted');
       reset('myTasks');
-      go('taskManage', { taskId: task.id });
+      go('taskManage', { taskId: task.id, posted: true });
     } catch (e) {
       if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not post your task');
@@ -1763,16 +1774,18 @@ export function AiPostScreen() {
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 6,
-                  height: 40,
-                  paddingHorizontal: 14,
-                  borderRadius: 12,
+                  gap: 8,
+                  height: 46,
+                  paddingHorizontal: 18,
+                  borderRadius: 999,
+                  borderWidth: 1.5,
+                  borderColor: voice.listening ? t.colors.signalDeep : t.colors.accentDeep,
                   backgroundColor: voice.listening ? t.colors.signalSoft : t.colors.accentSoft,
                   transform: [{ scale: pressed ? t.motion.pressScale : 1 }],
                 })}
               >
-                <Icon name="mic" size={17} color={voice.listening ? t.colors.signalDeep : t.colors.accentDeep} />
-                <RNText style={tx('700', 13, voice.listening ? t.colors.signalDeep : t.colors.accentDeep)}>
+                <Icon name="mic" size={20} color={voice.listening ? t.colors.signalDeep : t.colors.accentDeep} />
+                <RNText style={tx('800', 15, voice.listening ? t.colors.signalDeep : t.colors.accentDeep)}>
                   {voice.listening ? 'Listening…' : 'Speak'}
                 </RNText>
               </Pressable>

@@ -8,6 +8,7 @@ import { CONTENT_INSET } from '../navigation/DesktopPage';
 import { useLayout } from '../lib/layout';
 import { useTheme } from '../providers/ThemeProvider';
 import { WorkCard } from '../components/WorkCard';
+import { useUnsaveConfirm } from '../components/UnsaveConfirm';
 import { BidSheet } from '../components/BidSheet';
 import { useNav } from '../providers/NavProvider';
 import { useActions } from '../providers/AppStateProvider';
@@ -34,6 +35,7 @@ export function SavedScreen() {
   const [rows, setRows] = useState<TaskWithPoster[] | null>(null);
   const [bidTask, setBidTask] = useState<Task | null>(null);
   const offers = useMyOffers(userId, (rows ?? []).map((r) => r.id), !guest);
+  const unsaveConfirm = useUnsaveConfirm();
 
   useEffect(() => {
     let alive = true;
@@ -65,7 +67,7 @@ export function SavedScreen() {
       quoted={offers.has(task.id)}
       onOpen={() => go('taskDetail', { row: taskToFeedRow(task) })}
       onApply={() => setBidTask(task)}
-      onToggleSave={() => void unsave(task.id)}
+      onToggleSave={() => unsaveConfirm.ask(() => void unsave(task.id))}
     />
   ));
 
@@ -110,6 +112,7 @@ export function SavedScreen() {
         <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 28 }}>{content}</ScrollView>
       )}
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} />
+      {unsaveConfirm.dialog}
     </Screen>
   );
 }

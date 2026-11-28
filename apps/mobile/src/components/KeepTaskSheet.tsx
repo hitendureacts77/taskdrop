@@ -5,11 +5,11 @@ import { ShareSheet, useShare } from './ShareSheet';
 import { formatINR } from './ui';
 import { useTheme } from '../providers/ThemeProvider';
 import { keepTaskBody, keepTaskOptions, type KeepTaskOptionId } from '../lib/keepTask';
-import { taskUrl } from '../lib/links';
+import { taskShareItem } from '../lib/links';
 import { canTopUp, nextTopUpSteps, raisedPriceMinor } from '../lib/topUp';
 import type { Task } from '../data/api';
 
-type KeepTask = Pick<Task, 'id' | 'title' | 'status' | 'kind' | 'topup_pct' | 'benchmark_minor'>;
+type KeepTask = Pick<Task, 'id' | 'title' | 'status' | 'kind' | 'topup_pct' | 'benchmark_minor' | 'loc_label'>;
 
 const ICONS = { topup: 'plus', share: 'share', similar: 'copy', message: 'chat' } as const;
 
@@ -49,10 +49,7 @@ export function KeepTaskSheet({
     if (id === 'topup') onTopUp(task);
     else if (id === 'similar') onSimilar(task);
     else if (id === 'message') onMessage?.(task);
-    else {
-      const url = taskUrl(task.id);
-      share.start(url ? { title: task.title, message: `${task.title} · ${formatINR(task.benchmark_minor)} on TaskDrop`, url } : null);
-    }
+    else share.start(taskShareItem(task));
   };
 
   return (

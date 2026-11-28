@@ -410,6 +410,7 @@ function WideView({
           <Segments i={i} progress={w.progress} reduced={reduced} />
           <RNText style={tx('800', 12.5, t.colors.accent, { letterSpacing: 1, marginTop: 22, textTransform: 'uppercase' })}>{`Step ${i + 1} of 5`}</RNText>
           <RNText accessibilityRole="header" style={tx('800', tablet ? 34 : 44, t.colors.ink, { letterSpacing: -1.4, lineHeight: tablet ? 40 : 50, marginTop: 6 })}>{cur.title}</RNText>
+          <RNText style={tx('700', tablet ? 19 : 21, t.colors.accentDeep, { lineHeight: tablet ? 26 : 29, marginTop: 10 })}>{cur.purpose}</RNText>
           <RNText style={tx('400', 18, t.colors.muted, { lineHeight: 27, marginTop: 12, minHeight: 54 })}>{cur.body}</RNText>
 
           <View style={{ marginTop: 20, gap: 4 }}>
@@ -484,6 +485,10 @@ function PhoneView({ w, reduced, onSkip, onFinish, extra }: { w: Walk; reduced: 
   const cur = WALK_STEPS[side][i];
   const video = videoUrl();
   const [touched, setTouched] = useState(false);
+  // The space left between the top row and the caption card. The picture is fitted inside it whole, at the
+  // screenshot's own shape, so it is never taller than the phone, stretched, or hidden under the card (owner, 28 Nov).
+  const [area, setArea] = useState<{ w: number; h: number } | null>(null);
+  const shotW = area ? Math.max(120, Math.min(area.w - 48, (area.h - 20) * SHOT_RATIO)) : 0;
   const hint = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (touched) Animated.timing(hint, { toValue: 0, duration: reduced ? 0 : 400, useNativeDriver: NATIVE }).start();
@@ -546,20 +551,23 @@ function PhoneView({ w, reduced, onSkip, onFinish, extra }: { w: Walk; reduced: 
         </View>
       </View>
       <View style={{ flex: 1 }} {...pan.panHandlers}>
-        <View style={{ width: '100%', alignItems: 'flex-start' }}>
-          <Shot shot={cur.shot} width="100%" label={`TaskDrop screen: ${cur.title}`} reduced={reduced} />
+        <View
+          style={{ flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center', paddingVertical: 10 }}
+          onLayout={(e) => setArea({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+        >
+          {area ? (
+            <View style={{ borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: t.colors.line, backgroundColor: '#FFFFFF' }}>
+              <Shot shot={cur.shot} width={shotW} label={`TaskDrop screen: ${cur.title}`} reduced={reduced} />
+            </View>
+          ) : null}
+          <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 20, alignItems: 'center', opacity: hint }}>
+            <View style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.65)' }}>
+              <RNText style={tx('700', 12.5, '#FFFFFF')}>{WALK_COPY.hintSwipe}</RNText>
+            </View>
+          </Animated.View>
         </View>
-        <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: 270, alignItems: 'center', opacity: hint }}>
-          <View style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.65)' }}>
-            <RNText style={tx('700', 12.5, '#FFFFFF')}>{WALK_COPY.hintSwipe}</RNText>
-          </View>
-        </Animated.View>
         <View
           style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
             paddingHorizontal: 20,
             paddingTop: 18,
             paddingBottom: 22,
@@ -573,7 +581,8 @@ function PhoneView({ w, reduced, onSkip, onFinish, extra }: { w: Walk; reduced: 
         >
           <RNText style={tx('800', 11.5, t.colors.accent, { letterSpacing: 1, textTransform: 'uppercase' })}>{`Step ${i + 1} of 5`}</RNText>
           <RNText accessibilityRole="header" style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6, lineHeight: 29 })}>{cur.title}</RNText>
-          <RNText style={tx('400', 14.5, t.colors.muted, { lineHeight: 21, minHeight: 42 })}>{cur.body}</RNText>
+          <RNText style={tx('700', 15.5, t.colors.accentDeep, { lineHeight: 21 })}>{cur.purpose}</RNText>
+          <RNText style={tx('400', 14, t.colors.muted, { lineHeight: 20, minHeight: 40 })}>{cur.body}</RNText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
             {video ? <VideoButton url={video} label="Video" /> : null}
             <Cta side={side} onFinish={onFinish} grow />
