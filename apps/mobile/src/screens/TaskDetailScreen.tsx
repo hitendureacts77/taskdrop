@@ -30,7 +30,6 @@ import { priceNote } from '../lib/limits';
 import { ShareSheet, useShare } from '../components/ShareSheet';
 import { taskUrl } from '../lib/links';
 import { TASK_UNAVAILABLE } from '../lib/taskLink';
-import { noteFirstAction } from '../lib/appPrompt';
 import { type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
 import { FadeIn, tx } from '../components/primitives';
@@ -163,11 +162,6 @@ function TaskDetailBody() {
   const worker = mode === 'worker';
   // Wide desktop: the task on the left, the price, offer and poster on the right (components/TwoPane.tsx).
   const { twoPane: split, contentWidth } = useLayout();
-  // Web, Android browsers: the one-time "get the app" sheet comes after a first look at a task.
-  useEffect(() => {
-    noteFirstAction();
-  }, []);
-
   const detail: Detail = useMemo(() => {
     const row = params.row;
     if (isFeedRow(row)) {
