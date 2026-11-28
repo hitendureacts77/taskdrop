@@ -592,14 +592,14 @@ export function LocationSheet({
                 </RNText>
               )}
 
-              {provider === 'osm' && (results?.length ?? 0) > 0 && (
+              {(results?.length ?? 0) > 0 && (
                 <RNText
                   style={tx('400', 11, t.colors.muted, {
                     paddingHorizontal: 16,
                     paddingVertical: 10,
                   })}
                 >
-                  Results from OpenStreetMap.
+                  {provider === 'google' ? 'Results from Google Maps.' : 'Results from OpenStreetMap.'}
                 </RNText>
               )}
             </ScrollView>

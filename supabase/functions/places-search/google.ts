@@ -10,12 +10,13 @@ export type GooglePlace = {
 };
 
 /** Search results in the same shape as the OpenStreetMap search: a short label and a point. */
-export function googlePlaces(places: GooglePlace[], q: string, tidy: (s: string) => string): { label: string; lat: number; lng: number }[] {
+export function googlePlaces(places: GooglePlace[], q: string, tidy: (s: string) => string): { label: string; lat: number; lng: number; via: "google" }[] {
   return places
     .map((p) => ({
       label: tidy(p.formattedAddress ?? p.displayName?.text ?? q) || q,
       lat: Number(p.location?.latitude),
       lng: Number(p.location?.longitude),
+      via: "google" as const,
     }))
     .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
     .slice(0, 6);
@@ -29,4 +30,9 @@ export function googleAreaName(places: GooglePlace[]): string | null {
   const city = of("locality") || of("administrative_area_level_3");
   const name = [area, city].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(", ");
   return name || null;
+}
+
+/** Which service the results came from, so the app credits the right one ("Results from Google" / OpenStreetMap). */
+export function sourceOf(places: { via?: string }[]): "google" | "osm" {
+  return places.some((p) => p.via === "google") ? "google" : "osm";
 }

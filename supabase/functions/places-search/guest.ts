@@ -52,13 +52,17 @@ export function guestPlaceAsk(body: unknown): GuestPlaceAsk | null {
 }
 
 export type OsmLookups = {
-  search: (q: string) => Promise<{ label: string; lat: number; lng: number }[]>;
+  search: (q: string) => Promise<{ label: string; lat: number; lng: number; via?: string }[]>;
   reverse: (lat: number, lng: number) => Promise<string | null>;
 };
 
 /** The reply to an allowed guest ask, from OpenStreetMap only, in the shapes the signed-in path answers. */
 export async function answerGuest(ask: GuestPlaceAsk, osm: OsmLookups): Promise<Record<string, unknown>> {
-  if ("q" in ask) return { configured: true, places: await osm.search(ask.q), source: "osm" };
+  if ("q" in ask) {
+    // Google answers only as the capped backup (migration 243); the app then credits Google, not OpenStreetMap.
+    const places = await osm.search(ask.q);
+    return { configured: true, places, source: places.some((p) => p.via === "google") ? "google" : "osm" };
+  }
   return { label: await osm.reverse(ask.lat, ask.lng) };
 }
 
