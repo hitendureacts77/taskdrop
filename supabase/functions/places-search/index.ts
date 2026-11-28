@@ -7,7 +7,7 @@ import type { Db } from "../api/core.ts";
 import { GuestCeiling, GuestLocalLimit, guestAddress, guestNetKey, guestRateKey, isGuestToken } from "../api/guest.ts";
 import { answerGuest, guestPlaceAsk, guestPlacesAllowed, roundForGuest } from "./guest.ts";
 import { INDIA_BBOX, photonAreaName, photonPlaces, type PhotonFeature } from "./photon.ts";
-import { googleAreaName, googlePlaces, type GooglePlace } from "./google.ts";
+import { googleAreaName, googlePlaces, sourceOf, type GooglePlace } from "./google.ts";
 
 /**
  * Place search for the app, so no Google key ships in the web bundle or APK.
@@ -112,7 +112,7 @@ Deno.serve(guarded("places-search", async (req: Request) => {
   const key = await mapsKey(admin);
   // No Google key, or Google has nothing: OpenStreetMap answers, from here, so
   // the app does not have to call it (it refuses anonymous app traffic).
-  if (!key) return json({ configured: false, places: await osmSearch(q), source: "osm" });
+  if (!key) return json(await osmAnswer(q, false));
 
   // Google bills per call, so each one is counted against a daily cap per person and a daily total (migration 153,
   // finding H39). Past either cap, or if the counter cannot be reached, the free OpenStreetMap search answers instead:
@@ -123,7 +123,7 @@ Deno.serve(guarded("places-search", async (req: Request) => {
     await captureServerError(new Error(dailyErr.message), { fn: "places-search", step: "take_places_daily" });
   }
   if (placesSource(dailyErr ? null : daily) === "osm") {
-    return json({ configured: true, places: await osmSearch(q), source: "osm" });
+    return json(await osmAnswer(q, true));
   }
 
   try {
@@ -140,7 +140,7 @@ Deno.serve(guarded("places-search", async (req: Request) => {
     if (!res.ok) {
       // A rejected key or an exhausted quota shows up here first.
       await logServer("error", "places-search", "Google rejected the search", { http_status: res.status });
-      return json({ configured: true, places: await osmSearch(q), source: "osm" });
+      return json(await osmAnswer(q, true));
     }
     const out = (await res.json()) as {
       places?: {
@@ -157,11 +157,11 @@ Deno.serve(guarded("places-search", async (req: Request) => {
       }))
       .filter((p) => p.lat !== null && p.lng !== null);
     if (places.length) return json({ configured: true, places, source: "google" });
-    return json({ configured: true, places: await osmSearch(q), source: "osm" });
+    return json(await osmAnswer(q, true));
   } catch (e) {
     // Google unreachable: fall back to OpenStreetMap.
     await logServer("warn", "places-search", "Google unreachable", { error: e instanceof Error ? e.message : String(e) });
-    return json({ configured: true, places: await osmSearch(q), source: "osm" });
+    return json(await osmAnswer(q, true));
   }
 }));
 
@@ -207,7 +207,13 @@ function tidy(label: string): string {
   return label.split(",").map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean).join(", ");
 }
 
-async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: number }[]> {
+/** The OpenStreetMap answer, crediting Google when the capped Google backup answered instead. */
+async function osmAnswer(q: string, configured: boolean) {
+  const places = await osmSearch(q);
+  return { configured, places, source: sourceOf(places) };
+}
+
+async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: number; via?: string }[]> {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=in&q=${encodeURIComponent(q)}`, {
       headers: OSM,
@@ -251,7 +257,7 @@ async function osmReverse(lat: number, lng: number): Promise<string | null> {
 }
 
 // Backup when Nominatim refuses this server (403 from 27 Nov 2026): Photon, the free OpenStreetMap search by komoot.
-async function photonSearch(q: string): Promise<{ label: string; lat: number; lng: number }[]> {
+async function photonSearch(q: string): Promise<{ label: string; lat: number; lng: number; via?: string }[]> {
   try {
     const res = await fetch(`https://photon.komoot.io/api/?limit=10&lang=en&bbox=${INDIA_BBOX}&q=${encodeURIComponent(q)}`, {
       headers: OSM,
@@ -300,7 +306,7 @@ async function googleBackupKey(): Promise<string> {
   return data === "ok" ? key : "";
 }
 
-async function googleBackupSearch(q: string): Promise<{ label: string; lat: number; lng: number }[]> {
+async function googleBackupSearch(q: string): Promise<{ label: string; lat: number; lng: number; via?: string }[]> {
   try {
     const key = await googleBackupKey();
     if (!key) return [];

@@ -14,7 +14,7 @@ test("search results keep a label and a point, at most six", () => {
     "Madhapur",
     tidy,
   );
-  assert.deepEqual(out, [{ label: "Madhapur, Hyderabad, Telangana, India", lat: 17.4486, lng: 78.3908 }]);
+  assert.deepEqual(out, [{ label: "Madhapur, Hyderabad, Telangana, India", lat: 17.4486, lng: 78.3908, via: "google" }]);
   const many = Array.from({ length: 9 }, (_, i) => ({ displayName: { text: "P" + i }, location: { latitude: 17, longitude: 78 + i } }));
   assert.equal(googlePlaces(many, "P", tidy).length, 6);
 });
@@ -32,4 +32,11 @@ test("area name is the neighbourhood and city, not the door number", () => {
   assert.equal(googleAreaName(near), "Madhapur, Hyderabad");
   assert.equal(googleAreaName([{ addressComponents: [{ longText: "Hyderabad", types: ["locality"] }] }]), "Hyderabad");
   assert.equal(googleAreaName([]), null);
+});
+
+test("results are credited to Google only when Google answered", async () => {
+  const { sourceOf } = await import("./google.ts");
+  assert.equal(sourceOf([{ via: "google" }]), "google");
+  assert.equal(sourceOf([{}]), "osm");
+  assert.equal(sourceOf([]), "osm");
 });
