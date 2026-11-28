@@ -125,7 +125,10 @@ export function renderRedirectsFile(config) {
   return redirects.length ? redirects.join('\n') + '\n' : null;
 }
 
-/** Files under `assets/` whose names are NOT `<name>.<32 hex>.<ext>`: the long-cache rule must not cover them. */
+/**
+ * Files under `assets/` whose names are NOT `<name>.<32 hex>.<ext>`: the long-cache rule must not cover them.
+ * A scale variant keeps the hash before its suffix (Metro: `icon.<32 hex>@2x.png`), so it counts as hashed.
+ */
 export function unhashedAssets(relativePaths) {
-  return relativePaths.filter((p) => p.startsWith('assets/') && !/\.[0-9a-f]{32}\.[A-Za-z0-9]+$/.test(p));
+  return relativePaths.filter((p) => p.startsWith('assets/') && !/\.[0-9a-f]{32}(@\d+(\.\d+)?x)?\.[A-Za-z0-9]+$/.test(p));
 }
