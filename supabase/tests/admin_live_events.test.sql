@@ -120,14 +120,13 @@ declare
   v_since bigint := (select v::bigint from fx where k = 'since');
   v_phone uuid := gen_random_uuid();
 begin
-  -- A phone sign-in: a synthetic email whose first half is the number, which
-  -- handle_new_user() copies into the profile name.
+  -- A phone sign-in: since 242 the profile is named 'New user' (a placeholder, never the number).
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password,
                           email_confirmed_at, created_at, updated_at)
   values (v_phone, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'p919876543210@phone.taskdrop.app', '', now(), now(), now());
   if not exists (select 1 from public.admin_live_events
-                  where id > v_since and kind = 'signup' and record_id = v_phone and summary ->> 'who' is null) then
+                  where id > v_since and kind = 'signup' and record_id = v_phone and coalesce(summary ->> 'who', 'New user') = 'New user') then
     raise exception 'FAIL: a phone sign-up did not come through with no name';
   end if;
   if exists (select 1 from public.admin_live_events

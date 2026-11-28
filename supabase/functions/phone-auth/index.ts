@@ -527,7 +527,7 @@ Deno.serve(guarded("phone-auth", async (req: Request) => {
         email,
         email_confirm: true,
         password: crypto.randomUUID(),
-        user_metadata: { display_name: `Tasker ${phone.slice(-4)}`, phone },
+        user_metadata: { phone },
       });
       if (created.error && !/already|registered|exists/i.test(created.error.message)) {
         return failed("create user", created.error);

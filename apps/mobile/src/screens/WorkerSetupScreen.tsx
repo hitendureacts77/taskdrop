@@ -16,6 +16,7 @@ import { updateProfileExtras, type EarnGoal } from '../data/extras';
 import { isEarnGoal } from '../components/EarnGoalPicker';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
 import { LANGUAGES } from './ProfileEditScreen';
+import { isPlaceholderName } from '../lib/placeholderName';
 import { SkillPicker } from '../components/SkillPicker';
 import { tx } from '../components/primitives';
 import { ActionBar, FieldRow, FormPage, FormSection } from '../components/FormPage';
@@ -57,6 +58,8 @@ function Setup() {
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
   const [langs, setLangs] = useState<string[]>([]);
+  // Languages already saved (About you at sign-up) are not asked again here; they stay as they are.
+  const [langsKnown, setLangsKnown] = useState(false);
   const [place, setPlace] = useState<{ label: string; lat: number | null; lng: number | null } | null>(null);
   const [showLoc, setShowLoc] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -65,9 +68,10 @@ function Setup() {
     if (!userId) return;
     void getProfile(userId).then((p) => {
       if (!p) return;
-      setName(p.display_name ?? '');
+      setName(isPlaceholderName(p.display_name) ? '' : (p.display_name ?? ''));
       setSkills(p.skills ?? []);
       setLangs(p.languages ?? []);
+      setLangsKnown((p.languages ?? []).length > 0);
       setBio(p.worker_bio ?? '');
       if (isEarnGoal(p.earn_goal)) setEarnGoal(p.earn_goal);
       if (p.loc_label) setPlace({ label: p.loc_label, lat: p.loc_lat, lng: p.loc_lng });
@@ -146,12 +150,14 @@ function Setup() {
           </View>
         </FormSection>
 
-        <FormSection title="Language and location">
+        <FormSection title={langsKnown ? 'Location' : 'Language and location'}>
           <FieldRow>
-            <>
-              {desktop ? fieldLabel('Language') : label('LANGUAGE')}
-              <SelectField value={language} options={LANGUAGES} onChange={pickLanguage} placeholder={desktop ? 'Choose one' : 'Choose a language'} style={{ marginTop: gap(9) }} />
-            </>
+            {langsKnown ? null : (
+              <>
+                {desktop ? fieldLabel('Language') : label('LANGUAGE')}
+                <SelectField value={language} options={LANGUAGES} onChange={pickLanguage} placeholder={desktop ? 'Choose one' : 'Choose a language'} style={{ marginTop: gap(9) }} />
+              </>
+            )}
             <>
               {desktop ? fieldLabel('Where you work from') : label('WHERE YOU WORK FROM')}
               <Pressable

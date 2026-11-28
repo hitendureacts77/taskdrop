@@ -23,6 +23,7 @@ import { RoleTheme } from '../providers/ThemeProvider';
 import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
 import { useFileDrop } from '../lib/useFileDrop';
 import { LANGUAGES } from './ProfileEditScreen';
+import { isPlaceholderName } from '../lib/placeholderName';
 import { SkillPicker } from '../components/SkillPicker';
 import { ActionBar, ActionBarContext, FormPage } from '../components/FormPage';
 import { StepList } from '../components/StepList';
@@ -88,9 +89,7 @@ export function OnboardingScreen() {
       if (!p) return;
       // A phone account's placeholder name, or an email (an Apple "Hide my email" relay), is not a name to offer.
       setName(
-        p.display_name && !/^p\d{10}$/.test(p.display_name) && !p.display_name.includes('@') && p.display_name !== 'New user'
-          ? p.display_name
-          : '',
+        isPlaceholderName(p.display_name) ? '' : (p.display_name ?? ''),
       );
       setUsername(p.username ?? '');
       // The quick finish skips the username step for an account that already has one.
