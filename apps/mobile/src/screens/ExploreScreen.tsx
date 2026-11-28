@@ -42,7 +42,7 @@ import { JobsNearHero } from '../components/JobsNearHero';
 import { NearMap, type NearMapLayer } from '../components/NearMap';
 import { DropFilters, FiltersButton, FiltersPanel, JobChips, QuickChip, WorkSwitch } from '../components/MapFilterParts';
 import { FIND_WORK_LIMIT, REMOTE_LIMIT, capped, findWorkSearches, joinFindWork } from '../lib/findWorkRead';
-import { SORT_LABELS, changedFilters, clearJobFilters, filterList, jobsSummary, narrowsJobs, type MapFilters } from '../lib/mapFilters';
+import { SORT_LABELS, changedFilters, clearJobFilters, filterList, jobsSummary, narrowsJobs, taskKm, type MapFilters } from '../lib/mapFilters';
 import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
 import { LooksLikeYouMean, SearchEmpty, SearchLoading, SearchUnderstood, TypoNote } from '../components/SmartSearch';
 import { useRecentSearches, useSearchUnderstood, useTypingSuggestions } from '../lib/useSmartSearch';
@@ -923,6 +923,7 @@ function FindWork({
       index={i}
       saved={saved.has(task.id)}
       quoted={offers.has(task.id)}
+      km={taskKm(at, task)}
       onOpen={() => open(task)}
       onApply={() => setBidTask(task)}
       onToggleSave={() => void toggleSave(task.id)}
@@ -1094,6 +1095,7 @@ function FindWork({
                     index={i}
                     saved={saved.has(task.id)}
                     quoted={offers.has(task.id)}
+                    km={taskKm(at, task)}
                     onOpen={() => open(task)}
                     onApply={() => setBidTask(task)}
                     onToggleSave={() => void toggleSave(task.id)}

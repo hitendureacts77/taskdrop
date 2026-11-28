@@ -14,6 +14,7 @@ import {
   parseSavedFilters,
   priceLabel,
   PRICE_PRESETS,
+  taskKm,
 } from './mapFilters.ts';
 
 const KONDAPUR = { lat: 17.4699, lng: 78.3578 };
@@ -153,4 +154,11 @@ test('a job whose date has passed stays listed in the usual order, and is not "d
   assert.equal(ids(filterJobs([late, ...pinned], remote, KONDAPUR, { ...DEFAULT_FILTERS, km: 10 }, NOW))[0], 'late');
   assert.equal(ids(filterList([late], null, DEFAULT_FILTERS, NOW))[0], 'late');
   assert.equal(matchesJob(late, { ...DEFAULT_FILTERS, dueSoon: true }, NOW), false);
+});
+
+test('taskKm gives the distance for a pinned task and nothing for a remote one or with no place', () => {
+  const km = taskKm(KONDAPUR, { loc_lat: 17.4486, loc_lng: 78.3908 });
+  assert.ok(km !== undefined && km > 3 && km < 5, String(km));
+  assert.equal(taskKm(KONDAPUR, { loc_lat: null, loc_lng: null }), undefined);
+  assert.equal(taskKm(null, { loc_lat: 17.4, loc_lng: 78.3 }), undefined);
 });

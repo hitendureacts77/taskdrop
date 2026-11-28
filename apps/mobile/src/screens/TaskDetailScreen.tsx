@@ -34,7 +34,7 @@ import { type Theme } from '../theme';
 import type { FeedRow } from './HomeScreen';
 import { FadeIn, tx } from '../components/primitives';
 import { TaskDescription } from '../components/TaskDescription';
-import { TaskMediaThumb } from '../components/TaskMediaThumb';
+import { TaskMediaHero } from '../components/TaskMediaHero';
 import { PersonSheet } from '../components/PersonSheet';
 import { BidSheet } from '../components/BidSheet';
 import { DateTimeSheet } from '../components/DateTimeSheet';
@@ -621,11 +621,7 @@ function TaskDetailBody() {
 
         {/* One attachment, shown properly. This used to be two grey squares
             with a glyph in them — a picture of a photo, not the photo. */}
-        {mediaPath && (
-          <View style={{ marginTop: 16, height: 210 }}>
-            <TaskMediaThumb path={mediaPath} kind={mediaKind} seconds={mediaSeconds} radius={20} />
-          </View>
-        )}
+        {mediaPath && <TaskMediaHero path={mediaPath} kind={mediaKind} seconds={mediaSeconds} />}
         </>
   );
 
@@ -1108,11 +1104,7 @@ function TaskDetailBody() {
                     <TaskDescription text={body} title={detail.title} />
                   </View>
                 ) : null}
-                {mediaPath ? (
-                  <View style={{ marginTop: 16, height: 210 }}>
-                    <TaskMediaThumb path={mediaPath} kind={mediaKind} seconds={mediaSeconds} radius={20} />
-                  </View>
-                ) : null}
+                {mediaPath ? <TaskMediaHero path={mediaPath} kind={mediaKind} seconds={mediaSeconds} /> : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 }}>
                   <Icon name="shield" size={14} color={t.colors.accentDeep} />
                   <RNText style={tx('400', 12.5, t.colors.muted)}>Phone numbers stay hidden until the work starts.</RNText>

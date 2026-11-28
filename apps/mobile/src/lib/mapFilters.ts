@@ -6,12 +6,25 @@
  */
 
 /** Straight-line km (haversine), as in mapReach; kept here so this file loads on its own in the node tests. */
-function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const rad = Math.PI / 180;
   const dLat = (b.lat - a.lat) * rad;
   const dLng = (b.lng - a.lng) * rad;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
   return 12742 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * How far a task is from the place the list is around, for the "2.4 km" on every Find work card (Ideas board).
+ * Undefined for a remote task, a task with no pin, or when there is no place yet.
+ */
+export function taskKm(
+  at: { lat: number; lng: number } | null,
+  task: { loc_lat: number | null; loc_lng: number | null },
+): number | undefined {
+  if (!at || task.loc_lat == null || task.loc_lng == null) return undefined;
+  const km = distanceKm(at, { lat: task.loc_lat, lng: task.loc_lng });
+  return Number.isFinite(km) ? km : undefined;
 }
 
 export type WorkType = 'all' | 'local' | 'remote';
