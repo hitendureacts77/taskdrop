@@ -47,7 +47,7 @@ Everything below those four is detail. You open it only when a task sends you th
 | Production level with staging, and proven separate (5.11) | S.3: the lawyer's written answer |
 | The staging Android app and a production rehearsal app (5.0c, 5.0d) | S.6: SMS registration (needs S.2 first) |
 | The last security finds closed and one AI scan on the final code (2.14, 2.25). 2.14 leftovers done 27 Nov; 2.25 is waiting for your yes to start the scan (you answered No on 27 Nov) | 3.3: Google's 12 testers for 14 days in a row |
-| Task 1.21 merged or parked, then the freeze really holds. **Done 28 Nov:** rows A to F and X merged or done (PRs 566 to 570, 594); row W parked on your design OK; the freeze holds | 4.6: 20 workers lined up in your launch areas |
+| Task 1.21 merged or parked, then the freeze really holds. **Done 28 Nov:** rows A to F and X merged or done (PRs 566 to 570, 594); row W approved by you, built and merged (PR 600); the freeze holds | 4.6: 20 workers lined up in your launch areas |
 | This plan true again: stale lines ticked, the Vercel tasks replaced | 5.12 step 10: 7 quiet days before Vercel is switched off |
 
 So "the application is complete" is a fair sentence on Sunday night. "TaskDrop is launched" is not: launch day is about 3 weeks after the CA is booked, if the money path is settled (decision 59).
@@ -2331,7 +2331,7 @@ done 1.18
 </details>
 
 <details id="t1-21" data-short="Your 27 Nov voice notes">
-<summary>[CLAUDE] <b>1.21</b> Your 27 Nov voice notes: 12 changes in 7 parallel pieces <small>· added 27 Nov, from 13 voice notes · you asked for these past the freeze, so they go in · row G is design only and waits for your pick · rows A to F and X Done 28 Nov (merged); row W waits for your design OK</small></summary>
+<summary>[CLAUDE] <b>1.21</b> Your 27 Nov voice notes: 12 changes in 7 parallel pieces <small>· added 27 Nov, from 13 voice notes · you asked for these past the freeze, so they go in · row G is design only and waits for your pick · rows A to F, W and X Done 28 Nov (merged; row W in PR 600)</small></summary>
 
 **What you said (27 Nov):** 13 voice notes, written out below as rows. Claude runs the rows in parallel (Opus for the map, the server change and the app review; Sonnet for the regular builds; Fable for the hero-feature designs). Each piece ticks its own row here when its "done" is true.
 
@@ -6992,6 +6992,7 @@ Prices were checked between 26 October and 15 November 2026. Check again when yo
 
 ## Changelog
 
+- **2026-11-28 (staging web deploy fixed after the 525 bump):** the dependency bump (PR 525) made expo-router ship images named `<hash>@2x.png`, and the Cloudflare build safety check took them for unhashed files, so the staging website did not update (run 46053670892). PR 597 counts a hashed scale variant as hashed (a bare `icon@2x.png` is still caught); the next staging deploy was green (run 46100598475) and Home loads with no console errors. Also merged: PR 595 (age gate test date fix).
 - **2026-11-28 (task 1.21 merged, freeze holds):** on your word ("Merge all the changes", 27 Nov) rows A to E were merged into `redesigned-2.0` one at a time: PR 569 (E, Help & support), 570 (D, Promotions), 568 (C, notify a helper; migration renumbered 231 to 230), 566 (B, clock picker), 567 (A, map pins; contract check fixed). Row X was already merged (PR 594). Row W stays open on draft PR 572 (it holds the rejected second pass; waiting for your OK on the fourth-pass design). Also merged: PR 595 (the age gate SQL test used the UTC date and failed every evening after 18:30 UTC), dependabot PRs 503 and 525 (525 tested on the new code first) and admin dependabot PRs 72 and 73. Staging deploy for the last merge green (run 46051373041, migration 230 applied); checked on the staging site in Chrome: Home, Help & support, the clock time picker with No fixed date first, one Promotions screen, Earn map pins with icon and price; no console errors. The sign-in screen was not opened (the browser was signed in). Plan PR 560 was folded into this update and closed. Not merged: admin PR 76 (waits for money day).
 - **2026-11-27 (2.14 leftovers closed; 2.25 waiting):** Opus closed the six 2.14 leftovers. User PR 588 (migration 229, on staging): the database now checks an admin token's own session (live, under 12 hours, used within 90 minutes) (H37); the nightly money check proves every Plan B hold's ledger adds up (H34; all 71 staging holds balance); the app strips the location from videos before upload (H38). Admin PR 77: Google sign-in starts on the server, so its one-time cookie is HttpOnly (H37); a Playwright admin smoke (H80); a test-script typo that skipped two tests. H77 and H78 were already fixed (admin PR 53 and later), rechecked. The admin staging site picks up PR 77 once Vercel's 24-hour build limit resets. The Claude Security scan (2.25) was not started: you answered No to its start question; it is waiting for your yes.
 - **2026-11-27 (5.0c staging APK):** 5.0c: staging APK built on this PC; key, Firebase, App Check registration and Supabase link already in place; waiting for phone checks and the debug token.
