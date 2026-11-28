@@ -36,5 +36,5 @@ export function toldLine(told: ToldHelpers, area: string | null, category: strin
   const what = category && category.trim() ? ` who do ${category.trim().toLowerCase()}` : '';
   if (told.count === 0) return `No helpers${where}${what} yet. Share your task to bring some in.`;
   const n = told.atLeast ? `${told.count}+` : String(told.count);
-  return `${n} ${told.count === 1 && !told.atLeast ? 'helper' : 'helpers'}${where}${what} can see your task. Most offers come within an hour.`;
+  return `${n} ${told.count === 1 && !told.atLeast ? 'helper' : 'helpers'}${where}${what} can see your task. We'll tell you as soon as an offer comes in.`;
 }

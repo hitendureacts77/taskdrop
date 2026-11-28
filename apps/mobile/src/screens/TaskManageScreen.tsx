@@ -390,7 +390,7 @@ export function TaskManageScreen() {
             ? 'This task is remote, so helpers anywhere can see it. Share it to bring offers in faster.'
             : told
               ? toldLine(told, (roughPlace(task.loc_label) ?? '').split(',')[0] || null, task.category)
-              : 'Helpers nearby can see your task. Most offers come within an hour.'}
+              : 'Helpers nearby can see your task. We'll tell you as soon as an offer comes in.'}
         </RNText>
         <View style={{ flexDirection: 'row', marginTop: 12 }}>
           <PrimaryButton
