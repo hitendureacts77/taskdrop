@@ -32,7 +32,7 @@ import { useAuth } from '../providers/AuthProvider';
 import { noteOffersSeen } from '../lib/seenOffersStore';
 import { workersNear } from '../data/extras';
 import { roughPlace } from '../lib/place';
-import { taskUrl } from '../lib/links';
+import { taskShareItem } from '../lib/links';
 import { ShareSheet, useShare } from '../components/ShareSheet';
 import { countToldHelpers, toldLine, TOLD_LIMIT, TOLD_RADIUS_KM, type ToldHelpers } from '../lib/toldHelpers';
 import { useApp } from '../providers/AppStateProvider';
@@ -107,6 +107,8 @@ export function TaskManageScreen() {
   const { params, back, go } = useNav();
   const { flash, celebrate, setOpenTask, startedOf } = useApp();
   const taskId = typeof params.taskId === 'string' ? params.taskId : null;
+  // Opened straight after posting (AiPostScreen): the card leads with "Share your task" (task 128).
+  const justPosted = params.posted === true || params.posted === '1';
   const { userId } = useAuth();
   const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
   const [bids, setBids] = useState<(Bid & { profiles: Profile | null })[]>([]);
@@ -377,13 +379,16 @@ export function TaskManageScreen() {
   // An open post whose date passed with nobody picked: it is open with no fixed date now (plan 1.19 J).
   const datePassed = openDatePassed(task, Date.now());
   const lapsedAt = task.due_lapsed_at ?? (datePassed ? task.due_at : null);
-  // After posting: who can see the task, and a way to share it (Hire jade green).
+  // The task's public link with its title and rough area, never the exact address (task 128).
+  const shareTask = () => share.start(taskShareItem(task));
+  // After posting: who can see the task, and a way to share it (Hire jade green). Opened straight from
+  // posting (AiPostScreen passes posted), it says so and makes sharing the main button (task 128).
   const toldCard =
     task.status === 'OPEN' && !hunting && bids.length === 0 && task.kind !== 'service' ? (
       <View style={{ ...card, backgroundColor: t.colors.accentSoft, borderColor: t.colors.accentBorder }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Icon name="users" size={16} color={t.colors.accentDeep} />
-          <RNText style={tx('800', 15, t.colors.accentDeep, { flex: 1 })}>Waiting for offers</RNText>
+          <Icon name={justPosted ? 'check' : 'users'} size={16} color={t.colors.accentDeep} />
+          <RNText style={tx('800', 15, t.colors.accentDeep, { flex: 1 })}>{justPosted ? 'Your task is posted' : 'Waiting for offers'}</RNText>
         </View>
         <RNText style={tx('500', 13, t.colors.text, { marginTop: 6, lineHeight: 19 })}>
           {task.loc_lat == null
@@ -392,14 +397,16 @@ export function TaskManageScreen() {
               ? toldLine(told, (roughPlace(task.loc_label) ?? '').split(',')[0] || null, task.category)
               : 'Helpers nearby can see your task. We will tell you as soon as an offer comes in.'}
         </RNText>
+        {justPosted ? (
+          <RNText style={tx('500', 13, t.colors.text, { marginTop: 6, lineHeight: 19 })}>
+            Share its link on WhatsApp, Instagram or anywhere to get offers faster.
+          </RNText>
+        ) : null}
         <View style={{ flexDirection: 'row', marginTop: 12 }}>
           <PrimaryButton
-            label="Share this task"
-            tone="quiet"
-            onPress={() => {
-              const url = taskUrl(task.id);
-              share.start(url ? { title: task.title, message: `${task.title} · ${formatINR(task.benchmark_minor)} on TaskDrop`, url } : null);
-            }}
+            label={justPosted ? 'Share your task' : 'Share this task'}
+            tone={justPosted ? undefined : 'quiet'}
+            onPress={shareTask}
           />
         </View>
       </View>
@@ -817,6 +824,9 @@ export function TaskManageScreen() {
         openEndedLabel={datePassed ? 'Keep no fixed date' : undefined}
       />
       <BottomSheet visible={menu} onClose={() => setMenu(false)} title="Task options">
+        {task.status === 'OPEN' ? (
+          <MenuRow icon="share" label="Share this task" sub="Post its link on WhatsApp, Instagram or anywhere" onPress={() => { setMenu(false); shareTask(); }} />
+        ) : null}
         <MenuRow icon="copy" label="Create similar" sub="Start a new post from this one" onPress={() => { setMenu(false); go('aiPost', { similar: task }); }} />
         {task.status === 'OPEN' ? (
           <MenuRow icon="calendar" label="Change the date" sub="A new date, or no fixed date" onPress={() => { setMenu(false); setDateOpen(true); }} />
