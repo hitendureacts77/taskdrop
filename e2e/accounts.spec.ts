@@ -39,15 +39,12 @@ test("a new phone number is asked its birth date, signs up, sets a username and 
   await fillBirthDate(page, "15", "6", "1995");
   await typeTestCode(page);
 
-  // First-run setup: welcome, username, intent, why you earn, skills, about you, done.
+  // First-run setup: welcome, username, intent, skills, about you, done ("why you earn" moved to Start earning, 28 Nov).
   await page.getByText("Let’s go →").click();
   await page.getByPlaceholder("yourname").fill(username);
   await expect(page.getByText("✓ Available")).toBeVisible();
   await page.getByText("Continue", { exact: true }).click();
   await page.getByText("Continue", { exact: true }).click(); // intent
-  // Why you earn (worker earn goal, 16 Nov): Continue waits for an answer.
-  await page.getByText("Earn money doing tasks", { exact: true }).click();
-  await page.getByText("Continue", { exact: true }).click();
   await page.getByText("Continue", { exact: true }).click(); // skills
   // About you: a new sign-up with no area gets the map picker first; keep the pin where it opens.
   await page.getByRole("button", { name: "Confirm this location" }).click();

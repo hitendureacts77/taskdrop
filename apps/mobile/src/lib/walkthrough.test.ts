@@ -14,6 +14,8 @@ import {
   walkAnnouncement,
   walkSideFor,
   walkStepClamp,
+  walkSeenKey,
+  WALK_AUTO_TRIES,
   WALK_AUTOPLAY_MS,
   WALK_STEPS,
   WALK_LAST,
@@ -27,6 +29,7 @@ test('each side has five real screens, and every picture is in assets/walkthroug
     for (const s of WALK_STEPS[side]) {
       assert.ok(existsSync(join(here, '..', '..', 'assets', 'walkthrough', `${s.shot}.jpg`)), `${s.shot}.jpg is missing`);
       assert.ok(s.title.length > 0 && s.body.length <= 120, `${s.shot} copy`);
+      assert.ok(s.purpose.length > 0 && s.purpose.length <= 60, `${s.shot} says what it is for, in one short line`);
     }
   }
 });
@@ -119,4 +122,25 @@ test('tap on the right half is next, left half is back', () => {
 
 test('each step plays five seconds', () => {
   assert.equal(WALK_AUTOPLAY_MS, 5000);
+});
+
+test('it is remembered per person: each account and the guest get their own first time on a device (28 Nov)', () => {
+  assert.equal(walkSeenKey({ userId: null, guest: false }), null, 'nobody is in: nothing to remember');
+  const guestKey = walkSeenKey({ userId: null, guest: true });
+  const a = walkSeenKey({ userId: 'acc-a', guest: false });
+  const b = walkSeenKey({ userId: 'acc-b', guest: false });
+  assert.ok(guestKey && a && b);
+  assert.notEqual(a, b, 'a new account on the same phone gets it once too');
+  assert.notEqual(a, guestKey, 'a guest who then makes an account sees it once as the new account');
+  assert.equal(walkSeenKey({ userId: 'acc-a', guest: true }), a, 'signed in wins over the guest flag');
+  // The old one-per-device flag was also set by the old pre-sign-in intro, so it is never read again.
+  for (const k of [guestKey, a, b]) assert.notEqual(k, 'taskdrop.intro.v1');
+});
+
+test('it opens by itself at most twice per person per app run, so it can never loop', () => {
+  const base = { entered: true, seen: false, screen: 'home', stagingCardClear: true };
+  assert.equal(shouldShowWalkthrough({ ...base, tries: 0 }), true, 'first try');
+  assert.equal(shouldShowWalkthrough({ ...base, tries: 1 }), true, 'one retry when a phone dropped the first open');
+  assert.equal(shouldShowWalkthrough({ ...base, tries: WALK_AUTO_TRIES }), false, 'never more, even if the mark could not be stored');
+  assert.equal(shouldShowWalkthrough({ ...base, seen: true, tries: 0 }), false, 'seen by this person: not on a later start');
 });

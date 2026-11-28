@@ -13,7 +13,7 @@ import { isNeedsAccount, needAccount } from '../lib/guest';
 import { useActions } from '../providers/AppStateProvider';
 import { getProfile, updateProfile } from '../data/api';
 import { updateProfileExtras, type EarnGoal } from '../data/extras';
-import { isEarnGoal } from '../components/EarnGoalPicker';
+import { EarnGoalPicker, isEarnGoal } from '../components/EarnGoalPicker';
 import { findContactIssue, profileIssueMessage } from '../lib/mask';
 import { LANGUAGES } from './ProfileEditScreen';
 import { isPlaceholderName } from '../lib/placeholderName';
@@ -52,7 +52,8 @@ function Setup() {
   const { desktop } = useLayout();
   const finishRef = useRef<() => Promise<void>>(async () => {});
   const { flash, celebrate } = useActions();
-  // Answered in first-run setup (not asked again here); kept so saving this screen never wipes it.
+  // Why they earn: optional, asked at the bottom of this screen (moved out of first-run setup, owner 28 Nov).
+  // Skipping leaves any earlier answer as it is.
   const [earnGoal, setEarnGoal] = useState<EarnGoal | null>(null);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
@@ -193,6 +194,19 @@ function Setup() {
             placeholder={earnGoal === 'business' ? 'What your business does (optional)' : 'A line about what you do (optional)'}
             error={bioIssue ? profileIssueMessage(bioIssue) : null}
           />
+        </FormSection>
+
+        {/* Asked here, last and optional, not in the first sign-up steps (owner, 28 Nov). Only the person sees it. */}
+        <FormSection title="Why you earn (optional)" hint="Helps us show you the right tasks and tips. Only you can see it.">
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: gap(22) }}>
+            {desktop ? <View /> : <RNText style={tx('700', 11, t.colors.muted, { letterSpacing: 1.2 })}>WHY YOU EARN (OPTIONAL)</RNText>}
+            {earnGoal ? (
+              <Pressable onPress={() => setEarnGoal(null)} accessibilityRole="button" accessibilityLabel="Skip this question" hitSlop={8}>
+                <RNText style={tx('700', 13, t.colors.accentDeep)}>Skip</RNText>
+              </Pressable>
+            ) : null}
+          </View>
+          <EarnGoalPicker value={earnGoal} onChange={setEarnGoal} />
         </FormSection>
       </FormPage>
       <LocationSheet

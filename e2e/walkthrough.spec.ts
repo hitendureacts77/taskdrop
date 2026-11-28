@@ -92,10 +92,10 @@ test("Home has the small Help improve TaskDrop card, and Suggest a feature opens
 });
 
 test("signed in on a device that never saw it, the walkthrough opens once by itself on Home", async ({ page }) => {
-  // This browser has Asha's sign-in but has never shown "How TaskDrop works" (the lib/intro.ts key is cleared once).
+  // This browser has Asha's sign-in but has never shown "How TaskDrop works" (her walkSeenKey is cleared once).
   await page.addInitScript(() => {
     if (!sessionStorage.getItem("wt-once")) {
-      localStorage.setItem("taskdrop.intro.v1", "0");
+      for (const k of Object.keys(localStorage)) if (k.startsWith("taskdrop.walk.seen.v2.")) localStorage.removeItem(k);
       sessionStorage.setItem("wt-once", "1");
     }
   });
@@ -110,6 +110,26 @@ test("signed in on a device that never saw it, the walkthrough opens once by its
   await expect(page.getByText("Wallet").first()).toBeVisible();
   await page.waitForTimeout(3000);
   await expect(heading(page, "How TaskDrop works")).toHaveCount(0);
+});
+
+test("the picture fits the screen whole, above the caption, and each step says what it is for (28 Nov)", async ({ page }) => {
+  await home(page);
+  await page.getByLabel("Account menu").click();
+  await page.getByText("How TaskDrop works", { exact: true }).click();
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await page.getByRole("button", { name: "Next step", exact: true }).click();
+  const title = "See who is near you";
+  await expect(heading(page, title)).toBeVisible();
+  await expect(page.getByText("See helpers and services around you at a glance.", { exact: true })).toBeVisible();
+  const vp = page.viewportSize()!;
+  const shot = (await page.getByLabel(`TaskDrop screen: ${title}`).boundingBox())!;
+  const head = (await heading(page, title).boundingBox())!;
+  expect(Math.abs(shot.width / shot.height - 488 / 835)).toBeLessThan(0.01);
+  expect(shot.y).toBeGreaterThanOrEqual(0);
+  expect(shot.y + shot.height).toBeLessThanOrEqual(vp.height + 1);
+  expect(shot.x + shot.width).toBeLessThanOrEqual(vp.width + 1);
+  // Phone: the picture sits above the caption card, never under it.
+  if (vp.width < 600) expect(shot.y + shot.height).toBeLessThanOrEqual(head.y);
 });
 
 test.describe("a fresh signed-out browser (owner, 27 Nov: never on the sign-in page, once after Continue as guest)", () => {

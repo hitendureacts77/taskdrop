@@ -85,13 +85,16 @@ export function NativeRoot() {
             </EdgeInsetApplicationContext.Provider>
           </NavThemeProvider>
           <ResumePost />
+          {/* Inside AgeGate: while it checks the age the stack is unmounted, and an open sent then was lost. */}
+          <ErrorBoundary silent>
+            <WalkthroughHost />
+          </ErrorBoundary>
         </AgeGate>
       </ScreenBoundary>
       <ErrorBoundary silent>
         <Overlays />
         <AccountPrompt />
         <StagingWelcome />
-        <WalkthroughHost />
       </ErrorBoundary>
     </KeyboardAvoidingView>
   );
