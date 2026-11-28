@@ -15,7 +15,8 @@ import {
   walkStepClamp,
   WALK_AUTOPLAY_MS,
   WALK_COPY,
-  WALK_STEP_LAST,
+  walkCount,
+  walkStepLast,
   WALK_STEPS,
   WALKTHROUGH_VIDEO_LABEL,
   WALKTHROUGH_VIDEO_NOTE,
@@ -41,6 +42,7 @@ const SHOTS: Record<string, number> = {
   e3: require('../../assets/walkthrough/e3.jpg'),
   e4: require('../../assets/walkthrough/e4.jpg'),
   e5: require('../../assets/walkthrough/e5.jpg'),
+  e6: require('../../assets/walkthrough/e6.jpg'),
 };
 /** Width / height of every screenshot. The screen box of a phone mock always has exactly this shape. */
 const SHOT_RATIO = 488 / 835;
@@ -58,7 +60,7 @@ function hoverProps(on: () => void, off: () => void): object {
   return Platform.OS === 'web' ? { onMouseEnter: on, onMouseLeave: off } : {};
 }
 
-/** The five screens plus the clock that moves them along. */
+/** The screens of one side plus the clock that moves them along. */
 function useWalk(startSide: WalkSide) {
   const [side, setSide] = useState<WalkSide>(startSide);
   const [i, setI] = useState(0);
@@ -103,13 +105,13 @@ function useWalk(startSide: WalkSide) {
       useNativeDriver: false,
     });
     anim.start(({ finished }) => {
-      if (finished && i < WALK_STEP_LAST) setI((n) => walkStepClamp(n, 1));
+      if (finished && i < walkStepLast(side)) setI((n) => walkStepClamp(n, 1, side));
     });
     return () => anim.stop();
-  }, [key, paused, progress, i]);
+  }, [key, paused, progress, i, side]);
 
-  const step = useCallback((d: number) => setI((n) => walkStepClamp(n, d)), []);
-  const jump = useCallback((n: number) => setI(walkStepClamp(n, 0)), []);
+  const step = useCallback((d: number) => setI((n) => walkStepClamp(n, d, side)), [side]);
+  const jump = useCallback((n: number) => setI(walkStepClamp(n, 0, side)), [side]);
   const pick = useCallback((s: WalkSide) => {
     setSide(s);
     setI(0);
@@ -149,13 +151,13 @@ function SidePill({ on, label, short, onPress, compact }: { on: boolean; label: 
   );
 }
 
-/** Five bars; finished steps are full, the current one fills as it plays. */
-function Segments({ i, progress, reduced, height = 4 }: { i: number; progress: Animated.Value; reduced: boolean; height?: number }) {
+/** One bar per screen; finished steps are full, the current one fills as it plays. */
+function Segments({ i, count, progress, reduced, height = 4 }: { i: number; count: number; progress: Animated.Value; reduced: boolean; height?: number }) {
   const t = useTheme();
   const fill = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   return (
     <View style={{ flexDirection: 'row', gap: 6 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {[0, 1, 2, 3, 4].map((n) => (
+      {Array.from({ length: count }, (_, n) => n).map((n) => (
         <View key={n} style={{ flex: 1, height, borderRadius: height / 2, overflow: 'hidden', backgroundColor: t.colors.line }}>
           {n < i ? (
             <View style={{ width: '100%', height: '100%', backgroundColor: t.colors.accent }} />
@@ -278,7 +280,7 @@ function Cta({ side, onFinish, ctaRef, grow }: { side: WalkSide; onFinish: (s: W
 }
 
 /**
- * "How TaskDrop works": its own full page (task 1.21 row X). Five real screens per side that play by
+ * "How TaskDrop works": its own full page (task 1.21 row X). Real screens per side (the map last) that play by
  * themselves, 5 seconds each. Desktop and tablet: a big phone on a coloured panel and the steps beside it.
  * Phone: story mode (tap right = next, tap left = back, swipe, hold to pause, no buttons).
  * `extra` sits under the call to action (the first-run intro puts "Create my account" there).
@@ -353,7 +355,7 @@ function WideView({
   const steps = WALK_STEPS[side];
   const cur = steps[i];
   const video = useVideoUrl();
-  const last = i === WALK_STEP_LAST;
+  const last = i === walkStepLast(side);
   const cta = useRef<{ focus?: () => void } | null>(null);
   // On the last step the call to action takes the focus (web).
   useEffect(() => {
@@ -415,8 +417,8 @@ function WideView({
         </View>
 
         <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: tablet ? 20 : 48, maxWidth: 700 }}>
-          <Segments i={i} progress={w.progress} reduced={reduced} />
-          <RNText style={tx('800', 12.5, t.colors.accent, { letterSpacing: 1, marginTop: 22, textTransform: 'uppercase' })}>{`Step ${i + 1} of 5`}</RNText>
+          <Segments i={i} count={walkCount(side)} progress={w.progress} reduced={reduced} />
+          <RNText style={tx('800', 12.5, t.colors.accent, { letterSpacing: 1, marginTop: 22, textTransform: 'uppercase' })}>{`Step ${i + 1} of ${walkCount(side)}`}</RNText>
           <RNText accessibilityRole="header" style={tx('800', tablet ? 34 : 44, t.colors.ink, { letterSpacing: -1.4, lineHeight: tablet ? 40 : 50, marginTop: 6 })}>{cur.title}</RNText>
           <RNText style={tx('700', tablet ? 19 : 21, t.colors.accentDeep, { lineHeight: tablet ? 26 : 29, marginTop: 10 })}>{cur.purpose}</RNText>
           <RNText style={tx('400', 18, t.colors.muted, { lineHeight: 27, marginTop: 12, minHeight: 54 })}>{cur.body}</RNText>
@@ -543,7 +545,7 @@ function PhoneView({ w, reduced, onSkip, onFinish, extra }: { w: Walk; reduced: 
   return (
     <View style={{ flex: 1, backgroundColor: t.colors.bg }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 10, gap: 10 }}>
-        <Segments i={i} progress={w.progress} reduced={reduced} height={3} />
+        <Segments i={i} count={walkCount(side)} progress={w.progress} reduced={reduced} height={3} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <RNText accessibilityRole="header" numberOfLines={1} style={[tx('800', 15, t.colors.ink), { flexShrink: 1 }]}>{WALK_COPY.header}</RNText>
           {pill}
@@ -587,7 +589,7 @@ function PhoneView({ w, reduced, onSkip, onFinish, extra }: { w: Walk; reduced: 
             borderColor: t.colors.line,
           }}
         >
-          <RNText style={tx('800', 11.5, t.colors.accent, { letterSpacing: 1, textTransform: 'uppercase' })}>{`Step ${i + 1} of 5`}</RNText>
+          <RNText style={tx('800', 11.5, t.colors.accent, { letterSpacing: 1, textTransform: 'uppercase' })}>{`Step ${i + 1} of ${walkCount(side)}`}</RNText>
           <RNText accessibilityRole="header" style={tx('800', 24, t.colors.ink, { letterSpacing: -0.6, lineHeight: 29 })}>{cur.title}</RNText>
           <RNText style={tx('700', 15.5, t.colors.accentDeep, { lineHeight: 21 })}>{cur.purpose}</RNText>
           <RNText style={tx('400', 14, t.colors.muted, { lineHeight: 20, minHeight: 40 })}>{cur.body}</RNText>

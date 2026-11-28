@@ -17,7 +17,7 @@ async function home(page: Page) {
 
 test.use({ storageState: ASHA.state });
 
-test("the account menu opens the walkthrough: five real Hire screens, then the Earn side", async ({ page }) => {
+test("the account menu opens the walkthrough: five real Hire screens with the map last, then the Earn side", async ({ page }) => {
   await home(page);
   await page.getByLabel("Account menu").click();
   await page.getByText("How TaskDrop works", { exact: true }).click();
@@ -27,7 +27,7 @@ test("the account menu opens the walkthrough: five real Hire screens, then the E
 
   // It plays by itself; pause it, then step with the controls. The screen is drawn whole (contain, exact shape).
   await page.getByRole("button", { name: "Pause", exact: true }).click();
-  const hire = ["Say what you need", "See who is near you", "Offers come to you", "Your money is held safely", "Approve, and they are paid"];
+  const hire = ["Say what you need", "Offers come to you", "Your money is held safely", "Approve, and they are paid", "See who is near you"];
   for (const [n, title] of hire.entries()) {
     await expect(heading(page, title)).toBeVisible();
     await expect(page.getByText(`Step ${n + 1} of 5`)).toBeVisible();
@@ -39,9 +39,9 @@ test("the account menu opens the walkthrough: five real Hire screens, then the E
   }
   await expect(page.getByRole("button", { name: "Post a request", exact: true })).toBeVisible();
   await page.keyboard.press("ArrowLeft");
-  await expect(heading(page, "Your money is held safely")).toBeVisible();
-  await page.getByRole("button", { name: "Step 2: See who is near you" }).click();
-  await expect(heading(page, "See who is near you")).toBeVisible();
+  await expect(heading(page, "Approve, and they are paid")).toBeVisible();
+  await page.getByRole("button", { name: "Step 2: Offers come to you" }).click();
+  await expect(heading(page, "Offers come to you")).toBeVisible();
 
   // The other side starts again from its first step.
   await page.getByRole("tab", { name: "Earn side" }).click();
@@ -51,6 +51,10 @@ test("the account menu opens the walkthrough: five real Hire screens, then the E
   await expect(heading(page, "Send your price")).toBeVisible();
   await page.getByRole("button", { name: "Previous step", exact: true }).click();
   await expect(heading(page, "Find work near you or online")).toBeVisible();
+  // Earn has six screens; the map is the last one.
+  await page.getByRole("button", { name: "Step 6: See work on the map" }).click();
+  await expect(heading(page, "See work on the map")).toBeVisible();
+  await expect(page.getByText("Step 6 of 6")).toBeVisible();
   await expect(page.getByRole("button", { name: "Find work", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Close", exact: true }).click();
