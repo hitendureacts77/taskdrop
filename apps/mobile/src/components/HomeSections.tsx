@@ -114,7 +114,8 @@ function useHomeLoad(load: (alive: () => boolean) => Promise<unknown>) {
 
 /**
  * The top of the home screen, above the existing feed. `footer` (Hire's "Workers offering services near you") is
- * drawn after the Ideas block, just before "Only on TaskDrop", which closes the page (owner, 28 Nov).
+ * drawn after the Ideas block. "Only on TaskDrop" sits high on the page, where "Help improve TaskDrop" was, and "Help
+ * improve TaskDrop" closes the page (owner, 28 Nov, second call).
  */
 export function HomeSections({ footer }: { footer?: React.ReactNode }) {
   const { mode } = useMode();
@@ -408,11 +409,13 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
               {rows.length > 0 ? (
                 <PublishedTable rows={rows} total={active?.length ?? 0} onOpen={(task) => openPostedTask(task, go)} onManage={() => go('myTasks')} />
               ) : null}
-              <HomeImproveCard />
+              {/* Owner, 28 Nov: Only on TaskDrop high on the page; Help improve TaskDrop closes it. */}
+              {only}
               {ideas}
               {footer}
-              {/* Owner, 28 Nov: Only on TaskDrop closes the page, after everything else. */}
-              <View style={{ paddingBottom: 48 }}>{only}</View>
+              <View style={{ paddingBottom: 48 }}>
+                <HomeImproveCard />
+              </View>
             </>
           }
           rail={
@@ -456,8 +459,9 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         {/* 1.19 H: the same short live map card as Earn, in jade, then shortcuts to the map. */}
         {helpersMap}
 
-        {/* Owner, 26 Nov: a small "Help improve TaskDrop" card; the full board is on Profile. */}
-        <HomeImproveCard />
+        {/* D22 H1: what only TaskDrop does, as big icons. Owner, 28 Nov: high on the page, where "Help improve
+            TaskDrop" used to be. */}
+        {only}
 
         {/* Decision 1: one Ideas block with chips (poster ideas, Quick templates, Everyday). */}
         {ideas}
@@ -465,9 +469,11 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         {sheets}
       </View>
       {footer}
-      {/* D22 H1: what only TaskDrop does, as big icons. Owner, 28 Nov: at the very end of the page, not in the middle.
-          The room under it keeps the drop button off it. */}
-      <View style={{ paddingHorizontal: 20, paddingBottom: 110 }}>{only}</View>
+      {/* Owner, 28 Nov: a small "Help improve TaskDrop" card closes the page (the full board is on Profile). The room
+          under it keeps the drop button off it. */}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 110 }}>
+        <HomeImproveCard />
+      </View>
     </>
   );
 }
@@ -1109,8 +1115,6 @@ function EarnTop() {
 
       {jobsForYou}
 
-      <HomeImproveCard />
-
       <WaysToEarn onSearch={(q) => go('explore', { q })} onAddSkill={() => go('profileEdit')} />
 
       <Pressable
@@ -1122,6 +1126,11 @@ function EarnTop() {
         <HitArea x={8} y={12} />
         <RNText style={tx('700', 13, t.colors.accentDeep)}>See every open job ›</RNText>
       </Pressable>
+
+      {/* Owner, 28 Nov: "Help improve TaskDrop" at the bottom of the page, as on Hire Home. */}
+      <View style={{ paddingBottom: 20 }}>
+        <HomeImproveCard />
+      </View>
     </>
   );
 
