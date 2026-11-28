@@ -18,8 +18,7 @@ import { loadWizard } from '../lib/postWizardStore';
 import { getProfile, updateProfile } from '../data/api';
 import { applyReferralCode, updateProfileExtras, type EarnGoal } from '../data/extras';
 import { UsernameField, useUsernameCheck } from '../components/UsernameField';
-import { EarnGoalPicker, isEarnGoal } from '../components/EarnGoalPicker';
-import { RoleTheme } from '../providers/ThemeProvider';
+import { isEarnGoal } from '../components/EarnGoalPicker';
 import { imageSource, pickMedia, pickedFromFile, signedMediaUrl, uploadMedia, type PickedMedia } from '../lib/media';
 import { useFileDrop } from '../lib/useFileDrop';
 import { LANGUAGES } from './ProfileEditScreen';
@@ -29,19 +28,20 @@ import { ActionBar, ActionBarContext, FormPage } from '../components/FormPage';
 import { StepList } from '../components/StepList';
 import { useLayout } from '../lib/layout';
 
-const STEPS = ['Welcome', 'Username', 'Your intent', 'Why you earn', 'Skills', 'About you', 'Done'] as const;
+// "Why you earn" is no longer asked here (owner, 28 Nov: nice, but not needed first): it is an optional question in
+// Start earning (WorkerSetupScreen).
+const STEPS = ['Welcome', 'Username', 'Your intent', 'Skills', 'About you', 'Done'] as const;
 type Intent = 'post' | 'earn' | 'both';
-// Step numbers used below. The two earning steps are skipped for someone who only posts.
+// Step numbers used below. The skills step is skipped for someone who only posts.
 const USERNAME = 1;
-const WHY_EARN = 3;
-const SKILLS = 4;
-const ABOUT = 5;
-const DONE = 6;
+const SKILLS = 3;
+const ABOUT = 4;
+const DONE = 5;
 
 /**
  * First run, one question at a time: a welcome (with an optional referral
- * code), a public @username, what the person came to do, why they earn and
- * their skills if they will earn, and the basics people see on their profile.
+ * code), a public @username, what the person came to do, their skills
+ * if they will earn, and the basics people see on their profile.
  * Every answer is saved to the profile as it is given, so leaving halfway
  * loses nothing.
  */
@@ -63,6 +63,7 @@ export function OnboardingScreen() {
   const [code, setCode] = useState('');
   const [username, setUsername] = useState('');
   const [intent, setIntent] = useState<Intent>('both');
+  // Answered later, if at all, in Start earning; read here only to word the last card.
   const [earnGoal, setEarnGoal] = useState<EarnGoal | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
   const [name, setName] = useState('');
@@ -119,8 +120,8 @@ export function OnboardingScreen() {
     return () => anim.stop();
   }, [step, progress]);
 
-  // Someone who only posts is never asked why they earn or what they are good at.
-  const skipped = (s: number) => intent === 'post' && (s === WHY_EARN || s === SKILLS);
+  // Someone who only posts is never asked what they are good at.
+  const skipped = (s: number) => intent === 'post' && s === SKILLS;
   const next = () =>
     setStep((s) => {
       // The quick finish asks only the username and About you.
@@ -335,29 +336,6 @@ export function OnboardingScreen() {
     );
   }
 
-  if (step === WHY_EARN) {
-    body = (
-      // Earn is blue (owner rule): the earning question uses the worker colours.
-      <RoleTheme worker>
-        <RNText style={tx('800', 26, t.colors.ink, { letterSpacing: -0.7 })}>Why do you want to earn on TaskDrop?</RNText>
-        <RNText style={tx('400', 14, t.colors.muted, { marginTop: 8, lineHeight: 21 })}>
-          This helps us show you the right tasks and tips. Only you can see it.
-        </RNText>
-        <EarnGoalPicker value={earnGoal} onChange={setEarnGoal} />
-      </RoleTheme>
-    );
-    footer = (
-      <PrimaryButton
-        label="Continue"
-        busy={busy}
-        disabled={!earnGoal}
-        onPress={() => void run(async () => {
-          if (userId && earnGoal) await updateProfileExtras(userId, { earnGoal });
-        })}
-      />
-    );
-  }
-
   if (step === SKILLS) {
     body = (
       <>
@@ -453,7 +431,7 @@ export function OnboardingScreen() {
   }
 
   // Desktop: Back sits at the left of the action bar and the aside lists every step, so the phone's
-  // "Step n of N" row and bar are not drawn. The two earning steps are left out for someone who only posts.
+  // "Step n of N" row and bar are not drawn. The skills step is left out for someone who only posts.
   const showBack = !quick && step > 0 && step < STEPS.length - 1;
   const aside = quick ? undefined : (
     <StepList

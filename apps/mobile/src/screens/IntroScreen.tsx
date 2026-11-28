@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useLayout } from '../lib/layout';
 import { View, Text as RNText, Pressable } from 'react-native';
 import { Screen } from '../components/ui';
@@ -11,7 +11,7 @@ import { useMode } from '../providers/ModeProvider';
 import { FROM_GUEST } from '../lib/guest';
 import { saveIntroSeen } from '../lib/intro';
 import { introMode } from '../lib/introRoute';
-import { walkSideFor, WALK_COPY, type WalkSide } from '../lib/walkthrough';
+import { walkSeenKey, walkSideFor, WALK_COPY, type WalkSide } from '../lib/walkthrough';
 
 /**
  * "How TaskDrop works" (plan 1.19 row N): the one walkthrough, five real app
@@ -27,7 +27,7 @@ export function IntroScreen() {
   const layout = useLayout();
   const wide = layout.desktop || layout.tablet;
   const { reset, back, go, params } = useNav();
-  const { session, continueAsGuest } = useAuth();
+  const { session, userId, guest, continueAsGuest } = useAuth();
   const { mode: appMode, setMode } = useMode();
   const mode = introMode({ replay: Boolean(params.replay), signedIn: Boolean(session) });
   // Opened from the link on the desktop sign-in page by someone with no session who has not chosen guest: closing or
@@ -35,26 +35,32 @@ export function IntroScreen() {
   const fromSignIn = params.from === 'signin';
   // A new install opens on Hire; a replay opens on the side the person is on.
   const side = walkSideFor(params.side, mode === 'first' ? 'poster' : appMode);
+  // Remembered for this person (an account, or the guest), and only once the walkthrough is really on screen: on a
+  // phone the auto-open can be dropped while the native stack is not mounted yet, and it must then try again.
+  const seenKey = walkSeenKey({ userId, guest: guest || mode === 'first' });
+  useEffect(() => {
+    void saveIntroSeen(seenKey);
+  }, [seenKey]);
 
   const makeAccount = useCallback(() => {
-    void saveIntroSeen();
+    void saveIntroSeen(seenKey);
     if (mode === 'first') reset('welcome');
     else go('welcome', { [FROM_GUEST]: true });
-  }, [mode, reset, go]);
+  }, [mode, reset, go, seenKey]);
 
   const skip = useCallback(() => {
-    void saveIntroSeen();
+    void saveIntroSeen(seenKey);
     if (mode === 'first') {
       continueAsGuest();
       reset('home');
     } else {
       back();
     }
-  }, [mode, continueAsGuest, reset, back]);
+  }, [mode, continueAsGuest, reset, back, seenKey]);
 
   const finish = useCallback(
     (s: WalkSide) => {
-      void saveIntroSeen();
+      void saveIntroSeen(seenKey);
       if (fromSignIn) {
         back();
         return;
@@ -68,7 +74,7 @@ export function IntroScreen() {
       }
       go(s === 'earn' ? 'explore' : 'aiPost');
     },
-    [mode, fromSignIn, setMode, continueAsGuest, reset, back, go],
+    [mode, fromSignIn, setMode, continueAsGuest, reset, back, go, seenKey],
   );
 
   const account =

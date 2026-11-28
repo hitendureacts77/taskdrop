@@ -11,8 +11,11 @@
 
 export type WalkSide = 'hire' | 'earn';
 
-/** One of the five real screens. `shot` names a picture in assets/walkthrough. */
-export type WalkStep = { shot: string; title: string; body: string };
+/**
+ * One of the five real screens. `shot` names a picture in assets/walkthrough. `purpose` is one short plain line on
+ * what the feature is FOR (owner, 28 Nov: "this map feature is for easily identifying the tasks around us").
+ */
+export type WalkStep = { shot: string; title: string; purpose: string; body: string };
 
 /**
  * The explainer video on YouTube. Empty until the owner uploads it to the
@@ -32,18 +35,18 @@ export function videoUrl(raw: string = WALKTHROUGH_VIDEO_URL): string | null {
 
 export const WALK_STEPS: Record<WalkSide, readonly WalkStep[]> = {
   hire: [
-    { shot: 'h1', title: 'Say what you need', body: 'Type it, or tap Speak. Say it the way you would tell a friend.' },
-    { shot: 'h2', title: 'See who is near you', body: 'Helpers around you show on the map. You can also get help online, from anywhere.' },
-    { shot: 'h3', title: 'Offers come to you', body: 'Compare price, rating and time. Tap Choose this offer on the one you like.' },
-    { shot: 'h4', title: 'Your money is held safely', body: 'You pay when you choose. It stays held until you approve the work.' },
-    { shot: 'h5', title: 'Approve, and they are paid', body: 'Check the work, then tap Approve. Not right? Ask for changes or report a problem.' },
+    { shot: 'h1', title: 'Say what you need', purpose: 'Ask for any help in your own words.', body: 'Type it, or tap Speak. Say it the way you would tell a friend.' },
+    { shot: 'h2', title: 'See who is near you', purpose: 'See helpers and services around you at a glance.', body: 'Helpers around you show on the map. You can also get help online, from anywhere.' },
+    { shot: 'h3', title: 'Offers come to you', purpose: 'Pick the best person at a price you like.', body: 'Compare price, rating and time. Tap Choose this offer on the one you like.' },
+    { shot: 'h4', title: 'Your money is held safely', purpose: 'Your money stays safe until the work is done.', body: 'You pay when you choose. It stays held until you approve the work.' },
+    { shot: 'h5', title: 'Approve, and they are paid', purpose: 'Pay only for work you are happy with.', body: 'Check the work, then tap Approve. Not right? Ask for changes or report a problem.' },
   ],
   earn: [
-    { shot: 'e1', title: 'Find work near you or online', body: 'Every open job nearby and remote, with the price shown.' },
-    { shot: 'e2', title: 'Send your price', body: 'Accept the posted price or send your own. Ask a question first if you need to.' },
-    { shot: 'e3', title: 'The money is held before you start', body: 'The customer paid when they chose you. You see exactly what you earn.' },
-    { shot: 'e4', title: 'Finish and send proof', body: 'Say what you did, add photos, then tap Mark work done.' },
-    { shot: 'e5', title: 'Get paid to your bank or UPI', body: 'Add your bank or UPI once. Your share is paid out when the customer approves.' },
+    { shot: 'e1', title: 'Find work near you or online', purpose: 'See tasks around you at a glance, or work online.', body: 'Every open job nearby and remote, with the price shown.' },
+    { shot: 'e2', title: 'Send your price', purpose: 'You decide what your work is worth.', body: 'Accept the posted price or send your own. Ask a question first if you need to.' },
+    { shot: 'e3', title: 'The money is held before you start', purpose: 'Start work knowing the money is already there.', body: 'The customer paid when they chose you. You see exactly what you earn.' },
+    { shot: 'e4', title: 'Finish and send proof', purpose: 'Show the customer the work is done.', body: 'Say what you did, add photos, then tap Mark work done.' },
+    { shot: 'e5', title: 'Get paid to your bank or UPI', purpose: 'Your earnings reach you safely.', body: 'Add your bank or UPI once. Your share is paid out when the customer approves.' },
   ],
 };
 
@@ -126,12 +129,6 @@ export function walkSideFor(param: unknown, mode: 'poster' | 'worker' | null | u
 }
 
 /**
- * When the walkthrough opens by itself (owner, 27 Nov): never on the sign-in page. It opens once per device, on Home,
- * right after a new sign-in AND right after "Continue as guest", after the staging tester card (if any) is closed.
- * `entered` is true for a signed-in person and for a device that chose "Continue as guest"; a signed-out visitor
- * who has not chosen yet is not "entered", so the sign-in page never shows it.
- */
-/**
  * Whether the staging tester card can still be in front of the walkthrough. It shows only on staging and only to a
  * signed-in person (lib/environment.ts shouldShowStagingCard), so a guest never has one to wait for. Waiting on a card
  * that is never shown left a new guest without the walkthrough for good (27 Nov).
@@ -150,6 +147,38 @@ export function stagingCardIsClear(a: { stagingUi: boolean; signedIn: boolean; s
   return !stagingCardCanBlock(a) || a.storedSeen === true;
 }
 
-export function shouldShowWalkthrough(a: { entered: boolean; seen: boolean | null; screen: string; stagingCardClear: boolean }): boolean {
-  return a.entered && a.seen === false && a.screen === 'home' && a.stagingCardClear;
+/**
+ * When the walkthrough opens by itself (owner, 27 + 28 Nov): never on the sign-in page; on Home, once for each person
+ * on each device: the first start as a guest, a brand-new account's first sign-in, and an account's first sign-in on
+ * this device. `entered` is true for a signed-in person and for a device that chose "Continue as guest"; a signed-out
+ * visitor who has not chosen yet is not "entered", so the sign-in page never shows it. `seen` is what the device
+ * remembers for this person (walkSeenKey), null until it has been read.
+ */
+export function shouldShowWalkthrough(a: {
+  entered: boolean;
+  seen: boolean | null;
+  screen: string;
+  stagingCardClear: boolean;
+  /** How many times it has already opened by itself for this person in this app run. */
+  tries?: number;
+}): boolean {
+  return a.entered && a.seen === false && a.screen === 'home' && a.stagingCardClear && (a.tries ?? 0) < WALK_AUTO_TRIES;
+}
+
+/**
+ * Opens by itself at most this often per person per app run. The second try covers an open the phone navigator
+ * dropped; the cap means a device that cannot store the "seen" mark never sees it again and again.
+ */
+export const WALK_AUTO_TRIES = 2;
+
+/**
+ * Where a device remembers that one person has seen the walkthrough: one key per account, one for the guest. A new
+ * account, or another account on the same phone, gets its own first time (owner, 28 Nov). `v2` on purpose: the v1
+ * flag was one per device and was also set by the old pre-sign-in intro and by a replay from Profile, so on a phone
+ * that had run an older build it was already "seen" and the walkthrough never opened again. Null when nobody is in.
+ */
+export function walkSeenKey(a: { userId: string | null | undefined; guest: boolean }): string | null {
+  if (a.userId) return `taskdrop.walk.seen.v2.${a.userId}`;
+  if (a.guest) return 'taskdrop.walk.seen.v2.guest';
+  return null;
 }
