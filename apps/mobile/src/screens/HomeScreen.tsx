@@ -1013,7 +1013,7 @@ export function HomeScreen() {
           footer={
             worker ? null : (
           // What workers offer, as gig cards in a row that pages sideways (a grid of four on a desktop, at the
-          // bottom of the main column beside the rail, WebHire). "Only on TaskDrop" follows it and holds the room
+          // bottom of the main column beside the rail, WebHire). "Help improve TaskDrop" follows it and holds the room
           // at the end of the page (owner, 28 Nov).
           <View style={desktop ? { paddingTop: 32 } : { paddingHorizontal: 20, paddingTop: 30 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
