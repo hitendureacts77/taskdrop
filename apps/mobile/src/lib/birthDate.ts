@@ -1,3 +1,5 @@
+import { MIN_SIGNUP_AGE } from '@taskdrop/rules';
+
 export type BirthDateParts = { day: string; month: string; year: string };
 
 export const EMPTY_BIRTH_DATE: BirthDateParts = { day: '', month: '', year: '' };
@@ -12,12 +14,17 @@ export function days(): BirthDateItem[] {
 export function months(): BirthDateItem[] {
   return MONTHS.map((label, i) => ({ value: String(i + 1), label }));
 }
+/** The calendar year in India right now (the server counts age on the India date, so after 18:30 UTC it is already tomorrow there). */
+export function indiaYear(now = new Date()): number {
+  return new Date(now.getTime() + 5.5 * 3600 * 1000).getUTCFullYear();
+}
+
 /**
- * Newest first: most people are born in the last 20 to 40 years, so the swipe is short. Starts at last year:
- * nobody signing up was born this year (W2-7; the under-18 check still sees a 17-year-old's year).
+ * Newest first, starting at the latest year that can still pass the 18+ rule (2008 in 2026), so nobody scrolls
+ * past years that are always refused. The server still checks the age itself (record_birth_date).
  */
-export function years(now = new Date()): BirthDateItem[] {
-  const top = now.getFullYear() - 1;
+export function years(now = new Date(), minAge = MIN_SIGNUP_AGE): BirthDateItem[] {
+  const top = indiaYear(now) - minAge;
   return Array.from({ length: top - 1920 + 1 }, (_, i) => ({ value: String(top - i), label: String(top - i) }));
 }
 
