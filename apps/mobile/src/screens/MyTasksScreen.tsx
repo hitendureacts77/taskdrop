@@ -310,7 +310,7 @@ function MyPosted() {
     const task = (tasks ?? []).find((x) => x.id === n.taskId);
     if (!task) return;
     if (n.kind === 'repost') return setDateFor(task);
-    openPostedTask(task, go);
+    openPostedTask(task, go, { offers: (quotes.get(task.id) ?? 0) > 0 });
   };
 
   // The finished task's review: the same route the orders list's done row takes (taskRows act 'review').
@@ -501,7 +501,7 @@ function MyPosted() {
     offers: quotes.get(task.id) ?? 0,
     newOffers: freshOffers.get(task.id),
     worker: people.get(task.id),
-    onOpen: () => openPostedTask(task, go),
+    onOpen: () => openPostedTask(task, go, { offers: (quotes.get(task.id) ?? 0) > 0 }),
     onMenu: () => setMenu(task),
     onTopUp: () => setTopUp(task),
     onNewDate: () => setDateFor(task),

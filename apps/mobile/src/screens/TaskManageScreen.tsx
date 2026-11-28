@@ -30,6 +30,11 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { noteOffersSeen } from '../lib/seenOffersStore';
+import { workersNear } from '../data/extras';
+import { roughPlace } from '../lib/place';
+import { taskUrl } from '../lib/links';
+import { ShareSheet, useShare } from '../components/ShareSheet';
+import { countToldHelpers, toldLine, TOLD_LIMIT, TOLD_RADIUS_KM, type ToldHelpers } from '../lib/toldHelpers';
 import { useApp } from '../providers/AppStateProvider';
 import {
   cancelTask,
@@ -105,7 +110,11 @@ export function TaskManageScreen() {
   const { userId } = useAuth();
   const [detail, setDetail] = useState<TaskDetail | null | undefined>(undefined);
   const [bids, setBids] = useState<(Bid & { profiles: Profile | null })[]>([]);
-  const [tab, setTab] = useState(0);
+  // 'offers' in the address (My tasks, the new-offer alert) opens the Worker offers tab straight away.
+  const [tab, setTab] = useState(params.tab === 'offers' ? 1 : 0);
+  const share = useShare(flash);
+  // Who can see this new task: a real count of helpers nearby who do its kind of work; null until known.
+  const [told, setTold] = useState<ToldHelpers | null>(null);
   const [menu, setMenu] = useState(false);
   const [closing, setClosing] = useState(false);
   const [keepIt, setKeepIt] = useState(false);
@@ -124,7 +133,7 @@ export function TaskManageScreen() {
 
   const load = useCallback(async () => {
     if (!taskId) return setDetail(null);
-    // Both or neither: a quotes list that quietly failed would read as "no quotes yet".
+    // Both or neither: an offers list that quietly failed would read as "no offers yet".
     const [d, b] = await Promise.all([getTaskDetail(taskId), listBidsForTask(taskId)]);
     setDetail(d);
     setBids(b);
@@ -139,6 +148,24 @@ export function TaskManageScreen() {
       setLoadFailed(true);
     });
   }, [load]);
+
+  // Right after posting: how many helpers nearby do this kind of work (the same list the map shows). Read once
+  // per task; a failure just leaves the line out, never a made-up number.
+  const openTask = detail?.task ?? null;
+  const toldFor = openTask && openTask.status === 'OPEN' && openTask.kind !== 'service' ? openTask : null;
+  const toldId = toldFor?.id ?? null;
+  const toldLat = toldFor?.loc_lat ?? null;
+  const toldLng = toldFor?.loc_lng ?? null;
+  const toldCategory = toldFor?.category ?? null;
+  useEffect(() => {
+    setTold(null);
+    if (!toldId || toldLat == null || toldLng == null) return;
+    let live = true;
+    workersNear({ lat: toldLat, lng: toldLng }, TOLD_RADIUS_KM, TOLD_LIMIT)
+      .then((list) => { if (live) setTold(countToldHelpers(list, toldCategory)); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [toldId, toldLat, toldLng, toldCategory]);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -206,7 +233,7 @@ export function TaskManageScreen() {
     { at: task.created_at, title: 'Task created', body: `“${task.title}” was posted`, icon: 'plus' as IconName },
     ...bids.map((b) => ({
       at: b.created_at,
-      title: `Quote received · ${rupees(b.price_minor / 100)}`,
+      title: `Offer received · ${rupees(b.price_minor / 100)}`,
       body: b.profiles?.display_name ? `from ${b.profiles.display_name}` : undefined,
       icon: 'tag' as IconName,
     })),
@@ -350,8 +377,36 @@ export function TaskManageScreen() {
   // An open post whose date passed with nobody picked: it is open with no fixed date now (plan 1.19 J).
   const datePassed = openDatePassed(task, Date.now());
   const lapsedAt = task.due_lapsed_at ?? (datePassed ? task.due_at : null);
+  // After posting: who can see the task, and a way to share it (Hire jade green).
+  const toldCard =
+    task.status === 'OPEN' && !hunting && bids.length === 0 && task.kind !== 'service' ? (
+      <View style={{ ...card, backgroundColor: t.colors.accentSoft, borderColor: t.colors.accentBorder }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name="users" size={16} color={t.colors.accentDeep} />
+          <RNText style={tx('800', 15, t.colors.accentDeep, { flex: 1 })}>Waiting for offers</RNText>
+        </View>
+        <RNText style={tx('500', 13, t.colors.text, { marginTop: 6, lineHeight: 19 })}>
+          {task.loc_lat == null
+            ? 'This task is remote, so helpers anywhere can see it. Share it to bring offers in faster.'
+            : told
+              ? toldLine(told, (roughPlace(task.loc_label) ?? '').split(',')[0] || null, task.category)
+              : 'Helpers nearby can see your task. Most offers come within an hour.'}
+        </RNText>
+        <View style={{ flexDirection: 'row', marginTop: 12 }}>
+          <PrimaryButton
+            label="Share this task"
+            tone="quiet"
+            onPress={() => {
+              const url = taskUrl(task.id);
+              share.start(url ? { title: task.title, message: `${task.title} · ${formatINR(task.benchmark_minor)} on TaskDrop`, url } : null);
+            }}
+          />
+        </View>
+      </View>
+    ) : null;
   const overview = (
     <>
+      {twoPane ? null : toldCard}
       <HoldLine taskId={task.id} />
       <TaskPromotionResults taskId={task.id} />
       {datePassed ? (
@@ -500,7 +555,10 @@ export function TaskManageScreen() {
 
       {task.status === 'OPEN' ? (
         bids.length === 0 ? (
-          <EmptyState icon="users" title="No offers yet" body="Workers nearby will see your task. You’ll get a notification when an offer comes in." />
+          <>
+          {toldCard}
+          <EmptyState icon="users" title="No offers yet" body="You’ll get a notification when an offer comes in." />
+        </>
         ) : (
           <>
             <RNText style={tx('400', 12, t.colors.muted, { marginTop: 14, lineHeight: 17 })}>
@@ -553,7 +611,7 @@ export function TaskManageScreen() {
             ) : null}
             {visibleBids.map((b, i) => {
               const who = b.profiles;
-              const name = who?.username ? '@' + who.username : (who?.display_name ?? 'Worker');
+              const name = who?.display_name || (who?.username ? '@' + who.username : 'Worker');
               const diff = b.price_minor - task.benchmark_minor;
               // When they can finish (plan 1.19 J, 26 Nov): a date, hours, or more time than the customer's date.
               const timing = offerTimingLine(b as { proposed_due_at?: string | null; message?: string | null }, datePassed ? null : task.due_at, (d) => formatDeadline(d));
@@ -574,6 +632,9 @@ export function TaskManageScreen() {
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <RNText style={tx('700', 14, t.colors.ink)} numberOfLines={1}>{name}</RNText>
+                        {who?.username && who.display_name ? (
+                          <RNText style={tx('500', 11, t.colors.muted, { marginTop: 1 })} numberOfLines={1}>@{who.username}</RNText>
+                        ) : null}
                         {/* Wraps: a long "Last seen 2 days ago" must drop to the next line, not run under the price. */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 6, marginTop: 2 }}>
                           <RNText style={tx('600', 11, who && who.worker_rating_count > 0 ? t.colors.goldInk : t.colors.muted)}>
@@ -623,7 +684,7 @@ export function TaskManageScreen() {
                           })
                         }
                         accessibilityRole="button"
-                        accessibilityLabel={`Select ${name}'s quote of ${rupees(b.price_minor / 100)}`}
+                        accessibilityLabel={`Select ${name}'s offer of ${rupees(b.price_minor / 100)}`}
                         style={({ pressed }) => ({
                           flexDirection: 'row',
                           alignItems: 'center',
@@ -807,16 +868,17 @@ export function TaskManageScreen() {
         onConfirm={() => void close()}
       />
 
+      <ShareSheet visible={share.open} item={share.item} onClose={share.close} flash={flash} />
       <ConfirmDialog
         visible={selecting !== null}
         icon="check"
         title={selecting ? `Select ${selecting.name}?` : ''}
         message={
           selecting
-            ? `${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) is taken from your wallet and locked in this task until it is done. ${hireFineNote({ fineMinor: fineOf(selecting.priceMinor), finePct: Math.round(cancelPct * 100), money: formatINR })} Phone numbers are shared once the work starts.${selecting.newDate ? ` The task's date moves to ${selecting.newDate}.` : ''}`
+            ? `${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} (the offer plus the ${Math.round(fees.posterFee * 100)}% service fee) ${planB ? 'is paid by UPI or card when you hire, and Razorpay holds it until you approve the work.' : 'is taken from your wallet and locked in this task until it is done.'} ${hireFineNote({ fineMinor: fineOf(selecting.priceMinor), finePct: Math.round(cancelPct * 100), money: formatINR })} Phone numbers are shared once the work starts.${selecting.newDate ? ` The task's date moves to ${selecting.newDate}.` : ''}`
             : ''
         }
-        confirmLabel="Choose and pay from wallet"
+        confirmLabel={planB ? (selecting ? `Hire and pay ${formatINR(posterEscrowCharge(selecting.priceMinor, fees.posterFee))} by UPI or card` : 'Hire and pay') : 'Choose and pay from wallet'}
         busy={locking}
         onCancel={() => setSelecting(null)}
         onConfirm={() => void lockSelected()}

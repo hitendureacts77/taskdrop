@@ -197,11 +197,13 @@ const TRACKED = ['TASK_STARTED', 'OVERDUE', 'WORK_DONE', 'REVISION_REQUESTED'];
 export function openPostedTask(
   task: Pick<Task, 'id' | 'status' | 'title' | 'locked_minor' | 'benchmark_minor'>,
   go: (s: ScreenName, p?: NavParams) => void,
+  opts?: { offers?: boolean },
 ): void {
   if (TRACKED.includes(task.status)) {
     return go('active', { taskId: task.id, title: task.title, priceMinor: task.locked_minor ?? task.benchmark_minor });
   }
-  go('taskManage', { taskId: task.id });
+  // An open post with offers lands straight on the Worker offers tab.
+  go('taskManage', opts?.offers && task.status === 'OPEN' ? { taskId: task.id, tab: 'offers' } : { taskId: task.id });
 }
 
 /** Open a row: the same switch OrdersScreen always used. */
