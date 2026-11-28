@@ -729,7 +729,7 @@ export function NearMap({
       const where = bestJob.remote ? ['From home'] : [areaName(bestJob.loc_label), kmValue(bestJob.km)];
       // What the work is and where, not who asked (task 1.21 row A): the poster shows on the job card and the task.
       return {
-        label: bestJob.remote ? 'BEST OFFER FROM HOME' : 'BEST OFFER NEAR YOU',
+        label: bestJob.remote ? 'TOP PAY FROM HOME' : 'TOP PAY NEAR YOU',
         value: rupees(bestJob.benchmark_minor / 100),
         title: bestJob.title,
         meta: [categoryLabel(bestJob), ...where, today].filter(Boolean).join(' · '),

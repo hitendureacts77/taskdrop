@@ -112,7 +112,7 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
         title={rows.length === 0 ? `No jobs within ${radius} km` : jobsSummary(rows.length, 0, radius, 'local', { near: full })}
         titleLabel={`Change the distance, now ${radius} km`}
         onTitle={nextRadius}
-        sub={rows.length > 0 ? `Best offer ${rupees(best / 100)}${nearestText ? ` · nearest ${nearestText} away` : ''}` : 'Tap the distance to widen it, or try remote work'}
+        sub={rows.length > 0 ? `Top pay ${rupees(best / 100)}${nearestText ? ` · nearest ${nearestText} away` : ''}` : 'Tap the distance to widen it, or try remote work'}
         subMuted={rows.length === 0}
         onOpenMap={openMap}
       />

@@ -18,6 +18,10 @@ import {
 
 const KONDAPUR = { lat: 17.4699, lng: 78.3578 };
 const NOW = Date.parse('2026-11-11T08:00:00Z');
+const BY_PAY = { ...DEFAULT_FILTERS, sort: 'pay' as const };
+test('the list starts newest first, so a job posted an hour ago is not buried', () => {
+  assert.equal(DEFAULT_FILTERS.sort, 'new');
+});
 type Extra = { assignment_mode?: string | null; due_at?: string | null; flag?: string | null };
 const job = (id: string, lat: number | null, lng: number | null, rupees: number, created = '2026-11-09T08:00:00Z', extra: Extra = {}) => ({
   id,
@@ -38,19 +42,19 @@ const remote = [home1, home2];
 const ids = (rows: { id: string }[]) => rows.map((j) => j.id);
 
 test('the distance is measured from the chosen place, and remote jobs ride along', () => {
-  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...DEFAULT_FILTERS, km: 10 }, NOW)), ['mid', 'home1', 'near', 'home2']);
+  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...BY_PAY, km: 10 }, NOW)), ['mid', 'home1', 'near', 'home2']);
   assert.ok(ids(filterJobs(pinned, remote, KONDAPUR, { ...DEFAULT_FILTERS, km: 50 }, NOW)).includes('far'));
 });
 
 test('Nearby drops the remote jobs; Remote drops every pinned one', () => {
-  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...DEFAULT_FILTERS, work: 'local' }, NOW)), ['mid', 'near']);
-  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...DEFAULT_FILTERS, work: 'remote' }, NOW)), ['home1', 'home2']);
+  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...BY_PAY, work: 'local' }, NOW)), ['mid', 'near']);
+  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...BY_PAY, work: 'remote' }, NOW)), ['home1', 'home2']);
 });
 
 test('the price range is inclusive at both ends, and 0 leaves an end open', () => {
-  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...DEFAULT_FILTERS, minPay: 1000 }, NOW)), ['mid']);
-  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...DEFAULT_FILTERS, maxPay: 500 }, NOW)), ['near', 'home2']);
-  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...DEFAULT_FILTERS, minPay: 300, maxPay: 800 }, NOW)), ['home1', 'near', 'home2']);
+  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...BY_PAY, minPay: 1000 }, NOW)), ['mid']);
+  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...BY_PAY, maxPay: 500 }, NOW)), ['near', 'home2']);
+  assert.deepEqual(ids(filterJobs(pinned, remote, KONDAPUR, { ...BY_PAY, minPay: 300, maxPay: 800 }, NOW)), ['home1', 'near', 'home2']);
 });
 
 test('the three orders', () => {
@@ -71,9 +75,9 @@ test('Due in 24 hours keeps urgent jobs and ones due by tomorrow', () => {
 });
 
 test('with no place the map shows only remote jobs, but the list still shows every job', () => {
-  assert.deepEqual(ids(filterJobs(pinned, remote, null, DEFAULT_FILTERS, NOW)), ['home1', 'home2']);
-  assert.equal(filterList([...pinned, ...remote], null, DEFAULT_FILTERS, NOW).length, 5);
-  assert.deepEqual(ids(filterList([...pinned, ...remote], null, { ...DEFAULT_FILTERS, work: 'local' }, NOW)), ['far', 'mid', 'near']);
+  assert.deepEqual(ids(filterJobs(pinned, remote, null, BY_PAY, NOW)), ['home1', 'home2']);
+  assert.equal(filterList([...pinned, ...remote], null, BY_PAY, NOW).length, 5);
+  assert.deepEqual(ids(filterList([...pinned, ...remote], null, { ...BY_PAY, work: 'local' }, NOW)), ['far', 'mid', 'near']);
 });
 
 test('with a place the list shows the same jobs as the map', () => {

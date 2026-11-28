@@ -70,7 +70,9 @@ export function auctionIds(ids: readonly (string | null | undefined)[]): string[
   return [...seen];
 }
 
-export const FAIR_RULES_TASKS =
-  'Posters paid to promote these. At most 2 on top, only ones that suit you, and the same one at most 3 times a day. Everything below stays newest first.';
+/** How each sort reads in the Fair rules note: "Everything below stays newest first." */
+export const SORT_PHRASES = { pay: 'ordered by best pay', near: 'nearest first', new: 'newest first' } as const;
+export const fairRulesTasks = (phrase: string) =>
+  `Posters paid to promote these. At most 2 on top, only ones that suit you, and the same one at most 3 times a day. Everything below stays ${phrase}.`;
 export const FAIR_RULES_HELPERS =
   'Promoted helpers paid to be shown first. At most 2, only ones that match your search. Everything below keeps its normal order.';
