@@ -1,4 +1,4 @@
--- What a new account is called (migration 115). Rolls back; leaves nothing.
+-- What a new account is called (migrations 115 and 242). Rolls back; leaves nothing.
 --
 -- Run with:  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/new_user_names.test.sql
 
@@ -20,7 +20,7 @@ begin
 
   assert (select display_name from public.profiles where id = v_google) = 'Asha Rao', 'a Google name is used, trimmed';
   assert (select display_name from public.profiles where id = v_relay) = 'New user', 'an Apple relay address is never a name';
-  assert (select display_name from public.profiles where id = v_phone) = 'p9876543210', 'phone accounts are named as before';
+  assert (select display_name from public.profiles where id = v_phone) = 'New user', 'a phone address is never a name (migration 242)';
   assert (select display_name from public.profiles where id = v_email) = 'ravi.k', 'an ordinary email still gives its first part';
   assert exists (select 1 from public.wallets where user_id = v_google), 'the wallet is still created';
 
