@@ -1,12 +1,12 @@
 /**
- * The website's address and tab title for a screen (B171, B179). Pure, so it can be unit tested
- * (webAddress.test.ts); ScreenHost and PublicPageLink apply it on web.
+ * The website's addresses and tab titles (B171, B179, board fix "Back, refresh and links"). Pure, so it can be
+ * unit tested (webAddress.test.ts); NavProvider.tsx (web) applies it through navigation/webHistory.ts.
  *
- * Only the four public pages have an address of their own: /terms, /privacy, /support and /copyright open
- * those pages on load (as ?page= always did), and the address follows them while they are open. Every other
- * screen keeps the plain address, as before: full history routing (Back through screens, a reload staying
- * put) is an owner decision, not built here. The address is only ever replaced, never pushed, so Back works
- * exactly as it did.
+ * The main screens have readable addresses: /task/<id>, /profile/<id>, /my-tasks, /find-work, /wallet and the rest
+ * (APP_PATHS below). Moving to a screen pushes a browser history entry, so Back and Forward walk through screens
+ * in the app, a reload stays on the screen, and a task link can be shared. Only ids go in an address: never a
+ * phone number, a place, a search or anything else personal. A screen with no address of its own (a form step,
+ * a chat) keeps the address of the screen under it.
  */
 
 export const PUBLIC_PAGES = ['copyright', 'terms', 'privacy', 'support'] as const;
@@ -23,14 +23,104 @@ export function pageFromAddress(pathname: string, search: string): PublicPage | 
 }
 
 /**
- * The path the address bar should show for a screen, or null to leave it alone. A public page shows its own
- * path; leaving one goes back to "/". Any other path (/get, a path the server answered) is left as it is.
+ * The app screens with a fixed address. Explore is /find-work in Earn mode and /explore in Hire mode; opening
+ * /find-work switches to Earn. My work (the Earn orders list) is /my-work. Must match APP_ROUTES in
+ * apps/mobile/scripts/web-route-pages.mjs, which serves them on Cloudflare (web-route-pages.test.mjs checks).
  */
-export function pathForScreen(screen: string, pathname: string): string | null {
-  if (isPublic(screen)) return pathname === `/${screen}` ? null : `/${screen}`;
-  const here = pathname.replace(/\/+$/, '').replace(/^\/+/, '').toLowerCase();
-  return isPublic(here) ? '/' : null;
+export const APP_PATHS: readonly { path: string; screen: string; mode?: 'worker' }[] = [
+  { path: '/find-work', screen: 'explore', mode: 'worker' },
+  { path: '/explore', screen: 'explore' },
+  { path: '/map', screen: 'nearMap' },
+  { path: '/my-tasks', screen: 'myTasks' },
+  { path: '/my-work', screen: 'orders' },
+  { path: '/wallet', screen: 'wallet' },
+  { path: '/messages', screen: 'inbox' },
+  { path: '/notifications', screen: 'notifications' },
+  { path: '/profile', screen: 'profile' },
+  { path: '/account', screen: 'account' },
+  { path: '/post', screen: 'aiPost' },
+  { path: '/saved', screen: 'saved' },
+  { path: '/help', screen: 'help' },
+  { path: '/ideas', screen: 'ideas' },
+];
+
+/** Addresses that carry one id: a task (/task/<id>) and a person's public profile (/profile/<id>). */
+export const ID_PATHS = { task: '/task/', profile: '/profile/' } as const;
+
+/** Every address pattern the app answers beyond the files in KNOWN_PATHS, as Cloudflare `_redirects` sources. */
+export const APP_ROUTE_PATTERNS: readonly string[] = [...APP_PATHS.map((r) => r.path), `${ID_PATHS.task}*`, `${ID_PATHS.profile}*`];
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isId = (v: unknown): v is string => typeof v === 'string' && UUID.test(v);
+
+/** A screen an address opens. `params` holds only ids (taskId, userId); `mode` is set for /find-work. */
+export type WebRoute = { screen: string; params: Record<string, string>; mode?: 'worker' };
+
+const clean = (pathname: string) => `/${(pathname ?? '').replace(/^\/+/, '').replace(/\/+$/, '')}`;
+
+/**
+ * The screen an address opens, or null for one the app does not answer (Page not found). "/" is Home. Case
+ * counts, as on Cloudflare. The old links still work: ?task=<id> opens the task, ?page=terms the page.
+ */
+export function routeFromAddress(pathname: string, search = ''): WebRoute | null {
+  const path = clean(pathname);
+  const q = new URLSearchParams(search);
+  if (path === '/' || path === '/index.html') {
+    const task = q.get('task');
+    if (isId(task)) return { screen: 'taskDetail', params: { taskId: task } };
+    const page = q.get('page');
+    if (page && isPublic(page)) return { screen: page, params: {} };
+    return { screen: 'home', params: {} };
+  }
+  if (isPublic(path.slice(1))) return { screen: path.slice(1), params: {} };
+  const fixed = APP_PATHS.find((r) => r.path === path);
+  if (fixed) return fixed.mode ? { screen: fixed.screen, params: {}, mode: fixed.mode } : { screen: fixed.screen, params: {} };
+  if (path.startsWith(ID_PATHS.task)) {
+    const id = path.slice(ID_PATHS.task.length);
+    return isId(id) ? { screen: 'taskDetail', params: { taskId: id.toLowerCase() } } : null;
+  }
+  if (path.startsWith(ID_PATHS.profile)) {
+    const id = path.slice(ID_PATHS.profile.length);
+    return isId(id) ? { screen: 'publicProfile', params: { userId: id.toLowerCase() } } : null;
+  }
+  return null;
 }
+
+/**
+ * The address of one screen, or null for a screen with no address of its own. A task needs its real id (a feed
+ * row's id, or the taskId a link carried); a profile needs the person's id.
+ */
+export function pathForEntry(screen: string, params: Record<string, unknown>, mode: 'poster' | 'worker' = 'poster'): string | null {
+  if (screen === 'home') return '/';
+  if (isPublic(screen)) return `/${screen}`;
+  if (screen === 'explore') return mode === 'worker' ? '/find-work' : '/explore';
+  if (screen === 'taskDetail') {
+    const rowId = (params.row as { id?: unknown } | undefined)?.id;
+    const id = isId(rowId) ? rowId : isId(params.taskId) ? params.taskId : null;
+    return id ? `${ID_PATHS.task}${id}` : null;
+  }
+  if (screen === 'publicProfile') return isId(params.userId) ? `${ID_PATHS.profile}${params.userId}` : null;
+  return APP_PATHS.find((r) => r.screen === screen && !r.mode)?.path ?? null;
+}
+
+/** The address for a whole stack: the top screen's, else the nearest screen under it that has one, else "/". */
+export function pathForStack(stack: readonly { screen: string; params: Record<string, unknown> }[], mode: 'poster' | 'worker' = 'poster'): string {
+  for (let i = stack.length - 1; i >= 0; i -= 1) {
+    const p = pathForEntry(stack[i]!.screen, stack[i]!.params, mode);
+    if (p) return p;
+  }
+  return '/';
+}
+
+/** Screens shown before the app (sign-in, onboarding). Arriving at them never adds a Back step into the app. */
+export const OUTSIDE_APP: readonly string[] = ['splash', 'intro', 'welcome', 'signup', 'setup', 'pickUsername'];
+
+/**
+ * Screens someone with no account and no guest choice may open straight from a link: the public pages, a task, a
+ * person's profile and the ideas board (all public reads, supabase/functions/api/guest.ts). Any other address waits
+ * until they are in (signed in or a guest), then opens.
+ */
+export const OPEN_TO_ALL: readonly string[] = [...PUBLIC_PAGES, 'taskDetail', 'publicProfile', 'ideas'];
 
 const TITLES: Record<string, string> = {
   home: 'Home',
@@ -49,7 +139,7 @@ const TITLES: Record<string, string> = {
   aiPost: 'Post a task',
   search: 'Search',
   saved: 'Saved',
-  orders: 'Orders',
+  orders: 'My Work',
   help: 'Help',
   support: 'Help and support',
   terms: 'Terms of Service',
@@ -114,14 +204,18 @@ export function titleForScreen(screen: string, mode: 'poster' | 'worker' = 'post
 }
 
 /**
- * Every address the website answers (plan 3.6, T13 point 8). Anything else is "Page not found": the app shows
- * NotFound, and Cloudflare sends dist/404.html with status 404. Must match ROUTE_PAGES in
- * apps/mobile/scripts/web-route-pages.mjs (web-route-pages.test.mjs checks).
+ * The addresses the website serves as files of their own (plan 3.6, T13 point 8): Home, /get and the public pages.
+ * Must match ROUTE_PAGES in apps/mobile/scripts/web-route-pages.mjs (web-route-pages.test.mjs checks). The app
+ * screens (APP_ROUTE_PATTERNS) get index.html through a Cloudflare _redirects rule. Anything else is "Page not
+ * found": the app shows NotFound, and Cloudflare sends dist/404.html with status 404.
  */
 export const KNOWN_PATHS: readonly string[] = ['/', '/get', ...PUBLIC_PAGES.map((p) => `/${p}`)];
 
-/** True for an address the website answers: "/", "/index.html", /get and the public pages, with or without a trailing slash. Case counts, as on Cloudflare (/Terms is a 404 there too). */
+/**
+ * True for an address the website answers: the files above (with or without a trailing slash, or /index.html) and
+ * every app address (routeFromAddress). Case counts, as on Cloudflare (/Terms is a 404 there too).
+ */
 export function isKnownPath(pathname: string | null | undefined): boolean {
-  const path = `/${(pathname ?? '').replace(/^\/+/, '').replace(/\/+$/, '')}`;
-  return path === '/index.html' || KNOWN_PATHS.includes(path);
+  const path = clean(pathname ?? '');
+  return path === '/index.html' || KNOWN_PATHS.includes(path) || routeFromAddress(path) !== null;
 }

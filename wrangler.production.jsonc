@@ -8,7 +8,8 @@
   "assets": {
     "directory": "./apps/mobile/dist",
     // Plan 3.6 (T13 #8): every address the site answers is a file (index.html, terms.html, privacy.html, support.html,
-    // copyright.html, get.html: apps/mobile/scripts/web-route-pages.mjs), so any other path gets 404.html with status 404.
+    // copyright.html, get.html: apps/mobile/scripts/web-route-pages.mjs) or an app screen that _redirects rewrites to
+    // index.html (/task/*, /wallet, ...: APP_ROUTES there), so any other path gets 404.html with status 404.
     // 404.html is the same app, which shows its "Page not found" screen (src/components/NotFound.tsx).
     "not_found_handling": "404-page"
   }

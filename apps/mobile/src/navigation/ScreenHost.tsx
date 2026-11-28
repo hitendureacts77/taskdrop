@@ -3,12 +3,8 @@ import { Text, View } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { ScreenScope, useNav, type NavParams, type ScreenName } from '../providers/NavProvider';
 import { useAuth } from '../providers/AuthProvider';
-import { incomingTaskId, clearIncomingTask } from '../lib/links';
-import { getTask } from '../data/api';
-import { roughPlace } from '../lib/place';
-import { taskLinkTarget } from '../lib/taskLink';
 import { usesAuthFrame, usesFullPage } from './frame';
-import { PUBLIC_PAGES, pathForScreen, titleForScreen } from './webAddress';
+import { titleForScreen } from './webAddress';
 import { useMode } from '../providers/ModeProvider';
 import { BottomTabBar } from '../components/BottomTabBar';
 import { SideNav } from '../components/SideNav';
@@ -57,7 +53,7 @@ function columnFor(screen: ScreenName, twoPane: boolean): ColumnClass {
 
 export function ScreenHost() {
   const t = useTheme();
-  const { screen, params, go } = useNav();
+  const { screen, params } = useNav();
   const { userId, guest } = useAuth();
   const { desktop, tablet, gutter, contentWidth, twoPane } = useLayout();
   const keyboardOpen = useKeyboardOpen();
@@ -97,43 +93,8 @@ export function ScreenHost() {
   useEffect(() => {
     if (typeof document !== 'undefined') document.title = titleForScreen(screen, mode);
   }, [screen, mode]);
-  // Web: Terms, Privacy, Support and Copyright keep their own address while open (B171). Replaced, never
-  // pushed, so Back behaves as before; every other screen keeps the plain address.
-  // The address is only put back to "/" after a public page was shown, so an arriving /privacy is never
-  // cleared before PublicPageLink has opened it.
-  const shownPublic = useRef(false);
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.history?.replaceState) return;
-    if ((PUBLIC_PAGES as readonly string[]).includes(screen)) shownPublic.current = true;
-    const path = pathForScreen(screen, window.location.pathname);
-    if (path === null || (path === '/' && !shownPublic.current)) return;
-    window.history.replaceState(window.history.state, '', path + window.location.search + window.location.hash);
-  }, [screen]);
-
-  // A shared link (?task=<id>) has to land on that task, otherwise every link
-  // anyone sends just opens the feed. Runs once, then clears the query so a
-  // reload or a back-navigation doesn't reopen it.
-  const handledLink = useRef(false);
-  useEffect(() => {
-    if (handledLink.current) return;
-    // (?page= links are handled by PublicPageLink, outside the age gate.)
-    const id = incomingTaskId();
-    if (!id) return;
-    handledLink.current = true;
-    void (async () => {
-      try {
-        const task = await getTask(id);
-        clearIncomingTask();
-        // A task that does not exist (or is closed) says so, with a way back (B148), instead of silently Home.
-        const to = taskLinkTarget(task, roughPlace);
-        go(to.screen, to.params);
-      } catch {
-        clearIncomingTask();
-        const to = taskLinkTarget(null, roughPlace);
-        go(to.screen, to.params);
-      }
-    })();
-  }, [go]);
+  // The address bar, browser history and links that open a screen (/task/<id>, ?task=, /terms) are
+  // NavProvider's (providers/NavProvider.tsx, navigation/webHistory.ts).
 
   const content = (
       <View style={{ flex: 1 }}>

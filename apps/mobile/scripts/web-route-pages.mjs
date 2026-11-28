@@ -59,6 +59,31 @@ export const ROUTE_PAGES = [
   },
 ];
 
+/**
+ * The app's own screens (board fix "Back, refresh and links"): no file each, Cloudflare answers them with
+ * index.html through a `_redirects` rewrite (scripts/lib/cloudflare-headers.mjs) and the app opens the screen.
+ * Ids only, never anything personal. Must match APP_ROUTE_PATTERNS in src/navigation/webAddress.ts
+ * (web-route-pages.test.mjs checks). Vercel already sends every address to index.html (vercel.json).
+ */
+export const APP_ROUTES = [
+  '/find-work',
+  '/explore',
+  '/map',
+  '/my-tasks',
+  '/my-work',
+  '/wallet',
+  '/messages',
+  '/notifications',
+  '/profile',
+  '/account',
+  '/post',
+  '/saved',
+  '/help',
+  '/ideas',
+  '/task/*',
+  '/profile/*',
+];
+
 /** What any address without a page gets. */
 export const NOT_FOUND_PAGE = {
   file: '404.html',

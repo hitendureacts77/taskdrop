@@ -4,10 +4,15 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { NOT_FOUND_PAGE, pageHtml, ROUTE_PAGES, run } from './web-route-pages.mjs';
-import { KNOWN_PATHS, NOT_FOUND_TITLE, SITE_TITLE, titleForScreen } from '../src/navigation/webAddress.ts';
+import { APP_ROUTES, NOT_FOUND_PAGE, pageHtml, ROUTE_PAGES, run } from './web-route-pages.mjs';
+import { APP_ROUTE_PATTERNS, isKnownPath, KNOWN_PATHS, NOT_FOUND_TITLE, SITE_TITLE, titleForScreen } from '../src/navigation/webAddress.ts';
 
 const INDEX = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8" /><title>TaskDrop</title><meta name="description" content="Ask for anything."><meta name="robots" content="noindex, nofollow"></head><body><div id="root"></div><script src="/_expo/static/js/web/entry-abc.js" defer></script></body></html>';
+
+test('the app screen addresses served on Cloudflare match the app, and the app answers each one', () => {
+  assert.deepEqual([...APP_ROUTES].sort(), [...APP_ROUTE_PATTERNS].sort());
+  for (const p of APP_ROUTES) assert.equal(isKnownPath(p.replace('*', '0b7c1f3e-2d4a-4c8b-9e6f-1a2b3c4d5e6f')), true, p);
+});
 
 test('the pages cover exactly the addresses the app knows', () => {
   assert.deepEqual(ROUTE_PAGES.map((p) => p.path).sort(), [...KNOWN_PATHS].sort());

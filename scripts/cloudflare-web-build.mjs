@@ -11,7 +11,7 @@
  *   2. scan the build       scripts/scan-build.mjs apps/mobile/dist   (a key in the bundle stops the build)
  *   3. Sentry source maps   scripts/upload-web-sourcemaps.mjs; skipped when the token is absent; the .map files are
  *                           deleted either way and the build fails if one is left
- *   4. _headers (+ _redirects only if vercel.json has redirects) written into apps/mobile/dist, from vercel.json
+ *   4. _headers and _redirects written into apps/mobile/dist, from vercel.json and the app's screen addresses
  *
  * The site (staging or production) is chosen by --target; EXPO_PUBLIC_APP_ENV must agree with it (empty = taken from
  * the target; "production" on a staging build, or the reverse, stops the build). Backend steps (migrations, Edge
