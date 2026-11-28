@@ -14,7 +14,7 @@ import { introMode } from '../lib/introRoute';
 import { walkSeenKey, walkSideFor, WALK_COPY, type WalkSide } from '../lib/walkthrough';
 
 /**
- * "How TaskDrop works" (plan 1.19 row N): the one walkthrough, five real app
+ * "How TaskDrop works" (plan 1.19 row N): the one walkthrough, real app
  * screens per side. A new install opens on it after the splash; Skip leads
  * into the app as a guest, and the last card's button goes straight to posting
  * (Hire) or finding work (Earn). A guest is also offered the account there.

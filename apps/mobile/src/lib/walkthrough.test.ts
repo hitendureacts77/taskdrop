@@ -18,14 +18,18 @@ import {
   WALK_AUTO_TRIES,
   WALK_AUTOPLAY_MS,
   WALK_STEPS,
-  WALK_LAST,
+  walkLast,
+  walkStepLast,
 } from './walkthrough.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-test('each side has five real screens, and every picture is in assets/walkthrough', () => {
+test('Hire has five real screens and Earn six, the map last on both, every picture in assets/walkthrough', () => {
+  assert.equal(WALK_STEPS.hire.length, 5);
+  assert.equal(WALK_STEPS.earn.length, 6);
+  assert.equal(WALK_STEPS.hire.at(-1)!.title, 'See who is near you');
+  assert.equal(WALK_STEPS.earn.at(-1)!.title, 'See work on the map');
   for (const side of ['hire', 'earn'] as const) {
-    assert.equal(WALK_STEPS[side].length, 5);
     for (const s of WALK_STEPS[side]) {
       assert.ok(existsSync(join(here, '..', '..', 'assets', 'walkthrough', `${s.shot}.jpg`)), `${s.shot}.jpg is missing`);
       assert.ok(s.title.length > 0 && s.body.length <= 120, `${s.shot} copy`);
@@ -34,14 +38,17 @@ test('each side has five real screens, and every picture is in assets/walkthroug
   }
 });
 
-test('cards go first card, five screens, last card, and clamp at both ends', () => {
+test('cards go first card, the screens, last card, and clamp at both ends', () => {
   assert.deepEqual(walkCard('hire', 0), { kind: 'intro' });
   assert.deepEqual(walkCard('hire', -3), { kind: 'intro' });
   const c = walkCard('earn', 2);
   assert.equal(c.kind, 'step');
   if (c.kind === 'step') assert.equal(c.step.title, 'Send your price');
-  assert.deepEqual(walkCard('earn', WALK_LAST), { kind: 'done' });
+  assert.deepEqual(walkCard('earn', walkLast('earn')), { kind: 'done' });
   assert.deepEqual(walkCard('earn', 99), { kind: 'done' });
+  assert.equal(walkLast('hire'), 6);
+  assert.equal(walkLast('earn'), 7);
+  assert.equal(walkCard('earn', 6).kind, 'step', 'the sixth Earn screen is the map');
 });
 
 test('the video button shows only for a YouTube link', () => {
@@ -55,8 +62,9 @@ test('the video button shows only for a YouTube link', () => {
 });
 
 test('screen readers hear the step and the side', () => {
-  assert.equal(walkAnnouncement('hire', 3), 'Step 3 of 5: Offers come to you');
+  assert.equal(walkAnnouncement('hire', 2), 'Step 2 of 5: Offers come to you');
   assert.match(walkAnnouncement('earn', 0), /get paid/);
+  assert.equal(walkAnnouncement('earn', 6), 'Step 6 of 6: See work on the map');
 });
 
 test('it opens on the side asked for, else the mode the person is in', () => {
@@ -98,11 +106,13 @@ test('right after a sign-in on staging the tester card goes first: an old "clear
 });
 
 test('steps clamp at both ends and the last one does not loop', () => {
-  assert.equal(walkStepClamp(0, -1), 0);
-  assert.equal(walkStepClamp(0, 1), 1);
-  assert.equal(walkStepClamp(3, 1), 4);
-  assert.equal(walkStepClamp(4, 1), 4, 'stops on the last step');
-  assert.equal(walkStepClamp(2, -1), 1);
+  assert.equal(walkStepClamp(0, -1, 'hire'), 0);
+  assert.equal(walkStepClamp(0, 1, 'hire'), 1);
+  assert.equal(walkStepClamp(3, 1, 'hire'), 4);
+  assert.equal(walkStepClamp(4, 1, 'hire'), 4, 'stops on the last step');
+  assert.equal(walkStepClamp(2, -1, 'hire'), 1);
+  assert.equal(walkStepClamp(4, 1, 'earn'), 5, 'Earn has one more screen');
+  assert.equal(walkStepClamp(5, 1, 'earn'), walkStepLast('earn'));
 });
 
 test('swipe left is next, swipe right is back, a small drag is nothing', () => {

@@ -36,17 +36,19 @@ export function videoUrl(raw: string = WALKTHROUGH_VIDEO_URL): string | null {
 export const WALK_STEPS: Record<WalkSide, readonly WalkStep[]> = {
   hire: [
     { shot: 'h1', title: 'Say what you need', purpose: 'Ask for any help in your own words.', body: 'Type it, or tap Speak. Say it the way you would tell a friend.' },
-    { shot: 'h2', title: 'See who is near you', purpose: 'See helpers and services around you at a glance.', body: 'Helpers around you show on the map. You can also get help online, from anywhere.' },
     { shot: 'h3', title: 'Offers come to you', purpose: 'Pick the best person at a price you like.', body: 'Compare price, rating and time. Tap Choose this offer on the one you like.' },
     { shot: 'h4', title: 'Your money is held safely', purpose: 'Your money stays safe until the work is done.', body: 'You pay when you choose. It stays held until you approve the work.' },
     { shot: 'h5', title: 'Approve, and they are paid', purpose: 'Pay only for work you are happy with.', body: 'Check the work, then tap Approve. Not right? Ask for changes or report a problem.' },
+    // The map is the last screen on both sides (owner, 28 Nov): second, it broke the story of posting a request.
+    { shot: 'h2', title: 'See who is near you', purpose: 'See helpers and services around you at a glance.', body: 'Helpers around you show on the map. You can also get help online, from anywhere.' },
   ],
   earn: [
-    { shot: 'e1', title: 'Find work near you or online', purpose: 'See tasks around you at a glance, or work online.', body: 'Every open job nearby and remote, with the price shown.' },
+    { shot: 'e1', title: 'Find work near you or online', purpose: 'Browse open jobs near you, or work online.', body: 'Every open job nearby and remote, with the price shown.' },
     { shot: 'e2', title: 'Send your price', purpose: 'You decide what your work is worth.', body: 'Accept the posted price or send your own. Ask a question first if you need to.' },
     { shot: 'e3', title: 'The money is held before you start', purpose: 'Start work knowing the money is already there.', body: 'The customer paid when they chose you. You see exactly what you earn.' },
     { shot: 'e4', title: 'Finish and send proof', purpose: 'Show the customer the work is done.', body: 'Say what you did, add photos, then tap Mark work done.' },
     { shot: 'e5', title: 'Get paid to your bank or UPI', purpose: 'Your earnings reach you safely.', body: 'Add your bank or UPI once. Your share is paid out when the customer approves.' },
+    { shot: 'e6', title: 'See work on the map', purpose: 'Spot the tasks around you at a glance.', body: 'Open jobs near you show on the map with their price. Tap one to see the task.' },
   ],
 };
 
@@ -66,7 +68,7 @@ export const WALK_COPY = {
   goEarn: 'Find work',
   videoAgain: 'Watch the video again',
   menuLabel: 'How TaskDrop works',
-  menuSub: 'Five real screens, about 30 seconds',
+  menuSub: 'Real app screens, about 30 seconds',
   backHome: 'Back to Home',
   backSignIn: 'Back to sign in',
   close: 'Close',
@@ -80,15 +82,21 @@ export const WALK_COPY = {
   nextStep: 'Next step',
 } as const;
 
-/** Each of the five screens plays this long, then the next one starts by itself. */
+/** Each screen plays this long, then the next one starts by itself. */
 export const WALK_AUTOPLAY_MS = 5000;
-/** Five screens, index 0..4 (the older card model above counts 1..5 plus an intro and a last card). */
-export const WALK_STEP_LAST = 4;
+/** How many screens one side has (Hire 5, Earn 6: the sides may differ). */
+export function walkCount(side: WalkSide): number {
+  return WALK_STEPS[side].length;
+}
+/** The last screen's index on one side, counting from 0 (the card model below counts 1..n plus an intro and a last card). */
+export function walkStepLast(side: WalkSide): number {
+  return walkCount(side) - 1;
+}
 
-/** Move to another of the five screens, never past either end (the last screen stops, no loop). */
-export function walkStepClamp(i: number, d: number): number {
+/** Move to another screen on that side, never past either end (the last screen stops, no loop). */
+export function walkStepClamp(i: number, d: number, side: WalkSide): number {
   const at = Math.round(i) + Math.round(d);
-  return Math.max(0, Math.min(WALK_STEP_LAST, at));
+  return Math.max(0, Math.min(walkStepLast(side), at));
 }
 
 /** Left or right swipe from the sideways distance, ignoring small drags. Swipe left (dx < 0) is next. */
@@ -103,23 +111,26 @@ export function tapHalf(x: number, width: number): 'next' | 'prev' {
   return width > 0 && x < width / 2 ? 'prev' : 'next';
 }
 
-/** Cards in order: 0 is the first card, 1..5 the screens, 6 the last card. */
-export const WALK_LAST = 6;
+/** Cards in order: 0 is the first card, 1..n the screens, n + 1 the last card. */
+export function walkLast(side: WalkSide): number {
+  return walkCount(side) + 1;
+}
 export type WalkCard = { kind: 'intro' } | { kind: 'step'; n: number; step: WalkStep } | { kind: 'done' };
 
 export function walkCard(side: WalkSide, i: number): WalkCard {
-  const at = Math.max(0, Math.min(WALK_LAST, Math.round(i)));
+  const last = walkLast(side);
+  const at = Math.max(0, Math.min(last, Math.round(i)));
   if (at === 0) return { kind: 'intro' };
-  if (at === WALK_LAST) return { kind: 'done' };
+  if (at === last) return { kind: 'done' };
   return { kind: 'step', n: at, step: WALK_STEPS[side][at - 1] };
 }
 
-/** "Step 2 of 5: Send your price", read out by screen readers when a card changes. */
+/** "Step 2 of 6: Send your price", read out by screen readers when a card changes. */
 export function walkAnnouncement(side: WalkSide, i: number): string {
   const c = walkCard(side, i);
   if (c.kind === 'intro') return `${WALK_COPY.header}. ${side === 'hire' ? WALK_COPY.introHire : WALK_COPY.introEarn}`;
   if (c.kind === 'done') return WALK_COPY.doneTitle;
-  return `Step ${c.n} of 5: ${c.step.title}`;
+  return `Step ${c.n} of ${walkCount(side)}: ${c.step.title}`;
 }
 
 /** The side the walkthrough opens on: what the caller asked for, else the mode the person is in. */

@@ -225,8 +225,6 @@ export function AiPostScreen() {
   const [customDue, setCustomDue] = useState<Date | null>(null);
   // The choice filled in from the words of the request ("From what you wrote"); null once the poster picks.
   const [whenAuto, setWhenAuto] = useState<WhenKey | null>(null);
-  // Review: the closed "More options" row.
-  const [moreOpen, setMoreOpen] = useState(false);
   const [showDate, setShowDate] = useState(false);
 
   // Budget.
@@ -545,10 +543,8 @@ export function AiPostScreen() {
 
   /** Forward from `from` -- or, when an earlier step was being changed, straight back to where they were. */
   const advance = (from: Phase) => {
-    const next = ORDER[Math.max(at(from) + 1, reached)] ?? 'review';
-    // Place and Extras are no steps of their own: they sit on Review. Only a missing place stops on the way.
-    if (next === 'providers' && from === 'budget' && noPlace) return setPhase('providers');
-    setPhase(next === 'providers' || next === 'options' ? 'review' : next);
+    // Place and Extras are steps of their own again (owner, 28 Nov: keep all eight steps).
+    setPhase(ORDER[Math.max(at(from) + 1, reached)] ?? 'review');
   };
 
   /** Reopen a finished step. Only ever backwards, and never while posting. */
@@ -559,9 +555,7 @@ export function AiPostScreen() {
 
   /** One step back; Details is passed over when the request had no questions. */
   const stepBack = () => {
-    if (phase === 'providers' || phase === 'options') return setPhase('review');
     let i = at(phase) - 1;
-    if (ORDER[i] === 'providers' || ORDER[i] === 'options') i = at('budget');
     if (ORDER[i] === 'picks' && questions.length === 0) i -= 1;
     const p = ORDER[i];
     if (p) setPhase(p);
@@ -1577,7 +1571,7 @@ export function AiPostScreen() {
   }
 
   if (phase === 'review') {
-    const row = (icon: IconName, head: string, value: string, target: Phase, always = false) => (
+    const row = (icon: IconName, head: string, value: string, target: Phase) => (
       <View key={head} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
         <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name={icon} size={16} color={t.colors.accentDeep} />
@@ -1588,7 +1582,7 @@ export function AiPostScreen() {
             {value}
           </RNText>
         </View>
-        <Pressable onPress={() => (always && !posting ? setPhase(target) : reopen(target))} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={`Edit ${head}`}>
+        <Pressable onPress={() => reopen(target)} hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={`Edit ${head}`}>
           {/* B172: a 25 x 17 px link, 40 px to tap. */}
           <HitArea x={8} y={12} />
           <RNText style={tx('700', 13, t.colors.accentDeep)}>Edit</RNText>
@@ -1628,49 +1622,16 @@ export function AiPostScreen() {
           {divider}
           {row('tag', 'Budget', `${rupees(price)}${topUpPct ? ` · incl. ${topUpPct}% top up` : ''}${split ? ` · in ${split} steps` : ''}`, 'budget')}
           {divider}
-          {row('pin', 'Where', whereLabel, 'providers', true)}
+          {row('pin', 'Where', whereLabel, 'providers')}
           {divider}
           {row(mode === 'auto' ? 'bolt' : 'users', 'How you hire', hireLabel, 'providers')}
           {divider}
-          {divider}
-          {/* Extras used to be a step; most requests skip it, so it is one closed row here. */}
-          <Pressable
-            onPress={() => setMoreOpen((v) => !v)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: moreOpen }}
-            accessibilityLabel="More options"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}
-          >
-            <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="sparkle" size={16} color={t.colors.accentDeep} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <RNText style={tx('500', 12, t.colors.muted)}>More options</RNText>
-              <RNText style={tx('700', 14, t.colors.ink, { marginTop: 2 })} numberOfLines={2}>
-                {optionsSummary(opts).join(' · ') || 'None. Most requests skip these'}
-              </RNText>
-            </View>
-            <RNText style={tx('700', 13, t.colors.accentDeep)}>{moreOpen ? 'Close' : 'Open'}</RNText>
-          </Pressable>
+          {row('sparkle', 'Options', optionsSummary(opts).join(' · ') || 'None', 'options')}
         </View>
         {noPlace ? (
           <RNText style={tx('600', 12, t.colors.signalDeep, { marginTop: 8 })} accessibilityLiveRegion="polite">
             {PLACE_MISSING_LINE}
           </RNText>
-        ) : null}
-        {moreOpen ? (
-          <View style={{ marginTop: 12 }}>
-            <PosterOptionsStep
-              value={opts}
-              onChange={changeOptions}
-              suggestions={suggestions}
-              regulars={orderedRegulars}
-              prompt={prompt}
-              remote={remote}
-              priceMinor={price * 100}
-              onHuntHelp={huntHelp.show}
-            />
-          </View>
         ) : null}
         {crewSize > 1 ? (
           <RNText style={tx('600', 12, t.colors.accentDeep, { marginTop: 8, marginLeft: 4 })}>
@@ -1712,9 +1673,9 @@ export function AiPostScreen() {
   // --------------------------------------------------------------- chrome ---
 
   // Details is left off the path once it is known the request has no questions.
-  // Place and Extras sit on Review (owner board, 28 Nov), so a small job is six steps at most.
-  const steps = ORDER.filter((p) => p !== 'providers' && p !== 'options' && (p !== 'picks' || questions.length > 0 || askedFor === null));
-  const pathPhase: Phase = phase === 'providers' || phase === 'options' ? 'review' : phase;
+  // Place and Extras are steps of their own (owner, 28 Nov: keep all eight steps, never fold them into Review).
+  const steps = ORDER.filter((p) => p !== 'picks' || questions.length > 0 || askedFor === null);
+  const pathPhase: Phase = phase;
   const stepNo = steps.indexOf(pathPhase) + 1;
   // The first screen is a quick-post composer: close, Next, a big field, the keyboard.
   const composing = phase === 'what';
@@ -1737,7 +1698,7 @@ export function AiPostScreen() {
                   disabled: !budgetOk,
                 }
               : phase === 'providers'
-                ? { label: 'Save and review', onPress: () => setPhase('review'), disabled: noPlace }
+                ? { label: returning ? 'Save and review' : 'Continue', onPress: () => advance('providers'), disabled: noPlace }
                 : phase === 'options'
                   ? {
                       label: returning
@@ -1900,7 +1861,7 @@ export function AiPostScreen() {
       price={budgetOk ? rupees(price) : null}
       facts={[
         ...(reached >= at('when') ? [{ icon: 'clock' as const, text: openEnded ? 'No fixed date · open task' : `Closes by ${formatDeadline(due)}` }] : []),
-        ...(reached >= at('budget') ? [{ icon: remote ? ('compass' as const) : ('pin' as const), text: whereLabel }] : []),
+        ...(reached >= at('providers') ? [{ icon: remote ? ('compass' as const) : ('pin' as const), text: whereLabel }] : []),
       ]}
       tags={[...(reached >= at('brief') ? [category] : []), ...(media ? ['With attachment'] : [])]}
       emptyNote="Start typing and your post shows here."
