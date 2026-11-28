@@ -789,7 +789,7 @@ export function AiPostScreen() {
       setMode('poster');
       celebrate('Task posted');
       reset('myTasks');
-      go('taskManage', { taskId: task.id });
+      go('taskManage', { taskId: task.id, posted: true });
     } catch (e) {
       if (isNeedsAccount(e)) return;
       flash(e instanceof Error ? e.message : 'Could not post your task');
