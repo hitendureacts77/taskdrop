@@ -70,6 +70,8 @@ export type MoveInput = {
   amountMinor: number;
   chargedMinor: number;
   workerShareMinor: number;
+  /** What the worker keeps in the end (claim key release_minor, migration 255); null from an older database. */
+  releaseMinor?: number | null;
   key: string;
   orderId: string | null;
   paymentId: string | null;

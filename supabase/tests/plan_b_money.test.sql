@@ -364,6 +364,46 @@ begin
   v_hold := pg_temp.hold_of(v_task);
   assert v_hold.status = 'refund_asked' and v_hold.refund_minor = v_charged, 'poster wins = full refund';
 
+  -- ---- row 8b: a dispute decided as a split (migration 255) ---------------------------------
+  v_task := pg_temp.hire(v_poster, v_worker, v_price, 'planb dispute split');
+  perform pg_temp.pay(v_task);
+  perform pg_temp.become(v_worker);
+  perform public.start_task(v_task);
+  insert into public.task_proofs (task_id, worker_id, summary, files)
+  values (v_task, v_worker, 'Finished part of the work', '[]'::jsonb);
+  perform public.mark_work_done(v_task);
+  perform pg_temp.become(v_poster);
+  perform public.open_dispute(v_task, 'planb test: half done');
+  perform pg_temp.become(v_admin);
+  v_failed := false;
+  begin
+    perform public.admin_resolve_dispute_split(v_task, v_price, 'planb test');
+  exception when others then v_failed := true;
+  end;
+  assert v_failed, 'a split must leave something for each side';
+  v_failed := false;
+  begin
+    perform public.admin_resolve_dispute_split(v_task, 40000, '  ');
+  exception when others then v_failed := true;
+  end;
+  assert v_failed, 'a split needs a reason';
+  perform public.admin_resolve_dispute_split(v_task, 40000, 'planb test: half the work was done');
+  v_hold := pg_temp.hold_of(v_task);
+  assert v_hold.status = 'split_asked'
+     and v_hold.release_minor = round(40000::numeric * v_hold.worker_share_minor / v_hold.offer_minor)::bigint
+     and v_hold.refund_minor = v_hold.charged_minor - 40000
+     and v_hold.release_key = 'dispute:' || v_hold.id,
+    format('a dispute split pays the worker their cut of 40000 and refunds the rest, was %s/%s', v_hold.release_minor, v_hold.refund_minor);
+  assert (select outcome from public.dispute_decisions where task_id = v_task) = 'split', 'the decision is recorded as a split';
+  assert (select status from public.tasks where id = v_task) = 'COMPLETED', 'a split closes the job as finished';
+  assert pg_temp.move(v_hold.id) = 'refund', 'a dispute split refunds first';
+  assert pg_temp.move(v_hold.id) = 'release', 'then pays the worker';
+  assert (pg_temp.hold_of(v_task)).status = 'split', 'both halves finish the dispute split';
+  assert pg_temp.ledger(v_hold.id, 'released') = v_hold.release_minor, 'the worker''s part is booked as released';
+  assert pg_temp.ledger(v_hold.id, 'fine_paid') = 0, 'a dispute split is not a fine';
+  assert pg_temp.ledger(v_hold.id, 'commission') = v_hold.charged_minor - v_hold.release_minor - v_hold.refund_minor,
+    'TaskDrop keeps only the commission on the part done';
+
   -- ---- TaskDrop cancels a paid hire: full refund ----------------------------------------
   v_task := pg_temp.hire(v_poster, v_worker, v_price, 'planb admin cancel');
   perform pg_temp.pay(v_task);
