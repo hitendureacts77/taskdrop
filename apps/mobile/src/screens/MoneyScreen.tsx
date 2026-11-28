@@ -15,6 +15,10 @@ import { getMoneyLedger, type MoneyLedger } from '../data/api';
 import { useMoneyMode } from '../lib/useMoneyMode';
 import { ledgerIncoming, ledgerLabel, payeeCard } from '../lib/moneyText';
 import { useDesktopHeaderPortal } from '../components/pageHeader';
+import { WeekEarningsChart } from '../components/WeekEarningsChart';
+
+/** How many ledger rows the Wallet reads (the server caps at 300). */
+const LEDGER_LIMIT = 100;
 
 const WALLET_LINE = 'Each task is paid for on its own and held by Razorpay until the work is approved.';
 
@@ -40,7 +44,7 @@ export function MoneyScreen() {
 
   const load = async () => {
     try {
-      const l = await getMoneyLedger(100);
+      const l = await getMoneyLedger(LEDGER_LIMIT);
       setData(l);
       setFailed(false);
     } catch (e) {
@@ -129,6 +133,8 @@ export function MoneyScreen() {
             </View>
           ))}
         </View>
+
+        {worker && data ? <WeekEarningsChart rows={rows} full={rows.length >= LEDGER_LIMIT} /> : null}
 
         <RNText style={tx('800', 16, t.colors.ink, { marginTop: 24, marginBottom: desktop ? 12 : 6 })}>Your money, task by task</RNText>
         {failed && !data ? (
