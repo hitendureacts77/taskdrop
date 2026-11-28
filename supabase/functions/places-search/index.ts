@@ -202,6 +202,13 @@ async function handleGuest(req: Request, url: string): Promise<Response> {
 // under about one request a second; the per-account budget above keeps us there.
 const OSM = { "User-Agent": "TaskDrop/1.0 (support@taskdrop.in)", "Accept-Language": "en" };
 
+// A service that just refused this server is skipped for a while, so a search does not wait on two refusals
+// before the backup answers (the app gives up after 8 s; 28 Nov 2026 a cold start plus both refusals took longer).
+const SKIP_MS = 15 * 60_000;
+let osmSkipUntil = 0;
+let photonSkipUntil = 0;
+const refused = (status: number) => status === 403 || status === 429;
+
 /** One space after each comma and no doubled spaces, the same as the app's tidyLabel (B176). */
 function tidy(label: string): string {
   return label.split(",").map((x) => x.replace(/\s+/g, " ").trim()).filter(Boolean).join(", ");
@@ -214,12 +221,14 @@ async function osmAnswer(q: string, configured: boolean) {
 }
 
 async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: number; via?: string }[]> {
+  if (Date.now() < osmSkipUntil) return await photonSearch(q);
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=in&q=${encodeURIComponent(q)}`, {
       headers: OSM,
       signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) {
+      if (refused(res.status)) osmSkipUntil = Date.now() + SKIP_MS;
       await logServer("warn", "places-search", "OpenStreetMap search refused", { http_status: res.status });
       return await photonSearch(q);
     }
@@ -240,12 +249,14 @@ async function osmSearch(q: string): Promise<{ label: string; lat: number; lng: 
 
 /** A short name for a point (an area, not a door), or null when there is none. */
 async function osmReverse(lat: number, lng: number): Promise<string | null> {
+  if (Date.now() < osmSkipUntil) return await photonReverse(lat, lng);
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&lat=${lat}&lon=${lng}`, {
       headers: OSM,
       signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) {
+      if (refused(res.status)) osmSkipUntil = Date.now() + SKIP_MS;
       await logServer("warn", "places-search", "OpenStreetMap reverse lookup refused", { http_status: res.status });
       return await photonReverse(lat, lng);
     }
@@ -258,12 +269,14 @@ async function osmReverse(lat: number, lng: number): Promise<string | null> {
 
 // Backup when Nominatim refuses this server (403 from 27 Nov 2026): Photon, the free OpenStreetMap search by komoot.
 async function photonSearch(q: string): Promise<{ label: string; lat: number; lng: number; via?: string }[]> {
+  if (Date.now() < photonSkipUntil) return await googleBackupSearch(q);
   try {
     const res = await fetch(`https://photon.komoot.io/api/?limit=10&lang=en&bbox=${INDIA_BBOX}&q=${encodeURIComponent(q)}`, {
       headers: OSM,
       signal: AbortSignal.timeout(6000),
     });
     if (!res.ok) {
+      if (refused(res.status)) photonSkipUntil = Date.now() + SKIP_MS;
       await logServer("warn", "places-search", "Photon search refused", { http_status: res.status });
       return await googleBackupSearch(q);
     }
@@ -276,9 +289,13 @@ async function photonSearch(q: string): Promise<{ label: string; lat: number; ln
 }
 
 async function photonReverse(lat: number, lng: number): Promise<string | null> {
+  if (Date.now() < photonSkipUntil) return await googleBackupReverse(lat, lng);
   try {
     const res = await fetch(`https://photon.komoot.io/reverse?lang=en&lat=${lat}&lon=${lng}`, { headers: OSM, signal: AbortSignal.timeout(6000) });
-    if (!res.ok) return await googleBackupReverse(lat, lng);
+    if (!res.ok) {
+      if (refused(res.status)) photonSkipUntil = Date.now() + SKIP_MS;
+      return await googleBackupReverse(lat, lng);
+    }
     const out = (await res.json()) as { features?: PhotonFeature[] };
     const name = photonAreaName(out.features ?? []);
     return name ? tidy(name) : null;

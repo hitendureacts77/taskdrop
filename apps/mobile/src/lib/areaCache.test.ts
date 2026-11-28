@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { areaFromProfile, forgetArea, peekArea, rememberArea, sameArea } from './areaCache.ts';
+import { areaFromProfile, forgetArea, onAreaChange, peekArea, rememberArea, sameArea } from './areaCache.ts';
 
 test('a profile gives an area only with a pin', () => {
   assert.equal(areaFromProfile(null), null);
@@ -29,4 +29,16 @@ test('same area compares the point and the name', () => {
   assert.equal(sameArea(a, { ...a, lat: 1.1 }), false);
   assert.equal(sameArea(a, null), false);
   assert.equal(sameArea(null, null), true);
+});
+
+test('a newly picked area is heard at once, a repeat of the same one is not', () => {
+  forgetArea();
+  const heard: string[] = [];
+  const stop = onAreaChange((who, area) => heard.push(who + ':' + (area?.label ?? 'none')));
+  rememberArea('guest', { label: 'Gachibowli', lat: 17.44, lng: 78.35 });
+  rememberArea('guest', { label: 'Gachibowli', lat: 17.44, lng: 78.35 });
+  rememberArea('guest', null);
+  stop();
+  rememberArea('guest', { label: 'Madhapur', lat: 17.45, lng: 78.39 });
+  assert.deepEqual(heard, ['guest:Gachibowli', 'guest:none']);
 });

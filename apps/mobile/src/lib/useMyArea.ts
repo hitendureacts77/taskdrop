@@ -6,7 +6,7 @@ import { getProfile, updateProfile } from '../data/api';
 import { guestAreaFromPicked } from './guestArea';
 import { readGuestArea, saveGuestArea } from './guestAreaStore';
 import type { PickedPlace } from '../components/LocationSheet';
-import { areaFromProfile, peekArea, rememberArea, sameArea } from './areaCache';
+import { areaFromProfile, onAreaChange, peekArea, rememberArea, sameArea } from './areaCache';
 
 export type MyArea = { label: string; lat: number; lng: number };
 
@@ -53,6 +53,17 @@ export function useMyArea(): { area: MyArea | null; loaded: boolean; choose: (pi
       alive = false;
     };
   }, [userId, tick]);
+
+  // An area picked anywhere else (Home's area bar, the location sheet) shows here at once (owner, 28 Nov: the
+  // pill kept saying "Live near you" and the helpers card "Set your area" until the page was opened again).
+  useEffect(() => {
+    const owner = userId ?? 'guest';
+    return onAreaChange((who, next) => {
+      if (who !== owner) return;
+      setArea((cur) => (sameArea(cur, next) ? cur : next));
+      setLoaded(true);
+    });
+  }, [userId]);
 
   const choose = useCallback(
     async (picked: PickedPlace) => {
