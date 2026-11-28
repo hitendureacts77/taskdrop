@@ -81,6 +81,9 @@ test('bad input throws instead of writing a wrong file', () => {
 test('unhashedAssets finds a mutable file under assets/', () => {
   const hashed = 'assets/a/font.0123456789abcdef0123456789abcdef.ttf';
   assert.deepEqual(unhashedAssets([hashed, 'index.html', 'assets/logo.png']), ['assets/logo.png']);
+  // expo-router ships scale variants named <hash>@2x: still hashed. A bare @2x name is not.
+  const scaled = 'assets/node_modules/expo-router/assets/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55@2x.png';
+  assert.deepEqual(unhashedAssets([scaled, 'assets/icon@2x.png']), ['assets/icon@2x.png']);
 });
 
 test('build script: target parsing and env check', () => {
