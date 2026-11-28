@@ -10,6 +10,7 @@ import { LocationSheet, type PickedPlace } from '../components/LocationSheet';
 import { DateTimeSheet, formatDeadline } from '../components/DateTimeSheet';
 import { Field, IconButton, PrimaryButton, rupees } from '../components/kit';
 import { removeDraft, saveDraft } from '../lib/drafts';
+import { listTemplates, type PostTemplate } from '../lib/postTemplatesStore';
 import { markBigDayPosted } from '../lib/bigDayStore';
 import { bigDayParam } from '../lib/bigDays';
 import { GUEST_DRAFTS_OWNER, isNeedsAccount, needAccount } from '../lib/guest';
@@ -276,6 +277,28 @@ export function AiPostScreen() {
       alive = false;
     };
   }, [userId]);
+  // "Save as template" on a task's options keeps it here (on this device, for this account).
+  const [templates, setTemplates] = useState<PostTemplate[]>([]);
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    void listTemplates(userId).then((r) => alive && setTemplates(r));
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+  // A template starts the post already written, like "Create similar": the poster checks it and goes on.
+  const applyTemplate = (tpl: PostTemplate) => {
+    setPrompt(tpl.title);
+    setAskedFor(tpl.title);
+    setQuestions([]);
+    setAnswers([]);
+    setTitle(tpl.title);
+    setDescription(tpl.description);
+    setCategory(tpl.category);
+    setBudget(tpl.budget > 0 ? tpl.budget : null);
+    setPhase('brief');
+  };
   // Asked once per request, on the Ask step; "Keep as a task" hides it.
   const [liveAnswerDismissed, setLiveAnswerDismissed] = useState<string | null>(null);
 
@@ -1102,6 +1125,43 @@ export function AiPostScreen() {
               </View>
             </View>
           </FadeIn>
+        ) : null}
+
+        {!prompt.trim() && templates.length > 0 ? (
+          <>
+            {label('YOUR TEMPLATES')}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {templates.map((tpl) => (
+                <Pressable
+                  key={tpl.id}
+                  onPress={() => applyTemplate(tpl)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Start from your template ${tpl.title}`}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                    maxWidth: '100%',
+                    paddingVertical: 9,
+                    paddingHorizontal: 12,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: t.colors.accentBorder,
+                    backgroundColor: t.colors.accentSoft,
+                    opacity: pressed ? 0.8 : 1,
+                  })}
+                >
+                  <Icon name="bookmark" size={13} color={t.colors.accentDeep} strokeWidth={2.2} />
+                  <RNText style={tx('700', 13, t.colors.accentDeep, { flexShrink: 1 })} numberOfLines={1}>
+                    {tpl.title}
+                  </RNText>
+                  {tpl.budget > 0 ? (
+                    <RNText style={tx('600', 12, t.colors.accentDeep, { fontVariant: ['tabular-nums'] })}>{rupees(tpl.budget)}</RNText>
+                  ) : null}
+                </Pressable>
+              ))}
+            </View>
+          </>
         ) : null}
 
         {!prompt.trim() ? (

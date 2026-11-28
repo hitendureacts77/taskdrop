@@ -58,6 +58,7 @@ import { messageWithoutTiming, offerTimingLine } from '../lib/offerTiming';
 import { dueFor } from '../lib/taskBrief';
 import { openDatePassed } from '../lib/myTasksBoard';
 import { useFees } from '../lib/useFees';
+import { saveTemplate } from '../lib/postTemplatesStore';
 import { reportError } from '../lib/errors';
 import { countOf } from '../lib/plural';
 import { FEES, posterEscrowCharge } from '@taskdrop/rules';
@@ -828,6 +829,19 @@ export function TaskManageScreen() {
           <MenuRow icon="share" label="Share this task" sub="Post its link on WhatsApp, Instagram or anywhere" onPress={() => { setMenu(false); shareTask(); }} />
         ) : null}
         <MenuRow icon="copy" label="Create similar" sub="Start a new post from this one" onPress={() => { setMenu(false); go('aiPost', { similar: task }); }} />
+        {userId ? (
+          <MenuRow
+            icon="bookmark"
+            label="Save as template"
+            sub="Start your next post from this one in one tap"
+            onPress={() => {
+              setMenu(false);
+              void saveTemplate(userId, { title: task.title, description: task.description, category: task.category, budget: Math.round(task.benchmark_minor / 100) }).then((ok) =>
+                flash(ok ? 'Saved. It shows under Your templates when you post.' : 'Couldn’t save the template. Try again.'),
+              );
+            }}
+          />
+        ) : null}
         {task.status === 'OPEN' ? (
           <MenuRow icon="calendar" label="Change the date" sub="A new date, or no fixed date" onPress={() => { setMenu(false); setDateOpen(true); }} />
         ) : null}
