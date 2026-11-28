@@ -1,13 +1,13 @@
 /**
  * The web's "get the Android app" prompts (design D17): the little event that
  * tells the one-time sheet a visitor has just done something worth interrupting
- * after (their first search, or their first look at a task). Harmless on
+ * after (their first offer sent). Harmless on
  * phones: nothing listens there.
  */
 
 const listeners = new Set<() => void>();
 
-/** Call when the visitor runs a search or opens a task. */
+/** Call when the visitor's first offer has been sent. */
 export function noteFirstAction(): void {
   for (const l of [...listeners]) l();
 }

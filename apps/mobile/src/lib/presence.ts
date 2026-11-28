@@ -22,3 +22,16 @@ export function presenceOf(lastSeen: string | null | undefined, now = Date.now()
   const d = Math.floor(h / 24);
   return { online: false, label: d === 1 ? 'Last seen yesterday' : `Last seen ${d} days ago` };
 }
+
+/** How many people are in the list, and how many of them are active now. One way of counting for every Hire Home figure. */
+export function peopleCounts(list: readonly { last_seen_at?: string | null }[], now: number): { n: number; live: number } {
+  return { n: list.length, live: list.filter((w) => presenceOf(w.last_seen_at, now).online).length };
+}
+
+/** The live pill's words: "1 of 12 helpers active now". Null until the read is back, or with nobody near. */
+export function helpersLiveText(list: readonly { last_seen_at?: string | null }[] | null, now: number): string | null {
+  if (list === null) return null;
+  const { n, live } = peopleCounts(list, now);
+  if (n === 0) return null;
+  return `${live} of ${n} ${n === 1 ? 'helper' : 'helpers'} active now`;
+}

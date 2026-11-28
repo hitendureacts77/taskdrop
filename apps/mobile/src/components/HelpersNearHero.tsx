@@ -1,22 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { workersNear, type NearbyWorker } from '../data/extras';
 import { pickedPlaceName } from '../lib/place';
-import { presenceOf } from '../lib/presence';
+import { NEAR_PEOPLE_KM, useNearPeople } from '../lib/useNearPeople';
+import { peopleCounts } from '../lib/presence';
 import { useMyArea } from '../lib/useMyArea';
 import { Icon } from './Icon';
 import { Shimmer } from './kit';
 import { JobsMap, type JobPin } from './JobsMap';
-import { activeFirst, personPin } from './mapPins';
+import { personPin } from './mapPins';
 import { LocationSheet } from './LocationSheet';
 import { MapStrip, STRIP_HEIGHT } from './MapStrip';
 import { cardSurface } from './ui';
 import { Pressy, tx } from './primitives';
 
 /** The reach of Hire Home's helpers card, in km (the same as the old "Helpers near you" map). */
-const NEAR_KM = 5;
+const NEAR_KM = NEAR_PEOPLE_KM;
 
 /**
  * Hire Home's map card (task 1.19 H): the same short live strip as Earn's "Open the map" card, in jade, with
@@ -28,25 +28,8 @@ export function HelpersNearHero() {
   const t = useTheme();
   const { go } = useNav();
   const { area, loaded, choose } = useMyArea();
-  const [list, setList] = useState<NearbyWorker[] | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+  const { list, now } = useNearPeople(area, loaded);
   const [pickPlace, setPickPlace] = useState(false);
-
-  useEffect(() => {
-    if (!area) {
-      setList(loaded ? [] : null);
-      return;
-    }
-    let alive = true;
-    setList(null);
-    const at = Date.now();
-    void workersNear(area, NEAR_KM, 12)
-      .then((r) => alive && (setNow(at), setList(activeFirst(r, at))))
-      .catch(() => alive && setList([]));
-    return () => {
-      alive = false;
-    };
-  }, [area, loaded]);
 
   const openMap = () => (area ? go('nearMap', { mode: 'people', centre: { lat: area.lat, lng: area.lng }, radiusKm: NEAR_KM }) : go('explore'));
 
@@ -73,10 +56,9 @@ export function HelpersNearHero() {
   } else {
     const name = pickedPlaceName(area.label) ?? area.label;
     const pins = list.map((w) => personPin(w, now)).filter((p): p is JobPin => p !== null);
-    const live = list.filter((w) => presenceOf(w.last_seen_at, now).online).length;
     const nearest = list.reduce((m, w) => Math.min(m, w.km), Infinity);
     const nearestText = Number.isFinite(nearest) ? (nearest < 1 ? '< 1 km' : `${nearest.toFixed(nearest < 10 ? 1 : 0)} km`) : '';
-    const n = list.length;
+    const { n, live } = peopleCounts(list, now);
     body = (
       <MapStrip
         testID="home-helpers-map"
@@ -86,7 +68,7 @@ export function HelpersNearHero() {
         sub={
           n === 0
             ? 'Post a task: people online can still send offers'
-            : [live > 0 ? `${live} active now` : null, nearestText ? `nearest ${nearestText} away` : null].filter(Boolean).join(' · ')
+            : [`${live} active now`, nearestText ? `nearest ${nearestText} away` : null].filter(Boolean).join(' · ')
         }
         subMuted={n === 0}
         onOpenMap={openMap}

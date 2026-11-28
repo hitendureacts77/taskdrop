@@ -229,6 +229,7 @@ export function LiveSheet({
   onClose,
   place,
   pulse,
+  helpersWithin,
   posted,
   trending,
   onPostLike,
@@ -238,6 +239,8 @@ export function LiveSheet({
   onClose: () => void;
   place: string | null;
   pulse: NearbyPulse | null;
+  /** How many helpers the "active now" figure is out of (the helpers card's own count and distance). */
+  helpersWithin?: { n: number; km: number } | null;
   posted: Task[];
   trending: TrendingCategory[];
   onPostLike: (title: string) => void;
@@ -273,7 +276,7 @@ export function LiveSheet({
         {pulse && (pulse.doneToday > 0 || pulse.activeNow > 0) ? (
           <View style={{ flexDirection: 'row', gap: 10 }}>
             {stat(pulse.doneToday, 'done near you today')}
-            {stat(pulse.activeNow, pulse.activeNow === 1 ? 'helper active now' : 'helpers active now', true)}
+            {stat(pulse.activeNow, helpersWithin ? `active now, of ${helpersWithin.n} ${helpersWithin.n === 1 ? 'helper' : 'helpers'} within ${helpersWithin.km} km` : pulse.activeNow === 1 ? 'helper active now' : 'helpers active now', true)}
           </View>
         ) : null}
 
@@ -349,7 +352,7 @@ export function LiveSheet({
 }
 
 /** The live card at the top of the desktop rail: done today and helpers active now, from the same pulse. */
-export function LiveRailCard({ place, pulse, onOpen }: { place: string | null; pulse: NearbyPulse | null; onOpen: () => void }) {
+export function LiveRailCard({ place, pulse, helpersWithin, onOpen }: { place: string | null; pulse: NearbyPulse | null; helpersWithin?: { n: number; km: number } | null; onOpen: () => void }) {
   const t = useTheme();
   const area = place ? pickedPlaceName(place) : null;
   return (
@@ -373,7 +376,7 @@ export function LiveRailCard({ place, pulse, onOpen }: { place: string | null; p
         </View>
         <View>
           <RNText style={tx('800', 22, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{pulse ? pulse.activeNow : '–'}</RNText>
-          <RNText style={tx('500', 12, t.colors.muted)}>active now</RNText>
+          <RNText style={tx('500', 12, t.colors.muted)}>{helpersWithin ? `active now, of ${helpersWithin.n} within ${helpersWithin.km} km` : 'active now'}</RNText>
         </View>
       </View>
     </Pressable>

@@ -24,9 +24,9 @@ const ROWS: { icon: IconName; title: string; sub: string }[] = [
 ];
 
 /**
- * Shown once per browser, on an Android phone, right after the visitor's first
- * search or first look at a task, unless they closed the top bar in the last
- * 14 days. It is marked as shown the moment it opens, so it never comes back.
+ * Shown once per browser, on an Android phone, right after the visitor's first offer is sent,
+ * unless they closed the top bar in the last
+ * 7 days. It is marked as shown the moment it opens, so it never comes back.
  */
 export function AppSheet() {
   const t = useTheme();
@@ -79,7 +79,7 @@ export function AppSheet() {
           <Drop size={34} fill="#FFFFFF" tick={t.colors.heroMid} />
         </View>
         <RNText style={tx('800', 21, t.colors.ink, { flex: 1, lineHeight: 26, letterSpacing: -0.5 })} accessibilityRole="header">
-          TaskDrop works best as an app
+          Get alerts when they reply
         </RNText>
       </View>
 

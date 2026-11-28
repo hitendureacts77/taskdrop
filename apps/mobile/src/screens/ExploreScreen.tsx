@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { noteFirstAction } from '../lib/appPrompt';
 import { View, Text as RNText, ScrollView, TextInput, Pressable, Animated, Platform, type TextInputInstance, type StyleProp, type ViewStyle } from 'react-native';
 import { Screen, ScreenList, cardSurface } from '../components/ui';
 import { AppHeader } from '../components/AppHeader';
@@ -732,7 +731,6 @@ function FindWork({
     setFocused(false);
     searchRef.current?.blur();
     if (w) {
-      noteFirstAction();
       remember(w);
     }
   };
