@@ -4,7 +4,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
 import { pickedPlaceName } from '../lib/place';
 import { NEAR_PEOPLE_KM, useNearPeople } from '../lib/useNearPeople';
-import { peopleCounts } from '../lib/presence';
+import { peopleCountText, peopleCounts } from '../lib/presence';
 import { useMyArea } from '../lib/useMyArea';
 import { Icon } from './Icon';
 import { Shimmer } from './kit';
@@ -64,7 +64,7 @@ export function HelpersNearHero() {
         testID="home-helpers-map"
         map={<JobsMap me={area} pins={pins} selectedId={null} onSelect={openMap} height={STRIP_HEIGHT} ringKm={NEAR_KM} tone="people" bare />}
         kicker={'NEAR ' + (name || 'YOU').toUpperCase()}
-        title={n === 0 ? `No helpers within ${NEAR_KM} km yet` : `${n} ${n === 1 ? 'helper' : 'helpers'} within ${NEAR_KM} km`}
+        title={n === 0 ? `No helpers within ${NEAR_KM} km yet` : `${peopleCountText(n)} ${n === 1 ? 'helper' : 'helpers'} within ${NEAR_KM} km`}
         sub={
           n === 0
             ? 'Post a task: people online can still send offers'

@@ -1,6 +1,7 @@
 import { attachPosters, type TaskWithPoster } from '../data/api';
 import { tasksNear, workersNear, type NearbyWorker } from '../data/extras';
 import { FIND_WORK_LIMIT } from './findWorkRead';
+import { PEOPLE_READ_CAP } from './presence';
 
 /**
  * The one read behind every "near you" number on Home and the Find work card (feedback board: the numbers on one
@@ -34,7 +35,7 @@ export const readNearJobs = (at: { lat: number; lng: number }, km: number): Prom
   });
 
 /** The most helpers counted within the Hire Home distance. */
-export const NEAR_PEOPLE_LIMIT = 50;
+export const NEAR_PEOPLE_LIMIT = PEOPLE_READ_CAP;
 
 /** Helpers within `km` of a place, active ones first is the caller's choice: the raw list, nearest data included. */
 export const readNearPeople = (at: { lat: number; lng: number }, km: number): Promise<NearbyWorker[]> =>

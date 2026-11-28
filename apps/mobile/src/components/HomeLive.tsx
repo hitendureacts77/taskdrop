@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { peopleCountText } from '../lib/presence';
 import { View, Text as RNText, Pressable, Animated, Easing, ScrollView } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { onHero } from '../theme';
@@ -276,7 +277,7 @@ export function LiveSheet({
         {pulse && (pulse.doneToday > 0 || pulse.activeNow > 0) ? (
           <View style={{ flexDirection: 'row', gap: 10 }}>
             {stat(pulse.doneToday, 'done near you today')}
-            {stat(pulse.activeNow, helpersWithin ? `active now, of ${helpersWithin.n} ${helpersWithin.n === 1 ? 'helper' : 'helpers'} within ${helpersWithin.km} km` : pulse.activeNow === 1 ? 'helper active now' : 'helpers active now', true)}
+            {stat(pulse.activeNow, helpersWithin ? `active now, of ${peopleCountText(helpersWithin.n)} ${helpersWithin.n === 1 ? 'helper' : 'helpers'} within ${helpersWithin.km} km` : pulse.activeNow === 1 ? 'helper active now' : 'helpers active now', true)}
           </View>
         ) : null}
 
@@ -376,7 +377,7 @@ export function LiveRailCard({ place, pulse, helpersWithin, onOpen }: { place: s
         </View>
         <View>
           <RNText style={tx('800', 22, t.colors.ink, { fontVariant: ['tabular-nums'] })}>{pulse ? pulse.activeNow : '–'}</RNText>
-          <RNText style={tx('500', 12, t.colors.muted)}>{helpersWithin ? `active now, of ${helpersWithin.n} within ${helpersWithin.km} km` : 'active now'}</RNText>
+          <RNText style={tx('500', 12, t.colors.muted)}>{helpersWithin ? `active now, of ${peopleCountText(helpersWithin.n)} within ${helpersWithin.km} km` : 'active now'}</RNText>
         </View>
       </View>
     </Pressable>
