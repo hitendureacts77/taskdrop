@@ -56,7 +56,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          staged=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/deploy-staging.yml/runs?branch=redesigned-2.0&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // ""')
+          # Newest runs first, then the first green one. The status=success filter of the API lags behind
+          # (28 Nov 2026 it still answered an older run an hour after a newer one went green), so filter here.
+          staged=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/deploy-staging.yml/runs?branch=redesigned-2.0&event=push&per_page=30" --jq '[.workflow_runs[] | select(.status == "completed" and .conclusion == "success")][0].head_sha // ""')
           if [ -z "$staged" ]; then echo "::error::No green staging deploy found. Staging must run a commit before production gets it."; exit 1; fi
           echo "last green staging deploy: $staged"
           echo "this release:              $GITHUB_SHA"
