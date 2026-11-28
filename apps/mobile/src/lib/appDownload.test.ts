@@ -53,14 +53,14 @@ test('isGetPath matches /get and /get/ only', () => {
   assert.equal(isGetPath(null), false);
 });
 
-test('shouldShowBanner: hidden for 14 days after the close button', () => {
+test('shouldShowBanner: hidden for 7 days after the close button', () => {
   const now = 1_800_000_000_000;
-  assert.equal(BANNER_HIDE_DAYS, 14);
+  assert.equal(BANNER_HIDE_DAYS, 7);
   assert.equal(shouldShowBanner(now, null), true);
   assert.equal(shouldShowBanner(now, undefined), true);
   assert.equal(shouldShowBanner(now, now), false);
-  assert.equal(shouldShowBanner(now, now - 13 * DAY), false);
-  assert.equal(shouldShowBanner(now, now - 14 * DAY), true);
+  assert.equal(shouldShowBanner(now, now - 6 * DAY), false);
+  assert.equal(shouldShowBanner(now, now - 7 * DAY), true);
   assert.equal(shouldShowBanner(now, now - 30 * DAY), true);
   assert.equal(shouldShowBanner(now, now + DAY), true, 'a time in the future never hides it');
   assert.equal(shouldShowBanner(now, Number.NaN), true);

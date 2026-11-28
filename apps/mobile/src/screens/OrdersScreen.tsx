@@ -408,7 +408,7 @@ export function OrdersScreen() {
             paddingBottom: 14,
           })}
         >
-          {worker ? 'My offers' : 'My requests'}
+          {worker ? 'My Work' : 'My requests'}
         </RNText>
 
         <UnderlineTabs tabs={tabNames} active={orderTab} onPick={pickTab} />

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { exportEnv, parseTarget } from './cloudflare-web-build.mjs';
+import { APP_ROUTES } from '../apps/mobile/scripts/web-route-pages.mjs';
 import { headersFor, renderHeadersFile, renderRedirectsFile, routesFor, stripVercelToolbar, unhashedAssets, vercelSourceToPattern } from './lib/cloudflare-headers.mjs';
 
 const vercel = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
@@ -59,16 +60,26 @@ test('source patterns: splat, and the narrowed hashed-file regex is flagged', ()
   assert.throws(() => vercelSourceToPattern('/plain'));
 });
 
-test('routes: the catch-all rewrite is the SPA fallback; regions is reported; no redirects file', () => {
+test('routes: the catch-all rewrite is the SPA fallback; regions is reported; the app screens are rewritten', () => {
   const r = routesFor(vercel);
   assert.equal(r.spaFallback, true);
   assert.deepEqual(r.untranslated, ['regions: ["bom1"]']);
-  assert.equal(renderRedirectsFile(vercel), null);
+  const lines = renderRedirectsFile(vercel).trim().split(/\r?\n/);
+  assert.deepEqual(lines, APP_ROUTES.map((p) => `${p} / 200`));
+  assert.ok(lines.includes('/task/* / 200'));
+  // Never a catch-all: an unknown address must still get the real 404 page.
+  assert.ok(!lines.some((l) => l.startsWith('/* ')));
+});
+
+test('the app screens are never cached, like index.html', () => {
+  const text = renderHeadersFile(vercel, 'staging');
+  const blocks = text.split('\n\n');
+  for (const p of APP_ROUTES) assert.ok(blocks.some((b) => b.startsWith(`${p}\n  Cache-Control: `)), p);
 });
 
 test('redirects: a plain one becomes a line, a conditional one is reported', () => {
   const cfg = { redirects: [{ source: '/old', destination: '/new', permanent: true }, { source: '/x', destination: '/y', has: [{ type: 'host', value: 'a' }] }] };
-  assert.equal(renderRedirectsFile(cfg), '/old /new 301\n');
+  assert.equal(renderRedirectsFile(cfg).split('\n')[0], '/old /new 301');
   assert.equal(routesFor(cfg).untranslated.length, 1);
 });
 

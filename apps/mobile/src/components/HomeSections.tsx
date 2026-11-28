@@ -24,7 +24,6 @@ import {
   nearbyPulse,
   recommendedTasks,
   remoteTasks,
-  tasksNear,
   urgentTasks,
   setSaved,
   trendingCategories,
@@ -38,7 +37,7 @@ import { taskToFeedRow } from '../lib/openTask';
 import { useMyOffers } from '../lib/useMyOffers';
 import { newOffers } from '../lib/seenOffers';
 import { loadSeenOffers } from '../lib/seenOffersStore';
-import { JOB_CHIPS, livePillText, openNearText, shownJobsChip, type JobsChip } from '../lib/homeJobs';
+import { JOB_CHIPS, livePillText, shownJobsChip, type JobsChip } from '../lib/homeJobs';
 import { statusBadge } from '../screens/MyTasksScreen';
 import { Icon } from './Icon';
 import { Grid, SectionTitle, Shimmer, rupees, timeAgo } from './kit';
@@ -58,7 +57,13 @@ import type { IconName } from './Icon';
 import { LocationSheet, type PickedPlace } from './LocationSheet';
 import { resolveCurrentPlace } from '../lib/location';
 import { pickedPlaceName, roughPlace } from '../lib/place';
-import { inReachWithoutArea } from '../lib/findWorkRead';
+import { FIND_WORK_LIMIT, capped, inReachWithoutArea } from '../lib/findWorkRead';
+import { readNearJobs } from '../lib/nearReads';
+import { setJobFilters, useJobFilters } from '../lib/jobFiltersStore';
+import { jobsSummary, matchesJob } from '../lib/mapFilters';
+import { NEAR_PEOPLE_KM, useNearPeople } from '../lib/useNearPeople';
+import { helpersLiveText, peopleCounts } from '../lib/presence';
+import { useMyArea } from '../lib/useMyArea';
 import { guestAreaFromPicked } from '../lib/guestArea';
 import { readGuestArea, saveGuestArea } from '../lib/guestAreaStore';
 import { areaFromProfile, peekArea, rememberArea, sameArea } from '../lib/areaCache';
@@ -151,6 +156,12 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
   const [pickPlace, setPickPlace] = useState(false);
   const [pulse, setPulse] = useState<NearbyPulse | null>(null);
   const [posted, setPosted] = useState<Task[]>([]);
+  // One read for every helper figure on this screen (the card, the pill, the sheet, the desktop panel).
+  const { area: myArea, loaded: myAreaLoaded } = useMyArea();
+  const people = useNearPeople(myArea, myAreaLoaded);
+  const counts = people.list ? peopleCounts(people.list, people.now) : null;
+  const shownPulse = pulse && counts ? { ...pulse, activeNow: counts.live } : pulse;
+  const withinKm = counts ? { n: counts.n, km: NEAR_PEOPLE_KM } : null;
   const needs = usePosterNeeds(active, offers, guest);
   const pickNeed = usePosterNeedPick(active);
 
@@ -233,7 +244,7 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
   const openComposer = () => go('aiPost');
   const postLike = (prompt: string) => go('aiPost', { prompt });
   const busyPick = (c: TrendingCategory) => go('aiPost', { prompt: `I need help with ${c.category.toLowerCase()}: ` });
-  const pill = <LivePill text={livePillText(pulse)} onPress={() => setLiveOpen(true)} />;
+  const pill = <LivePill text={helpersLiveText(people.list, people.now) ?? livePillText(shownPulse ? { ...shownPulse, activeNow: 0 } : null)} onPress={() => setLiveOpen(true)} />;
 
   const areaBar = (inHeader: boolean) => (
     <AreaBar
@@ -363,7 +374,8 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         visible={liveOpen}
         onClose={() => setLiveOpen(false)}
         place={place}
-        pulse={pulse}
+        pulse={shownPulse}
+        helpersWithin={withinKm}
         posted={posted}
         trending={trending}
         onPostLike={postLike}
@@ -406,7 +418,7 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
             <>
               {/* 1.19 R: the tool first (live numbers, then the helpers map), the news lists after it, each
                   three rows long with the rest behind Show more. */}
-              <LiveRailCard place={place} pulse={pulse} onOpen={() => setLiveOpen(true)} />
+              <LiveRailCard place={place} pulse={shownPulse} helpersWithin={withinKm} onOpen={() => setLiveOpen(true)} />
               {helpersMap}
               <JustPosted tasks={posted} onOpen={postLike} onOpenList={() => setLiveOpen(true)} rail />
               {trending.length > 0 ? (
@@ -629,9 +641,7 @@ function AreaBar({
 
 // ------------------------------------------------------------- earning ------
 
-const RADII = [3, 10, 25, 50];
-/** How many near jobs Home reads: enough for the pill's count ("30+") and the Near you chip. */
-const NEAR_LIMIT = 30;
+const RADII = [5, 10, 25, 50];
 
 /**
  * The worker's home (task 1.19 F): the area with a live count, one hero (level, jobs on the go, the job search and
@@ -653,7 +663,10 @@ function EarnTop() {
   const [place, setPlace] = useState<{ label: string; lat: number; lng: number } | null>(known ?? null);
   // Whether the area is known yet (read, or remembered): until then the bar says so, not "Set your location".
   const [placeKnown, setPlaceKnown] = useState(known !== undefined);
-  const [radius, setRadius] = useState(10);
+  // The distance is Find work's own (one shared setting), so every jobs figure counts the same circle.
+  const jobFilters = useJobFilters();
+  const radius = jobFilters.km;
+  const setRadius = (km: number) => setJobFilters({ ...jobFilters, km });
   const [pickPlace, setPickPlace] = useState(false);
   const [recs, setRecs] = useState<TaskWithPoster[] | null>(null);
   const [near, setNear] = useState<(TaskWithPoster & { km: number })[] | null>(null);
@@ -665,7 +678,9 @@ function EarnTop() {
   const [safeOpen, setSafeOpen] = useState(false);
   // The chip they tapped; until then the list opens on the one their skills call for (lib/homeJobs).
   const [pickedChip, setPickedChip] = useState<JobsChip | null>(null);
-  const chip = shownJobsChip(pickedChip, skills);
+  // A guest with no area yet has nothing to be "near": the list opens on a few real open jobs instead of a second
+  // "Set your area" card (the one prompt is the area bar at the top).
+  const chip = pickedChip ?? (guest && !place ? 'you' : shownJobsChip(null, skills));
   // Bumped by each Home load: the area-dependent lists re-read on it.
   const [listTick, setListTick] = useState(0);
   const workerNeeds = useWorkerNeeds();
@@ -730,12 +745,14 @@ function EarnTop() {
     const reach = place ? { lat: place.lat, lng: place.lng, radiusKm: radius } : null;
     const mySkills = skillsKey ? skillsKey.split('\n') : [];
     // No area yet (B156 / W2-20): only remote jobs, so more are asked for and the in-person ones dropped.
+    // A guest with no area sees the newest open jobs from the city (the guest read of D15), in person or remote.
+    const guestOpen = guest && !reach;
     void Promise.all([
-      recommendedTasks(mySkills, reach ? 8 : 30, reach).catch((): Task[] => []),
+      guestOpen ? listOpenTasks(8, 'request').catch((): Task[] => []) : recommendedTasks(mySkills, reach ? 8 : 30, reach).catch((): Task[] => []),
       urgentTasks(reach ? 6 : 30, reach).catch((): Task[] => []),
     ])
       .then(async ([r0, urg0]) => {
-        const r = inReachWithoutArea(r0, reach !== null, 8);
+        const r = guestOpen ? r0 : inReachWithoutArea(r0, reach !== null, 8);
         const urg = inReachWithoutArea(urg0, reach !== null, 6);
         // One poster lookup for both lists, each keeping its own order (a task no longer visible drops out).
         const withPosters = new Map((await attachPosters([...r, ...urg])).map((x) => [x.id, x]));
@@ -752,7 +769,7 @@ function EarnTop() {
     return () => {
       alive = false;
     };
-  }, [listTick, place, radius, skillsKey]);
+  }, [listTick, place, radius, skillsKey, guest]);
 
   const askedLocation = useRef(false);
   useEffect(() => {
@@ -775,13 +792,9 @@ function EarnTop() {
     }
     let alive = true;
     setNear(null);
-    void tasksNear(place, radius, NEAR_LIMIT)
-      .then(async (rows) => {
-        const withPeople = await attachPosters(rows);
-        if (alive) {
-          setNear(withPeople.map((x, i) => ({ ...x, km: rows[i]!.km })));
-        }
-      })
+    // The same read the Find work card makes (shared for a few seconds), so the count under it is the same figure.
+    void readNearJobs(place, radius)
+      .then((rows) => alive && setNear(rows))
       .catch(() => alive && setNear([]));
     return () => {
       alive = false;
@@ -865,7 +878,8 @@ function EarnTop() {
   );
 
   const areaName = place ? pickedPlaceName(place.label) : null;
-  const pillText = place ? openNearText(near === null ? null : near.length, NEAR_LIMIT) : null;
+  // The same words as the Find work card ("114 jobs within 10 km"), from the same read and filters.
+  const pillText = place && near !== null ? (near.length === 0 ? 'No jobs near you yet' : jobsSummary(near.filter((r) => matchesJob(r, jobFilters)).length, 0, radius, 'local', { near: capped(near.length, FIND_WORK_LIMIT) })) : null;
 
   const areaBar = (inHeader: boolean) => (
     <AreaBar
@@ -901,6 +915,8 @@ function EarnTop() {
         {/* D22 H2: "How TaskDrop works" is the ? in the card's corner, as on the Hire side. */}
         <HowButton onPress={() => go('intro', { replay: true, side: 'earn' })} size={28} />
       </View>
+      {/* A guest has no level yet ("Starter, 0 on the go" told them nothing): the card starts at the search. */}
+      {guest ? null : (
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: 6 }}>
         <View style={{ flex: 1 }}>
           <RNText style={tx('800', 26, onHero.text, { letterSpacing: -0.7 })}>{level.name}</RNText>
@@ -926,6 +942,7 @@ function EarnTop() {
           <RNText style={tx('600', 11.5, onHero.text)}>on the go</RNText>
         </View>
       </View>
+      )}
       {desktop ? null : (
         // Search lives on Find work; tapping here goes straight there with the cursor in its box.
         <Pressable
@@ -1026,7 +1043,7 @@ function EarnTop() {
       <ChipFade chip={chip}>
         {chip === 'you' ? (
           <>
-            {line(skills && skills.length ? skills.slice(0, 3).join(' · ') : 'Add skills to your profile for sharper matches')}
+            {line(guest ? 'Open jobs on TaskDrop right now' : skills && skills.length ? skills.slice(0, 3).join(' · ') : 'Add skills to your profile for sharper matches')}
             {jobList('you', recs, plain('Nothing open right now. Check back soon.'))}
           </>
         ) : chip === 'near' ? (
@@ -1049,7 +1066,7 @@ function EarnTop() {
                 </>,
               )}
             </>
-          ) : (
+          ) : guest ? null : (
             setAreaCard
           )
         ) : chip === 'remote' ? (
@@ -1071,7 +1088,7 @@ function EarnTop() {
     <>
       {/* D32: a short live map of jobs near you, right after the hero (the desktop header holds the search). */}
       <View testID="home-jobs-map" style={{ marginTop: desktop ? 0 : 20 }}>
-        <JobsNearHero onOpenMap={() => go('explore')} />
+        <JobsNearHero onOpenMap={() => go('explore')} hideSetArea={guest} />
         <MapShortcuts worker />
       </View>
 

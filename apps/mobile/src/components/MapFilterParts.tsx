@@ -149,7 +149,7 @@ export function JobChips({ filters: f, onChange }: { filters: MapFilters; onChan
   if (f.auto) chips.push({ key: 'auto', label: 'Auto-hire', next: { ...f, auto: false } });
   if (f.offers) chips.push({ key: 'offers', label: 'Open to offers', next: { ...f, offers: false } });
   if (f.dueSoon) chips.push({ key: 'due', label: 'Due in 24 h', next: { ...f, dueSoon: false } });
-  if (f.sort !== 'pay') chips.push({ key: 'sort', label: `${SORT_LABELS[f.sort]} first`, next: { ...f, sort: 'pay' } });
+  if (f.sort !== DEFAULT_FILTERS.sort) chips.push({ key: 'sort', label: `${SORT_LABELS[f.sort]} first`, next: { ...f, sort: DEFAULT_FILTERS.sort } });
   return (
     <>
       {chips.map((c) => (
@@ -365,7 +365,7 @@ export function FiltersPanel({
             </View>
           </Section>
           <Section title="Show first">
-            <Choices options={(['pay', 'near', 'new'] as JobSort[]).map((s) => ({ value: s, label: SORT_LABELS[s] }))} value={f.sort} onChange={(sort) => set({ sort })} />
+            <Choices options={(['new', 'near', 'pay'] as JobSort[]).map((s) => ({ value: s, label: SORT_LABELS[s] }))} value={f.sort} onChange={(sort) => set({ sort })} />
           </Section>
         </>
       ) : null}

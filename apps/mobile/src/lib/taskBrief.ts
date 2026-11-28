@@ -1375,6 +1375,15 @@ function careBullets(care: Topic['care']): string[] {
   }
 }
 
+/** Small, under an hour -> easy; Medium -> medium; Large -> hard. Anything else: null (no answer given). */
+export function difficultyFromJobSize(answer: string | undefined): Brief['difficulty'] | null {
+  const a = (answer ?? '').trim().toLowerCase();
+  if (a.startsWith('small')) return 'easy';
+  if (a.startsWith('medium')) return 'medium';
+  if (a.startsWith('large')) return 'hard';
+  return null;
+}
+
 function writePost(prompt: string, answers: Answer[], style: WritingStyle): Brief {
   // The questions came from the request alone, so the post uses the same topic.
   const topic = topicFor(prompt);
@@ -1394,6 +1403,8 @@ function writePost(prompt: string, answers: Answer[], style: WritingStyle): Brie
   let difficulty = topic.difficulty;
   if (!regular && factor >= 2.5 && difficulty === 'easy') difficulty = 'medium';
   else if (!regular && factor >= 3 && difficulty === 'medium') difficulty = 'hard';
+  // The poster's own answer on job size wins over the topic's guess (board: Small showed as Medium).
+  difficulty = difficultyFromJobSize(picked.find((a) => a.question === JOB_SIZE.question)?.answer) ?? difficulty;
 
   const facts = picked.map((a) => `${factLabel(a.question)}: ${a.answer}`);
   const context: string[] = [];
@@ -1511,6 +1522,7 @@ export const WHEN_OPTIONS = [
   { key: 'now', label: 'Right now', hours: 2 },
   { key: 'today', label: 'Today', hours: 0 },
   { key: '2days', label: '2 days', hours: 48 },
+  { key: 'weekend', label: 'This weekend', hours: 0 },
   { key: 'week', label: 'This week', hours: 24 * 7 },
 ] as const;
 export type WhenKey = (typeof WHEN_OPTIONS)[number]['key'];
@@ -1522,6 +1534,14 @@ export function dueFor(key: WhenKey, from = new Date()): Date {
     ninePm.setHours(21, 0, 0, 0);
     const soonest = new Date(from.getTime() + 3 * 3600000);
     return ninePm > soonest ? ninePm : soonest;
+  }
+  if (key === 'weekend') {
+    // Sunday 9 pm of this weekend (Sunday itself counts); past that, in 3 hours.
+    const end = new Date(from);
+    end.setDate(end.getDate() + ((7 - end.getDay()) % 7));
+    end.setHours(21, 0, 0, 0);
+    const soonest = new Date(from.getTime() + 3 * 3600000);
+    return end > soonest ? end : soonest;
   }
   const opt = WHEN_OPTIONS.find((o) => o.key === key)!;
   return new Date(from.getTime() + opt.hours * 3600000);

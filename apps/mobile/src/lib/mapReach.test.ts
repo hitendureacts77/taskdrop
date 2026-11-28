@@ -33,7 +33,7 @@ test('withinReach keeps only pinned items inside the radius', () => {
 
 test('reach words say the radius and under 1 km', () => {
   const w = reachWords({ radius: 5, best: { id: 'a', rupees: 1200, km: 3.2 }, nearest: { id: 'b', rupees: 800, km: 0.4 } });
-  assert.equal(w.bestLabel, 'Best offer within 5 km');
+  assert.equal(w.bestLabel, 'Top pay within 5 km');
   assert.match(w.pitch, /under 1 km/);
   assert.match(w.pitch, /within 5 km is ₹1,200/);
   const same = reachWords({ radius: 10, best: { id: 'a', rupees: 1200, km: 0.4 }, nearest: { id: 'a', rupees: 1200, km: 0.4 } });

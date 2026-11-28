@@ -66,3 +66,9 @@ export type ScreenName =
   | 'support';
 
 export type NavParams = Record<string, unknown>;
+
+/**
+ * How a move enters the website's history (web only; the phone apps ignore it). `tab`: a tab or side-menu tap,
+ * always a step of its own, even from a form (a finished form's result replaces the form instead).
+ */
+export type NavOptions = { tab?: boolean };

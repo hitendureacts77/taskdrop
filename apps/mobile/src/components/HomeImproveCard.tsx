@@ -18,7 +18,7 @@ export const HOME_IMPROVE_COPY = {
 /**
  * "Help improve TaskDrop" on both Homes (owner, 26 Nov): one small card, high enough on Home to be seen. "Suggest a
  * feature" opens the board's new-idea sheet; the whole board (top ideas, votes) lives on the Ideas & feedback page,
- * on Profile under Ideas & feedback (HomeFeedbackCard, task 1.19 F). A guest who posts gets the account pop-up from the server call, as on the board.
+ * on Profile via its Ideas & feedback row. A guest who posts gets the account pop-up from the server call, as on the board.
  */
 export function HomeImproveCard() {
   const t = useTheme();

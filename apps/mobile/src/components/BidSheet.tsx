@@ -4,6 +4,7 @@ import { useTheme } from '../providers/ThemeProvider';
 import { useActions } from '../providers/AppStateProvider';
 import { useAuth } from '../providers/AuthProvider';
 import { isNeedsAccount, needAccount, useAccountHold } from '../lib/guest';
+import { noteFirstAction } from '../lib/appPrompt';
 import { canQuoteOn, getMyBid, placeBid, updateBid, type Bid, type Task } from '../data/api';
 import { MAX_PRICE_INR, MIN_PRICE_INR } from '../lib/limits';
 import { maskContacts } from '../lib/mask';
@@ -220,6 +221,8 @@ export function BidSheet({
       } else {
         await placeBid({ taskId: task.id, workerId: userId, ...fields });
         noteMyOffer(userId, task.id);
+        // Web on Android: the one-time "get alerts when they reply" sheet comes right after the first offer.
+        noteFirstAction();
         onClose();
         celebrate(
           auto

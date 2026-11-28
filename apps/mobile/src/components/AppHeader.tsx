@@ -65,7 +65,7 @@ export function AppHeader() {
           screens the side menu carries the logo and the Hire/Earn switch. */}
       {!desktop && !tablet ? (
         <>
-          <Pressable onPress={() => reset('home')} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
+          <Pressable onPress={() => reset('home', {}, { tab: true })} accessibilityRole="link" accessibilityLabel="TaskDrop home" hitSlop={6}>
             <RNText style={tx('800', tiny ? 16 : tight ? 19 : 21, t.colors.ink, { letterSpacing: -0.6 })}>
               taskdrop<RNText style={tx('800', tiny ? 16 : tight ? 19 : 21, t.colors.accent)}>.</RNText>
             </RNText>

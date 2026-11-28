@@ -22,7 +22,7 @@ export function apkDownloadUrl(base: string | null | undefined): string {
 export const GET_PATH = '/get';
 
 /** How long the top bar stays hidden after the visitor closes it. */
-export const BANNER_HIDE_DAYS = 14;
+export const BANNER_HIDE_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const KEY_BANNER_DISMISSED = 'taskdrop.getApp.bannerDismissedAt';

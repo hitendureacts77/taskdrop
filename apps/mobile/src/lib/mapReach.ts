@@ -71,7 +71,7 @@ export function reachWords({
   /** How an amount is written; the screen passes the app's own rupee formatter. */
   money?: (n: number) => string;
 }) {
-  const bestLabel = `Best offer within ${radius} km`;
+  const bestLabel = `Top pay within ${radius} km`;
   const nearestLabel = 'Nearest job';
   let pitch = '';
   if (best && nearest) {
