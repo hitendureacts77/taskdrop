@@ -7,6 +7,7 @@ import type { Db } from "../api/core.ts";
 import { GuestCeiling, GuestLocalLimit, guestAddress, guestNetKey, guestRateKey, isGuestToken } from "../api/guest.ts";
 import { answerGuest, guestPlaceAsk, guestPlacesAllowed, roundForGuest } from "./guest.ts";
 import { INDIA_BBOX, photonAreaName, photonPlaces, type PhotonFeature } from "./photon.ts";
+import { googleAreaName, googlePlaces, type GooglePlace } from "./google.ts";
 
 /**
  * Place search for the app, so no Google key ships in the web bundle or APK.
@@ -170,7 +171,8 @@ const guestCeiling = new GuestCeiling();
 
 /**
  * A guest's place search (B100, B145): OpenStreetMap only, from here, with the typed text capped, the point rounded
- * to about a kilometre and the guest limits of ./guest.ts. Never Google, never the signed-in quotas.
+ * to about a kilometre and the guest limits of ./guest.ts. Never the signed-in quotas; Google only as the capped
+ * backup when both OpenStreetMap services refuse this server (migration 243).
  */
 async function handleGuest(req: Request, url: string): Promise<Response> {
   const raw = await req.text().catch(() => "");
@@ -257,23 +259,85 @@ async function photonSearch(q: string): Promise<{ label: string; lat: number; ln
     });
     if (!res.ok) {
       await logServer("warn", "places-search", "Photon search refused", { http_status: res.status });
-      return [];
+      return await googleBackupSearch(q);
     }
     const out = (await res.json()) as { features?: PhotonFeature[] };
     return photonPlaces(out.features ?? [], q).map((p) => ({ ...p, label: tidy(p.label) }));
   } catch (e) {
     await logServer("warn", "places-search", "Photon unreachable", { error: e instanceof Error ? e.message : String(e) });
-    return [];
+    return await googleBackupSearch(q);
   }
 }
 
 async function photonReverse(lat: number, lng: number): Promise<string | null> {
   try {
     const res = await fetch(`https://photon.komoot.io/reverse?lang=en&lat=${lat}&lon=${lng}`, { headers: OSM, signal: AbortSignal.timeout(6000) });
-    if (!res.ok) return null;
+    if (!res.ok) return await googleBackupReverse(lat, lng);
     const out = (await res.json()) as { features?: PhotonFeature[] };
     const name = photonAreaName(out.features ?? []);
     return name ? tidy(name) : null;
+  } catch {
+    return await googleBackupReverse(lat, lng);
+  }
+}
+
+// Last backup: both OpenStreetMap services refuse the Supabase servers (403 from 27 Nov 2026), so Google answers,
+// with the server's key, at most places_backup_daily_cap calls a day (migration 243) inside the shared Google total.
+// Past the cap, or with no key, nothing is found and the app keeps the typed text and the map pin, as before.
+function serviceDb() {
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+}
+
+async function googleBackupKey(): Promise<string> {
+  const admin = serviceDb();
+  const key = await mapsKey(admin);
+  if (!key) return "";
+  const { data, error } = await admin.rpc("take_places_backup");
+  if (error) {
+    await logServer("error", "places-search", "backup search cap unavailable", { error: error.message });
+    return "";
+  }
+  return data === "ok" ? key : "";
+}
+
+async function googleBackupSearch(q: string): Promise<{ label: string; lat: number; lng: number }[]> {
+  try {
+    const key = await googleBackupKey();
+    if (!key) return [];
+    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location" },
+      body: JSON.stringify({ textQuery: q, maxResultCount: 6, regionCode: "IN" }),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) {
+      await logServer("warn", "places-search", "Google backup search refused", { http_status: res.status });
+      return [];
+    }
+    const out = (await res.json()) as { places?: GooglePlace[] };
+    return googlePlaces(out.places ?? [], q, tidy);
+  } catch (e) {
+    await logServer("warn", "places-search", "Google backup unreachable", { error: e instanceof Error ? e.message : String(e) });
+    return [];
+  }
+}
+
+async function googleBackupReverse(lat: number, lng: number): Promise<string | null> {
+  try {
+    const key = await googleBackupKey();
+    if (!key) return null;
+    const res = await fetch("https://places.googleapis.com/v1/places:searchNearby", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.addressComponents" },
+      body: JSON.stringify({ maxResultCount: 1, rankPreference: "DISTANCE", locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: 1000 } } }),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) {
+      await logServer("warn", "places-search", "Google backup area name refused", { http_status: res.status });
+      return null;
+    }
+    const out = (await res.json()) as { places?: GooglePlace[] };
+    return googleAreaName(out.places ?? []);
   } catch {
     return null;
   }
