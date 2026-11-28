@@ -40,7 +40,7 @@ import { loadSeenOffers } from '../lib/seenOffersStore';
 import { JOB_CHIPS, livePillText, shownJobsChip, type JobsChip } from '../lib/homeJobs';
 import { statusBadge } from '../screens/MyTasksScreen';
 import { Icon } from './Icon';
-import { Grid, SectionTitle, Shimmer, rupees, timeAgo } from './kit';
+import { ConfirmDialog, Grid, SectionTitle, Shimmer, rupees, timeAgo } from './kit';
 import { WorkCard } from './WorkCard';
 import { BidSheet } from './BidSheet';
 import { HelpersNearHero } from './HelpersNearHero';
@@ -113,8 +113,8 @@ function useHomeLoad(load: (alive: () => boolean) => Promise<unknown>) {
 }
 
 /**
- * The top of the home screen, above the existing feed. `footer` (Hire's "Services near you") is drawn after the
- * last section: at the bottom of the main column on a desktop, under everything elsewhere.
+ * The top of the home screen, above the existing feed. `footer` (Hire's "Workers offering services near you") is
+ * drawn after the Ideas block, just before "Only on TaskDrop", which closes the page (owner, 28 Nov).
  */
 export function HomeSections({ footer }: { footer?: React.ReactNode }) {
   const { mode } = useMode();
@@ -129,7 +129,7 @@ const DONE = ['COMPLETED', 'AUTO_COMPLETED', 'CANCELLED'];
 /**
  * The poster's home (task 1.19 F, eight blocks instead of fourteen): the area with its live pill (the live sheet
  * holds Just posted in full and Busy on TaskDrop), the Just posted ticker, the ask box with one trust line, what
- * needs them now, the helpers map card, what only TaskDrop does, one Ideas block, and Services (the footer). On a
+ * needs them now, the helpers map card, one Ideas block, Services (the footer) and, last, what only TaskDrop does. On a
  * desktop the area and a search bar sit in the page header, what needs them is a short table, and the live things
  * (active now, Just posted, Busy on TaskDrop, the helpers map) sit together in the right rail.
  */
@@ -408,10 +408,11 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
               {rows.length > 0 ? (
                 <PublishedTable rows={rows} total={active?.length ?? 0} onOpen={(task) => openPostedTask(task, go)} onManage={() => go('myTasks')} />
               ) : null}
-              {only}
               <HomeImproveCard />
               {ideas}
               {footer}
+              {/* Owner, 28 Nov: Only on TaskDrop closes the page, after everything else. */}
+              <View style={{ paddingBottom: 48 }}>{only}</View>
             </>
           }
           rail={
@@ -455,9 +456,6 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         {/* 1.19 H: the same short live map card as Earn, in jade, then shortcuts to the map. */}
         {helpersMap}
 
-        {/* D22 H1: what only TaskDrop does, as big icons. */}
-        {only}
-
         {/* Owner, 26 Nov: a small "Help improve TaskDrop" card; the full board is on Profile. */}
         <HomeImproveCard />
 
@@ -467,6 +465,9 @@ function PostTop({ footer }: { footer?: React.ReactNode }) {
         {sheets}
       </View>
       {footer}
+      {/* D22 H1: what only TaskDrop does, as big icons. Owner, 28 Nov: at the very end of the page, not in the middle.
+          The room under it keeps the drop button off it. */}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 110 }}>{only}</View>
     </>
   );
 }
@@ -570,6 +571,9 @@ function JustPosted({ tasks, onOpen, onOpenList, rail = false }: { tasks: Task[]
  * to search or use your location. Both sides of the app show it -- workers to
  * find jobs near them, posters to reach workers near them. `right`: the live pill (task 1.19 F).
  */
+/** The least room the area (pin, place name, line under it) gets beside the live pill before the pill wraps. */
+const AREA_MIN = 210;
+
 function AreaBar({
   label,
   sub,
@@ -601,7 +605,11 @@ function AreaBar({
       accessibilityRole="button"
       accessibilityLabel={area ? `Your area: ${area}. Change` : 'Set your area'}
       style={({ pressed }) => ({
-        flex: inHeader ? undefined : 1,
+        // Owner, 28 Nov: the area comes first. It keeps at least AREA_MIN px, so on a phone the live pill drops to its
+        // own line under it rather than squeezing the place name to nothing.
+        flexGrow: inHeader ? undefined : 1,
+        flexShrink: inHeader ? undefined : 1,
+        flexBasis: inHeader ? undefined : AREA_MIN,
         minWidth: 0,
         alignSelf: inHeader ? 'flex-start' : undefined,
         flexDirection: 'row',
@@ -632,7 +640,7 @@ function AreaBar({
   // The Android app is offered in the desktop side menu now (D31), not beside the area.
   if (inHeader) return bar;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: flush ? 0 : 20, marginTop: 4 }}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 6, marginHorizontal: flush ? 0 : 20, marginTop: 4 }}>
       {bar}
       {right}
     </View>
@@ -674,6 +682,8 @@ function EarnTop() {
   const [urgent, setUrgent] = useState<TaskWithPoster[] | null>(null);
   const [saved, setSavedIds] = useState<Set<string>>(new Set());
   const [bidTask, setBidTask] = useState<Task | null>(null);
+  // The saved job waiting on "Remove from saved?" (owner, 28 Nov): saving is one tap, removing asks first.
+  const [unsaveId, setUnsaveId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   const [safeOpen, setSafeOpen] = useState(false);
   // The chip they tapped; until then the list opens on the one their skills call for (lib/homeJobs).
@@ -805,7 +815,12 @@ function EarnTop() {
   const level = levelFor(w?.jobsDone ?? 0, rating);
 
   const toggleSave = async (id: string) => {
-    const on = !saved.has(id);
+    // Already saved: ask before removing it. Saving stays one tap.
+    if (saved.has(id)) return void setUnsaveId(id);
+    await writeSave(id, true);
+  };
+
+  const writeSave = async (id: string, on: boolean) => {
     setSavedIds((s) => {
       const n = new Set(s);
       if (on) n.add(id);
@@ -1114,6 +1129,20 @@ function EarnTop() {
     <>
       <SafeSheet visible={safeOpen} onClose={() => setSafeOpen(false)} worker />
       <BidSheet task={bidTask} visible={bidTask !== null} onClose={() => setBidTask(null)} onPlaced={() => void load()} />
+      <ConfirmDialog
+        visible={unsaveId !== null}
+        icon="bookmark"
+        title="Remove from saved?"
+        message="You can save it again any time."
+        confirmLabel="Remove"
+        cancelLabel="Keep it"
+        onConfirm={() => {
+          const id = unsaveId;
+          setUnsaveId(null);
+          if (id) void writeSave(id, false);
+        }}
+        onCancel={() => setUnsaveId(null)}
+      />
       <LocationSheet
         visible={pickPlace}
         askForDetails={false}
@@ -1302,16 +1331,20 @@ function OnlyOnTaskDrop({
     { icon: 'tag', title: 'Price\ncheck', bg: t.colors.accent, ink: t.colors.onAccent, onPress: () => onPrompt(prices?.prompt ?? 'Find 3 shops near me that sell ') },
   ];
   return (
-    <View testID="home-only-on-taskdrop" style={[cardSurface(t, 20), { marginTop: desktop ? 24 : 20, padding: 14 }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Icon name="star" size={15} color={t.colors.accentDeep} />
-        <RNText accessibilityRole="header" style={tx('800', 15, t.colors.ink, { flex: 1 })}>Only on TaskDrop</RNText>
+    <View testID="home-only-on-taskdrop" style={[cardSurface(t, 20), { marginTop: 28, padding: 16 }]}>
+      {/* Owner, 28 Nov: a clear heading, the same size as the page's other section titles, with one line under it. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: t.colors.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="star" size={15} color={t.colors.accentDeep} />
+        </View>
+        <RNText accessibilityRole="header" style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Only on TaskDrop</RNText>
         {/* These are kinds of posts, so they carry the Ideas tag. */}
         <IdeaTag plural />
       </View>
+      <RNText style={tx('500', 12.5, t.colors.muted, { marginTop: 4 })}>Things you can post here that other apps do not do.</RNText>
       <View
         onLayout={desktop ? (e) => setRowW(Math.round(e.nativeEvent.layout.width)) : undefined}
-        style={{ flexDirection: 'row', flexWrap: 'nowrap', marginTop: 14, gap: cards ? 10 : 0 }}
+        style={{ flexDirection: 'row', flexWrap: 'nowrap', marginTop: 16, gap: cards ? 10 : 6 }}
       >
         {items.map((x) => (
           <Pressy
@@ -1356,10 +1389,12 @@ function OnlyOnTaskDrop({
           </Pressy>
         ))}
       </View>
-      <RNText style={tx('500', 12, t.colors.muted, { marginTop: 12, lineHeight: 17 })}>
-        <RNText style={tx('700', 12, t.colors.accentDeep)}>Find it for me: </RNText>
-        many people look at once, you pay only the one who finds it.
-      </RNText>
+      <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: t.colors.line }}>
+        <RNText style={tx('500', 12, t.colors.muted, { lineHeight: 17 })}>
+          <RNText style={tx('700', 12, t.colors.accentDeep)}>Find it for me: </RNText>
+          many people look at once, you pay only the one who finds it.
+        </RNText>
+      </View>
     </View>
   );
 }

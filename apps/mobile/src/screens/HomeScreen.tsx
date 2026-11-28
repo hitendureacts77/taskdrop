@@ -764,7 +764,7 @@ export function HomeScreen() {
         </View>
 
         <RNText style={tx('800', 17, t.colors.ink, { letterSpacing: -0.34, paddingTop: 26, paddingHorizontal: 20 })}>
-          {searching ? 'Search results' : worker ? 'Work near you' : 'Services near you'}
+          {searching ? 'Search results' : worker ? 'Work near you' : 'Workers offering services near you'}
         </RNText>
         {searchQ ? (
           <View
@@ -1013,10 +1013,11 @@ export function HomeScreen() {
           footer={
             worker ? null : (
           // What workers offer, as gig cards in a row that pages sideways (a grid of four on a desktop, at the
-          // bottom of the main column beside the rail, WebHire).
-          <View style={desktop ? { paddingTop: 32, paddingBottom: 48 } : { paddingHorizontal: 20, paddingTop: 30, paddingBottom: 110 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-              <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Services near you</RNText>
+          // bottom of the main column beside the rail, WebHire). "Only on TaskDrop" follows it and holds the room
+          // at the end of the page (owner, 28 Nov).
+          <View style={desktop ? { paddingTop: 32 } : { paddingHorizontal: 20, paddingTop: 30 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+              <RNText style={tx('800', 18, t.colors.ink, { letterSpacing: -0.35, flex: 1 })}>Workers offering services near you</RNText>
               <RNText style={tx('600', 12, t.colors.accentDeep)}>{loading ? '' : `${feed.length} offered`}</RNText>
             </View>
             {loading ? (
