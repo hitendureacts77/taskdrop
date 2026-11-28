@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { View, Text as RNText } from 'react-native';
 import { useTheme } from '../providers/ThemeProvider';
 import { useNav } from '../providers/NavProvider';
-import { attachPosters, type TaskWithPoster } from '../data/api';
-import { tasksNear } from '../data/extras';
+import { type TaskWithPoster } from '../data/api';
+import { readNearJobs } from '../lib/nearReads';
 import { taskToFeedRow } from '../lib/openTask';
 import { pickedPlaceName } from '../lib/place';
 import { useMyArea } from '../lib/useMyArea';
@@ -24,7 +24,7 @@ import { MapStrip, STRIP_HEIGHT } from './MapStrip';
  * chose (price pins), with what is near over its left side and "Open the map".
  * Without an area it is one line that opens the area picker. Never an empty box.
  */
-export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
+export function JobsNearHero({ onOpenMap, hideSetArea }: { onOpenMap?: () => void; hideSetArea?: boolean }) {
   const t = useTheme();
   const { go } = useNav();
   const { area, loaded, choose } = useMyArea();
@@ -46,12 +46,11 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
     let alive = true;
     setRows(null);
     // Posters ride along so the zoomed-in map can show who posted each task.
-    void tasksNear(area, radius, FIND_WORK_LIMIT)
-      .then(async (r) => {
-        const withPeople = await attachPosters(r);
+    void readNearJobs(area, radius)
+      .then((r) => {
         if (alive) {
           setAt(Date.now());
-          setRows(withPeople.map((x, i) => ({ ...x, km: r[i]!.km })));
+          setRows(r);
         }
       })
       .catch(() => alive && setRows([]));
@@ -71,6 +70,9 @@ export function JobsNearHero({ onOpenMap }: { onOpenMap?: () => void }) {
   let body: React.ReactNode;
   if (!area && !loaded) {
     body = <Shimmer height={STRIP_HEIGHT} />;
+  } else if (!area && hideSetArea) {
+    // The page already asks for the area once (the bar at the top): no second card.
+    return null;
   } else if (!area) {
     body = (
       <Pressy
