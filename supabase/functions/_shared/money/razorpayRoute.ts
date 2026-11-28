@@ -162,9 +162,13 @@ export function razorpayRouteProvider(cfg: RazorpayConfig, f: Fetch = fetch): Mo
 
       const full = move.status !== "split_asked";
       if (!full) {
-        // A split: the worker keeps the fine, so only the rest of their share comes off the transfer.
-        const fine = move.chargedMinor - move.amountMinor;
-        const reverse = Math.max(move.workerShareMinor - fine, 0);
+        // A split: only what the worker does not keep comes off the transfer. A fine split keeps
+        // charged - refund; a dispute split (migration 255) keeps release_minor, which is less (TaskDrop's
+        // commission on the part done stays with TaskDrop). An older claim without release_minor is a fine.
+        const keep = move.releaseMinor != null && move.releaseMinor >= 0
+          ? Math.min(move.releaseMinor, move.chargedMinor - move.amountMinor)
+          : move.chargedMinor - move.amountMinor;
+        const reverse = Math.max(move.workerShareMinor - keep, 0);
         const transfer = await transferFor(move);
         if (reverse > 0 && transfer) {
           const t = encodeURIComponent(transfer);

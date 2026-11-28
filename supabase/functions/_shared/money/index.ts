@@ -72,6 +72,7 @@ export function moveFrom(claim: unknown): MoveInput | null {
     amountMinor: n("amount_minor"),
     chargedMinor: n("charged_minor"),
     workerShareMinor: n("worker_share_minor"),
+    releaseMinor: c.release_minor == null ? null : Number(c.release_minor),
     key: s("key")!,
     orderId: s("provider_order_id"),
     paymentId: s("provider_payment_id"),

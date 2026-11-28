@@ -5,6 +5,7 @@ import { log } from './monitoring';
 import { isTransient, retryWhile } from './retry';
 import { parseEnvironment, type AppEnvironment } from './environment';
 import { setPublicCache } from './freshness';
+import { LAUNCH_AREAS_OFF, normaliseLaunchAreas, type LaunchAreas } from './launchAreas';
 
 /**
  * What the admin panel has switched for this app: maintenance, a newer
@@ -43,7 +44,12 @@ export type AppConfig = {
     publicCache: boolean;
   };
   banner: { text: string; level: 'info' | 'warning' | 'critical'; link: string | null } | null;
+  /** The "How TaskDrop works" YouTube link set in the admin (migration 261), or null. */
+  walkthroughUrl: string | null;
+  /** Where people can post jobs (migration 260). Off, or no area, means everywhere (lib/launchAreas.ts). */
+  launchAreas: LaunchAreas;
 };
+
 
 export const OPEN_CONFIG: AppConfig = {
   environment: 'staging',
@@ -64,7 +70,10 @@ export const OPEN_CONFIG: AppConfig = {
     publicCache: false,
   },
   banner: null,
+  walkthroughUrl: null,
+  launchAreas: LAUNCH_AREAS_OFF,
 };
+
 
 const text = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v : null);
 
@@ -99,6 +108,8 @@ export function normaliseConfig(raw: unknown): AppConfig {
       publicCache: f.publicCache === true,
     },
     banner: b && text(b.text) ? { text: text(b.text)!, level, link: text(b.link) } : null,
+    walkthroughUrl: text(r.walkthroughUrl),
+    launchAreas: normaliseLaunchAreas(r.launchAreas),
   };
 }
 

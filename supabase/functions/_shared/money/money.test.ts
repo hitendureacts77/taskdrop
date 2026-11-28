@@ -123,6 +123,35 @@ test("runMoves: a split sends both halves, then stops", async () => {
   assert.deepEqual(recorded.map((r) => r.p_part), ["refund", "release"]);
 });
 
+/** Razorpay split refund against a fake API: returns the transfer reversal amount it asked for. */
+async function splitReversal(releaseMinor: number | null): Promise<{ reverse: number | null; refund: number | null }> {
+  let reverse: number | null = null;
+  let refund: number | null = null;
+  const fakeFetch = ((url: string | URL, init?: RequestInit) => {
+    const u = String(url);
+    const body = init?.body ? JSON.parse(String(init.body)) : {};
+    if (init?.method === "POST" && u.includes("/reversals")) reverse = body.amount;
+    if (init?.method === "POST" && u.endsWith("/refund")) refund = body.amount;
+    return Promise.resolve(new Response(JSON.stringify(init?.method === "POST" ? { id: "x_1" } : { items: [] }), { status: 200 }));
+  }) as typeof fetch;
+  const p = razorpayRouteProvider({ keyId: "rzp_test_x", keySecret: "s", webhookSecret: "w" }, fakeFetch);
+  const c = { ...claim("refund", "split_asked"), amount_minor: 63000, release_minor: releaseMinor };
+  const move = moveFrom(c)!;
+  const r = await p.refund(move);
+  assert.equal(r.ok, true);
+  return { reverse, refund };
+}
+
+test("razorpay split: a fine keeps charged - refund on the transfer (older claim without release_minor)", async () => {
+  // charged 103000, refund 63000 -> the worker keeps 40000 of their 90000 share: reverse 50000.
+  assert.deepEqual(await splitReversal(null), { reverse: 50000, refund: 63000 });
+});
+
+test("razorpay split: a dispute split keeps only release_minor on the transfer (migration 255)", async () => {
+  // Work worth 40000 of the price: the worker keeps 36000 (after commission), the rest of the share comes back.
+  assert.deepEqual(await splitReversal(36000), { reverse: 54000, refund: 63000 });
+});
+
 test("moveFrom: a malformed claim is nothing to do", () => {
   assert.equal(moveFrom(null), null);
   assert.equal(moveFrom({ hold_id: "h", part: "steal", key: "k" }), null);

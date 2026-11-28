@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { AccessibilityInfo, Animated, Easing, Linking, PanResponder, Platform, Pressable, View, Text as RNText, useWindowDimensions } from 'react-native';
 import { Icon } from './Icon';
 import { HeroBackground } from './Hero';
@@ -6,6 +6,7 @@ import { tx } from './primitives';
 import { PersonTheme, useTheme } from '../providers/ThemeProvider';
 import { useLayout } from '../lib/layout';
 import { useReducedMotion } from '../lib/motion';
+import { getAppConfig, subscribeAppConfig } from '../lib/appConfig';
 import {
   swipeDirection,
   tapHalf,
@@ -19,8 +20,15 @@ import {
   WALK_STEPS,
   WALKTHROUGH_VIDEO_LABEL,
   WALKTHROUGH_VIDEO_NOTE,
+  WALKTHROUGH_VIDEO_URL,
   type WalkSide,
 } from '../lib/walkthrough';
+
+/** The video link the admin set on Web, Android & iOS (migration 261); the built-in one until it is set. */
+function useVideoUrl(): string | null {
+  const cfg = useSyncExternalStore(subscribeAppConfig, getAppConfig, getAppConfig);
+  return videoUrl(cfg.walkthroughUrl ?? WALKTHROUGH_VIDEO_URL);
+}
 
 /** The ten real app screens (taken from the app at phone width with fake staging people). */
 const SHOTS: Record<string, number> = {
@@ -346,7 +354,7 @@ function WideView({
   const { side, i } = w;
   const steps = WALK_STEPS[side];
   const cur = steps[i];
-  const video = videoUrl();
+  const video = useVideoUrl();
   const last = i === walkStepLast(side);
   const cta = useRef<{ focus?: () => void } | null>(null);
   // On the last step the call to action takes the focus (web).
@@ -485,7 +493,7 @@ function PhoneView({ w, reduced, onSkip, onFinish, extra }: { w: Walk; reduced: 
   const { width: winW } = useWindowDimensions();
   const { side, i } = w;
   const cur = WALK_STEPS[side][i];
-  const video = videoUrl();
+  const video = useVideoUrl();
   const [touched, setTouched] = useState(false);
   // The space left between the top row and the caption card. The picture is fitted inside it whole, at the
   // screenshot's own shape, so it is never taller than the phone, stretched, or hidden under the card (owner, 28 Nov).

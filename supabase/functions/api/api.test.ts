@@ -1485,9 +1485,9 @@ await t("the public config carries the environment, and staging whenever it is m
   }
   assert.equal(parseControls({})!.environment, "staging");
   assert.equal(OPEN_CONFIG.environment, "staging");
-  // the answer the app reads keeps every field it had before
+  // the answer the app reads keeps every field it had before (plus launchAreas and walkthroughUrl, migration 261)
   const cfg = publicConfig(controlsWith(), client);
-  assert.deepEqual(Object.keys(cfg).sort(), ["appVersion", "banner", "environment", "features", "maintenance", "platform", "requirePhoneVerified", "ttlSeconds", "update"]);
+  assert.deepEqual(Object.keys(cfg).sort(), ["appVersion", "banner", "environment", "features", "launchAreas", "maintenance", "platform", "requirePhoneVerified", "ttlSeconds", "update", "walkthroughUrl"]);
 });
 
 await t("controls are looked up once per half minute per kind of caller, and a failed refresh keeps the last answer", async () => {
