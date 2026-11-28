@@ -3,7 +3,21 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { shouldShowWalkthrough, stagingCardCanBlock, stagingCardIsClear, videoUrl, walkCard, walkAnnouncement, walkSideFor, WALK_STEPS, WALK_LAST } from './walkthrough.ts';
+import {
+  shouldShowWalkthrough,
+  stagingCardCanBlock,
+  stagingCardIsClear,
+  swipeDirection,
+  tapHalf,
+  videoUrl,
+  walkCard,
+  walkAnnouncement,
+  walkSideFor,
+  walkStepClamp,
+  WALK_AUTOPLAY_MS,
+  WALK_STEPS,
+  WALK_LAST,
+} from './walkthrough.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -78,4 +92,31 @@ test('right after a sign-in on staging the tester card goes first: an old "clear
   assert.equal(stagingCardIsClear({ ...staging, signedIn: true, storedSeen: false }), false, 'signed in, card not closed yet');
   assert.equal(stagingCardIsClear({ ...staging, signedIn: true, storedSeen: true }), true, 'the card was closed');
   assert.equal(stagingCardIsClear({ stagingUi: false, signedIn: true, storedSeen: null }), true, 'production has no card');
+});
+
+test('steps clamp at both ends and the last one does not loop', () => {
+  assert.equal(walkStepClamp(0, -1), 0);
+  assert.equal(walkStepClamp(0, 1), 1);
+  assert.equal(walkStepClamp(3, 1), 4);
+  assert.equal(walkStepClamp(4, 1), 4, 'stops on the last step');
+  assert.equal(walkStepClamp(2, -1), 1);
+});
+
+test('swipe left is next, swipe right is back, a small drag is nothing', () => {
+  assert.equal(swipeDirection(-80), 'next');
+  assert.equal(swipeDirection(80), 'prev');
+  assert.equal(swipeDirection(-39), null);
+  assert.equal(swipeDirection(12), null);
+  assert.equal(swipeDirection(-40), 'next');
+});
+
+test('tap on the right half is next, left half is back', () => {
+  assert.equal(tapHalf(300, 390), 'next');
+  assert.equal(tapHalf(40, 390), 'prev');
+  assert.equal(tapHalf(195, 390), 'next');
+  assert.equal(tapHalf(10, 0), 'next');
+});
+
+test('each step plays five seconds', () => {
+  assert.equal(WALK_AUTOPLAY_MS, 5000);
 });

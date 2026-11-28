@@ -21,31 +21,37 @@ test("the account menu opens the walkthrough: five real Hire screens, then the E
   await home(page);
   await page.getByLabel("Account menu").click();
   await page.getByText("How TaskDrop works", { exact: true }).click();
-  await expect(heading(page, "How TaskDrop works")).toBeVisible();
-  await expect(page.getByText("Ask for anything. Someone gets it done for you.").last()).toBeVisible();
+  await expect(heading(page, "How TaskDrop works").first()).toBeVisible();
   // The YouTube link is not filled in yet, so there is no video button (lib/walkthrough.ts).
-  await expect(page.getByRole("link", { name: "Watch the video", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /Watch the video/ })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Show me the app", exact: true }).click();
+  // It plays by itself; pause it, then step with the controls. The screen is drawn whole (contain, exact shape).
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
   const hire = ["Say what you need", "See who is near you", "Offers come to you", "Your money is held safely", "Approve, and they are paid"];
   for (const [n, title] of hire.entries()) {
     await expect(heading(page, title)).toBeVisible();
-    await expect(page.getByText(`STEP ${n + 1} OF 5`)).toBeVisible();
-    await expect(page.getByLabel(`TaskDrop screen: ${title}`)).toBeVisible();
-    await page.getByRole("button", { name: n === 4 ? "Done" : "Next", exact: true }).click();
+    await expect(page.getByText(`Step ${n + 1} of 5`)).toBeVisible();
+    const shot = page.getByLabel(`TaskDrop screen: ${title}`);
+    await expect(shot).toBeVisible();
+    const box = await shot.boundingBox();
+    expect(Math.abs(box!.width / box!.height - 488 / 835)).toBeLessThan(0.01);
+    if (n < 4) await page.getByRole("button", { name: "Next step", exact: true }).click();
   }
-  await expect(heading(page, "You’re set")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Post a request", exact: true }).last()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Post a request", exact: true })).toBeVisible();
+  await page.keyboard.press("ArrowLeft");
+  await expect(heading(page, "Your money is held safely")).toBeVisible();
+  await page.getByRole("button", { name: "Step 2: See who is near you" }).click();
+  await expect(heading(page, "See who is near you")).toBeVisible();
 
-  // The other side starts again from its first card.
+  // The other side starts again from its first step.
   await page.getByRole("tab", { name: "Earn side" }).click();
-  await expect(page.getByText("Do tasks near you or online, and get paid.")).toBeVisible();
-  await page.getByRole("button", { name: "Show me the app", exact: true }).click();
   await expect(heading(page, "Find work near you or online")).toBeVisible();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await page.getByRole("button", { name: "Next step", exact: true }).click();
   await expect(heading(page, "Send your price")).toBeVisible();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Previous step", exact: true }).click();
   await expect(heading(page, "Find work near you or online")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Find work", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await expect(heading(page, "How TaskDrop works")).toHaveCount(0);
@@ -61,6 +67,19 @@ test("Profile has How TaskDrop works, and the old practice tour is gone", async 
   await expect(heading(page, "How TaskDrop works")).toBeVisible();
   await expect(page.getByRole("button", { name: "Skip", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Close", exact: true }).click();
+});
+
+test("Help & support: one Get help form, links in a short list, rarely used pages under More", async ({ page }) => {
+  await home(page);
+  await page.getByText("Profile", { exact: true }).first().click();
+  await page.getByText("Help & support", { exact: true }).first().click();
+  await expect(page.getByText("Get help", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeVisible();
+  await expect(page.getByText("Terms of Service", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: /^More/ }).click();
+  for (const name of ["Copyright and takedowns", "Security reports and contact", "Terms of Service", "Privacy Policy"]) {
+    await expect(page.getByRole("button", { name }).first()).toBeVisible();
+  }
 });
 
 test("Home has the small Help improve TaskDrop card, and Suggest a feature opens the idea sheet", async ({ page }) => {

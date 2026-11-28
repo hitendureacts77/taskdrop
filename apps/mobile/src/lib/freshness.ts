@@ -36,7 +36,7 @@ export const NEVER_REUSE: ReadonlySet<string> = new Set([
   'getWallet', 'getEscrowHeld', 'listWalletActivity', 'getMoneyMode', 'getTaskHold', 'getMoneyLedger', 'listPayouts', 'listPayoutDestinations',
   'feesSince', 'platformFees', 'settleClearedEarnings', 'myStats', 'listPromotions',
   // promotions (migration 203): the auction charges and changes every time a list opens
-  'promotionQuote', 'promotedLive', 'promotionResults',
+  'promotionQuote', 'promotedLive', 'promotionResults', 'promotableTasksPage',
   // task status and offers
   'getTask', 'getTaskDetail', 'canQuoteOn', 'getMyBid', 'myBidTaskIds', 'listBidsForTask', 'listMyBids', 'getProof',
   // chat and contacts

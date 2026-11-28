@@ -64,7 +64,41 @@ export const WALK_COPY = {
   videoAgain: 'Watch the video again',
   menuLabel: 'How TaskDrop works',
   menuSub: 'Five real screens, about 30 seconds',
+  backHome: 'Back to Home',
+  backSignIn: 'Back to sign in',
+  close: 'Close',
+  wantHire: 'I want to hire',
+  wantEarn: 'I want to earn',
+  hintAuto: 'Plays by itself',
+  hintSwipe: 'Tap or swipe for the next step',
+  pause: 'Pause',
+  play: 'Play',
+  prev: 'Previous step',
+  nextStep: 'Next step',
 } as const;
+
+/** Each of the five screens plays this long, then the next one starts by itself. */
+export const WALK_AUTOPLAY_MS = 5000;
+/** Five screens, index 0..4 (the older card model above counts 1..5 plus an intro and a last card). */
+export const WALK_STEP_LAST = 4;
+
+/** Move to another of the five screens, never past either end (the last screen stops, no loop). */
+export function walkStepClamp(i: number, d: number): number {
+  const at = Math.round(i) + Math.round(d);
+  return Math.max(0, Math.min(WALK_STEP_LAST, at));
+}
+
+/** Left or right swipe from the sideways distance, ignoring small drags. Swipe left (dx < 0) is next. */
+export function swipeDirection(dx: number, threshold = 40): 'next' | 'prev' | null {
+  if (dx <= -threshold) return 'next';
+  if (dx >= threshold) return 'prev';
+  return null;
+}
+
+/** Tap on the right half goes forward, on the left half goes back. */
+export function tapHalf(x: number, width: number): 'next' | 'prev' {
+  return width > 0 && x < width / 2 ? 'prev' : 'next';
+}
 
 /** Cards in order: 0 is the first card, 1..5 the screens, 6 the last card. */
 export const WALK_LAST = 6;
